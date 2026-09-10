@@ -1085,6 +1085,8 @@
       // a choice task is answered on the options panel
       if (Opts) {
         const choice = entry.task && entry.task.kind === 'choice';
+        // each screen brings its own three answers
+        if (Array.isArray(entry.options)) Opts.setChoices(entry.options);
         Opts.setAnswer(choice ? entry.task.answer : null);
         Opts.onAnswer(choice ? function (key, right) { self.checkChoice(right); } : null);
       }
@@ -1424,10 +1426,12 @@
          back so they can try again. */
       t.wrong++;
       SFX.wrong();
+      const fb = this.feedbackFor(t);
+
       /* No showLine means no count-out: some questions want a hint
          rather than the whole thing worked through. */
       if (!sg || !t.spec.showLine) {
-        this.later(function () { self.ask(t.spec.tryAgainLine); }, 240);
+        this.later(function () { self.ask(fb.msg); }, 240);
         return;
       }
 
@@ -1436,9 +1440,20 @@
         self.ask(t.spec.showLine);
         Board.runUnits(sg.a, sg.b, self.later.bind(self), function () {
           self.state = 'waiting';
-          self.ask(t.spec.tryAgainLine);          // the slider is live again
+          self.ask(fb.msg);                       // the slider is live again
         });
       }, 260);
+    },
+
+    /* The feedback ladder: each wrong attempt gets the next message,
+       and once they run out the worked solution is shown rather than
+       leaving a child guessing. A task with a single tryAgainLine
+       behaves as a one-rung ladder. */
+    feedbackFor: function (t) {
+      const list = t.spec.feedback ||
+                   (t.spec.tryAgainLine ? [t.spec.tryAgainLine] : []);
+      return { list: list, msg: list[Math.min(t.wrong - 1, list.length - 1)],
+               exhausted: t.wrong > list.length };
     },
 
     /* One of the answer options was pressed. The panel has already
@@ -1458,10 +1473,32 @@
           FX.confetti(26);
           self.ask(t.spec.correctLine);
         }, 260);
+        // the chosen method, worked through where the buttons were
+        if (t.spec.formula && Opts) {
+          this.later(function () {
+            Opts.showFormula(t.spec.formula);
+            SFX.sparkle();
+          }, 700);
+        }
       } else {
         t.wrong++;
         SFX.wrong();
-        this.later(function () { self.ask(t.spec.tryAgainLine); }, 320);
+        const fb = this.feedbackFor(t);
+
+        /* Out of hints: show the working instead of asking again. */
+        if (fb.exhausted && t.spec.formula && Opts) {
+          t.done = true;
+          this.state = 'waiting';
+          Opts.lock();
+          this.later(function () {
+            Opts.showFormula(t.spec.formula);
+            SFX.chime();
+            SFX.sparkle();
+            el.nextBtn.classList.add('ready');
+          }, 420);
+          return;
+        }
+        this.later(function () { self.ask(fb.msg); }, 320);
       }
     },
 

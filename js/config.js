@@ -546,12 +546,45 @@ window.CFG = (function () {
        three triangle types; the square corner at C makes it a
        right-angled triangle. */
     { id: 17, line: 'What kind of triangle is it?', entrance: 'none',
-      layout: 'board', keepSegment: true, options: true,
+      layout: 'board', keepSegment: true,
+      options: [
+        { key: 'scalene',      cls: 'scalene',      label: 'Scalene Triangle' },
+        { key: 'isosceles',    cls: 'isosceles',    label: 'Isosceles Triangle' },
+        { key: 'right-angled', cls: 'right-angled', label: 'Right-angled Triangle' }
+      ],
       task: {
         kind: 'choice',
         answer: 'right-angled',
         correctLine: 'Correct!',
         tryAgainLine: 'Not quite — try again!'
+      } },
+
+    /* 18 — same triangle again, now asking how to reach the third
+       side. Same panel, different three answers. */
+    { id: 18, line: 'We know two sides. How can we find the third?',
+      entrance: 'none', layout: 'board', keepSegment: true,
+      options: [
+        { key: 'area',       label: 'Area' },
+        { key: 'perimeter',  label: 'Perimeter' },
+        { key: 'pythagoras', label: 'Pythagoras' }
+      ],
+      task: {
+        kind: 'choice',
+        answer: 'pythagoras',
+        correctLine: 'That’s right!',
+        /* Each wrong attempt gets the next hint; once they run out the
+           working is shown rather than leaving a child guessing. */
+        feedback: [
+          'Not quite. Check your working and try again.',
+          'Use the right triangle to find AB.'
+        ],
+        /* Shown on a correct answer, or after the hints are spent. */
+        formula: [
+          { kind: 'lead',   text: 'AB² = 4² + 3²' },
+          { kind: 'step',   text: '= 16 + 9' },
+          { kind: 'step',   text: '= 25' },
+          { kind: 'result', text: 'AB = 5 units' }
+        ]
       } }
   ];
 

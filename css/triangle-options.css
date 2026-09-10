@@ -60,18 +60,24 @@
   pointer-events: none;
 }
 
+/* Colour is positional — first blue, second orange, third green — so
+   a screen can put any three answers in the panel. The triangle-type
+   names remain as aliases for the same three slots. */
+.triangle-option.opt-1,
 .triangle-option.scalene {
   background: linear-gradient(180deg, #4BD0F7 0%, #27AFEF 48%, #168BE8 100%);
   border: 4px solid #0878DC;
   box-shadow: 0 7px 0 #075FBD, 0 10px 15px rgba(19, 102, 176, .18),
               inset 0 3px 0 rgba(255, 255, 255, .5);
 }
+.triangle-option.opt-2,
 .triangle-option.isosceles {
   background: linear-gradient(180deg, #FFD956 0%, #FFB631 50%, #FF951C 100%);
   border: 4px solid #EC850C;
   box-shadow: 0 7px 0 #CE6800, 0 10px 15px rgba(182, 101, 0, .18),
               inset 0 3px 0 rgba(255, 255, 255, .55);
 }
+.triangle-option.opt-3,
 .triangle-option.right-angled {
   background: linear-gradient(180deg, #69EC68 0%, #39D259 50%, #18B84A 100%);
   border: 4px solid #0DA844;
@@ -125,4 +131,55 @@
 @media (max-width: 640px) {
   .triangle-options-panel { width: 92vw; padding: 16px 16px 20px; gap: 14px; border-width: 7px; }
   .triangle-option { height: 76px; border-radius: 20px; }
+}
+
+/* =============================================================
+   Formula view — takes the buttons' place once the method has been
+   chosen, inside the same panel.
+   ============================================================= */
+.triangle-options-panel .formula-view {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 6px 4px 10px;
+  font-family: 'Lilita One', 'Nunito', 'Arial Rounded MT Bold', Arial, sans-serif;
+  color: #102D70;
+}
+
+/* the statement being applied, set apart on its own ground */
+.triangle-options-panel .formula-lead {
+  align-self: stretch;
+  padding: 18px 20px;
+  border-radius: 20px;
+  background: #F1F4FA;
+  border: 3px solid #DCE4F2;
+  font-size: clamp(26px, 2.3vw, 40px);
+  letter-spacing: .5px;
+  text-align: center;
+}
+
+/* the arithmetic, stepped in under it */
+.triangle-options-panel .formula-step {
+  align-self: flex-end;
+  padding-right: 34px;
+  font-size: clamp(22px, 1.9vw, 34px);
+  color: #24407F;
+}
+
+/* the answer */
+.triangle-options-panel .formula-result {
+  margin-top: 10px;
+  align-self: center;
+  font-size: clamp(24px, 2.1vw, 38px);
+  color: #102D70;
+}
+
+.triangle-options-panel .formula-view > * {
+  opacity: 0;
+  animation: formulaIn .5s cubic-bezier(.22, .68, .3, 1) both;
+}
+@keyframes formulaIn {
+  0%   { opacity: 0; transform: translateY(18px) scale(.94); }
+  60%  { opacity: 1; transform: translateY(-4px) scale(1.02); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
 }
