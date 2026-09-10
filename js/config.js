@@ -289,6 +289,20 @@ window.CFG = (function () {
       vNameDy: 32
     },
 
+    /* A leg dropped from the segment: the extra corner point and the
+       coloured line joining it, used to break a diagonal into a
+       horizontal and a vertical step. */
+    leg: {
+      color: '#B3261E',
+      width: 7,
+      dotR: 11,
+      coordDx: 84,        // coordinates to the right of the corner
+      nameDy: 46,         // letter below it
+      slots: 2,           // a right-angled path needs two
+      lenSize: 32,        // "4 units" written along a leg
+      lenGap: 38          // its offset from the line
+    },
+
     /* Unit squares that count out a segment's length when a child
        gets the distance wrong. Filled strongly enough to be obvious
        against the cream board, with a brighter flash as each lands. */
@@ -463,7 +477,54 @@ window.CFG = (function () {
       distance: true,
       segment: { a: { x: -2, y: 3, name: 'A' }, b: { x: -2, y: 1, name: 'B' } },
       task: { kind: 'distance', correctLine: 'Correct!',
-              showLine: 'Let’s count the units.', tryAgainLine: 'Now try again!' } }
+              showLine: 'Let’s count the units.', tryAgainLine: 'Now try again!' } },
+
+    /* 12 — leaves sweep again and the scene goes back to the field
+       layout of screen 5: board on the right, Swifty standing on the
+       left, no banner and no slider. The segment is diagonal this
+       time, so counting whole squares no longer works — which is the
+       point she is about to make. */
+    { id: 12, line: 'This one’s different.', entrance: 'fly',
+      layout: 'grid', transition: 'leaves', bubbleScale: 0.9,
+      segment: { a: { x: 2, y: 1, name: 'A' }, b: { x: 6, y: 4, name: 'B' } } },
+
+    // 13 — same board and same segment, she just carries on talking
+    { id: 13, line: 'Can the grid help?', entrance: 'stay',
+      layout: 'grid', bubbleScale: 0.9, keepSegment: true },
+
+    /* 14 — leaves again, back to the board layout with the slider.
+       The diagonal is redrawn and a corner C is dropped from it, so
+       the horizontal step A-C can be measured on its own. The answer
+       is that leg, not the diagonal, so the task measures from it. */
+    { id: 14, line: 'How far apart are A and C?', entrance: 'none',
+      layout: 'board', transition: 'leaves', distance: true,
+      segment: { a: { x: 2, y: 1, name: 'A' }, b: { x: 6, y: 4, name: 'B' } },
+      legs: [ { from: { x: 2, y: 1 }, to: { x: 6, y: 1 }, mark: { name: 'C' } } ],
+      task: {
+        kind: 'distance',
+        measureLeg: 0,        // A to C, not A to B
+        correctLine: 'Correct!',
+        // no count-out here: a nudge to look at the spaces instead
+        tryAgainLine: 'Not quite! Check the spaces between the units.'
+      } },
+
+    /* 15 — the board is kept exactly as it was. The first leg is
+       already drawn, so it only gains its length, and the second leg
+       rises from the corner to B. */
+    { id: 15, line: 'How far apart are C and B?', entrance: 'none',
+      layout: 'board', distance: true, keepSegment: true,
+      segment: { a: { x: 2, y: 1, name: 'A' }, b: { x: 6, y: 4, name: 'B' } },
+      legs: [
+        { from: { x: 2, y: 1 }, to: { x: 6, y: 1 }, mark: { name: 'C' },
+          settled: true, length: true },
+        { from: { x: 6, y: 1 }, to: { x: 6, y: 4 } }
+      ],
+      task: {
+        kind: 'distance',
+        measureLeg: 1,        // C to B
+        correctLine: 'Correct!',
+        tryAgainLine: 'Not quite! Check the spaces between the units.'
+      } }
   ];
 
   return {

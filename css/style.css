@@ -230,6 +230,46 @@ html, body {
   animation: dotWrong .6s ease-out both;
 }
 
+/* a leg dropped from the segment to make a right-angled corner */
+#gridAxes .leg { opacity: 0; pointer-events: none; }
+#gridAxes .leg.on { opacity: 1; }
+#gridAxes .legdot {
+  opacity: 0;
+  paint-order: stroke fill;
+  transform-box: fill-box; transform-origin: center;
+}
+#gridAxes .legdot.pop { animation: segDotIn .54s cubic-bezier(.22, .68, .3, 1) both; }
+#gridAxes .legline { fill: none; }
+#gridAxes .legline.draw { animation: drawOut .6s cubic-bezier(.3, .85, .35, 1) forwards; }
+#gridAxes .legcoord, #gridAxes .legname {
+  opacity: 0;
+  font-family: 'Lilita One', system-ui, sans-serif;
+  text-anchor: middle; dominant-baseline: middle;
+  paint-order: stroke fill;
+  stroke: #FDFBF0; stroke-width: 6;
+  transform-box: fill-box; transform-origin: center;
+}
+#gridAxes .legcoord.pop, #gridAxes .legname.pop {
+  animation: labelPop .56s cubic-bezier(.22, .68, .3, 1) both;
+}
+
+/* a leg's own length, written alongside it on its own plate */
+#gridAxes .legplate {
+  opacity: 0;
+  fill: #FDFBF0;
+  stroke: #B3261E;
+  stroke-width: 2.5;
+  transform-box: fill-box; transform-origin: center;
+}
+#gridAxes .legplate.on { animation: labelPop .56s cubic-bezier(.22, .68, .3, 1) both; }
+#gridAxes .leglen {
+  opacity: 0;
+  font-family: 'Lilita One', system-ui, sans-serif;
+  text-anchor: middle; dominant-baseline: middle;
+  transform-box: fill-box; transform-origin: center;
+}
+#gridAxes .leglen.pop { animation: labelPop .56s cubic-bezier(.22, .68, .3, 1) both; }
+
 /* unit squares counting out a segment's length */
 #gridAxes .units { pointer-events: none; }
 #gridAxes .ubox {

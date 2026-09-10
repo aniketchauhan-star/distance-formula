@@ -449,7 +449,54 @@
           self.dots.push(c);
         }
       }
-      /* Unit squares for the count-out demo. Made once at the widest
+      /* Legs of the right-angled path. Two slots, each a coloured line
+         with an optional endpoint marker and an optional length
+         written alongside it. Built once and reused. */
+      const LG = G.leg;
+      this.legSlots = [];
+      for (let i = 0; i < LG.slots; i++) {
+        const lg = document.createElementNS(NS, 'g');
+        lg.setAttribute('class', 'leg');
+
+        const ln = document.createElementNS(NS, 'line');
+        ln.setAttribute('class', 'legline');
+        ln.setAttribute('stroke', LG.color);
+        ln.setAttribute('stroke-width', LG.width);
+        ln.setAttribute('stroke-linecap', 'round');
+
+        const dt = document.createElementNS(NS, 'circle');
+        dt.setAttribute('class', 'legdot');
+        dt.setAttribute('r', LG.dotR);
+        dt.setAttribute('fill', LG.color);
+        dt.setAttribute('stroke', '#FFFFFF');
+        dt.setAttribute('stroke-width', 3);
+
+        const co = document.createElementNS(NS, 'text');
+        co.setAttribute('class', 'legcoord');
+        co.setAttribute('fill', G.ink);
+        co.setAttribute('font-size', G.segment.coordSize);
+
+        const nm = document.createElementNS(NS, 'text');
+        nm.setAttribute('class', 'legname');
+        nm.setAttribute('fill', G.ink);
+        nm.setAttribute('font-size', G.segment.nameSize);
+
+        const lp = document.createElementNS(NS, 'rect');
+        lp.setAttribute('class', 'legplate');
+        lp.setAttribute('rx', 11);
+
+        const lt = document.createElementNS(NS, 'text');
+        lt.setAttribute('class', 'leglen');
+        lt.setAttribute('fill', G.ink);
+        lt.setAttribute('font-size', LG.lenSize);
+
+        [ln, dt, co, nm, lp, lt].forEach(function (n) { lg.appendChild(n); });
+        svg.appendChild(lg);
+        this.legSlots.push({ g: lg, line: ln, dot: dt, coord: co, name: nm,
+                             plate: lp, len: lt });
+      }
+
+      /* Unit squares for the count-out demo. Made once at the widest      /* Unit squares for the count-out demo. Made once at the widest
          span the board allows and reused, so a wrong answer never
          churns the DOM mid-animation. */
       const U = G.unitBox;
@@ -590,6 +637,109 @@
       };
     },
 
+    clearLegs: function () {
+      if (!this.legSlots) return;
+      this.legSlots.forEach(function (L) {
+        L.g.classList.remove('on');
+        L.line.classList.remove('draw');
+        ['dot', 'coord', 'name', 'plate', 'len'].forEach(function (k) {
+          L[k].classList.remove('pop', 'on');
+        });
+      });
+    },
+
+    /* Seats one leg. `spec.mark` puts a labelled corner at its far
+       end; `spec.length` writes how long it is alongside it. */
+    placeLeg: function (i, spec) {
+      const G = C.GRID, LG = G.leg, L = this.legSlots[i];
+      const px = function (v) { return G.originX + v * G.stepX; };
+      const py = function (v) { return G.originY - v * G.stepY; };
+      const f = spec.from, t = spec.to;
+      const x1 = px(f.x), y1 = py(f.y), x2 = px(t.x), y2 = py(t.y);
+
+      L.line.setAttribute('x1', x1); L.line.setAttribute('y1', y1);
+      L.line.setAttribute('x2', x2); L.line.setAttribute('y2', y2);
+      const len = Math.hypot(x2 - x1, y2 - y1);
+      L.line.setAttribute('stroke-dasharray', len);
+      L.line.style.strokeDashoffset = len;
+
+      if (spec.mark) {
+        L.dot.setAttribute('cx', x2); L.dot.setAttribute('cy', y2);
+        L.coord.setAttribute('x', x2 + LG.coordDx); L.coord.setAttribute('y', y2);
+        L.coord.textContent = '(' + t.x + ',\u00A0' + t.y + ')';
+        L.name.setAttribute('x', x2); L.name.setAttribute('y', y2 + LG.nameDy);
+        L.name.textContent = spec.mark.name || '';
+        L.dot.style.display = L.coord.style.display = L.name.style.display = '';
+      } else {
+        L.dot.style.display = L.coord.style.display = L.name.style.display = 'none';
+      }
+
+      if (spec.length) {
+        const n = Math.abs(t.x - f.x) + Math.abs(t.y - f.y);
+        const horiz = (f.y === t.y);
+        // below a horizontal leg, out to the side of a vertical one
+        L.len.setAttribute('x', horiz ? (x1 + x2) / 2 : (x1 + LG.lenGap * 1.9));
+        L.len.setAttribute('y', horiz ? y1 + LG.lenGap : (y1 + y2) / 2);
+        L.len.textContent = n + '\u00A0unit' + (n === 1 ? '' : 's');
+        L.len.style.display = L.plate.style.display = '';
+      } else {
+        L.len.style.display = L.plate.style.display = 'none';
+      }
+    },
+
+    /* Draws the legs a screen asks for: any already settled from the
+       screen before simply appear, the rest animate in. */
+    runLegs: function (specs, later, done) {
+      const self = this;
+      if (!specs || !specs.length) { done(); return; }
+
+      let delay = 0;
+      specs.forEach(function (spec, i) {
+        const L = self.legSlots[i];
+        self.placeLeg(i, spec);
+        L.g.classList.add('on');
+
+        if (spec.settled) {
+          // already on the board; only its length is new
+          L.line.classList.add('draw');
+          if (spec.mark) { L.dot.classList.add('pop'); L.coord.classList.add('pop'); L.name.classList.add('pop'); }
+          if (spec.length) {
+            later(function () { self.showLegLength(i); SFX.tick(2); }, delay + 200);
+            delay += 520;
+          }
+          return;
+        }
+
+        const base = delay;
+        if (spec.mark) {
+          later(function () { L.dot.classList.add('pop'); SFX.tick(1); }, base + 120);
+        }
+        later(function () { L.line.classList.add('draw'); SFX.draw(); }, base + 380);
+        if (spec.mark) {
+          later(function () { L.coord.classList.add('pop'); SFX.tick(3); }, base + 980);
+          later(function () { L.name.classList.add('pop'); SFX.tick(4); }, base + 1100);
+        }
+        if (spec.length) later(function () { self.showLegLength(i); SFX.tick(5); }, base + 1200);
+        delay = base + 1500;
+      });
+
+      later(done, delay + 260);
+    },
+
+    /* Plates the length text once it is set, so it reads over the grid. */
+    showLegLength: function (i) {
+      const L = this.legSlots[i];
+      L.len.classList.add('pop');
+      if (L.len.getBBox) {
+        const bb = L.len.getBBox();
+        L.plate.setAttribute('x', bb.x - 12);
+        L.plate.setAttribute('y', bb.y - 7);
+        L.plate.setAttribute('width', bb.width + 24);
+        L.plate.setAttribute('height', bb.height + 14);
+        L.plate.classList.add('on');
+      }
+    },
+
     clearUnits: function () {
       if (!this.unitBoxes) return;
       this.unitBoxes.forEach(function (r) { r.classList.remove('on'); });
@@ -695,6 +845,7 @@
 
     clearSegment: function () {
       this.clearUnits();
+      this.clearLegs();
       if (!this.segGroup) return;
       this.segGroup.classList.remove('on');
       this.segLine.classList.remove('draw');
@@ -815,7 +966,7 @@
 
   /* ---------------- screen flow ---------------- */
   const Game = {
-    index: -1, state: 'start', busy: false, geom: null, task: null,
+    index: -1, state: 'start', busy: false, geom: null, task: null, askTimer: null,
     pending: [], entranceCancel: null,
 
     /* Every queued step goes through here so a skip can cancel it. */
@@ -904,7 +1055,7 @@
         Board.setDots(false);
       }
       if (entry.layout !== 'board') el.qBanner.classList.add('hidden');
-      if (!entry.segment) Board.clearSegment();
+      if (!entry.segment && !entry.keepSegment) Board.clearSegment();
       if (Dist && !entry.distance) Dist.hide();
 
       /* What happens once she has arrived: speak her line, hand over
@@ -944,31 +1095,56 @@
       /* Screen 8 hides its changeover behind a curtain of leaves: the
          swap happens while the frame is covered, so Swifty leaving and
          the board re-seating itself are never seen. */
-      if (entry.transition === 'leaves') {
-        this.state = 'entering';
-        SFX.rustle();
-        FX.leaves(el.leafLayer, function () {
-          el.standSwifty.classList.add('hidden');
-          el.birdWin.classList.add('hidden');
-          el.shadow.classList.add('lifted');
-          Bubble.close();
-          Board.place(geom.panelBox);
-          Board.setDots(!!entry.dots);
-          el.gridPanel.classList.remove('hidden');
-          Board.shown = true;
+      /* Plot the segment, then any leg dropped from it, before asking
+         about either. */
+      const plotThen = function (next) {
+        const afterSeg = function () {
+          if (entry.legs) Board.runLegs(entry.legs, self.later.bind(self), next);
+          else next();
+        };
+        /* A screen that keeps what it inherited does not replot the
+           segment — only whatever is new gets drawn. */
+        if (entry.segment && !entry.keepSegment) {
+          Board.runSegment(entry.segment.a, entry.segment.b,
+                           self.later.bind(self), afterSeg);
+        } else afterSeg();
+      };
+
+      /* Everything a screen needs in place, applied behind whatever is
+         covering the frame. Layout-driven rather than hard-coded, so a
+         leaf sweep can land on the board layout or back on the field
+         one equally well. */
+      const dress = function () {
+        Bubble.close();
+        el.standSwifty.classList.add('hidden');
+        el.birdWin.classList.add('hidden');
+        el.shadow.classList.add('lifted');
+        Board.clearSegment();
+
+        Board.place(geom.panelBox || C.GRID.box);
+        el.gridPanel.classList.remove('hidden');
+        Board.shown = true;
+        Board.setDots(!!entry.dots);
+
+        if (entry.layout === 'board') {
           el.qBanner.classList.remove('hidden', 'pop-in');
           void el.qBanner.offsetWidth;
           el.qBanner.classList.add('pop-in');
-          Board.clearSegment();
-          if (Dist && entry.distance) { Dist.reset(); Dist.show(); }
-        }, function () {
-          /* The points are plotted and joined before she asks the
-             question, so the child sees what is being asked about. */
-          if (entry.segment) {
-            Board.runSegment(entry.segment.a, entry.segment.b,
-                             self.later.bind(self), arrive);
-          } else arrive();
-        });
+        } else {
+          el.qBanner.classList.add('hidden');
+        }
+
+        if (Dist) {
+          if (entry.distance) { Dist.reset(); Dist.show(); } else Dist.hide();
+        }
+      };
+
+      if (entry.transition === 'leaves') {
+        this.state = 'entering';
+        SFX.rustle();
+        /* Points and lines are drawn before anyone speaks, so the
+           child sees what is being talked about. */
+        FX.leaves(el.leafLayer, dress, function () { plotThen(arrive); });
         return;
       }
 
@@ -981,7 +1157,8 @@
         el.gridPanel.classList.remove('hidden');
         el.qBanner.classList.remove('hidden');
         Board.shown = true;
-        Board.clearSegment();
+        if (!entry.keepSegment) Board.clearSegment();
+        else Board.clearUnits();          // keep the drawing, drop any count-out
         if (Dist && entry.distance) { Dist.reset(); Dist.show(); }
       }
 
@@ -990,13 +1167,6 @@
          carries straight on from 5 instead of rebuilding it. */
       /* Plot the segment before asking about it, on any screen that
          has one. */
-      const plotThen = function (next) {
-        if (entry.segment) {
-          Board.runSegment(entry.segment.a, entry.segment.b,
-                           self.later.bind(self), next);
-        } else next();
-      };
-
       if (entry.layout === 'grid' && !Board.shown) {
         Board.run(this.later.bind(this), function () {
           Board.setDots(!!entry.dots);
@@ -1165,6 +1335,14 @@
        question bar, with the same chirps and music duck. */
     ask: function (line) {
       const self = this;
+      /* An answer can land while a line is still typing, so stop the
+         one in flight first — two intervals writing into the same
+         banner would interleave their text. */
+      if (this.askTimer) {
+        clearInterval(this.askTimer);
+        this.askTimer = null;
+        SFX.duck(false);
+      }
       this.state = 'speaking';
       const text = Bubble.keepPairs(line);
       el.qBannerLine.textContent = '';
@@ -1174,6 +1352,7 @@
       const timer = setInterval(function () {
         if (n >= text.length) {
           clearInterval(timer);
+          self.askTimer = null;
           SFX.duck(false);
           SFX.chime();
           self.state = 'waiting';
@@ -1184,6 +1363,7 @@
         el.qBannerLine.textContent = text.slice(0, n);
         if (ch !== ' ' && ++since >= 2) { since = 0; SFX.chirp(1); }
       }, 42);
+      this.askTimer = timer;
       this.pending.push(timer);
     },
 
@@ -1197,8 +1377,16 @@
       /* Measured from the two points rather than typed into config, so
          a moved point can never leave a stale answer behind. Only
          axis-aligned segments are asked about, so one term is zero. */
+      const entry = C.SCRIPT[this.index] || {};
+      /* Measured from whichever pair the question is about: a named
+         leg, or the segment itself. */
+      let from = sg ? sg.a : null, to = sg ? sg.b : null;
+      if (t.spec.measureLeg != null && entry.legs && entry.legs[t.spec.measureLeg]) {
+        const L = entry.legs[t.spec.measureLeg];
+        from = L.from; to = L.to;
+      }
       const answer = t.spec.answer != null ? t.spec.answer
-        : (sg ? Math.abs(sg.b.x - sg.a.x) + Math.abs(sg.b.y - sg.a.y) : null);
+        : (from && to ? Math.abs(to.x - from.x) + Math.abs(to.y - from.y) : null);
 
       if (v === answer) {
         t.done = true;
@@ -1217,7 +1405,12 @@
          back so they can try again. */
       t.wrong++;
       SFX.wrong();
-      if (!sg) { this.later(function () { self.ask(t.spec.tryAgainLine); }, 240); return; }
+      /* No showLine means no count-out: some questions want a hint
+         rather than the whole thing worked through. */
+      if (!sg || !t.spec.showLine) {
+        this.later(function () { self.ask(t.spec.tryAgainLine); }, 240);
+        return;
+      }
 
       this.state = 'showing';
       this.later(function () {
