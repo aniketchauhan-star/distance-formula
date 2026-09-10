@@ -449,6 +449,73 @@
           self.dots.push(c);
         }
       }
+      /* Unit squares for the count-out demo. Made once at the widest
+         span the board allows and reused, so a wrong answer never
+         churns the DOM mid-animation. */
+      const U = G.unitBox;
+      const ug = document.createElementNS(NS, 'g');
+      ug.setAttribute('class', 'units');
+      this.unitBoxes = [];
+      for (let i = 0; i < U.max; i++) {
+        const r = document.createElementNS(NS, 'rect');
+        r.setAttribute('class', 'ubox');
+        r.setAttribute('fill', U.fill);
+        r.setAttribute('stroke', U.stroke);
+        r.setAttribute('stroke-width', U.strokeW);
+        r.setAttribute('width', G.stepX);
+        r.setAttribute('height', G.stepY);
+        ug.appendChild(r);
+        this.unitBoxes.push(r);
+      }
+      const up = document.createElementNS(NS, 'rect');
+      up.setAttribute('class', 'uplate');
+      up.setAttribute('rx', 12);
+      ug.appendChild(up);
+      this.unitPlate = up;
+
+      const ul = document.createElementNS(NS, 'text');
+      ul.setAttribute('class', 'ulabel');
+      ul.setAttribute('fill', G.ink);
+      ul.setAttribute('font-size', U.labelSize);
+      ug.appendChild(ul);
+      svg.appendChild(ug);
+      this.unitGroup = ug;
+      this.unitLabel = ul;
+
+      /* A plotted segment: two named points joined by a line. Built
+         here, positioned and revealed by showSegment(). */
+      const SG = G.segment;
+      const seg = document.createElementNS(NS, 'g');
+      seg.setAttribute('class', 'seg');
+      const segLine = document.createElementNS(NS, 'line');
+      segLine.setAttribute('class', 'segline');
+      segLine.setAttribute('stroke', SG.lineColor);
+      segLine.setAttribute('stroke-width', SG.lineWidth);
+      segLine.setAttribute('stroke-linecap', 'round');
+      seg.appendChild(segLine);
+      this.segLine = segLine;
+      this.segParts = { a: {}, b: {} };
+      ['a', 'b'].forEach(function (key) {
+        const c = document.createElementNS(NS, 'circle');
+        c.setAttribute('class', 'segdot');
+        c.setAttribute('r', SG.dotR);
+        c.setAttribute('fill', SG.dotFill);
+        c.setAttribute('stroke', SG.dotStroke);
+        c.setAttribute('stroke-width', SG.dotStrokeW);
+        const co = document.createElementNS(NS, 'text');
+        co.setAttribute('class', 'segcoord');
+        co.setAttribute('fill', G.ink);
+        co.setAttribute('font-size', SG.coordSize);
+        const nm = document.createElementNS(NS, 'text');
+        nm.setAttribute('class', 'segname');
+        nm.setAttribute('fill', G.ink);
+        nm.setAttribute('font-size', SG.nameSize);
+        seg.appendChild(c); seg.appendChild(co); seg.appendChild(nm);
+        self.segParts[key] = { dot: c, coord: co, name: nm };
+      });
+      svg.appendChild(seg);
+      this.segGroup = seg;
+
       /* The marker left on a point once it has been found, plus its
          written coordinates. Built here, placed by solve(). */
       const F = G.found;
@@ -521,6 +588,145 @@
         x: b.x + (G.originX + gx * G.stepX) * (b.w / G.w),
         y: b.y + (G.originY - gy * G.stepY) * (b.h / G.h)
       };
+    },
+
+    clearUnits: function () {
+      if (!this.unitBoxes) return;
+      this.unitBoxes.forEach(function (r) { r.classList.remove('on'); });
+      this.unitLabel.classList.remove('on');
+      if (this.unitPlate) this.unitPlate.classList.remove('on');
+    },
+
+    /* Counts the segment out in unit squares, one at a time, then
+       writes the total above it. Only used when a child answers
+       wrongly — seeing the units is the whole point of the exercise. */
+    runUnits: function (a, b, later, done) {
+      const G = C.GRID, U = G.unitBox;
+      const px = function (v) { return G.originX + v * G.stepX; };
+      const py = function (v) { return G.originY - v * G.stepY; };
+      const vertical = (a.x === b.x);
+      const n = vertical ? Math.abs(b.y - a.y) : Math.abs(b.x - a.x);
+      const loX = Math.min(a.x, b.x), loY = Math.min(a.y, b.y);
+      const self = this;
+
+      this.clearUnits();
+      /* One unit square per unit of length, laid along the segment and
+         offset one unit to its side: hanging beneath a horizontal
+         line, stacked beside a vertical one. */
+      for (let i = 0; i < this.unitBoxes.length; i++) {
+        const r = this.unitBoxes[i];
+        if (i < n) {
+          // vertical: stack them on the origin side of the line
+          r.setAttribute('x', vertical ? (a.x >= 0 ? px(a.x - 1) : px(a.x)) : px(loX + i));
+          r.setAttribute('y', vertical ? py(loY + i + 1) : py(a.y));
+          r.style.display = '';
+        } else {
+          r.style.display = 'none';
+        }
+      }
+
+      for (let i = 0; i < n; i++) {
+        (function (idx) {
+          later(function () {
+            self.unitBoxes[idx].classList.add('on');
+            SFX.tick(idx);
+          }, idx * U.stepMs);
+        })(i);
+      }
+
+      later(function () {
+        self.unitLabel.setAttribute('x', vertical
+          ? (a.x >= 0 ? px(a.x) - U.labelDy : px(a.x) + U.labelDy)
+          : (px(loX) + px(loX + n)) / 2);
+        self.unitLabel.setAttribute('y', vertical ? (py(loY) + py(loY + n)) / 2
+                                                  : py(a.y) + U.labelDy);
+        self.unitLabel.textContent = n + '\u00A0unit' + (n === 1 ? '' : 's');
+        self.unitLabel.classList.add('on');
+        /* Size the plate to the text once it is set. A segment can sit
+           anywhere — across the y-axis, beside its numbers — so the
+           total needs its own ground rather than a halo alone. */
+        if (self.unitLabel.getBBox) {
+          const bb = self.unitLabel.getBBox();
+          self.unitPlate.setAttribute('x', bb.x - 14);
+          self.unitPlate.setAttribute('y', bb.y - 8);
+          self.unitPlate.setAttribute('width', bb.width + 28);
+          self.unitPlate.setAttribute('height', bb.height + 16);
+          self.unitPlate.classList.add('on');
+        }
+        SFX.chime();
+      }, n * U.stepMs + 220);
+
+      later(done, n * U.stepMs + 900);
+    },
+
+    /* Seats a segment's two points, its line and its four labels. */
+    placeSegment: function (a, b) {
+      const G = C.GRID, SG = G.segment;
+      const px = function (v) { return G.originX + v * G.stepX; };
+      const py = function (v) { return G.originY - v * G.stepY; };
+      const self = this;
+
+      this.segLine.setAttribute('x1', px(a.x)); this.segLine.setAttribute('y1', py(a.y));
+      this.segLine.setAttribute('x2', px(b.x)); this.segLine.setAttribute('y2', py(b.y));
+      const len = Math.hypot(px(b.x) - px(a.x), py(b.y) - py(a.y));
+      this.segLine.setAttribute('stroke-dasharray', len);
+      this.segLine.style.strokeDashoffset = len;
+
+      /* A vertical segment stacks its points, so labels above and
+         below would collide with each other. Those go to the sides. */
+      const vertical = (a.x === b.x);
+      // face the labels away from the y-axis, or they sit on its numbers
+      const side = (a.x >= 0) ? 1 : -1;
+
+      [['a', a], ['b', b]].forEach(function (pair) {
+        const key = pair[0], p = pair[1], part = self.segParts[key];
+        const X = px(p.x), Y = py(p.y);
+        part.dot.setAttribute('cx', X);  part.dot.setAttribute('cy', Y);
+
+        part.coord.setAttribute('x', vertical ? X + side * SG.coordDx : X);
+        part.coord.setAttribute('y', vertical ? Y + SG.vCoordDy : Y + SG.coordDy);
+        part.coord.textContent = '(' + p.x + ',\u00A0' + p.y + ')';
+
+        part.name.setAttribute('x', vertical ? X + side * SG.coordDx : X);
+        part.name.setAttribute('y', vertical ? Y + SG.vNameDy : Y + SG.nameDy);
+        part.name.textContent = p.name || '';
+      });
+    },
+
+    clearSegment: function () {
+      this.clearUnits();
+      if (!this.segGroup) return;
+      this.segGroup.classList.remove('on');
+      this.segLine.classList.remove('draw');
+      const self = this;
+      ['a', 'b'].forEach(function (k) {
+        const p = self.segParts[k];
+        p.dot.classList.remove('pop');
+        p.coord.classList.remove('pop');
+        p.name.classList.remove('pop');
+      });
+    },
+
+    /* points first, then the line joins them, then the labels */
+    runSegment: function (a, b, later, done) {
+      const self = this;
+      this.placeSegment(a, b);
+      this.clearSegment();
+      this.segGroup.classList.add('on');
+
+      later(function () { self.segParts.a.dot.classList.add('pop'); SFX.tick(0); }, 120);
+      later(function () { self.segParts.b.dot.classList.add('pop'); SFX.tick(2); }, 380);
+      later(function () { self.segLine.classList.add('draw'); SFX.draw(); }, 680);
+      later(function () {
+        [['a', 'coord'], ['a', 'name'], ['b', 'coord'], ['b', 'name']]
+          .forEach(function (pair, i) {
+            later(function () {
+              self.segParts[pair[0]][pair[1]].classList.add('pop');
+              SFX.tick(i + 3);
+            }, i * 130);
+          });
+      }, 1320);
+      later(done, 1980);
     },
 
     /* Marks a point as found: the pulsing markers clear away and the
@@ -698,6 +904,7 @@
         Board.setDots(false);
       }
       if (entry.layout !== 'board') el.qBanner.classList.add('hidden');
+      if (!entry.segment) Board.clearSegment();
       if (Dist && !entry.distance) Dist.hide();
 
       /* What happens once she has arrived: speak her line, hand over
@@ -707,6 +914,13 @@
       this.task = entry.task
         ? { target: entry.task.target, spec: entry.task, wrong: 0, done: false }
         : null;
+
+      // a distance task is answered on the slider, so route Check to it
+      if (Dist) {
+        Dist.onCheck(entry.task && entry.task.kind === 'distance'
+          ? function (v) { self.checkDistance(v); }
+          : null);
+      }
 
       const after = function () {
         if (entry.line && geom.bare) self.ask(entry.line);   // banner, not bubble
@@ -745,25 +959,52 @@
           el.qBanner.classList.remove('hidden', 'pop-in');
           void el.qBanner.offsetWidth;
           el.qBanner.classList.add('pop-in');
+          Board.clearSegment();
           if (Dist && entry.distance) { Dist.reset(); Dist.show(); }
-        }, function () { arrive(); });
+        }, function () {
+          /* The points are plotted and joined before she asks the
+             question, so the child sees what is being asked about. */
+          if (entry.segment) {
+            Board.runSegment(entry.segment.a, entry.segment.b,
+                             self.later.bind(self), arrive);
+          } else arrive();
+        });
         return;
       }
 
       if (geom.panelBox) Board.place(geom.panelBox);
       else Board.place(C.GRID.box);
 
+      /* Screens 9-11 stay on the board they inherited: no leaves, no
+         rebuild — just clear the last segment and plot the next. */
+      if (entry.layout === 'board' && entry.transition !== 'leaves') {
+        el.gridPanel.classList.remove('hidden');
+        el.qBanner.classList.remove('hidden');
+        Board.shown = true;
+        Board.clearSegment();
+        if (Dist && entry.distance) { Dist.reset(); Dist.show(); }
+      }
+
       /* A grid screen builds the board in first — but only if it is
          not already standing from the screen before, so screen 6
          carries straight on from 5 instead of rebuilding it. */
+      /* Plot the segment before asking about it, on any screen that
+         has one. */
+      const plotThen = function (next) {
+        if (entry.segment) {
+          Board.runSegment(entry.segment.a, entry.segment.b,
+                           self.later.bind(self), next);
+        } else next();
+      };
+
       if (entry.layout === 'grid' && !Board.shown) {
         Board.run(this.later.bind(this), function () {
           Board.setDots(!!entry.dots);
-          arrive();
+          plotThen(arrive);
         });
       } else {
         Board.setDots(!!entry.dots);
-        arrive();
+        plotThen(arrive);
       }
     },
 
@@ -944,6 +1185,48 @@
         if (ch !== ' ' && ++since >= 2) { since = 0; SFX.chirp(1); }
       }, 42);
       this.pending.push(timer);
+    },
+
+    /* The Check button on the distance panel. */
+    checkDistance: function (v) {
+      const t = this.task;
+      if (!t || t.done) return;
+      const self = this;
+      const sg = C.SCRIPT[this.index] && C.SCRIPT[this.index].segment;
+
+      /* Measured from the two points rather than typed into config, so
+         a moved point can never leave a stale answer behind. Only
+         axis-aligned segments are asked about, so one term is zero. */
+      const answer = t.spec.answer != null ? t.spec.answer
+        : (sg ? Math.abs(sg.b.x - sg.a.x) + Math.abs(sg.b.y - sg.a.y) : null);
+
+      if (v === answer) {
+        t.done = true;
+        this.state = 'waiting';
+        SFX.correct();
+        this.later(function () {
+          SFX.cheer();
+          FX.confetti(26);
+          self.ask(t.spec.correctLine);
+        }, 260);
+        return;
+      }
+
+      /* Wrong: rather than just saying no, count the segment out in
+         unit squares so the answer is visible, then hand the slider
+         back so they can try again. */
+      t.wrong++;
+      SFX.wrong();
+      if (!sg) { this.later(function () { self.ask(t.spec.tryAgainLine); }, 240); return; }
+
+      this.state = 'showing';
+      this.later(function () {
+        self.ask(t.spec.showLine);
+        Board.runUnits(sg.a, sg.b, self.later.bind(self), function () {
+          self.state = 'waiting';
+          self.ask(t.spec.tryAgainLine);          // the slider is live again
+        });
+      }, 260);
     },
 
     /* A point was tapped. Without a task running this is just a

@@ -58,12 +58,18 @@ window.DistancePanel = (function () {
     answer.appendChild(value);
     answer.appendChild(mk('span', 'dunits', 'units'));
 
+    const check = mk('button', 'dcheck');
+    check.type = 'button';
+    check.appendChild(mk('span', 'dchecklabel', 'Check'));
+    check.appendChild(mk('span', 'dtickmark', '\u2714'));
+
     wrap.appendChild(ticks);
     wrap.appendChild(range);
     area.appendChild(wrap);
     area.appendChild(nums);
     inner.appendChild(area);
     inner.appendChild(answer);
+    inner.appendChild(check);
     root.appendChild(inner);
 
     const boxes = [];
@@ -84,6 +90,7 @@ window.DistancePanel = (function () {
 
     let current = MIN;
     let onChange = null;
+    let onCheck = null;
 
     function paint(v, bump) {
       current = v;
@@ -107,6 +114,14 @@ window.DistancePanel = (function () {
 
     range.addEventListener('input', function () { paint(Number(range.value), true); });
 
+    /* The Check button reports the chosen value to whoever mounted the
+       panel. It grades nothing itself — the screen owns what a right
+       answer is. */
+    check.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (onCheck) onCheck(current);
+    });
+
     // a number box is a shortcut to that value
     nums.addEventListener('click', function (e) {
       const b = e.target && e.target.classList &&
@@ -127,9 +142,17 @@ window.DistancePanel = (function () {
       get value() { return current; },
       set: set,
       reset: function () { set(MIN, false); },
-      show: function () { root.classList.remove('hidden'); },
+      show: function () {
+        root.classList.remove('hidden');
+        // replay the number-box entrance each time the panel appears
+        root.classList.remove('enter');
+        void root.offsetWidth;
+        root.classList.add('enter');
+        boxes.forEach(function (b, i) { b.style.animationDelay = (i * 55) + 'ms'; });
+      },
       hide: function () { root.classList.add('hidden'); },
-      onChange: function (fn) { onChange = fn; }
+      onChange: function (fn) { onChange = fn; },
+      onCheck: function (fn) { onCheck = fn; }
     };
   }
 

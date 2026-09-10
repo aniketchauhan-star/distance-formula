@@ -264,6 +264,49 @@ window.CFG = (function () {
       yFrom: -6, yTo: 6
     },
 
+    /* A plotted segment: two named points joined by a line, each
+       labelled with its coordinates above and its letter below. */
+    segment: {
+      dotR: 15,
+      dotFill: '#3B7DD8',
+      dotStroke: '#FFFFFF',
+      dotStrokeW: 3,
+      lineColor: '#213258',
+      lineWidth: 6,
+      coordSize: 34,
+      nameSize: 40,
+      /* A horizontal segment carries its labels above and below the
+         points. A vertical one cannot — the two points sit one above
+         the other and the labels would run into each other — so it
+         puts them to either side instead. */
+      coordDy: -42,       // horizontal: coordinates above
+      nameDy: 46,         // horizontal: letter below
+      /* Vertical: both labels go to whichever side faces away from the
+         y-axis, or they land on the axis numbers. Stacked slightly so
+         the two points' labels stay apart even 2 units in. */
+      coordDx: 84,
+      vCoordDy: -26,
+      vNameDy: 32
+    },
+
+    /* Unit squares that count out a segment's length when a child
+       gets the distance wrong. Filled strongly enough to be obvious
+       against the cream board, with a brighter flash as each lands. */
+    unitBox: {
+      fill: '#8FC2F0',
+      stroke: '#2E6FD0',
+      strokeW: 3,
+      flash: '#FFD747',
+      stepMs: 380,           // pause between squares, so they can be counted
+      /* The total sits inside the shaded band rather than above the
+         line: above, it collides with the two coordinate labels, and
+         would collide worse on a shorter segment. Inside, it also ties
+         the number directly to the squares being counted. */
+      labelSize: 32,
+      labelDy: 31,           // half a cell below the line = band centre
+      max: 18                // widest span the board allows (-9 to 9)
+    },
+
     /* The marker left behind once a point has been found, with its
        coordinates written beside it. */
     found: {
@@ -383,8 +426,44 @@ window.CFG = (function () {
     /* 8 — leaves sweep the screen; behind them Swifty leaves, the
        board re-seats itself and the empty banner drops in. No
        question and nothing to locate yet. */
-    { id: 8, line: null, entrance: 'none',
-      layout: 'board', transition: 'leaves', distance: true }
+    { id: 8, line: 'How far apart are A and B?', entrance: 'none',
+      layout: 'board', transition: 'leaves', distance: true,
+
+      // plotted first, then the question is asked
+      segment: { a: { x: 2, y: 1, name: 'A' }, b: { x: 6, y: 1, name: 'B' } },
+
+      /* `answer` is left out on purpose: the game measures it from the
+         two points, so moving a point can never leave a stale answer
+         behind. Set it explicitly only to override that. */
+      task: {
+        kind: 'distance',       // answered on the slider, not by tapping
+        correctLine: 'Correct!',
+        // a wrong answer counts the units out on the board instead of
+        // just saying no, then hands the slider back
+        showLine: 'Let’s count the units.',
+        tryAgainLine: 'Now try again!'
+      } },
+
+    /* 9-11 — three more of the same, staying on the board. Two of them
+       are vertical segments, so the count-out stacks its squares
+       beside the line instead of hanging them beneath it. */
+    { id: 9, line: 'How far apart are A and B?', entrance: 'none', layout: 'board',
+      distance: true,
+      segment: { a: { x: 4, y: 3, name: 'A' }, b: { x: -3, y: 3, name: 'B' } },
+      task: { kind: 'distance', correctLine: 'Correct!',
+              showLine: 'Let’s count the units.', tryAgainLine: 'Now try again!' } },
+
+    { id: 10, line: 'How far apart are A and B?', entrance: 'none', layout: 'board',
+      distance: true,
+      segment: { a: { x: 1, y: 2, name: 'A' }, b: { x: 1, y: -3, name: 'B' } },
+      task: { kind: 'distance', correctLine: 'Correct!',
+              showLine: 'Let’s count the units.', tryAgainLine: 'Now try again!' } },
+
+    { id: 11, line: 'How far apart are A and B?', entrance: 'none', layout: 'board',
+      distance: true,
+      segment: { a: { x: -2, y: 3, name: 'A' }, b: { x: -2, y: 1, name: 'B' } },
+      task: { kind: 'distance', correctLine: 'Correct!',
+              showLine: 'Let’s count the units.', tryAgainLine: 'Now try again!' } }
   ];
 
   return {
