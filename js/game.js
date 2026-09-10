@@ -253,6 +253,8 @@
     },
 
     open: function (text, done) {
+      // an answer can arrive mid-sentence, so stop any line in flight
+      if (this.typing) { this.typing = false; clearInterval(this.timer); SFX.duck(false); }
       text = this.keepPairs(text);
       this.full = text; this.shown = 0; this.onDone = done;
       // Unhide first: a display:none plate measures zero.
@@ -420,6 +422,8 @@
           c.setAttribute('stroke', D.stroke);
           c.setAttribute('stroke-width', D.strokeWidth);
           c.setAttribute('class', 'gdot');
+          c.dataset.gx = gx;
+          c.dataset.gy = gy;
           // pulse travels outward from the origin rather than in unison
           const ring = Math.abs(gx) + Math.abs(gy);
           const d = ring * D.rippleMs;
@@ -428,6 +432,28 @@
           self.dots.push(c);
         }
       }
+      /* The marker left on a point once it has been found, plus its
+         written coordinates. Built here, placed by solve(). */
+      const F = G.found;
+      const fg = document.createElementNS(NS, 'g');
+      fg.setAttribute('class', 'found');
+      const fc = document.createElementNS(NS, 'circle');
+      fc.setAttribute('r', F.r);
+      fc.setAttribute('fill', F.fill);
+      fc.setAttribute('stroke', F.stroke);
+      fc.setAttribute('stroke-width', F.strokeWidth);
+      fc.setAttribute('class', 'fdot');
+      const ft = document.createElementNS(NS, 'text');
+      ft.setAttribute('fill', G.ink);
+      ft.setAttribute('font-size', F.labelSize);
+      ft.setAttribute('class', 'flabel');
+      fg.appendChild(fc);
+      fg.appendChild(ft);
+      svg.appendChild(fg);
+      this.foundGroup = fg;
+      this.foundDot = fc;
+      this.foundLabel = ft;
+
       /* They look tappable, so they take the tap — and swallow it, or
          it would bubble to the scene and skip the screen. */
       const kk = Math.min(G.box.w / G.w, G.box.h / G.h);
@@ -435,10 +461,7 @@
         const c = e.target;
         if (!c || !c.classList || !c.classList.contains('gdot')) return;
         e.stopPropagation();
-        SFX.blip();
-        FX.ring(G.box.x + Number(c.getAttribute('cx')) * kk,
-                G.box.y + Number(c.getAttribute('cy')) * kk,
-                70, 'rgba(90,180,225,.95)');
+        Game.tapPoint(Number(c.dataset.gx), Number(c.dataset.gy), c);
       });
 
       this.dotGroup = g;
@@ -447,6 +470,47 @@
     setDots: function (on) {
       if (!this.dotGroup) return;
       this.dotGroup.classList.toggle('on', !!on);
+      if (!on) this.clearFound();
+    },
+
+    /* Where a grid point sits in stage coordinates, for effects that
+       live outside the SVG. */
+    stagePos: function (gx, gy) {
+      const G = C.GRID;
+      const k = Math.min(G.box.w / G.w, G.box.h / G.h);
+      return {
+        x: G.box.x + (G.originX + gx * G.stepX) * k,
+        y: G.box.y + (G.originY - gy * G.stepY) * k
+      };
+    },
+
+    /* Marks a point as found: the pulsing markers clear away and the
+       point is left labelled with its coordinates. */
+    solve: function (gx, gy) {
+      const G = C.GRID, F = G.found;
+      const px = G.originX + gx * G.stepX, py = G.originY - gy * G.stepY;
+      this.foundDot.setAttribute('cx', px);
+      this.foundDot.setAttribute('cy', py);
+      this.foundLabel.setAttribute('x', px + F.labelDx);
+      this.foundLabel.setAttribute('y', py + F.labelDy);
+      this.foundLabel.textContent = '(' + gx + ',\u00A0' + gy + ')';
+      if (this.dotGroup) this.dotGroup.classList.remove('on');   // highlighters away
+      this.foundGroup.classList.remove('on');
+      void this.foundGroup.getBoundingClientRect;
+      this.foundGroup.classList.add('on');
+    },
+
+    clearFound: function () {
+      if (this.foundGroup) this.foundGroup.classList.remove('on');
+    },
+
+    /* A wrong tap: the point flashes red and settles back. */
+    reject: function (node) {
+      if (!node) return;
+      node.classList.remove('wrong');
+      void node.getBoundingClientRect;
+      node.classList.add('wrong');
+      setTimeout(function () { node.classList.remove('wrong'); }, 600);
     },
 
     /* Reset so a replay rebuilds the same entrance. */
@@ -506,7 +570,7 @@
 
   /* ---------------- screen flow ---------------- */
   const Game = {
-    index: -1, state: 'start', busy: false, geom: null,
+    index: -1, state: 'start', busy: false, geom: null, task: null,
     pending: [], entranceCancel: null,
 
     /* Every queued step goes through here so a skip can cancel it. */
@@ -596,6 +660,12 @@
 
       /* What happens once she has arrived: speak her line, hand over
          on its own if the screen has none, or simply wait. */
+      /* A screen with a task waits for the player rather than for a
+         tap on Next. */
+      this.task = entry.task
+        ? { target: entry.task.target, spec: entry.task, wrong: 0, done: false }
+        : null;
+
       const after = function () {
         if (entry.line) self.speak(entry.line);
         else if (entry.auto && i + 1 < C.SCRIPT.length) {
@@ -778,6 +848,62 @@
         self.state = 'waiting';
         el.nextBtn.classList.add('ready');    // gentle nudge once she is done
       });
+    },
+
+    /* A point was tapped. Without a task running this is just a
+       friendly blip; with one, it is an answer. */
+    tapPoint: function (gx, gy, node) {
+      const t = this.task;
+      const at = Board.stagePos(gx, gy);
+
+      if (!t || t.done) {
+        SFX.blip();
+        FX.ring(at.x, at.y, 70, 'rgba(90,180,225,.95)');
+        return;
+      }
+      if (gx === t.target.x && gy === t.target.y) this.answerRight(gx, gy, at);
+      else this.answerWrong(node);
+    },
+
+    answerRight: function (gx, gy, at) {
+      const t = this.task;
+      t.done = true;
+      this.state = 'waiting';
+
+      SFX.correct();
+      Board.solve(gx, gy);                       // highlighters clear, point labelled
+      FX.ring(at.x, at.y, 150, 'rgba(70,200,95,.95)');
+      FX.starBurst(at.x, at.y, 12, 170);
+
+      const self = this;
+      this.later(function () {
+        SFX.cheer();
+        FX.confetti(26);                         // enough to read as a shower, not a mess
+        self.speak(t.spec.correctLine);
+      }, 260);
+    },
+
+    answerWrong: function (node) {
+      const t = this.task;
+      t.wrong++;
+      SFX.wrong();
+      Board.reject(node);
+
+      const self = this;
+      if (t.wrong >= (t.spec.maxWrong || 2)) {
+        // she shows the answer herself rather than letting them flounder
+        t.done = true;
+        this.later(function () {
+          Board.solve(t.target.x, t.target.y);
+          const at = Board.stagePos(t.target.x, t.target.y);
+          FX.ring(at.x, at.y, 150, 'rgba(70,200,95,.9)');
+          FX.sparkles(at.x, at.y, 8, 120);
+          SFX.chime();
+          self.speak(t.spec.revealLine);
+        }, 620);
+      } else {
+        this.later(function () { self.speak(t.spec.tryAgainLine); }, 260);
+      }
     },
 
     /* Tapping the scene: first tap finishes the line, second moves on. */

@@ -261,6 +261,18 @@ window.CFG = (function () {
       // markers keep their own -6..6 square, independent of the axis range
       xFrom: -6, xTo: 6,
       yFrom: -6, yTo: 6
+    },
+
+    /* The marker left behind once a point has been found, with its
+       coordinates written beside it. */
+    found: {
+      r: 15,
+      fill: '#35B94B',
+      stroke: '#FFFFFF',
+      strokeWidth: 3.5,
+      labelSize: 34,
+      labelDx: 46,          // label offset from the point
+      labelDy: -42
     }
   };
 
@@ -309,7 +321,19 @@ window.CFG = (function () {
 
     // 6 — same scene as 5; every intersection lights up and pulses.
     { id: 6, line: null, entrance: 'stay',
-      layout: 'grid', dots: true, bubbleScale: 0.9 }
+      layout: 'grid', dots: true, bubbleScale: 0.9 },
+
+    /* 7 — same board, now live: tap the point she asked for. Two
+       wrong taps and she shows the answer herself. */
+    { id: 7, line: 'Locate the point (2, 1).', entrance: 'stay',
+      layout: 'grid', dots: true, bubbleScale: 0.9,
+      task: {
+        target: { x: 2, y: 1 },
+        maxWrong: 2,
+        correctLine: 'Correct!',
+        tryAgainLine: 'Not quite — try again!',
+        revealLine: 'Here it is — (2, 1).'
+      } }
   ];
 
   return {

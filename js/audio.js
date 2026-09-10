@@ -219,6 +219,36 @@ window.Audio8 = (function () {
     tone({ type: 'sine', f0: f * 2, f1: f * 2.02, dur: 0.09, gain: 0.05, delay: 0.01 });
   }
 
+  // A right answer: bright major arpeggio with a sparkle on top.
+  function correct() {
+    if (!ctx) return;
+    [523, 659, 784, 1047].forEach(function (f, i) {
+      tone({ type: 'triangle', f0: f, f1: f, dur: 0.22, gain: 0.17, delay: i * 0.075 });
+      tone({ type: 'sine', f0: f * 2, f1: f * 2, dur: 0.16, gain: 0.06, delay: i * 0.075 });
+    });
+  }
+
+  /* A wrong answer. Deliberately soft and low — a nudge, not a buzzer,
+     since this is a young player's first go. */
+  function wrong() {
+    tone({ type: 'triangle', f0: 392, f1: 370, dur: 0.14, gain: 0.13 });
+    tone({ type: 'triangle', f0: 311, f1: 294, dur: 0.20, gain: 0.13, delay: 0.13 });
+  }
+
+  // The celebration that rides with the confetti.
+  function cheer() {
+    if (!ctx) return;
+    const tune = [523, 659, 784, 1047, 1319];
+    tune.forEach(function (f, i) {
+      tone({ type: 'triangle', f0: f, f1: f, dur: 0.3, gain: 0.14, delay: 0.18 + i * 0.085 });
+    });
+    // a shimmer wash under the tune
+    noise({ f0: 900, f1: 6500, dur: 0.55, gain: 0.07, q: 0.6, delay: 0.18 });
+    [1568, 2093, 2637].forEach(function (f, i) {
+      tone({ type: 'sine', f0: f, f1: f * 1.01, dur: 0.5, gain: 0.05, delay: 0.5 + i * 0.1 });
+    });
+  }
+
   // Cheerful three-note flourish when a line finishes.
   function chime() {
     [784, 988, 1319].forEach(function (f, i) {
@@ -229,6 +259,7 @@ window.Audio8 = (function () {
   return {
     unlock, duck, setMuted, isMuted,
     chirp, flap, land, pop, blip, sparkle, whoosh, chime, magic, draw, tick,
+    correct, wrong, cheer,
     get ready() { return !!ctx; }
   };
 })();
