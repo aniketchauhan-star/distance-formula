@@ -470,7 +470,8 @@
     setDots: function (on) {
       if (!this.dotGroup) return;
       this.dotGroup.classList.toggle('on', !!on);
-      if (!on) this.clearFound();
+      // clear any point marked by the previous question, either way
+      this.clearFound();
     },
 
     /* Where a grid point sits in stage coordinates, for effects that

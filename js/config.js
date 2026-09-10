@@ -319,8 +319,9 @@ window.CFG = (function () {
     { id: 5, line: 'Locate the point (2, 1).', entrance: 'fly',
       layout: 'grid', bubbleScale: 0.9 },
 
-    // 6 — same scene as 5; every intersection lights up and pulses.
-    { id: 6, line: null, entrance: 'stay',
+    // 6 — same scene as 5; every intersection lights up and pulses,
+    //     with the question still on screen.
+    { id: 6, line: 'Locate the point (2, 1).', entrance: 'stay',
       layout: 'grid', dots: true, bubbleScale: 0.9 },
 
     /* 7 — same board, now live: tap the point she asked for. Two
@@ -333,6 +334,17 @@ window.CFG = (function () {
         correctLine: 'Correct!',
         tryAgainLine: 'Not quite — try again!',
         revealLine: 'Here it is — (2, 1).'
+      } },
+
+    // 8 — same again with a new point.
+    { id: 8, line: 'Locate the point (6, 1).', entrance: 'stay',
+      layout: 'grid', dots: true, bubbleScale: 0.9,
+      task: {
+        target: { x: 6, y: 1 },
+        maxWrong: 2,
+        correctLine: 'Correct!',
+        tryAgainLine: 'Not quite — try again!',
+        revealLine: 'Here it is — (6, 1).'
       } }
   ];
 

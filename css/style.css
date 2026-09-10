@@ -225,6 +225,25 @@ html, body {
 }
 #gridAxes .dots.on .gdot:active { transform: scale(1.35); }
 
+/* wrong tap: a red flash that settles back into the pulse */
+#gridAxes .dots.on .gdot.wrong {
+  animation: dotWrong .6s ease-out both;
+}
+
+/* the found point, left behind once it has been located */
+#gridAxes .found {
+  opacity: 0; pointer-events: none;
+  transform-box: fill-box; transform-origin: center;
+}
+#gridAxes .found.on { animation: foundIn .5s cubic-bezier(.25, 1.7, .45, 1) both; }
+#gridAxes .found .fdot { paint-order: stroke fill; }
+#gridAxes .found .flabel {
+  font-family: 'Lilita One', system-ui, sans-serif;
+  text-anchor: middle; dominant-baseline: middle;
+  paint-order: stroke fill;
+  stroke: #FDFBF0; stroke-width: 6;   /* halo, so it reads over the gridlines */
+}
+
 #gridAxes .glabel {
   opacity: 0;
   font-family: 'Lilita One', system-ui, sans-serif;
@@ -326,6 +345,16 @@ html, body {
 @keyframes dotPulse {
   0%, 100% { opacity: .40; transform: scale(1); }
   50%      { opacity: .72; transform: scale(1.20); }
+}
+@keyframes dotWrong {
+  0%   { fill: #E8574A; opacity: 1;   transform: scale(1.9); }
+  35%  { fill: #E8574A; opacity: 1;   transform: scale(1.25); }
+  100% { fill: #6FC0E8; opacity: .40; transform: scale(1); }
+}
+@keyframes foundIn {
+  0%   { opacity: 0; transform: scale(0); }
+  65%  { opacity: 1; transform: scale(1.3); }
+  100% { opacity: 1; transform: scale(1); }
 }
 @keyframes labelPop {
   0%   { opacity: 0; transform: scale(0) rotate(-14deg); }
