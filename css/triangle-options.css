@@ -1,0 +1,128 @@
+/* =============================================================
+   Triangle answer panel — self-contained.
+   Everything is namespaced under .triangle-options-panel, so the
+   component can be moved or removed without touching the game.
+   ============================================================= */
+
+.triangle-options-panel {
+  position: absolute;
+  box-sizing: border-box;
+  width: 520px;
+  padding: 28px 28px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+
+  background: linear-gradient(180deg, #FFFDF2 0%, #FFF9E5 100%);
+  border: 9px solid #FFC72C;
+  border-radius: 42px;
+  box-shadow: 0 7px 0 #D78300,
+              0 13px 24px rgba(92, 56, 0, .18),
+              inset 0 3px 0 rgba(255, 255, 255, .9);
+
+  user-select: none;
+  -webkit-user-select: none;
+}
+.triangle-options-panel * { box-sizing: border-box; }
+
+/* ---------------- buttons ---------------- */
+.triangle-option {
+  position: relative;
+  width: 100%;
+  height: 108px;
+  border-radius: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+
+  font-family: 'Lilita One', 'Nunito', 'Arial Rounded MT Bold', Arial, sans-serif;
+  font-size: clamp(20px, 2vw, 30px);
+  font-weight: 400;
+  letter-spacing: -0.4px;
+  color: #102D70;
+  text-shadow: -1px -1px 0 rgba(255, 255, 255, .85),
+                1px -1px 0 rgba(255, 255, 255, .85),
+               -1px  1px 0 rgba(255, 255, 255, .85),
+                1px  1px 0 rgba(255, 255, 255, .85);
+
+  transition: transform 140ms ease, filter 140ms ease, box-shadow 140ms ease;
+}
+
+/* the gentle highlight across the upper half */
+.triangle-option::before {
+  content: "";
+  position: absolute;
+  left: 18px; right: 18px; top: 8px;
+  height: 35%;
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .30), rgba(255, 255, 255, 0));
+  pointer-events: none;
+}
+
+.triangle-option.scalene {
+  background: linear-gradient(180deg, #4BD0F7 0%, #27AFEF 48%, #168BE8 100%);
+  border: 4px solid #0878DC;
+  box-shadow: 0 7px 0 #075FBD, 0 10px 15px rgba(19, 102, 176, .18),
+              inset 0 3px 0 rgba(255, 255, 255, .5);
+}
+.triangle-option.isosceles {
+  background: linear-gradient(180deg, #FFD956 0%, #FFB631 50%, #FF951C 100%);
+  border: 4px solid #EC850C;
+  box-shadow: 0 7px 0 #CE6800, 0 10px 15px rgba(182, 101, 0, .18),
+              inset 0 3px 0 rgba(255, 255, 255, .55);
+}
+.triangle-option.right-angled {
+  background: linear-gradient(180deg, #69EC68 0%, #39D259 50%, #18B84A 100%);
+  border: 4px solid #0DA844;
+  box-shadow: 0 7px 0 #087F35, 0 10px 15px rgba(15, 126, 54, .18),
+              inset 0 3px 0 rgba(255, 255, 255, .5);
+}
+
+/* ---------------- interaction ---------------- */
+.triangle-option:hover  { transform: translateY(-2px); filter: brightness(1.04); }
+.triangle-option:active { transform: translateY(5px); }
+.triangle-option:focus  { outline: none; }
+.triangle-option:focus-visible {
+  outline: 4px solid #102D70;
+  outline-offset: 4px;
+}
+
+/* chosen, but not yet judged */
+.triangle-option.selected {
+  filter: brightness(1.06);
+  box-shadow: inset 0 0 0 4px rgba(255, 255, 255, .95),
+              0 7px 0 rgba(0, 0, 0, .22),
+              0 10px 15px rgba(0, 0, 0, .16);
+}
+
+/* transient verdicts — never left showing */
+.triangle-option.correct {
+  animation: toCorrect .5s ease both;
+}
+.triangle-option.incorrect {
+  animation: toIncorrect .45s ease both;
+}
+@keyframes toCorrect {
+  0%   { box-shadow: inset 0 0 0 0 rgba(255, 255, 255, .95); }
+  40%  { box-shadow: inset 0 0 0 6px rgba(255, 255, 255, .95),
+                     0 0 0 6px rgba(24, 184, 74, .55); transform: translateY(-3px); }
+  100% { box-shadow: inset 0 0 0 4px rgba(255, 255, 255, .95); transform: translateY(0); }
+}
+@keyframes toIncorrect {
+  0%, 100% { transform: translateX(0); box-shadow: 0 0 0 0 rgba(216, 45, 45, 0); }
+  15%      { transform: translateX(-9px); box-shadow: 0 0 0 5px rgba(216, 45, 45, .55); }
+  40%      { transform: translateX(8px);  box-shadow: 0 0 0 5px rgba(216, 45, 45, .55); }
+  65%      { transform: translateX(-5px); }
+  85%      { transform: translateX(3px); }
+}
+
+/* ---------------- responsive ---------------- */
+@media (max-width: 1100px) {
+  .triangle-options-panel { width: min(500px, 90vw); padding: 22px 22px 26px; gap: 18px; }
+  .triangle-option { height: 92px; border-radius: 24px; }
+}
+@media (max-width: 640px) {
+  .triangle-options-panel { width: 92vw; padding: 16px 16px 20px; gap: 14px; border-width: 7px; }
+  .triangle-option { height: 76px; border-radius: 20px; }
+}

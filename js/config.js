@@ -378,7 +378,11 @@ window.CFG = (function () {
     },
 
     // the distance selector, mounted as its own component
-    distance: { pos: place8(219, 2646), w: 610, h: 407 }
+    distance: { pos: place8(219, 2646), w: 610, h: 407 },
+
+    /* The triangle-type answer panel takes the slider's place, centred
+       on the same footprint so the left column stays put. */
+    options: { pos: { x: 70, y: 398 }, w: 520 }
   };
 
   /* ---------- Audio ---------- */
@@ -524,6 +528,30 @@ window.CFG = (function () {
         measureLeg: 1,        // C to B
         correctLine: 'Correct!',
         tryAgainLine: 'Not quite! Check the spaces between the units.'
+      } },
+
+    /* 16 — leaves, then the whole shape redrawn as one closed red
+       triangle with both legs measured. Nothing to answer here, so no
+       slider: she is just naming what they have built. */
+    { id: 16, line: 'Look! We made a triangle.', entrance: 'none',
+      layout: 'board', transition: 'leaves',
+      segment: { a: { x: 2, y: 1, name: 'A' }, b: { x: 6, y: 4, name: 'B' },
+                 color: '#B3261E' },
+      legs: [
+        { from: { x: 2, y: 1 }, to: { x: 6, y: 1 }, mark: { name: 'C' }, length: true },
+        { from: { x: 6, y: 1 }, to: { x: 6, y: 4 }, length: true }
+      ] },
+
+    /* 17 — same triangle, now named. The slider is replaced by the
+       three triangle types; the square corner at C makes it a
+       right-angled triangle. */
+    { id: 17, line: 'What kind of triangle is it?', entrance: 'none',
+      layout: 'board', keepSegment: true, options: true,
+      task: {
+        kind: 'choice',
+        answer: 'right-angled',
+        correctLine: 'Correct!',
+        tryAgainLine: 'Not quite — try again!'
       } }
   ];
 

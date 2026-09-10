@@ -108,6 +108,7 @@
   /* ---------------- layout of positioned art ---------------- */
   const REF_W = C.SHEETS.talk.frames[0].w;
   let Dist = null;              // the distance selector, mounted on demand
+  let Opts = null;              // the triangle-type answer panel
 
   /* Where the character, her shadow and her bubble sit on a given
      screen. Screens 1-4 use the small field pose; screen 5 puts her
@@ -212,6 +213,10 @@
     if (window.DistancePanel && !Dist) {
       const DP = C.BOARD.distance;
       Dist = window.DistancePanel.mount(el.scene, { x: DP.pos.x, y: DP.pos.y, hidden: true });
+    }
+    if (window.TriangleOptions && !Opts) {
+      const OP = C.BOARD.options;
+      Opts = window.TriangleOptions.mount(el.scene, { x: OP.pos.x, y: OP.pos.y, hidden: true });
     }
 
     const S = C.STAND;
@@ -810,8 +815,11 @@
     },
 
     /* Seats a segment's two points, its line and its four labels. */
-    placeSegment: function (a, b) {
+    placeSegment: function (spec) {
       const G = C.GRID, SG = G.segment;
+      const a = spec.a, b = spec.b;
+      // a screen can recolour the segment — red once it closes a triangle
+      this.segLine.setAttribute('stroke', spec.color || SG.lineColor);
       const px = function (v) { return G.originX + v * G.stepX; };
       const py = function (v) { return G.originY - v * G.stepY; };
       const self = this;
@@ -859,9 +867,10 @@
     },
 
     /* points first, then the line joins them, then the labels */
-    runSegment: function (a, b, later, done) {
+    runSegment: function (spec, later, done) {
       const self = this;
-      this.placeSegment(a, b);
+      const a = spec.a, b = spec.b;
+      this.placeSegment(spec);
       this.clearSegment();
       this.segGroup.classList.add('on');
 
@@ -1057,6 +1066,7 @@
       if (entry.layout !== 'board') el.qBanner.classList.add('hidden');
       if (!entry.segment && !entry.keepSegment) Board.clearSegment();
       if (Dist && !entry.distance) Dist.hide();
+      if (Opts && !entry.options) Opts.hide();
 
       /* What happens once she has arrived: speak her line, hand over
          on its own if the screen has none, or simply wait. */
@@ -1071,6 +1081,12 @@
         Dist.onCheck(entry.task && entry.task.kind === 'distance'
           ? function (v) { self.checkDistance(v); }
           : null);
+      }
+      // a choice task is answered on the options panel
+      if (Opts) {
+        const choice = entry.task && entry.task.kind === 'choice';
+        Opts.setAnswer(choice ? entry.task.answer : null);
+        Opts.onAnswer(choice ? function (key, right) { self.checkChoice(right); } : null);
       }
 
       const after = function () {
@@ -1105,8 +1121,7 @@
         /* A screen that keeps what it inherited does not replot the
            segment — only whatever is new gets drawn. */
         if (entry.segment && !entry.keepSegment) {
-          Board.runSegment(entry.segment.a, entry.segment.b,
-                           self.later.bind(self), afterSeg);
+          Board.runSegment(entry.segment, self.later.bind(self), afterSeg);
         } else afterSeg();
       };
 
@@ -1137,6 +1152,9 @@
         if (Dist) {
           if (entry.distance) { Dist.reset(); Dist.show(); } else Dist.hide();
         }
+        if (Opts) {
+          if (entry.options) { Opts.reset(); Opts.show(); } else Opts.hide();
+        }
       };
 
       if (entry.transition === 'leaves') {
@@ -1160,6 +1178,7 @@
         if (!entry.keepSegment) Board.clearSegment();
         else Board.clearUnits();          // keep the drawing, drop any count-out
         if (Dist && entry.distance) { Dist.reset(); Dist.show(); }
+        if (Opts && entry.options) { Opts.reset(); Opts.show(); }
       }
 
       /* A grid screen builds the board in first — but only if it is
@@ -1420,6 +1439,30 @@
           self.ask(t.spec.tryAgainLine);          // the slider is live again
         });
       }, 260);
+    },
+
+    /* One of the answer options was pressed. The panel has already
+       played its own verdict; this decides what she says. */
+    checkChoice: function (right) {
+      const t = this.task;
+      if (!t || t.done) return;
+      const self = this;
+
+      if (right) {
+        t.done = true;
+        this.state = 'waiting';
+        if (Opts) Opts.lock();
+        SFX.correct();
+        this.later(function () {
+          SFX.cheer();
+          FX.confetti(26);
+          self.ask(t.spec.correctLine);
+        }, 260);
+      } else {
+        t.wrong++;
+        SFX.wrong();
+        this.later(function () { self.ask(t.spec.tryAgainLine); }, 320);
+      }
     },
 
     /* A point was tapped. Without a task running this is just a
