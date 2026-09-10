@@ -107,6 +107,7 @@
 
   /* ---------------- layout of positioned art ---------------- */
   const REF_W = C.SHEETS.talk.frames[0].w;
+  let Dist = null;              // the distance selector, mounted on demand
 
   /* Where the character, her shadow and her bubble sit on a given
      screen. Screens 1-4 use the small field pose; screen 5 puts her
@@ -205,6 +206,13 @@
     el.qBannerText.style.width = Q.w * Q.text.width + 'px';
     el.qBannerText.style.height = Q.h * Q.text.height + 'px';
     el.qBannerText.style.fontSize = Q.size + 'px';
+
+    /* Screen 8's distance selector. It mounts itself and owns its own
+       markup and styles; the game only decides where and when. */
+    if (window.DistancePanel && !Dist) {
+      const DP = C.BOARD.distance;
+      Dist = window.DistancePanel.mount(el.scene, { x: DP.pos.x, y: DP.pos.y, hidden: true });
+    }
 
     const S = C.STAND;
     el.standSwifty.style.left = S.pos.x + 'px';
@@ -690,6 +698,7 @@
         Board.setDots(false);
       }
       if (entry.layout !== 'board') el.qBanner.classList.add('hidden');
+      if (Dist && !entry.distance) Dist.hide();
 
       /* What happens once she has arrived: speak her line, hand over
          on its own if the screen has none, or simply wait. */
@@ -736,6 +745,7 @@
           el.qBanner.classList.remove('hidden', 'pop-in');
           void el.qBanner.offsetWidth;
           el.qBanner.classList.add('pop-in');
+          if (Dist && entry.distance) { Dist.reset(); Dist.show(); }
         }, function () { arrive(); });
         return;
       }

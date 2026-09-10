@@ -259,8 +259,8 @@ window.CFG = (function () {
       strokeWidth: 2,
       rippleMs: 60,         // per-ring delay, so the pulse travels outward
       skipOnAxes: true,     // no marker where a point would sit on an axis
-      // markers keep their own -6..6 square, independent of the axis range
-      xFrom: -6, xTo: 6,
+      // markers cover every numbered intersection on both axes
+      xFrom: -9, xTo: 9,
       yFrom: -6, yTo: 6
     },
 
@@ -291,12 +291,16 @@ window.CFG = (function () {
   /* -------------------------------------------------------------
      SCREEN 8 — board on its own, question in a banner
 
-     Brief: panel at (850, 2422) 1239 x 856, banner at (666, 2256)
-     1023 x 158. Solving both against a 1920 x 1080 frame puts the
-     artboard origin at (417.5, 2227): the pair then sits centred both
-     ways, 248.5px clear either side and 29px top and bottom.
+     Brief: grid panel (850, 2422) 1239 x 856, question banner
+     (666, 2256) 1023 x 158, distance panel (219, 2646) 610 x 407.
+
+     Three elements pin the artboard origin to (194, 2227) — the only
+     value that fits all of them in a 1920 x 1080 frame and leaves
+     symmetric margins (25px left and right, 29px top and bottom).
+     It lands the grid on the right, the banner across the top and the
+     distance panel on the left, as briefed.
      ------------------------------------------------------------- */
-  const S8_ORIGIN = { x: 417.5, y: 2227 };
+  const S8_ORIGIN = { x: 194, y: 2227 };
   const place8 = function (fx, fy) {
     return { x: fx - S8_ORIGIN.x, y: fy - S8_ORIGIN.y };
   };
@@ -314,7 +318,10 @@ window.CFG = (function () {
       pos: place8(666, 2256), w: 1023, h: 158,
       text: { left: 0.22, top: 0.20, width: 0.65, height: 0.60 },
       size: 42
-    }
+    },
+
+    // the distance selector, mounted as its own component
+    distance: { pos: place8(219, 2646), w: 610, h: 407 }
   };
 
   /* ---------- Audio ---------- */
@@ -377,7 +384,7 @@ window.CFG = (function () {
        board re-seats itself and the empty banner drops in. No
        question and nothing to locate yet. */
     { id: 8, line: null, entrance: 'none',
-      layout: 'board', transition: 'leaves' }
+      layout: 'board', transition: 'leaves', distance: true }
   ];
 
   return {

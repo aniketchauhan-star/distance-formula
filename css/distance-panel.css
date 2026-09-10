@@ -1,0 +1,176 @@
+/* =============================================================
+   Distance selector panel — self-contained.
+   Every rule is namespaced under .dpanel, and the component is
+   positioned by its own wrapper, so it can be moved or removed
+   without touching the rest of the game.
+   ============================================================= */
+
+.dpanel {
+  position: absolute;
+  box-sizing: border-box;
+  width: 610px;
+  height: 407px;
+  padding: 13px;
+  background: #FFD747;                    /* golden border */
+  border: 5px solid #D77A00;              /* darker orange edge */
+  border-radius: 30px;
+  box-shadow: 0 8px 18px rgba(60, 40, 0, .18);
+  font-family: 'Lilita One', system-ui, sans-serif;
+  color: #08266F;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.dpanel * { box-sizing: border-box; }
+
+.dpanel-inner {
+  width: 100%;
+  height: 100%;
+  padding: 24px 28px;
+  background: #FFFDF3;                    /* cream interior */
+  border-radius: 20px;
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, .95),
+              inset 0 -3px 0 rgba(0, 0, 0, .05);
+  display: flex;
+  flex-direction: column;
+  /* space-evenly, not space-between: between would pool every spare
+     pixel into one gap in the middle of the card */
+  justify-content: space-evenly;
+}
+
+/* ---------------- slider ---------------- */
+.dslider-area { position: relative; }
+
+.dtrack-wrap {
+  position: relative;
+  width: 490px;
+  height: 54px;
+  margin: 0 auto;
+}
+
+/* tick marks sitting on the track, under the knob */
+.dticks { position: absolute; inset: 0; pointer-events: none; }
+.dtick {
+  position: absolute;
+  top: 50%;
+  width: 4px;
+  height: 12px;
+  margin-top: -6px;
+  margin-left: -2px;
+  border-radius: 2px;
+  background: rgba(21, 116, 200, .45);
+}
+
+.drange {
+  -webkit-appearance: none;
+  appearance: none;
+  position: relative;
+  width: 490px;
+  height: 54px;
+  margin: 0;
+  background: transparent;
+  cursor: grab;
+}
+.drange:active { cursor: grabbing; }
+.drange:focus { outline: none; }
+.drange:focus-visible { outline: 3px solid #1574C8; outline-offset: 6px; border-radius: 12px; }
+
+/* WebKit / Blink */
+.drange::-webkit-slider-runnable-track {
+  height: 18px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #6FCBF7 0%, #47B9F2 60%, #35A9E6 100%);
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, .55),
+              0 3px 0 #1574C8;
+}
+.drange::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 48px;
+  height: 48px;
+  margin-top: -15px;                      /* centres the knob on the track */
+  border-radius: 50%;
+  background: radial-gradient(circle at 36% 30%, #FF7C9C 0%, #F63873 55%, #D1215A 100%);
+  border: 4px solid #FFFFFF;
+  box-shadow: 0 4px 0 rgba(150, 20, 60, .45), 0 6px 14px rgba(0, 0, 0, .22);
+  cursor: grab;
+}
+.drange:active::-webkit-slider-thumb { cursor: grabbing; }
+
+/* Firefox */
+.drange::-moz-range-track {
+  height: 18px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #6FCBF7 0%, #47B9F2 60%, #35A9E6 100%);
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, .55), 0 3px 0 #1574C8;
+}
+.drange::-moz-range-thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 36% 30%, #FF7C9C 0%, #F63873 55%, #D1215A 100%);
+  border: 4px solid #FFFFFF;
+  box-shadow: 0 4px 0 rgba(150, 20, 60, .45);
+  cursor: grab;
+}
+
+/* ---------------- number boxes ---------------- */
+.dnumbers {
+  position: relative;
+  width: 490px;
+  height: 42px;
+  margin: 16px auto 0;
+}
+.dnum {
+  position: absolute;
+  top: 0;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: #FFFDF3;
+  border: 3px solid #BFE4F7;
+  color: #08266F;
+  font-size: 25px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform .18s cubic-bezier(.3, 1.5, .5, 1),
+              background-color .18s ease, border-color .18s ease, color .18s ease;
+}
+.dnum:hover { border-color: #7CC9EE; }
+.dnum.on {
+  background: #FFD747;
+  border-color: #D77A00;
+  transform: translateY(-3px) scale(1.14);
+  box-shadow: 0 4px 0 rgba(160, 100, 0, .3);
+}
+
+/* ---------------- answer ---------------- */
+.danswer {
+  height: 126px;
+  border-radius: 24px;
+  background: #FFF4C9;                    /* soft pale yellow */
+  border: 3px solid #F0D77E;
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, .8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  font-size: 36px;
+}
+.dvalue {
+  width: 84px;
+  height: 64px;
+  border-radius: 16px;
+  background: #FFFFFF;
+  border: 3px solid #47B9F2;
+  box-shadow: inset 0 3px 0 rgba(0, 0, 0, .06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 42px;
+  color: #08266F;
+  transition: transform .18s cubic-bezier(.3, 1.6, .5, 1);
+}
+.dvalue.bump { transform: scale(1.16); }
