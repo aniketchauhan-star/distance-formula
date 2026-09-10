@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Distance Formula — Swifty's Adventure</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lilita+One&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="viewport">
+  <!-- 1920 x 1080 design space, scaled to fit any 16:9 screen -->
+  <div id="stage">
+
+    <!-- ============ loading ============ -->
+    <div id="loader">
+      <div class="loader-inner">
+        <div class="loader-title">Distance Formula</div>
+        <div class="loader-track"><div id="loaderBar"></div></div>
+        <div id="loaderPct">0%</div>
+      </div>
+    </div>
+
+    <!-- ============ start screen ============ -->
+    <div id="startScreen" class="hidden">
+      <img class="full" src="assets/start screen.png" alt="Distance Formula">
+      <button id="playBtn" aria-label="Play">
+        <img id="playImg" src="assets/play button .png" alt="">
+      </button>
+    </div>
+
+    <!-- ============ game scene ============ -->
+    <div id="scene" class="hidden">
+      <img class="full" src="assets/Background game.png" alt="">
+
+      <div id="skyLayer"></div>
+
+      <!-- screen 5: the coordinate board. Axes, arrowheads and numbers
+           are drawn as an SVG overlay so each part can animate in. -->
+      <div id="gridPanel" class="hidden">
+        <img id="gridImg" src="assets/grid lines panel.png" alt="">
+        <svg id="gridAxes" viewBox="0 0 1507 1044" aria-hidden="true"></svg>
+      </div>
+
+      <!-- bird + bubble share this group so they bob together and
+           the tail never drifts off her head -->
+      <div id="charGroup">
+        <!-- she must not be seen standing at her mark before she flies
+             in, so both start hidden until an entrance runs -->
+        <div id="shadow" class="lifted"></div>
+        <div id="birdRig" class="pre-entrance">
+          <!-- mirrors her about the belly anchor so she faces the way
+               she is travelling -->
+          <div id="birdFlip">
+            <div id="birdWin">
+              <img id="flySheet"  src="assets/swifty fly.png"  alt="">
+              <img id="talkSheet" src="assets/swifty talk.png" alt="Swifty">
+            </div>
+          </div>
+        </div>
+
+        <!-- screen 5 resting pose, swapped in when she lands -->
+        <img id="standSwifty" class="hidden" src="assets/normal stand swifty.png" alt="Swifty">
+
+        <div id="bubble" class="hidden">
+          <img id="bubbleImg" src="assets/dialouge box.png" alt="">
+          <div id="bubbleText"><span id="bubbleLine"></span></div>
+        </div>
+      </div>
+
+      <div id="dots"></div>
+
+      <button id="nextBtn">Next<span class="arrow">▶</span></button>
+
+    </div>
+
+    <!-- ============ effects ============ -->
+    <div id="fxLayer"></div>
+
+  </div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/fx.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
