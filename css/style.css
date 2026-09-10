@@ -296,6 +296,32 @@ html, body {
 }
 #gridAxes .ulabel.on { animation: labelPop .58s cubic-bezier(.22, .68, .3, 1) both; }
 
+/* the y-part of a coordinate, lit while it is being substituted */
+#gridAxes .glowable.glow {
+  fill: #C4620A;
+  animation: termGlow 1.1s ease-in-out infinite;
+}
+
+/* the segment lit once it is the answer, with the answer on it */
+#gridAxes .segline.lit { animation: segLit 1.4s ease-in-out infinite; }
+@keyframes segLit {
+  0%, 100% { filter: none; }
+  50%      { filter: drop-shadow(0 0 10px rgba(255, 170, 40, .9)); }
+}
+#gridAxes .segresplate {
+  opacity: 0;
+  fill: #FDFBF0; stroke: #B3261E; stroke-width: 2.5;
+  transform-box: fill-box; transform-origin: center;
+}
+#gridAxes .segresplate.on { animation: labelPop .58s cubic-bezier(.22, .68, .3, 1) both; }
+#gridAxes .segres {
+  opacity: 0;
+  font-family: 'Lilita One', system-ui, sans-serif;
+  text-anchor: middle; dominant-baseline: middle;
+  transform-box: fill-box; transform-origin: center;
+}
+#gridAxes .segres.pop { animation: labelPop .58s cubic-bezier(.22, .68, .3, 1) both; }
+
 /* a plotted segment: points, the line joining them, and labels */
 #gridAxes .seg { opacity: 0; pointer-events: none; }
 #gridAxes .seg.on { opacity: 1; }
@@ -373,6 +399,22 @@ html, body {
   text-align: center;
 }
 #formulaBoard .fb-lead   { font-size: 36px; letter-spacing: .3px; }
+#formulaBoard .fb-step   { font-size: 38px; letter-spacing: .3px; }
+/* the substituted term, arriving lit */
+#formulaBoard .fb-step .glow {
+  color: #C4620A;
+  animation: termGlow 1.1s ease-in-out infinite;
+}
+/* and collapsing away */
+#formulaBoard .fb-step .fade { animation: termFade .8s ease-in forwards; }
+@keyframes termGlow {
+  0%, 100% { text-shadow: 0 0 0 rgba(255, 170, 40, 0); }
+  50%      { text-shadow: 0 0 14px rgba(255, 170, 40, .95); }
+}
+@keyframes termFade {
+  0%   { opacity: 1; letter-spacing: .3px; }
+  100% { opacity: 0; letter-spacing: -.4em; }
+}
 #formulaBoard .fb-result {
   font-size: 38px;
   padding: 16px 12px;
@@ -426,23 +468,11 @@ html, body {
 }
 
 /* ---------------- ui ---------------- */
-/* Bottom-left: the taller Swifty lifts the bubble to y=54, which is
-   exactly where these used to sit. */
-#dots {
-  position: absolute; left: 84px; bottom: 92px; z-index: 6;
-  display: flex; gap: 18px;
-}
-#dots .dot {
-  width: 22px; height: 22px; border-radius: 50%;
-  background: rgba(255, 255, 255, .55);
-  border: 4px solid rgba(20, 65, 140, .35);
-  transition: all .3s cubic-bezier(.3, 1.4, .5, 1);
-}
-#dots .dot.on  { background: #ffd34e; border-color: #e08a1e; }
-#dots .dot.now { transform: scale(1.35); box-shadow: 0 0 0 6px rgba(255, 211, 78, .35); }
-
+/* Top right, out of the way: it is a way past a screen rather than the
+   way through one, and the bottom of the frame is where the board, the
+   answer panels and Swifty all live. */
 #nextBtn {
-  position: absolute; right: 84px; bottom: 74px; z-index: 6;
+  position: absolute; right: 84px; top: 48px; z-index: 6;
   display: inline-flex; align-items: center; gap: 16px;
   padding: 22px 46px;
   font-family: inherit; font-size: 40px; font-weight: 400; color: #fff;

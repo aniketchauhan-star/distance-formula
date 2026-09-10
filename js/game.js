@@ -11,7 +11,7 @@
   ['viewport', 'stage', 'loader', 'loaderBar', 'loaderPct',
    'startScreen', 'playBtn', 'playImg', 'scene', 'skyLayer',
    'charGroup', 'shadow', 'birdRig', 'birdFlip', 'birdWin', 'flySheet', 'talkSheet',
-   'bubble', 'bubbleImg', 'bubbleText', 'bubbleLine', 'nextBtn', 'dots',
+   'bubble', 'bubbleImg', 'bubbleText', 'bubbleLine', 'nextBtn',
    'gridPanel', 'gridImg', 'gridAxes', 'standSwifty',
    'qBanner', 'qBannerImg', 'qBannerText', 'qBannerLine',
    'formulaBoard', 'leafLayer', 'fxLayer'
@@ -114,8 +114,24 @@
   /* Where the character, her shadow and her bubble sit on a given
      screen. Screens 1-4 use the small field pose; screen 5 puts her
      full size on the left of the board in the standing artwork. */
+  /* The x-axis and y-axis cases are the same screen with the axes
+     swapped, so they share a code path and differ only in config. */
+  function axisOf(entry) {
+    if (entry.layout === 'xaxis') return C.XAXIS;
+    if (entry.layout === 'yaxis') return C.YAXIS;
+    return null;
+  }
+
   function geomFor(i) {
     const entry = C.SCRIPT[i] || {};
+    const AX = axisOf(entry);
+    if (AX) {
+      // board to one side, formula beside it, nobody in shot
+      return { stand: false, bare: true, scale: C.CHAR_SCALE, anchor: C.ANCHOR,
+               aim: C.ANCHOR, feetY: 0, feetCx: 0, inkW: 0,
+               bubbleScale: C.BUBBLE.scale,
+               panelBox: { x: AX.grid.x, y: AX.grid.y, w: AX.grid.w, h: AX.grid.h } };
+    }
     if (entry.layout === 'recap') {
       // the result stated on its own: board to one side, nobody in shot
       const R = C.RECAP;
@@ -202,28 +218,6 @@
 
     /* Screen 5 art sits at fixed 1:1 positions from the brief. */
     Board.place(C.GRID.box);
-
-    /* Screen 24's formula board. Sized from its content so the panel
-       always fits the lines it is given. */
-    const R = C.RECAP;
-    el.formulaBoard.style.left = R.formula.x + 'px';
-    el.formulaBoard.style.top = R.formula.y + 'px';
-    el.formulaBoard.style.width = R.formula.w + 'px';
-    /* Build the inner plate if the markup does not carry one, so the
-       panel does not depend on a specific bit of HTML being present. */
-    let fb = el.formulaBoard.querySelector && el.formulaBoard.querySelector('.fb-inner');
-    if (!fb) {
-      fb = document.createElement('div');
-      fb.classList.add('fb-inner');
-      el.formulaBoard.appendChild(fb);
-    }
-    R.lines.forEach(function (l, i) {
-      const d = document.createElement('div');
-      d.classList.add('fb-' + (l.kind || 'lead'));
-      d.textContent = l.text;
-      d.style.animationDelay = (i * 300) + 'ms';
-      fb.appendChild(d);
-    });
 
     /* Screen 8's question banner, at its briefed 1:1 size. */
     const Q = C.BOARD.banner;
@@ -596,6 +590,18 @@
         seg.appendChild(c); seg.appendChild(co); seg.appendChild(nm);
         self.segParts[key] = { dot: c, coord: co, name: nm };
       });
+      /* The answer written on the segment, on its own plate. */
+      const rp = document.createElementNS(NS, 'rect');
+      rp.setAttribute('class', 'segresplate');
+      rp.setAttribute('rx', 12);
+      const rt = document.createElementNS(NS, 'text');
+      rt.setAttribute('class', 'segres');
+      rt.setAttribute('fill', G.ink);
+      rt.setAttribute('font-size', 34);
+      seg.appendChild(rp); seg.appendChild(rt);
+      this.segResPlate = rp;
+      this.segRes = rt;
+
       svg.appendChild(seg);
       this.segGroup = seg;
 
@@ -854,6 +860,7 @@
     /* Seats a segment's two points, its line and its four labels. */
     placeSegment: function (spec) {
       const G = C.GRID, SG = G.segment;
+      const NS2 = 'http://www.w3.org/2000/svg';
       const a = spec.a, b = spec.b;
       // a screen can recolour the segment — red once it closes a triangle
       this.segLine.setAttribute('stroke', spec.color || SG.lineColor);
@@ -879,21 +886,73 @@
         part.dot.setAttribute('cx', X);  part.dot.setAttribute('cy', Y);
 
         part.coord.setAttribute('x', vertical ? X + side * SG.coordDx : X);
-        part.coord.setAttribute('y', vertical ? Y + SG.vCoordDy : Y + SG.coordDy);
+        part.coord.setAttribute('y', vertical ? Y + SG.vCoordDy
+                                              : Y + (spec.coordDy != null ? spec.coordDy : SG.coordDy));
         /* A point can carry its own label — the general case names the
-           points (x1, y1) and (x2, y2) rather than their values. */
-        part.coord.textContent = p.coordText || ('(' + p.x + ',\u00A0' + p.y + ')');
+           points (x1, y1) and (x2, y2) rather than their values — and
+           can split it so one fragment glows on its own. */
+        while (part.coord.firstChild) part.coord.removeChild(part.coord.firstChild);
+        if (p.coordParts) {
+          p.coordParts.forEach(function (f) {
+            const ts = document.createElementNS(NS2, 'tspan');
+            ts.textContent = f.t;
+            if (f.glow) ts.classList.add('glowable');
+            part.coord.appendChild(ts);
+          });
+        } else {
+          part.coord.textContent = p.coordText || ('(' + p.x + ',\u00A0' + p.y + ')');
+        }
 
         part.name.setAttribute('x', vertical ? X + side * SG.coordDx : X);
-        part.name.setAttribute('y', vertical ? Y + SG.vNameDy : Y + SG.nameDy);
+        part.name.setAttribute('y', vertical ? Y + SG.vNameDy
+                                             : Y + (spec.nameDy != null ? spec.nameDy : SG.nameDy));
         part.name.textContent = p.name || '';
       });
+    },
+
+    /* Makes the y-parts of both coordinate labels glow. */
+    glowCoords: function (on) {
+      const self = this;
+      ['a', 'b'].forEach(function (k) {
+        const c = self.segParts[k].coord;
+        Array.prototype.forEach.call(c.children, function (ts) {
+          if (ts.classList && ts.classList.contains('glowable')) {
+            ts.classList.toggle('glow', !!on);
+          }
+        });
+      });
+    },
+
+    /* Highlights the segment and writes the answer on it. */
+    /* dx slides the plate along the segment: a segment centred on the
+       origin would otherwise drop its answer straight onto the y-axis
+       and the -1 beside it. */
+    showSegResult: function (spec, text, dy, dx) {
+      const G = C.GRID;
+      const px = function (v) { return G.originX + v * G.stepX; };
+      const py = function (v) { return G.originY - v * G.stepY; };
+      this.segLine.classList.add('lit');
+      this.segRes.setAttribute('x', (px(spec.a.x) + px(spec.b.x)) / 2 + (dx || 0));
+      this.segRes.setAttribute('y', (py(spec.a.y) + py(spec.b.y)) / 2 + dy);
+      this.segRes.textContent = text;
+      this.segRes.classList.add('pop');
+      if (this.segRes.getBBox) {
+        const bb = this.segRes.getBBox();
+        this.segResPlate.setAttribute('x', bb.x - 16);
+        this.segResPlate.setAttribute('y', bb.y - 9);
+        this.segResPlate.setAttribute('width', bb.width + 32);
+        this.segResPlate.setAttribute('height', bb.height + 18);
+        this.segResPlate.classList.add('on');
+      }
     },
 
     clearSegment: function () {
       this.clearUnits();
       this.clearLegs();
       if (!this.segGroup) return;
+      this.glowCoords(false);
+      if (this.segRes) { this.segRes.classList.remove('pop'); this.segResPlate.classList.remove('on'); }
+      if (this.segLine) this.segLine.classList.remove('lit');
       this.segGroup.classList.remove('on');
       this.segLine.classList.remove('draw');
       const self = this;
@@ -1012,6 +1071,56 @@
     }
   };
 
+  /* The formula panel. Shows either a fixed set of lines (the recap)
+     or one line that is replaced step by step (the x-axis case). */
+  const Formula = {
+    place: function (box) {
+      el.formulaBoard.style.left = box.x + 'px';
+      el.formulaBoard.style.top = box.y + 'px';
+      el.formulaBoard.style.width = box.w + 'px';
+    },
+    inner: function () {
+      let fb = el.formulaBoard.children[0];
+      if (!fb) {
+        fb = document.createElement('div');
+        fb.classList.add('fb-inner');
+        el.formulaBoard.appendChild(fb);
+      }
+      return fb;
+    },
+    clear: function () {
+      const fb = this.inner();
+      while (fb.children.length) fb.removeChild(fb.children[0]);
+    },
+    /* A fixed set of lines, arriving one after another. */
+    setLines: function (lines) {
+      const fb = this.inner();
+      this.clear();
+      lines.forEach(function (l, i) {
+        const d = document.createElement('div');
+        d.classList.add('fb-' + (l.kind || 'lead'));
+        d.textContent = l.text;
+        d.style.animationDelay = (i * 300) + 'ms';
+        fb.appendChild(d);
+      });
+    },
+    /* One line built from fragments, so a part can glow or fade. */
+    setStep: function (parts) {
+      const fb = this.inner();
+      this.clear();
+      const d = document.createElement('div');
+      d.classList.add('fb-step');
+      parts.forEach(function (f) {
+        const sp = document.createElement('span');
+        sp.textContent = f.t;
+        if (f.glow) sp.classList.add('glow');
+        if (f.fade) sp.classList.add('fade');
+        d.appendChild(sp);
+      });
+      fb.appendChild(d);
+    }
+  };
+
   /* ---------------- screen flow ---------------- */
   const Game = {
     index: -1, state: 'start', busy: false, geom: null, task: null, askTimer: null,
@@ -1032,22 +1141,6 @@
       this.pending.forEach(clearTimeout);
       this.pending = [];
       if (this.entranceCancel) { this.entranceCancel(); this.entranceCancel = null; }
-    },
-
-    buildDots: function () {
-      el.dots.innerHTML = '';
-      C.SCRIPT.forEach(function () {
-        const d = document.createElement('span');
-        d.className = 'dot';
-        el.dots.appendChild(d);
-      });
-    },
-
-    markDots: function (i) {
-      Array.prototype.forEach.call(el.dots.children, function (d, n) {
-        d.classList.toggle('on', n <= i);
-        d.classList.toggle('now', n === i);
-      });
     },
 
     begin: function () {
@@ -1085,29 +1178,39 @@
       this.clearPending();
       this.index = i;
       this.state = 'entering';
-      this.markDots(i);
       el.nextBtn.classList.remove('ready');
 
       const entry = C.SCRIPT[i];
       const geom = geomFor(i);
       this.geom = geom;
       standPose = !!geom.stand;
-      applyGeom(geom);
+      /* Reseating the rig also resizes the speech bubble, and a screen
+         with nobody in shot sizes it to nothing — so behind a leaf
+         sweep this waits for the cover too, or the last screen's
+         bubble collapses in plain sight. */
+      if (entry.transition !== 'leaves') applyGeom(geom);
 
+      const AX = axisOf(entry);
       const onBoard = entry.layout === 'grid' || entry.layout === 'board' ||
-                      entry.layout === 'recap';
-      // the board only exists on its own screens
-      if (!onBoard) {
-        el.gridPanel.classList.add('hidden');
-        el.standSwifty.classList.add('hidden');
-        Board.shown = false;
-        Board.setDots(false);
+                      entry.layout === 'recap' || !!AX;
+      /* A screen behind a leaf sweep strips the last one inside
+         dress(), while the frame is covered. Doing it here as well
+         would pop the board and the panels out a beat early, in plain
+         sight, before a single leaf had arrived. */
+      if (entry.transition !== 'leaves') {
+        // the board only exists on its own screens
+        if (!onBoard) {
+          el.gridPanel.classList.add('hidden');
+          el.standSwifty.classList.add('hidden');
+          Board.shown = false;
+          Board.setDots(false);
+        }
+        if (entry.layout !== 'board' && !AX) el.qBanner.classList.add('hidden');
+        if (entry.layout !== 'recap' && !AX) el.formulaBoard.classList.add('hidden');
+        if (!entry.segment && !entry.keepSegment) Board.clearSegment();
+        if (Dist && !entry.distance) Dist.hide();
+        if (Opts && !entry.options) Opts.hide();
       }
-      if (entry.layout !== 'board') el.qBanner.classList.add('hidden');
-      if (entry.layout !== 'recap') el.formulaBoard.classList.add('hidden');
-      if (!entry.segment && !entry.keepSegment) Board.clearSegment();
-      if (Dist && !entry.distance) Dist.hide();
-      if (Opts && !entry.options) Opts.hide();
 
       /* What happens once she has arrived: speak her line, hand over
          on its own if the screen has none, or simply wait. */
@@ -1174,17 +1277,33 @@
          one equally well. */
       const dress = function () {
         Bubble.close();
+        applyGeom(geom);
         el.standSwifty.classList.add('hidden');
         el.birdWin.classList.add('hidden');
         el.shadow.classList.add('lifted');
-        Board.clearSegment();
+        /* A screen that keeps its drawing keeps it through the sweep
+           too — only the count-out squares go. */
+        if (entry.keepSegment) Board.clearUnits();
+        else Board.clearSegment();
 
-        Board.place(geom.panelBox || C.GRID.box);
-        el.gridPanel.classList.remove('hidden');
-        Board.shown = true;
-        Board.setDots(!!entry.dots);
+        /* Only a board screen brings the board through the sweep; the
+           field screens leave it behind entirely. */
+        if (onBoard) {
+          Board.place(geom.panelBox || C.GRID.box);
+          el.gridPanel.classList.remove('hidden');
+          Board.shown = true;
+          Board.setDots(!!entry.dots);
+        } else {
+          el.gridPanel.classList.add('hidden');
+          Board.shown = false;
+          Board.setDots(false);
+          Board.clearSegment();
+        }
 
-        if (entry.layout === 'board') {
+        if (entry.layout === 'board' || AX) {
+          /* Empty before it pops in: the banner is on screen while the
+             board draws, and the last screen's line must not sit in it. */
+          el.qBannerLine.textContent = '';
           el.qBanner.classList.remove('hidden', 'pop-in');
           void el.qBanner.offsetWidth;
           el.qBanner.classList.add('pop-in');
@@ -1200,17 +1319,61 @@
         }
 
         if (entry.layout === 'recap') {
+          Formula.place(C.RECAP.formula);
+          Formula.setLines(C.RECAP.lines);
           el.formulaBoard.classList.remove('hidden');
-          // restart the lines so they arrive one at a time
-          const inner = el.formulaBoard.children[0];
-          Array.prototype.forEach.call(inner.children, function (c) {
-            c.style.animation = 'none';
-            void c.offsetWidth;
-            c.style.animation = '';
-          });
+        } else if (AX) {
+          Formula.place(AX.formula);
+          Formula.setStep(AX.steps[0]);
+          el.formulaBoard.classList.remove('hidden');
         } else {
           el.formulaBoard.classList.add('hidden');
         }
+      };
+
+      /* An axis case: plot the segment, then narrow the formula a step
+         at a time until only the one difference that matters is left.
+         Which axis it is lives entirely in the config passed in. */
+      const runAxisCase = function (X) {
+        const spec = { a: X.a, b: X.b, color: C.GRID.leg.color,
+                       coordDy: X.coordDy, nameDy: X.nameDy };
+        const step = function () {
+          let t = 0;
+          // the two zeros light up, and the formula takes them in
+          self.later(function () { Board.glowCoords(true); SFX.tick(0); }, t += 500);
+          self.later(function () { Formula.setStep(X.steps[1]); SFX.draw(); }, t += 700);
+          // then that term collapses away
+          self.later(function () { Formula.setStep(X.steps[2]); SFX.tick(3); }, t += 1400);
+          self.later(function () { Formula.setStep(X.steps[3]); SFX.draw(); }, t += 900);
+          // and the answer lands on the segment itself
+          self.later(function () {
+            Board.showSegResult(spec, X.result, X.resultDy, X.resultDx);
+            Board.glowCoords(false);
+            SFX.chime();
+            SFX.sparkle();
+          }, t += 900);
+          self.later(function () {
+            self.state = 'waiting';
+            el.nextBtn.classList.add('ready');
+          }, t += 900);
+        };
+
+        /* The line runs alongside the drawing rather than after it —
+           the banner is already on screen and would sit empty — but
+           the formula only starts narrowing once it has been read. */
+        const SEG_MS = 1980, LEAD = 700;
+        let read = 0;
+        if (entry.line) {
+          self.later(function () { self.ask(entry.line); }, LEAD);
+          read = entry.line.length * 42 + 500;
+        }
+        Board.runSegment(spec, self.later.bind(self), function () {
+          self.later(function () {
+            // Next is armed by the line ending; hold it for the working
+            el.nextBtn.classList.remove('ready');
+            step();
+          }, Math.max(LEAD, LEAD + read - SEG_MS));
+        });
       };
 
       if (entry.transition === 'leaves') {
@@ -1218,7 +1381,10 @@
         SFX.rustle();
         /* Points and lines are drawn before anyone speaks, so the
            child sees what is being talked about. */
-        FX.leaves(el.leafLayer, dress, function () { plotThen(arrive); });
+        FX.leaves(el.leafLayer, dress, function () {
+          if (AX) runAxisCase(AX);
+          else plotThen(arrive);
+        });
         return;
       }
 
@@ -1229,6 +1395,7 @@
          rebuild — just clear the last segment and plot the next. */
       if (entry.layout === 'board' && entry.transition !== 'leaves') {
         el.gridPanel.classList.remove('hidden');
+        el.qBannerLine.textContent = '';
         el.qBanner.classList.remove('hidden');
         Board.shown = true;
         if (!entry.keepSegment) Board.clearSegment();
@@ -1711,7 +1878,6 @@
     fitStage();
     Sprite.setup();     // must precede layout(): layout seats the rig
     layout();
-    Game.buildDots();
     bind();
     requestAnimationFrame(loop);
 

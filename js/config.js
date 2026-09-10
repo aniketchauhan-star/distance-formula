@@ -405,6 +405,68 @@ window.CFG = (function () {
     ]
   };
 
+  /* -------------------------------------------------------------
+     SCREEN 27 — the x-axis case
+     Board in the middle, the formula beside it, and the general form
+     narrowed step by step until only |x2 - x1| is left.
+     ------------------------------------------------------------- */
+  const XAXIS = {
+    grid: { x: 60, y: 250, w: 1000, h: 693 },
+    formula: { x: 1110, y: 470, w: 750 },
+
+    /* Both points sit on the axis, so their labels stack above it —
+       below is where the axis numbering already lives. */
+    a: { x: -4, y: 0, name: 'A',
+         coordParts: [{ t: '(x1, ' }, { t: '0', glow: true }, { t: ')' }] },
+    b: { x:  4, y: 0, name: 'B',
+         coordParts: [{ t: '(x2, ' }, { t: '0', glow: true }, { t: ')' }] },
+    coordDy: -88,
+    nameDy: -40,
+    resultDy: 82,          // the answer goes below, clear of the numbering
+    /* This segment is centred on the origin, so the answer slides
+       right or its plate lands on the y-axis and the -1 beside it. */
+    resultDx: 168,
+
+    /* Each step replaces the line above it. Fragments let one part
+       glow as it arrives, or fade as it collapses. */
+    steps: [
+      [ { t: 'd = √((x2 - x1)² + (y2 - y1)²)' } ],
+      [ { t: 'd = √((x2 - x1)² + ' }, { t: '(0 - 0)²', glow: true }, { t: ')' } ],
+      /* The plus goes out with the term it joins, or the formula
+         reads "√((x2 - x1)² + )" for the length of the fade. */
+      [ { t: 'd = √((x2 - x1)²' }, { t: ' + (0 - 0)²', fade: true }, { t: ')' } ],
+      [ { t: 'd = √((x2 - x1)²)' } ]
+    ],
+    result: 'd = |x2 - x1|'
+  };
+
+  /* The same thing turned on its side. The pair reads as one idea, so
+     the board and the working stay exactly where the x-axis case left
+     them — only what is on them changes. A vertical segment puts its
+     labels to the side of its own accord, clear of the y numbering. */
+  const YAXIS = {
+    grid: XAXIS.grid,
+    formula: XAXIS.formula,
+
+    a: { x: 0, y: -4, name: 'A',
+         coordParts: [{ t: '(' }, { t: '0', glow: true }, { t: ', y1)' }] },
+    b: { x: 0, y:  4, name: 'B',
+         coordParts: [{ t: '(' }, { t: '0', glow: true }, { t: ', y2)' }] },
+
+    /* This segment is centred on the origin too, so the answer moves
+       off it — right of the axis and a little above the x numbering. */
+    resultDx: 200,
+    resultDy: -60,
+
+    steps: [
+      [ { t: 'd = √((x2 - x1)² + (y2 - y1)²)' } ],
+      [ { t: 'd = √(' }, { t: '(0 - 0)²', glow: true }, { t: ' + (y2 - y1)²)' } ],
+      [ { t: 'd = √(' }, { t: '(0 - 0)² + ', fade: true }, { t: '(y2 - y1)²)' } ],
+      [ { t: 'd = √((y2 - y1)²)' } ]
+    ],
+    result: 'd = |y2 - y1|'
+  };
+
   /* ---------- Audio ---------- */
   const AUDIO = {
     musicSrc: MUSIC,
@@ -676,13 +738,36 @@ window.CFG = (function () {
     /* 24 — leaves, then the result on its own: board to the left, the
        working beside it, and nobody in shot. */
     { id: 24, line: null, entrance: 'none',
-      layout: 'recap', transition: 'leaves', keepSegment: true }
+      layout: 'recap', transition: 'leaves', keepSegment: true },
+
+    /* 25-26 — leaves, then back to the opening arrangement: no board,
+       no panels, Swifty alone in the field. */
+    { id: 25, line: 'And that gives us the distance between any two points!',
+      entrance: 'fly', transition: 'leaves' },
+
+    { id: 26, line: 'What if both points are on the x-axis?', entrance: 'stay' },
+
+    /* 27 — the x-axis case worked through: the general formula narrows
+       to |x2 - x1| as the y terms fall away. */
+    { id: 27, line: 'Both points are on the x-axis.', entrance: 'none',
+      layout: 'xaxis', transition: 'leaves' },
+
+    /* 28 — leaves again, and the same empty field as 25: board, banner
+       and working all left behind, Swifty flying back in alone to put
+       the next question. */
+    { id: 28, line: 'And what if they’re on the y-axis?',
+      entrance: 'fly', transition: 'leaves' },
+
+    /* 29 — the same working as 27 with the axes swapped: the x terms
+       are the pair that falls away this time. */
+    { id: 29, line: 'Both points are on the y-axis.', entrance: 'none',
+      layout: 'yaxis', transition: 'leaves' }
   ];
 
   return {
     STAGE_W, STAGE_H, ART, SHEETS, SHEET_W, SHEET_H,
     SWIFTY, CHAR_SCALE, ANCHOR, HEAD_TOP, FEET_DY, SHADOW, CLOUD,
-    S5_ORIGIN, GRID, STAND, S8_ORIGIN, BOARD, RECAP,
+    S5_ORIGIN, GRID, STAND, S8_ORIGIN, BOARD, RECAP, XAXIS, YAXIS,
     BUBBLE, PLAY, AUDIO, SCRIPT
   };
 })();
