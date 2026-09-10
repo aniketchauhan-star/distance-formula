@@ -300,7 +300,10 @@ window.CFG = (function () {
       nameDy: 46,         // letter below it
       slots: 2,           // a right-angled path needs two
       lenSize: 32,        // "4 units" written along a leg
-      lenGap: 38          // its offset from the line
+      lenGap: 38,         // below a horizontal leg
+      /* Beside a vertical leg it has to clear the upper point's letter
+         as well as the line, so it sits further out. */
+      lenGapV: 96
     },
 
     /* Unit squares that count out a segment's length when a child
@@ -383,6 +386,23 @@ window.CFG = (function () {
     /* The triangle-type answer panel takes the slider's place, centred
        on the same footprint so the left column stays put. */
     options: { pos: { x: 70, y: 398 }, w: 520 }
+  };
+
+  /* -------------------------------------------------------------
+     SCREEN 24 — the result, stated
+     Board on the left, the formula beside it, nobody on screen.
+     ------------------------------------------------------------- */
+  const RECAP = {
+    grid: { x: 46, y: 142, w: 1150, h: 797 },
+    formula: { x: 1246, y: 372, w: 630 },
+    /* Plain "x2" rather than a subscript glyph, and the square root
+       written with brackets rather than an overline: both keep to
+       characters the game's font actually carries. */
+    lines: [
+      { kind: 'lead',   text: 'AB² = AC² + BC²' },
+      { kind: 'lead',   text: 'AB² = (x2 - x1)² + (y2 - y1)²' },
+      { kind: 'result', text: 'AB = √((x2 - x1)² + (y2 - y1)²)' }
+    ]
   };
 
   /* ---------- Audio ---------- */
@@ -628,13 +648,41 @@ window.CFG = (function () {
           mark: { name: 'C', coordText: '(x2, y1)', fill: '#3B7DD8' },
           settled: true, length: true, lengthText: 'x2 - x1' },
         { from: { x:  5, y: 1 }, to: { x: 5, y: 4 }, settled: true }
-      ] }
+      ] },
+
+    /* 22 — and now the vertical leg is named too, so both differences
+       are on the board together. */
+    { id: 22, line: 'CB = y2 - y1', entrance: 'stay',
+      layout: 'grid', keepSegment: true, bubbleScale: 0.9,
+      segment: {
+        a: { x: -5, y: 1, name: 'A', coordText: '(x1, y1)' },
+        b: { x:  5, y: 4, name: 'B', coordText: '(x2, y2)' },
+        color: '#B3261E'
+      },
+      legs: [
+        { from: { x: -5, y: 1 }, to: { x: 5, y: 1 },
+          mark: { name: 'C', coordText: '(x2, y1)', fill: '#3B7DD8' },
+          settled: true, length: true, lengthText: 'x2 - x1' },
+        { from: { x:  5, y: 1 }, to: { x: 5, y: 4 },
+          settled: true, length: true, lengthText: 'y2 - y1' }
+      ] },
+
+    /* 23 — the board is finished; she just turns to the question it
+       sets up. Nothing is declared to draw, so nothing redraws and
+       her line comes straight up. */
+    { id: 23, line: 'Now, let’s find AB.', entrance: 'stay',
+      layout: 'grid', keepSegment: true, bubbleScale: 0.9 },
+
+    /* 24 — leaves, then the result on its own: board to the left, the
+       working beside it, and nobody in shot. */
+    { id: 24, line: null, entrance: 'none',
+      layout: 'recap', transition: 'leaves', keepSegment: true }
   ];
 
   return {
     STAGE_W, STAGE_H, ART, SHEETS, SHEET_W, SHEET_H,
     SWIFTY, CHAR_SCALE, ANCHOR, HEAD_TOP, FEET_DY, SHADOW, CLOUD,
-    S5_ORIGIN, GRID, STAND, S8_ORIGIN, BOARD,
+    S5_ORIGIN, GRID, STAND, S8_ORIGIN, BOARD, RECAP,
     BUBBLE, PLAY, AUDIO, SCRIPT
   };
 })();

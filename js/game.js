@@ -13,7 +13,8 @@
    'charGroup', 'shadow', 'birdRig', 'birdFlip', 'birdWin', 'flySheet', 'talkSheet',
    'bubble', 'bubbleImg', 'bubbleText', 'bubbleLine', 'nextBtn', 'dots',
    'gridPanel', 'gridImg', 'gridAxes', 'standSwifty',
-   'qBanner', 'qBannerImg', 'qBannerText', 'qBannerLine', 'leafLayer', 'fxLayer'
+   'qBanner', 'qBannerImg', 'qBannerText', 'qBannerLine',
+   'formulaBoard', 'leafLayer', 'fxLayer'
   ].forEach(function (id) { el[id] = document.getElementById(id); });
 
   /* ---------------- responsive stage ---------------- */
@@ -115,6 +116,14 @@
      full size on the left of the board in the standing artwork. */
   function geomFor(i) {
     const entry = C.SCRIPT[i] || {};
+    if (entry.layout === 'recap') {
+      // the result stated on its own: board to one side, nobody in shot
+      const R = C.RECAP;
+      return { stand: false, bare: true, scale: C.CHAR_SCALE, anchor: C.ANCHOR,
+               aim: C.ANCHOR, feetY: 0, feetCx: 0, inkW: 0,
+               bubbleScale: C.BUBBLE.scale,
+               panelBox: { x: R.grid.x, y: R.grid.y, w: R.grid.w, h: R.grid.h } };
+    }
     if (entry.layout === 'board') {
       // Swifty is gone; nothing character-shaped to seat.
       return { stand: false, bare: true, scale: C.CHAR_SCALE, anchor: C.ANCHOR,
@@ -193,6 +202,28 @@
 
     /* Screen 5 art sits at fixed 1:1 positions from the brief. */
     Board.place(C.GRID.box);
+
+    /* Screen 24's formula board. Sized from its content so the panel
+       always fits the lines it is given. */
+    const R = C.RECAP;
+    el.formulaBoard.style.left = R.formula.x + 'px';
+    el.formulaBoard.style.top = R.formula.y + 'px';
+    el.formulaBoard.style.width = R.formula.w + 'px';
+    /* Build the inner plate if the markup does not carry one, so the
+       panel does not depend on a specific bit of HTML being present. */
+    let fb = el.formulaBoard.querySelector && el.formulaBoard.querySelector('.fb-inner');
+    if (!fb) {
+      fb = document.createElement('div');
+      fb.classList.add('fb-inner');
+      el.formulaBoard.appendChild(fb);
+    }
+    R.lines.forEach(function (l, i) {
+      const d = document.createElement('div');
+      d.classList.add('fb-' + (l.kind || 'lead'));
+      d.textContent = l.text;
+      d.style.animationDelay = (i * 300) + 'ms';
+      fb.appendChild(d);
+    });
 
     /* Screen 8's question banner, at its briefed 1:1 size. */
     const Q = C.BOARD.banner;
@@ -686,7 +717,7 @@
         const n = Math.abs(t.x - f.x) + Math.abs(t.y - f.y);
         const horiz = (f.y === t.y);
         // below a horizontal leg, out to the side of a vertical one
-        L.len.setAttribute('x', horiz ? (x1 + x2) / 2 : (x1 + LG.lenGap * 1.9));
+        L.len.setAttribute('x', horiz ? (x1 + x2) / 2 : (x1 + LG.lenGapV));
         L.len.setAttribute('y', horiz ? y1 + LG.lenGap : (y1 + y2) / 2);
         /* A leg can name its length instead of measuring it — the
            general case labels it x2 - x1 rather than 10 units. */
@@ -1063,7 +1094,8 @@
       standPose = !!geom.stand;
       applyGeom(geom);
 
-      const onBoard = entry.layout === 'grid' || entry.layout === 'board';
+      const onBoard = entry.layout === 'grid' || entry.layout === 'board' ||
+                      entry.layout === 'recap';
       // the board only exists on its own screens
       if (!onBoard) {
         el.gridPanel.classList.add('hidden');
@@ -1072,6 +1104,7 @@
         Board.setDots(false);
       }
       if (entry.layout !== 'board') el.qBanner.classList.add('hidden');
+      if (entry.layout !== 'recap') el.formulaBoard.classList.add('hidden');
       if (!entry.segment && !entry.keepSegment) Board.clearSegment();
       if (Dist && !entry.distance) Dist.hide();
       if (Opts && !entry.options) Opts.hide();
@@ -1164,6 +1197,19 @@
         }
         if (Opts) {
           if (entry.options) { Opts.reset(); Opts.show(); } else Opts.hide();
+        }
+
+        if (entry.layout === 'recap') {
+          el.formulaBoard.classList.remove('hidden');
+          // restart the lines so they arrive one at a time
+          const inner = el.formulaBoard.children[0];
+          Array.prototype.forEach.call(inner.children, function (c) {
+            c.style.animation = 'none';
+            void c.offsetWidth;
+            c.style.animation = '';
+          });
+        } else {
+          el.formulaBoard.classList.add('hidden');
         }
       };
 

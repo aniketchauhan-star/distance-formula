@@ -347,6 +347,49 @@ html, body {
 #standSwifty { position: absolute; display: block; }
 #standSwifty.land-in { animation: standIn .3s ease-out both; }
 
+/* screen 24: the formula, stated beside the board */
+#formulaBoard {
+  position: absolute;
+  z-index: 4;
+  box-sizing: border-box;
+  padding: 9px;
+  background: #FFD747;
+  border: 5px solid #D77A00;
+  border-radius: 34px;
+  box-shadow: 0 8px 18px rgba(60, 40, 0, .18);
+}
+#formulaBoard .fb-inner {
+  height: 100%;
+  padding: 30px 28px;
+  background: #FFFDF3;
+  border-radius: 24px;
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, .95);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 20px;
+  font-family: 'Lilita One', system-ui, sans-serif;
+  color: #14418c;
+  text-align: center;
+}
+#formulaBoard .fb-lead   { font-size: 36px; letter-spacing: .3px; }
+#formulaBoard .fb-result {
+  font-size: 38px;
+  padding: 16px 12px;
+  border-radius: 18px;
+  background: #F1F4FA;
+  border: 3px solid #DCE4F2;
+}
+#formulaBoard .fb-inner > * {
+  opacity: 0;
+  animation: formulaIn .52s cubic-bezier(.22, .68, .3, 1) both;
+}
+@keyframes formulaIn {
+  0%   { opacity: 0; transform: translateY(18px) scale(.94); }
+  60%  { opacity: 1; transform: translateY(-4px) scale(1.02); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 /* screen 8: question banner */
 #qBanner { position: absolute; z-index: 4; }
 #qBannerImg { position: absolute; left: 0; top: 0; display: block; }
