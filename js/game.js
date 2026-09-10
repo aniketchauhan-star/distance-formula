@@ -245,7 +245,15 @@
       line.textContent = '';
     },
 
+    /* A coordinate pair must never break across lines, so the space
+       inside one becomes non-breaking. Applies to every line, so any
+       future "(x, y)" is handled without special-casing. */
+    keepPairs: function (text) {
+      return text.replace(/\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\)/g, '($1,\u00A0$2)');
+    },
+
     open: function (text, done) {
+      text = this.keepPairs(text);
       this.full = text; this.shown = 0; this.onDone = done;
       // Unhide first: a display:none plate measures zero.
       el.bubble.classList.remove('hidden', 'pop-out');
@@ -313,7 +321,7 @@
      can animate in on its own, and so the numbers land exactly on the
      drawn gridlines (measured into CFG.GRID). */
   const Board = {
-    built: false, labels: [], lines: [], arrows: [],
+    built: false, shown: false, labels: [], lines: [], arrows: [], dots: [],
 
     build: function () {
       if (this.built) return;
@@ -392,6 +400,53 @@
       const N = G.axisName;
       label('x', xMax + N.gap, oy - N.rise, N.size);
       label('y', ox + N.gap, yMin + N.yDrop, N.size);
+
+      /* Screen 6's intersection markers: every gridline crossing in
+         the numbered range. Built once, hidden until that screen. */
+      const D = G.dot;
+      const g = document.createElementNS(NS, 'g');
+      g.setAttribute('id', 'gridDots');
+      g.setAttribute('class', 'dots');
+      svg.appendChild(g);
+      for (let gy = D.yFrom; gy <= D.yTo; gy++) {
+        for (let gx = D.xFrom; gx <= D.xTo; gx++) {
+          // points that would land on an axis line are left clear
+          if (D.skipOnAxes && (gx === 0 || gy === 0)) continue;
+          const c = document.createElementNS(NS, 'circle');
+          c.setAttribute('cx', ox + gx * G.stepX);
+          c.setAttribute('cy', oy - gy * G.stepY);
+          c.setAttribute('r', D.r);
+          c.setAttribute('fill', D.fill);
+          c.setAttribute('stroke', D.stroke);
+          c.setAttribute('stroke-width', D.strokeWidth);
+          c.setAttribute('class', 'gdot');
+          // pulse travels outward from the origin rather than in unison
+          const ring = Math.abs(gx) + Math.abs(gy);
+          const d = ring * D.rippleMs;
+          c.style.animationDelay = d + 'ms, ' + (d + 380) + 'ms';
+          g.appendChild(c);
+          self.dots.push(c);
+        }
+      }
+      /* They look tappable, so they take the tap — and swallow it, or
+         it would bubble to the scene and skip the screen. */
+      const kk = Math.min(G.box.w / G.w, G.box.h / G.h);
+      g.addEventListener('click', function (e) {
+        const c = e.target;
+        if (!c || !c.classList || !c.classList.contains('gdot')) return;
+        e.stopPropagation();
+        SFX.blip();
+        FX.ring(G.box.x + Number(c.getAttribute('cx')) * kk,
+                G.box.y + Number(c.getAttribute('cy')) * kk,
+                70, 'rgba(90,180,225,.95)');
+      });
+
+      this.dotGroup = g;
+    },
+
+    setDots: function (on) {
+      if (!this.dotGroup) return;
+      this.dotGroup.classList.toggle('on', !!on);
     },
 
     /* Reset so a replay rebuilds the same entrance. */
@@ -401,6 +456,7 @@
       this.labels.forEach(function (t) { t.classList.remove('pop'); });
       el.gridPanel.classList.add('hidden');
       el.gridPanel.classList.remove('magic-in');
+      this.setDots(false);
     },
 
     /* panel -> x axis -> y axis -> arrowheads -> numbers */
@@ -412,6 +468,7 @@
 
       this.build();
       this.reset();
+      this.shown = true;
 
       el.gridPanel.classList.remove('hidden');
       void el.gridPanel.offsetWidth;
@@ -529,10 +586,12 @@
       standPose = !!geom.stand;
       applyGeom(geom);
 
-      // the board only exists on its own screen
+      // the board only exists on its own screens
       if (entry.layout !== 'grid') {
         el.gridPanel.classList.add('hidden');
         el.standSwifty.classList.add('hidden');
+        Board.shown = false;
+        Board.setDots(false);
       }
 
       /* What happens once she has arrived: speak her line, hand over
@@ -554,9 +613,18 @@
         else self.stay(after);
       };
 
-      // Screen 5: the board builds itself in first, then she flies in.
-      if (entry.layout === 'grid') Board.run(this.later.bind(this), arrive);
-      else arrive();
+      /* A grid screen builds the board in first — but only if it is
+         not already standing from the screen before, so screen 6
+         carries straight on from 5 instead of rebuilding it. */
+      if (entry.layout === 'grid' && !Board.shown) {
+        Board.run(this.later.bind(this), function () {
+          Board.setDots(!!entry.dots);
+          arrive();
+        });
+      } else {
+        Board.setDots(!!entry.dots);
+        arrive();
+      }
     },
 
     /* Swifty flies in from off-stage on the fly sheet, then lands. */
@@ -668,7 +736,13 @@
     stay: function (done) {
       el.birdRig.classList.remove('fly-in', 'hop', 'pre-entrance');
       el.shadow.classList.remove('lifted');
-      if (!(this.geom && this.geom.stand)) {
+      if (this.geom && this.geom.stand) {
+        /* Assert the standing artwork rather than assuming the screen
+           before left it up — skipping screen 5 mid-build would
+           otherwise land here with no Swifty at all. */
+        el.birdWin.classList.add('hidden');
+        el.standSwifty.classList.remove('hidden');
+      } else {
         el.birdWin.classList.remove('hidden');
         Sprite.stopAt('talk', 0);
       }

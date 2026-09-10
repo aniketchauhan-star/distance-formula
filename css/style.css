@@ -200,6 +200,31 @@ html, body {
 #gridAxes .arrow { opacity: 0; transform-box: fill-box; transform-origin: center; }
 #gridAxes .arrow.pop { animation: arrowPop .34s cubic-bezier(.3, 1.7, .5, 1) forwards; }
 
+/* Screen 6: intersection markers. Hidden until that screen, then
+   they pop in and settle into a slow, mild breath. */
+#gridAxes .dots .gdot {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  paint-order: stroke fill;      /* ring behind the fill, so it reads on the axes */
+  pointer-events: none;
+  transition: fill .15s ease;
+}
+#gridAxes .dots.on .gdot {
+  animation: dotIn .42s cubic-bezier(.3, 1.7, .5, 1) both,
+             dotPulse 2.1s ease-in-out infinite;
+  pointer-events: all;           /* they invite a tap, so let them take one */
+  cursor: pointer;
+}
+/* the tappable affordance: brighten and swell under the cursor */
+#gridAxes .dots.on .gdot:hover {
+  animation: none;               /* a paused animation still wins the cascade */
+  opacity: 1;
+  fill: #2E9BD4;
+  transform: scale(1.7);
+}
+#gridAxes .dots.on .gdot:active { transform: scale(1.35); }
+
 #gridAxes .glabel {
   opacity: 0;
   font-family: 'Lilita One', system-ui, sans-serif;
@@ -291,6 +316,16 @@ html, body {
   0%   { opacity: 0; transform: scale(0); }
   70%  { opacity: 1; transform: scale(1.3); }
   100% { opacity: 1; transform: scale(1); }
+}
+@keyframes dotIn {
+  0%   { opacity: 0;   transform: scale(0); }
+  70%  { opacity: .85; transform: scale(1.25); }
+  100% { opacity: .40; transform: scale(1); }
+}
+/* mild and faint — a gentle breath, not a throb */
+@keyframes dotPulse {
+  0%, 100% { opacity: .40; transform: scale(1); }
+  50%      { opacity: .72; transform: scale(1.20); }
 }
 @keyframes labelPop {
   0%   { opacity: 0; transform: scale(0) rotate(-14deg); }
@@ -422,6 +457,6 @@ html, body {
 /* Respect a reduced-motion preference: keep the game usable, drop
    the ambient looping animation. */
 @media (prefers-reduced-motion: reduce) {
-  .cloud, .fx-mote,
+  .cloud, .fx-mote, #gridAxes .dots.on .gdot,
   .loader-title, #playBtn.idle { animation: none !important; }
 }

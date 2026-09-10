@@ -218,7 +218,13 @@ window.CFG = (function () {
        reaches past the grid. */
     originX: 740, originY: 494,
     stepX: 61.1818, stepY: 61.4286,
-    xFrom: -6, xTo: 6,
+
+    /* The board is far wider than it is tall, so x reaches further
+       than y. ±9 is the limit: the line, its arrowheads and the `x`
+       label all still sit inside the drawn grid, where ±10 would push
+       the label off the board. Cells are square (61.18 x 61.43), so a
+       unit is the same length on both axes. */
+    xFrom: -9, xTo: 9,
     yFrom: -6, yTo: 6,
 
     ink: '#213258',                 // axes, arrowheads and numbers
@@ -238,7 +244,24 @@ window.CFG = (function () {
     /* Axis names. `x` sits beyond the positive x arrow; `y` sits
        beside its arrow rather than above it — there are only 21px
        between that tip and the top of the grid. */
-    axisName: { size: 38, gap: 42, rise: 38, yDrop: 14 }
+    axisName: { size: 38, gap: 42, rise: 38, yDrop: 14 },
+
+    /* Screen 6: a marker on every gridline intersection across the
+       numbered range — 13 x 13 = 169 of them. Faint light blue so
+       they read as places you could tap rather than as answers, with
+       a white ring keeping each legible where it crosses a navy axis.
+       They brighten and grow under the cursor. */
+    dot: {
+      r: 8,
+      fill: '#6FC0E8',      // soft light blue, held faint by the pulse opacity
+      stroke: '#FFFFFF',
+      strokeWidth: 2,
+      rippleMs: 60,         // per-ring delay, so the pulse travels outward
+      skipOnAxes: true,     // no marker where a point would sit on an axis
+      // markers keep their own -6..6 square, independent of the axis range
+      xFrom: -6, xTo: 6,
+      yFrom: -6, yTo: 6
+    }
   };
 
   /* Standing pose used once she has landed on screen 5. */
@@ -282,7 +305,11 @@ window.CFG = (function () {
     // 5 — the grid builds itself in, then she flies back in and lands
     //     on the left in the standing pose.
     { id: 5, line: 'Locate the point (2, 1).', entrance: 'fly',
-      layout: 'grid', bubbleScale: 0.9 }
+      layout: 'grid', bubbleScale: 0.9 },
+
+    // 6 — same scene as 5; every intersection lights up and pulses.
+    { id: 6, line: null, entrance: 'stay',
+      layout: 'grid', dots: true, bubbleScale: 0.9 }
   ];
 
   return {
