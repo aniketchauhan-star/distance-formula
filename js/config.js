@@ -20,7 +20,8 @@ window.CFG = (function () {
     swiftyFly:   'assets/swifty fly.png',
     swiftyTalk:  'assets/swifty talk.png',
     swiftyStand: 'assets/normal stand swifty.png',
-    gridPanel:   'assets/grid lines panel.png'
+    gridPanel:   'assets/grid lines panel.png',
+    questionBar: 'assets/question template.png'
   };
   const MUSIC = 'sfx/bg music.mp3';
 
@@ -287,6 +288,35 @@ window.CFG = (function () {
     inkW: 335
   };
 
+  /* -------------------------------------------------------------
+     SCREEN 8 — board on its own, question in a banner
+
+     Brief: panel at (850, 2422) 1239 x 856, banner at (666, 2256)
+     1023 x 158. Solving both against a 1920 x 1080 frame puts the
+     artboard origin at (417.5, 2227): the pair then sits centred both
+     ways, 248.5px clear either side and 29px top and bottom.
+     ------------------------------------------------------------- */
+  const S8_ORIGIN = { x: 417.5, y: 2227 };
+  const place8 = function (fx, fy) {
+    return { x: fx - S8_ORIGIN.x, y: fy - S8_ORIGIN.y };
+  };
+
+  const BOARD = {
+    // the same grid art, re-seated and a little smaller
+    panel: { pos: place8(850, 2422), w: 1239, h: 856 },
+
+    /* Swifty has left, so the question moves out of her speech bubble
+       and into the banner. Its cream interior runs x[41..981]
+       y[32..127]; the bird sits at x[121..204] and sparkles at both
+       ends, so the text plate clears them. */
+    banner: {
+      src: ART.questionBar,
+      pos: place8(666, 2256), w: 1023, h: 158,
+      text: { left: 0.22, top: 0.20, width: 0.65, height: 0.60 },
+      size: 42
+    }
+  };
+
   /* ---------- Audio ---------- */
   const AUDIO = {
     musicSrc: MUSIC,
@@ -314,19 +344,15 @@ window.CFG = (function () {
     //     then the screen hands over on its own.
     { id: 4, line: null, entrance: 'flyOut', auto: true },
 
-    // 5 — the grid builds itself in, then she flies back in and lands
-    //     on the left in the standing pose.
-    { id: 5, line: 'Locate the point (2, 1).', entrance: 'fly',
+    // 5 — no dialogue: the grid builds itself in and she flies back in
+    //     and lands on the left. The question comes on screen 6.
+    { id: 5, line: null, entrance: 'fly',
       layout: 'grid', bubbleScale: 0.9 },
 
-    // 6 — same scene as 5; every intersection lights up and pulses,
-    //     with the question still on screen.
+    /* 6 — the highlighters come up and the board goes live: tap the
+       point she asked for. Two wrong taps and she shows the answer
+       herself. */
     { id: 6, line: 'Locate the point (2, 1).', entrance: 'stay',
-      layout: 'grid', dots: true, bubbleScale: 0.9 },
-
-    /* 7 — same board, now live: tap the point she asked for. Two
-       wrong taps and she shows the answer herself. */
-    { id: 7, line: 'Locate the point (2, 1).', entrance: 'stay',
       layout: 'grid', dots: true, bubbleScale: 0.9,
       task: {
         target: { x: 2, y: 1 },
@@ -336,8 +362,8 @@ window.CFG = (function () {
         revealLine: 'Here it is — (2, 1).'
       } },
 
-    // 8 — same again with a new point.
-    { id: 8, line: 'Locate the point (6, 1).', entrance: 'stay',
+    // 7 — same again with a new point.
+    { id: 7, line: 'Locate the point (6, 1).', entrance: 'stay',
       layout: 'grid', dots: true, bubbleScale: 0.9,
       task: {
         target: { x: 6, y: 1 },
@@ -345,13 +371,19 @@ window.CFG = (function () {
         correctLine: 'Correct!',
         tryAgainLine: 'Not quite — try again!',
         revealLine: 'Here it is — (6, 1).'
-      } }
+      } },
+
+    /* 8 — leaves sweep the screen; behind them Swifty leaves, the
+       board re-seats itself and the empty banner drops in. No
+       question and nothing to locate yet. */
+    { id: 8, line: null, entrance: 'none',
+      layout: 'board', transition: 'leaves' }
   ];
 
   return {
     STAGE_W, STAGE_H, ART, SHEETS, SHEET_W, SHEET_H,
     SWIFTY, CHAR_SCALE, ANCHOR, HEAD_TOP, FEET_DY, SHADOW, CLOUD,
-    S5_ORIGIN, GRID, STAND,
+    S5_ORIGIN, GRID, STAND, S8_ORIGIN, BOARD,
     BUBBLE, PLAY, AUDIO, SCRIPT
   };
 })();

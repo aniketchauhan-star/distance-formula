@@ -159,7 +159,56 @@ window.FX = (function () {
     });
   }
 
+  /* A curtain of leaves sweeps the frame. `onCover` fires while the
+     screen is hidden, which is when the scene behind gets swapped;
+     `onDone` once they have blown clear. */
+  const LEAF = ['#4E9E38', '#63B845', '#3C8A2E', '#7FCB55', '#2F7A28', '#8FD766'];
+
+  function leaves(el, onCover, onDone) {
+    const DUR = 1500, COVER = 0.46, HOLD = 0.60;   // fractions of DUR
+    el.innerHTML = '';
+    el.classList.remove('hidden');
+
+    // a green veil under the leaves guarantees the swap is not seen
+    const veil = document.createElement('div');
+    veil.className = 'leaf-veil';
+    veil.style.animationDuration = DUR + 'ms';
+    el.appendChild(veil);
+
+    for (let i = 0; i < 64; i++) {
+      const size = rnd(150, 330);
+      const fromLeft = Math.random() < 0.5;
+      const d = document.createElement('div');
+      d.className = 'leaf';
+      d.style.width = size + 'px';
+      d.style.height = size * rnd(0.62, 0.85) + 'px';
+      d.style.background = pick(LEAF);
+      d.style.left = rnd(-120, 1920) + 'px';
+      d.style.top = rnd(-120, 1080) + 'px';
+      // in from one side, out through the other
+      d.style.setProperty('--x0', (fromLeft ? rnd(-1500, -700) : rnd(2100, 2900)) + 'px');
+      d.style.setProperty('--y0', rnd(-700, -200) + 'px');
+      d.style.setProperty('--x1', rnd(-90, 90) + 'px');
+      d.style.setProperty('--y1', rnd(-60, 60) + 'px');
+      d.style.setProperty('--x2', (fromLeft ? rnd(900, 1700) : rnd(-1700, -900)) + 'px');
+      d.style.setProperty('--y2', rnd(500, 1100) + 'px');
+      d.style.setProperty('--r0', rnd(-220, 220) + 'deg');
+      d.style.setProperty('--r1', rnd(-60, 60) + 'deg');
+      d.style.setProperty('--r2', rnd(-420, 420) + 'deg');
+      d.style.animationDuration = DUR + 'ms';
+      d.style.animationDelay = rnd(0, 120) + 'ms';
+      el.appendChild(d);
+    }
+
+    setTimeout(function () { if (onCover) onCover(); }, DUR * ((COVER + HOLD) / 2));
+    setTimeout(function () {
+      el.classList.add('hidden');
+      el.innerHTML = '';
+      if (onDone) onDone();
+    }, DUR + 180);
+  }
+
   function clear() { if (layer) layer.innerHTML = ''; }
 
-  return { init, starBurst, ring, confetti, sparkles, puff, motes, clouds, clear };
+  return { init, starBurst, ring, confetti, sparkles, puff, motes, clouds, leaves, clear };
 })();

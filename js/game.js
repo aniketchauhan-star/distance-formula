@@ -12,7 +12,8 @@
    'startScreen', 'playBtn', 'playImg', 'scene', 'skyLayer',
    'charGroup', 'shadow', 'birdRig', 'birdFlip', 'birdWin', 'flySheet', 'talkSheet',
    'bubble', 'bubbleImg', 'bubbleText', 'bubbleLine', 'nextBtn', 'dots',
-   'gridPanel', 'gridImg', 'gridAxes', 'standSwifty', 'fxLayer'
+   'gridPanel', 'gridImg', 'gridAxes', 'standSwifty',
+   'qBanner', 'qBannerImg', 'qBannerText', 'qBannerLine', 'leafLayer', 'fxLayer'
   ].forEach(function (id) { el[id] = document.getElementById(id); });
 
   /* ---------------- responsive stage ---------------- */
@@ -112,6 +113,14 @@
      full size on the left of the board in the standing artwork. */
   function geomFor(i) {
     const entry = C.SCRIPT[i] || {};
+    if (entry.layout === 'board') {
+      // Swifty is gone; nothing character-shaped to seat.
+      return { stand: false, bare: true, scale: C.CHAR_SCALE, anchor: C.ANCHOR,
+               aim: C.ANCHOR, feetY: 0, feetCx: 0, inkW: 0,
+               bubbleScale: C.BUBBLE.scale, panelBox: {
+                 x: C.BOARD.panel.pos.x, y: C.BOARD.panel.pos.y,
+                 w: C.BOARD.panel.w, h: C.BOARD.panel.h } };
+    }
     if (entry.layout === 'grid') {
       const S = C.STAND;
       return {
@@ -181,21 +190,21 @@
     applyGeom(geomFor(0));
 
     /* Screen 5 art sits at fixed 1:1 positions from the brief. */
-    const G = C.GRID;
-    // The art is larger than the frame allows, so scale it into the
-    // footprint the previous board occupied. The SVG keeps drawing in
-    // panel-local units; its viewBox does the scaling.
-    const gk = Math.min(G.box.w / G.w, G.box.h / G.h);
-    const gw = G.w * gk, gh = G.h * gk;
-    el.gridPanel.style.left = G.box.x + 'px';
-    el.gridPanel.style.top = G.box.y + 'px';
-    el.gridPanel.style.width = gw + 'px';
-    el.gridPanel.style.height = gh + 'px';
-    el.gridImg.style.width = gw + 'px';
-    el.gridImg.style.height = gh + 'px';
-    el.gridAxes.setAttribute('viewBox', '0 0 ' + G.w + ' ' + G.h);
-    el.gridAxes.style.width = gw + 'px';
-    el.gridAxes.style.height = gh + 'px';
+    Board.place(C.GRID.box);
+
+    /* Screen 8's question banner, at its briefed 1:1 size. */
+    const Q = C.BOARD.banner;
+    el.qBanner.style.left = Q.pos.x + 'px';
+    el.qBanner.style.top = Q.pos.y + 'px';
+    el.qBanner.style.width = Q.w + 'px';
+    el.qBanner.style.height = Q.h + 'px';
+    el.qBannerImg.style.width = Q.w + 'px';
+    el.qBannerImg.style.height = Q.h + 'px';
+    el.qBannerText.style.left = Q.w * Q.text.left + 'px';
+    el.qBannerText.style.top = Q.h * Q.text.top + 'px';
+    el.qBannerText.style.width = Q.w * Q.text.width + 'px';
+    el.qBannerText.style.height = Q.h * Q.text.height + 'px';
+    el.qBannerText.style.fontSize = Q.size + 'px';
 
     const S = C.STAND;
     el.standSwifty.style.left = S.pos.x + 'px';
@@ -456,7 +465,6 @@
 
       /* They look tappable, so they take the tap — and swallow it, or
          it would bubble to the scene and skip the screen. */
-      const kk = Math.min(G.box.w / G.w, G.box.h / G.h);
       g.addEventListener('click', function (e) {
         const c = e.target;
         if (!c || !c.classList || !c.classList.contains('gdot')) return;
@@ -465,6 +473,29 @@
       });
 
       this.dotGroup = g;
+    },
+
+    /* The board is seated in different boxes on different screens, so
+       its placement is applied rather than fixed. */
+    box: null,
+    /* The panel fills its briefed box exactly rather than being
+       letterboxed inside it. The art's own ratio differs by under half
+       a percent, so nothing reads as stretched, and the SVG overlay
+       maps through the same viewBox — axes and numbers stay locked to
+       the drawn gridlines either way. */
+    place: function (box) {
+      const G = C.GRID;
+      this.box = box;
+      el.gridPanel.style.left = box.x + 'px';
+      el.gridPanel.style.top = box.y + 'px';
+      el.gridPanel.style.width = box.w + 'px';
+      el.gridPanel.style.height = box.h + 'px';
+      el.gridImg.style.width = box.w + 'px';
+      el.gridImg.style.height = box.h + 'px';
+      el.gridAxes.setAttribute('viewBox', '0 0 ' + G.w + ' ' + G.h);
+      el.gridAxes.setAttribute('preserveAspectRatio', 'none');
+      el.gridAxes.style.width = box.w + 'px';
+      el.gridAxes.style.height = box.h + 'px';
     },
 
     setDots: function (on) {
@@ -477,11 +508,10 @@
     /* Where a grid point sits in stage coordinates, for effects that
        live outside the SVG. */
     stagePos: function (gx, gy) {
-      const G = C.GRID;
-      const k = Math.min(G.box.w / G.w, G.box.h / G.h);
+      const G = C.GRID, b = this.box || G.box;
       return {
-        x: G.box.x + (G.originX + gx * G.stepX) * k,
-        y: G.box.y + (G.originY - gy * G.stepY) * k
+        x: b.x + (G.originX + gx * G.stepX) * (b.w / G.w),
+        y: b.y + (G.originY - gy * G.stepY) * (b.h / G.h)
       };
     },
 
@@ -528,8 +558,8 @@
     run: function (later, done) {
       const self = this;
       const G = C.GRID;
-      const k = Math.min(G.box.w / G.w, G.box.h / G.h);
-      const cx = G.box.x + G.w * k / 2, cy = G.box.y + G.h * k / 2;
+      const b = this.box || G.box;
+      const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
 
       this.build();
       this.reset();
@@ -651,13 +681,15 @@
       standPose = !!geom.stand;
       applyGeom(geom);
 
+      const onBoard = entry.layout === 'grid' || entry.layout === 'board';
       // the board only exists on its own screens
-      if (entry.layout !== 'grid') {
+      if (!onBoard) {
         el.gridPanel.classList.add('hidden');
         el.standSwifty.classList.add('hidden');
         Board.shown = false;
         Board.setDots(false);
       }
+      if (entry.layout !== 'board') el.qBanner.classList.add('hidden');
 
       /* What happens once she has arrived: speak her line, hand over
          on its own if the screen has none, or simply wait. */
@@ -668,7 +700,8 @@
         : null;
 
       const after = function () {
-        if (entry.line) self.speak(entry.line);
+        if (entry.line && geom.bare) self.ask(entry.line);   // banner, not bubble
+        else if (entry.line) self.speak(entry.line);
         else if (entry.auto && i + 1 < C.SCRIPT.length) {
           self.later(function () { self.goTo(i + 1); }, 160);
         } else {
@@ -681,8 +714,34 @@
         if (entry.entrance === 'fly') self.flyIn(after);
         else if (entry.entrance === 'flyOut') self.flyOut(after);
         else if (entry.entrance === 'hop') self.hop(after);
+        else if (entry.entrance === 'none') after();     // nobody to bring on
         else self.stay(after);
       };
+
+      /* Screen 8 hides its changeover behind a curtain of leaves: the
+         swap happens while the frame is covered, so Swifty leaving and
+         the board re-seating itself are never seen. */
+      if (entry.transition === 'leaves') {
+        this.state = 'entering';
+        SFX.rustle();
+        FX.leaves(el.leafLayer, function () {
+          el.standSwifty.classList.add('hidden');
+          el.birdWin.classList.add('hidden');
+          el.shadow.classList.add('lifted');
+          Bubble.close();
+          Board.place(geom.panelBox);
+          Board.setDots(!!entry.dots);
+          el.gridPanel.classList.remove('hidden');
+          Board.shown = true;
+          el.qBanner.classList.remove('hidden', 'pop-in');
+          void el.qBanner.offsetWidth;
+          el.qBanner.classList.add('pop-in');
+        }, function () { arrive(); });
+        return;
+      }
+
+      if (geom.panelBox) Board.place(geom.panelBox);
+      else Board.place(C.GRID.box);
 
       /* A grid screen builds the board in first — but only if it is
          not already standing from the screen before, so screen 6
@@ -851,6 +910,32 @@
       });
     },
 
+    /* The banner's version of speak(): types the question into the
+       question bar, with the same chirps and music duck. */
+    ask: function (line) {
+      const self = this;
+      this.state = 'speaking';
+      const text = Bubble.keepPairs(line);
+      el.qBannerLine.textContent = '';
+      SFX.duck(true);
+
+      let n = 0, since = 0;
+      const timer = setInterval(function () {
+        if (n >= text.length) {
+          clearInterval(timer);
+          SFX.duck(false);
+          SFX.chime();
+          self.state = 'waiting';
+          el.nextBtn.classList.add('ready');
+          return;
+        }
+        const ch = text[n++];
+        el.qBannerLine.textContent = text.slice(0, n);
+        if (ch !== ' ' && ++since >= 2) { since = 0; SFX.chirp(1); }
+      }, 42);
+      this.pending.push(timer);
+    },
+
     /* A point was tapped. Without a task running this is just a
        friendly blip; with one, it is an answer. */
     tapPoint: function (gx, gy, node) {
@@ -880,7 +965,7 @@
       this.later(function () {
         SFX.cheer();
         FX.confetti(26);                         // enough to read as a shower, not a mess
-        self.speak(t.spec.correctLine);
+        (self.geom && self.geom.bare ? self.ask : self.speak).call(self, t.spec.correctLine);
       }, 260);
     },
 
@@ -900,10 +985,12 @@
           FX.ring(at.x, at.y, 150, 'rgba(70,200,95,.9)');
           FX.sparkles(at.x, at.y, 8, 120);
           SFX.chime();
-          self.speak(t.spec.revealLine);
+          (self.geom && self.geom.bare ? self.ask : self.speak).call(self, t.spec.revealLine);
         }, 620);
       } else {
-        this.later(function () { self.speak(t.spec.tryAgainLine); }, 260);
+        this.later(function () {
+          (self.geom && self.geom.bare ? self.ask : self.speak).call(self, t.spec.tryAgainLine);
+        }, 260);
       }
     },
 

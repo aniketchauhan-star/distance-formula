@@ -249,6 +249,19 @@ window.Audio8 = (function () {
     });
   }
 
+  /* Leaves sweeping the screen: layered rustles rather than one
+     whoosh, so it reads as foliage instead of wind. */
+  function rustle() {
+    if (!ctx) return;
+    for (let i = 0; i < 5; i++) {
+      noise({ f0: 1200 + Math.random() * 2600, f1: 500 + Math.random() * 900,
+              dur: 0.22 + Math.random() * 0.2, gain: 0.075, q: 1.8,
+              delay: i * 0.11 + Math.random() * 0.05 });
+    }
+    noise({ f0: 300, f1: 1800, dur: 0.4, gain: 0.05, q: 0.7 });
+    tone({ type: 'sine', f0: 150, f1: 90, dur: 0.3, gain: 0.05 });
+  }
+
   // Cheerful three-note flourish when a line finishes.
   function chime() {
     [784, 988, 1319].forEach(function (f, i) {
@@ -259,7 +272,7 @@ window.Audio8 = (function () {
   return {
     unlock, duck, setMuted, isMuted,
     chirp, flap, land, pop, blip, sparkle, whoosh, chime, magic, draw, tick,
-    correct, wrong, cheer,
+    correct, wrong, cheer, rustle,
     get ready() { return !!ctx; }
   };
 })();
