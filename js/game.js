@@ -670,8 +670,11 @@
 
       if (spec.mark) {
         L.dot.setAttribute('cx', x2); L.dot.setAttribute('cy', y2);
+        // the corner can be drawn as a plotted point rather than a leg end
+        L.dot.setAttribute('fill', spec.mark.fill || LG.color);
         L.coord.setAttribute('x', x2 + LG.coordDx); L.coord.setAttribute('y', y2);
-        L.coord.textContent = '(' + t.x + ',\u00A0' + t.y + ')';
+        L.coord.textContent = spec.mark.coordText ||
+                              ('(' + t.x + ',\u00A0' + t.y + ')');
         L.name.setAttribute('x', x2); L.name.setAttribute('y', y2 + LG.nameDy);
         L.name.textContent = spec.mark.name || '';
         L.dot.style.display = L.coord.style.display = L.name.style.display = '';
@@ -685,7 +688,10 @@
         // below a horizontal leg, out to the side of a vertical one
         L.len.setAttribute('x', horiz ? (x1 + x2) / 2 : (x1 + LG.lenGap * 1.9));
         L.len.setAttribute('y', horiz ? y1 + LG.lenGap : (y1 + y2) / 2);
-        L.len.textContent = n + '\u00A0unit' + (n === 1 ? '' : 's');
+        /* A leg can name its length instead of measuring it — the
+           general case labels it x2 - x1 rather than 10 units. */
+        L.len.textContent = spec.lengthText ||
+                            (n + '\u00A0unit' + (n === 1 ? '' : 's'));
         L.len.style.display = L.plate.style.display = '';
       } else {
         L.len.style.display = L.plate.style.display = 'none';
@@ -843,7 +849,9 @@
 
         part.coord.setAttribute('x', vertical ? X + side * SG.coordDx : X);
         part.coord.setAttribute('y', vertical ? Y + SG.vCoordDy : Y + SG.coordDy);
-        part.coord.textContent = '(' + p.x + ',\u00A0' + p.y + ')';
+        /* A point can carry its own label — the general case names the
+           points (x1, y1) and (x2, y2) rather than their values. */
+        part.coord.textContent = p.coordText || ('(' + p.x + ',\u00A0' + p.y + ')');
 
         part.name.setAttribute('x', vertical ? X + side * SG.coordDx : X);
         part.name.setAttribute('y', vertical ? Y + SG.vNameDy : Y + SG.nameDy);

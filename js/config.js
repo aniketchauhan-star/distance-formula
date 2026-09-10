@@ -585,7 +585,50 @@ window.CFG = (function () {
           { kind: 'step',   text: '= 25' },
           { kind: 'result', text: 'AB = 5 units' }
         ]
-      } }
+      } },
+
+    /* 19 — leaves, back to the field layout, and the same idea stated
+       in general: the points are named rather than numbered. */
+    { id: 19, line: 'The same idea works for any two points.', entrance: 'fly',
+      layout: 'grid', transition: 'leaves', bubbleScale: 0.9,
+      segment: {
+        a: { x: -5, y: 1, name: 'A', coordText: '(x1, y1)' },
+        b: { x:  5, y: 4, name: 'B', coordText: '(x2, y2)' },
+        color: '#B3261E'
+      } },
+
+    /* 20 — the same general segment, with the corner dropped and both
+       legs drawn: the right-angled triangle in its general form. The
+       corner is named from the two points' own coordinates. */
+    { id: 20, line: null, entrance: 'stay',
+      layout: 'grid', keepSegment: true,
+      segment: {
+        a: { x: -5, y: 1, name: 'A', coordText: '(x1, y1)' },
+        b: { x:  5, y: 4, name: 'B', coordText: '(x2, y2)' },
+        color: '#B3261E'
+      },
+      legs: [
+        { from: { x: -5, y: 1 }, to: { x: 5, y: 1 },
+          mark: { name: 'C', coordText: '(x2, y1)', fill: '#3B7DD8' } },
+        { from: { x:  5, y: 1 }, to: { x: 5, y: 4 } }
+      ] },
+
+    /* 21 — the horizontal leg is named. Nothing is redrawn; it only
+       gains its length, written as the difference rather than a
+       count of units. */
+    { id: 21, line: 'AC = x2 - x1', entrance: 'stay',
+      layout: 'grid', keepSegment: true, bubbleScale: 0.9,
+      segment: {
+        a: { x: -5, y: 1, name: 'A', coordText: '(x1, y1)' },
+        b: { x:  5, y: 4, name: 'B', coordText: '(x2, y2)' },
+        color: '#B3261E'
+      },
+      legs: [
+        { from: { x: -5, y: 1 }, to: { x: 5, y: 1 },
+          mark: { name: 'C', coordText: '(x2, y1)', fill: '#3B7DD8' },
+          settled: true, length: true, lengthText: 'x2 - x1' },
+        { from: { x:  5, y: 1 }, to: { x: 5, y: 4 }, settled: true }
+      ] }
   ];
 
   return {
