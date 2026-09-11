@@ -106,6 +106,10 @@ html, body {
 #scene { position: absolute; inset: 0; z-index: 1; opacity: 0; }
 #scene.fade-in { animation: fadeIn .6s ease forwards; }
 
+/* Everything ambient lives here — the clouds and the drifting leaf.
+   z-index 1 puts the whole layer behind the board (2), Swifty (3) and
+   the banner (4), so nothing in it can ever come forward over the part
+   of the screen the child is working on. */
 #skyLayer {
   position: absolute; left: 0; top: 0;
   width: 1920px; height: 1080px;

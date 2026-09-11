@@ -226,8 +226,12 @@ window.CFG = (function () {
        half a minute, which is under the threshold that catches
        attention. */
     instances: [
-      { scale: 0.34, top: 96,  speed: 7,   opacity: 1, phase: 0.30 },
-      { scale: 0.26, top: 212, speed: 4.5, opacity: 1, phase: 0.65 }
+      /* Faint on purpose. They sit behind the board, so the only part
+         ever seen is the strip of sky above it — and even there they
+         should read as distant weather, not as something on the same
+         plane as the lesson. */
+      { scale: 0.34, top: 96,  speed: 7,   opacity: 0.5,  phase: 0.30 },
+      { scale: 0.26, top: 212, speed: 4.5, opacity: 0.38, phase: 0.65 }
     ]
   };
 
@@ -264,8 +268,18 @@ window.CFG = (function () {
        (67..1413) and 15 horizontal (64..924). Both axes carry the
        same range and each line spans exactly that range, so neither
        reaches past the grid. */
-    originX: 740, originY: 494,
-    stepX: 61.1818, stepY: 61.4286,
+    /* The origin sits at the centre of the cream, so the axes are
+       centred in the grid rather than merely centred on their own
+       extents. */
+    originX: 754, originY: 521.5,
+    /* Sized so 12 cells each way across and 8 each way down exactly
+       fill the cream. Down, that leaves a 12px margin. Across, the
+       outermost column on each side is left undrawn, so the sides
+       finish on open cream rather than on a thin strip walled in by a
+       grid line — which read as a squeezed extra column.
+       The two steps are within 0.8% of each other, so cells read as
+       square. */
+    stepX: 59.083333, stepY: 59.5625,
 
     /* The board is far wider than it is tall, so x reaches further
        than y. ±9 is the limit: the line, its arrowheads and the `x`
@@ -316,7 +330,7 @@ window.CFG = (function () {
       frameW: 26,
       hiW: 5,               // the pale ring just inside the frame
       gxFrom: -11, gxTo: 11,
-      gyFrom: -8,  gyTo: 7,
+      gyFrom: -8,  gyTo: 8,
 
       /* Autumn leaves pinned to two corners, sized off the panel so
          they hold their place at any board size: one on its own at the
@@ -327,7 +341,7 @@ window.CFG = (function () {
       leafSize: 132         // source-space px, like everything above
     },
 
-    labelSize: 32,
+    labelSize: 30,                  // scaled with the cell, which shrank 3%
     labelGap: 12,                   // x numbers, tucked under their axis
     /* The y numbers need more room than the x ones: they sit beside
        the axis rather than under it, and the 0 has to fit between them
