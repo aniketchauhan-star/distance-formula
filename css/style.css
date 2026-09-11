@@ -118,8 +118,12 @@ html, body {
   overflow: hidden;
   will-change: transform;
   animation-name: cloudDrift;
-  animation-timing-function: linear;
+  /* Eased, and reversing each time: the cloud slows as it reaches one
+     end of the sky, turns, and drifts back — so it stays in open sky
+     rather than running off the frame past the trees. */
+  animation-timing-function: ease-in-out;
   animation-iteration-count: infinite;
+  animation-direction: alternate;
 }
 .cloud img { position: absolute; display: block; }
 
@@ -164,10 +168,46 @@ html, body {
 #birdWin { position: absolute; overflow: hidden; }
 #birdWin img { position: absolute; display: block; image-rendering: auto; }
 
+/* Swifty's speech bubble, drawn rather than dropped in as a picture.
+
+   #bubble is the box applyGeom() positions, and the tail's tip is the
+   point it drives onto her head. #bubbleImg is the balloon itself,
+   filling the box down to --bodyH, with the tail hanging off it. */
 #bubble { position: absolute; }
-#bubble img { position: absolute; display: block; pointer-events: none; }
-#bubble.pop-in  { animation: bubblePop .44s cubic-bezier(.28, 1.5, .5, 1) both; }
-#bubble.pop-out { animation: bubbleOut .24s ease-in forwards; }
+
+#bubbleImg {
+  position: absolute; left: 0; top: 0;
+  pointer-events: none;
+  border-radius: var(--r, 46px);
+  /* flat cream, so the tail's fill matches it at the mouth exactly */
+  background: var(--fill, #FFF9E8);
+  box-shadow:
+    inset 0 0 0 var(--bw, 7px) var(--stroke, #EF9312),
+    0 6px 10px rgba(120, 70, 20, .16);
+}
+
+/* The tail: one square turned 45 degrees with only its two lower edges
+   given a border, so those edges become the sides of the tail and can
+   never drift out of line with each other. Its upper half sits inside
+   the balloon — cream on cream, no border on those edges — where it
+   also covers the inset rings and opens the mouth for free. */
+#bubbleImg::after {
+  content: '';
+  position: absolute;
+  box-sizing: border-box;
+  width:  var(--tailSq, 78px);
+  height: var(--tailSq, 78px);
+  left: calc(var(--tailX) - var(--tailSq) / 2);
+  top:  calc(100% - var(--tailSq) / 2);
+  background: var(--fill, #FFF9E8);
+  border-right:  var(--bw, 7px) solid var(--stroke, #EF9312);
+  border-bottom: var(--bw, 7px) solid var(--stroke, #EF9312);
+  /* after the turn, this corner is the point */
+  border-bottom-right-radius: var(--tailTip, 9px);
+  transform: rotate(45deg);
+  transform-origin: center;
+  pointer-events: none;
+}
 
 #bubbleText {
   position: absolute;
@@ -175,15 +215,117 @@ html, body {
   text-align: center;
   font-family: 'Lilita One', system-ui, sans-serif;
   font-weight: 400; font-size: 38px; line-height: 1.24;
-  color: #14418c;
+  color: #123A72;
   letter-spacing: .2px;
   overflow: hidden;
 }
 #bubbleLine { display: block; width: 100%; }
 
 /* ---------------- screen 5: coordinate board ---------------- */
-#gridPanel { position: absolute; z-index: 2; transform-origin: center center; }
-#gridImg   { position: absolute; left: 0; top: 0; display: block; }
+/* The board: a golden frame around a cream surface, drawn rather than
+   dropped in as a picture. The frame is built from inset rings instead
+   of a border so the panel keeps a single box — the axes overlay sits
+   at 0,0 of it, and every offset measured for the old artwork still
+   lands where it did. Every size comes from Board.place(), scaled with
+   the panel, so one board reads the same at any of its sizes. */
+#gridPanel {
+  position: absolute; z-index: 2; transform-origin: center center;
+  border-radius: var(--radius, 46px);
+  background: var(--paper-inner, #FFFDF1);
+  box-shadow:
+    inset 0 0 0 var(--edgeW,  3px) var(--paper-edge,  #D88912),
+    inset 0 0 0 var(--frameW, 26px) var(--paper-frame, #F8C73A),
+    inset 0 0 0 var(--hiW,    31px) var(--paper-hi,    #FFF2A8),
+    0 5px 12px rgba(120, 80, 20, .14);
+}
+
+/* The grid itself: one line every cell, laid down from the origin out,
+   so a line falls on every whole coordinate. The surface starts half a
+   line-width early and runs half a line-width long, which centres the
+   first and last lines on the grid's own edges. */
+#gridImg {
+  position: absolute;
+  background-image:
+    repeating-linear-gradient(to right,
+      var(--gridline, #9CA9AD) 0 var(--lw, 2px),
+      transparent var(--lw, 2px) var(--cw, 50px)),
+    repeating-linear-gradient(to bottom,
+      var(--gridline, #9CA9AD) 0 var(--lw, 2px),
+      transparent var(--lw, 2px) var(--ch, 50px));
+}
+
+/* One autumn leaf caught on each of two corners of the board, top
+   left and bottom right. Both offsets are multiples of --leaf, which
+   Board.place() scales with the panel, so the pair holds its place at
+   any board size. Each sits far enough onto the frame that the whole
+   leaf reads against it rather than half against the sky.
+
+   The resting angle lives in --rot and the keyframes end on it, which
+   is what lets one animation serve both leaves at different angles. */
+#gridPanel .leaf {
+  position: absolute;
+  width: var(--leaf, 108px);
+  height: auto;
+  pointer-events: none;
+  transform: rotate(var(--rot, 0deg));
+  filter: drop-shadow(0 3px 5px rgba(120, 75, 20, .3));
+}
+
+#gridPanel .leaf-tl {
+  --rot: -16deg;
+  --fx: -1.1;  --fy: -2.0;  --frot: -190deg;
+  left: calc(var(--leaf, 108px) * -.18);
+  top:  calc(var(--leaf, 108px) * -.34);
+}
+#gridPanel .leaf-br1 {
+  --rot: 26deg;
+  --fx: 1.2;  --fy: 1.9;  --frot: 200deg;
+  right:  calc(var(--leaf, 108px) * -.16);
+  bottom: calc(var(--leaf, 108px) * -.26);
+}
+
+/* Each leaf drifts down into place whenever the board arrives — slowly,
+   the way a leaf actually falls, turning as it comes and rocking twice
+   past its resting angle before it settles. */
+#gridPanel.leaves-in .leaf {
+  animation: leafDrift 2.6s cubic-bezier(.22, .62, .3, 1) both;
+}
+#gridPanel.leaves-in .leaf-br1 { animation-delay: .45s; }
+
+@keyframes leafDrift {
+  0% {
+    opacity: 0;
+    transform:
+      translate(calc(var(--leaf, 108px) * var(--fx)), calc(var(--leaf, 108px) * var(--fy)))
+      rotate(var(--frot)) scale(.86);
+  }
+  18% { opacity: 1; }
+  /* the long, slow part of the fall */
+  55% {
+    transform:
+      translate(calc(var(--leaf, 108px) * var(--fx) * .28),
+                calc(var(--leaf, 108px) * var(--fy) * .34))
+      rotate(calc(var(--rot) + 26deg)) scale(.96);
+  }
+  /* and two smaller rocks as it comes to rest */
+  78% {
+    transform:
+      translate(calc(var(--leaf, 108px) * -.05), calc(var(--leaf, 108px) * -.04))
+      rotate(calc(var(--rot) - 9deg)) scale(1.02);
+  }
+  91% {
+    transform:
+      translate(calc(var(--leaf, 108px) * .02), calc(var(--leaf, 108px) * .01))
+      rotate(calc(var(--rot) + 4deg)) scale(1);
+  }
+  100% { opacity: 1; transform: translate(0, 0) rotate(var(--rot)) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #gridPanel.leaves-in .leaf { animation: leafFade .5s ease both; }
+  @keyframes leafFade { from { opacity: 0; } to { opacity: 1; } }
+}
+
 #gridAxes  { position: absolute; left: 0; top: 0; overflow: visible; }
 
 /* the board arriving out of nowhere */
@@ -458,8 +600,53 @@ html, body {
 }
 
 /* screen 8: question banner */
+/* The question bar, drawn rather than dropped in as a picture: a cream
+   interior inside a layered golden frame. The frame is built from inset
+   rings on a single box — the same way the board's is — so the bar
+   keeps one footprint and the text plate lands at its measured spot
+   inside it. Every size comes from layout(), scaled with the bar. */
 #qBanner { position: absolute; z-index: 4; }
-#qBannerImg { position: absolute; left: 0; top: 0; display: block; }
+
+#qBannerImg {
+  position: absolute; left: 0; top: 0; display: block;
+  border-radius: var(--qr, 34px);
+  background: linear-gradient(180deg,
+    var(--q-top, #FFFDF5) 0%,
+    var(--q-mid, #FFF9E9) 55%,
+    var(--q-bot, #FFF4D8) 100%);
+  box-shadow:
+    inset 0 0 0 var(--q1, 3px)  var(--q-edge,   #C96608),
+    inset 0 0 0 var(--q2, 9px)  var(--q-orange, #F29113),
+    inset 0 0 0 var(--q3, 15px) var(--q-gold,   #FFC536),
+    inset 0 0 0 var(--q4, 19px) var(--q-hi,     #FFF0A8),
+    0 8px 16px rgba(120, 65, 15, .18);
+}
+
+/* Two leaves caught on each of two corners, the same artwork the board
+   uses. Every offset is a multiple of --qleaf, so the clusters hold
+   their place and their weight at whatever size the bar is drawn. */
+#qBanner .q-leaf {
+  position: absolute;
+  width: var(--qleaf, 76px);
+  height: auto;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 3px rgba(120, 65, 15, .3));
+}
+/* the smaller one sits behind, and reads golden rather than red */
+#qBanner .q-leaf-tl-back,
+#qBanner .q-leaf-br-back {
+  width: calc(var(--qleaf, 76px) * .72);
+  filter: hue-rotate(22deg) saturate(.9) brightness(1.12)
+          drop-shadow(0 2px 3px rgba(120, 65, 15, .26));
+  z-index: 1;
+}
+#qBanner .q-leaf-tl-front,
+#qBanner .q-leaf-br-front { z-index: 2; }
+
+#qBanner .q-leaf-tl-back  { left: calc(var(--qleaf, 76px) * .02); top: calc(var(--qleaf, 76px) * -.40); transform: rotate(26deg); }
+#qBanner .q-leaf-tl-front { left: calc(var(--qleaf, 76px) * .26); top: calc(var(--qleaf, 76px) * -.30); transform: rotate(-20deg); }
+#qBanner .q-leaf-br-back  { right: calc(var(--qleaf, 76px) * .30); bottom: calc(var(--qleaf, 76px) * -.22); transform: rotate(-24deg); }
+#qBanner .q-leaf-br-front { right: calc(var(--qleaf, 76px) * .02); bottom: calc(var(--qleaf, 76px) * -.34); transform: rotate(20deg); }
 #qBannerText {
   position: absolute;
   display: flex; align-items: center; justify-content: center;
@@ -476,19 +663,63 @@ html, body {
   position: absolute; inset: 0; z-index: 12;
   overflow: hidden; pointer-events: none;
 }
+/* The ambient drift: one leaf off the tree at a time, looping away on
+   the wind. Each piece rides the same SVG path with offset-path, so the
+   loop is a real curve, and offset-rotate turns it to face the way it
+   is travelling; the spin on top is what makes it tumble as it goes. */
+.drift-host { position: absolute; inset: 0; pointer-events: none; }
+
+.fx-drift {
+  position: absolute; left: 0; top: 0;
+  height: auto;
+  pointer-events: none;
+  offset-rotate: auto;
+  offset-anchor: 50% 50%;
+  will-change: offset-distance, opacity, transform;
+  animation-name: driftAlong, driftSpin;
+  animation-timing-function: cubic-bezier(.33, .04, .28, 1), linear;
+  animation-fill-mode: both, both;
+}
+
+/* the tapered streaks that trail the leaf, aligned to its heading */
+.fx-windline {
+  height: 3px;
+  border-radius: 3px;
+  background: linear-gradient(90deg,
+    rgba(255, 245, 225, 0) 0%,
+    rgba(255, 238, 208, .9) 48%,
+    rgba(255, 245, 225, 0) 100%);
+}
+
+@keyframes driftAlong {
+  0%   { offset-distance: 0%;   opacity: 0; }
+  9%   { opacity: var(--op, 1); }
+  84%  { opacity: var(--op, 1); }
+  100% { offset-distance: 100%; opacity: 0; }
+}
+@keyframes driftSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(var(--spin, 360deg)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drift-host { display: none; }
+}
+
 .leaf-veil {
   position: absolute; inset: -10%;
-  background: radial-gradient(ellipse at 50% 45%, #6ab945 0%, #4c9a35 55%, #3b7f2b 100%);
+  background: radial-gradient(ellipse at 50% 45%, #F6AE43 0%, #E2801F 54%, #BE5E10 100%);
   opacity: 0;
   animation-name: veilCover; animation-timing-function: ease-in-out; animation-fill-mode: both;
 }
+/* Each leaf is the artwork, sized and tinted per copy by FX.leaves(). */
 .leaf {
   position: absolute;
-  border-radius: 0 100% 0 100%;    /* leaf silhouette */
-  box-shadow: inset -8px -10px 0 rgba(0, 0, 0, .10);
+  height: auto;
   opacity: 0;
   will-change: transform, opacity;
-  animation-name: leafFly; animation-timing-function: cubic-bezier(.28, .5, .4, 1);
+  animation-name: leafGust;
+  animation-timing-function: cubic-bezier(.36, .05, .3, 1);
   animation-fill-mode: both;
 }
 
@@ -565,16 +796,33 @@ html, body {
   65%  { opacity: 1; transform: translateY(6px) scale(1.03); }
   100% { opacity: 1; transform: translateY(0) scale(1); }
 }
+/* Solid through the middle of the sweep, which is the window the
+   screen behind gets swapped in. It comes up and goes down gently, so
+   the frame fills and empties rather than flashing. */
 @keyframes veilCover {
-  0%, 100% { opacity: 0; }
-  46%, 60% { opacity: 1; }
+  0%        { opacity: 0; }
+  42%, 62%  { opacity: 1; }
+  100%      { opacity: 0; }
 }
-@keyframes leafFly {
-  0%   { opacity: 0; transform: translate(var(--x0), var(--y0)) rotate(var(--r0)) scale(.55); }
-  16%  { opacity: 1; }
-  46%  { opacity: 1; transform: translate(var(--x1), var(--y1)) rotate(var(--r1)) scale(1.18); }
-  60%  { opacity: 1; transform: translate(var(--x1), var(--y1)) rotate(var(--r1)) scale(1.18); }
-  100% { opacity: 0; transform: translate(var(--x2), var(--y2)) rotate(var(--r2)) scale(.7); }
+
+/* In on the wind, a beat held still while the frame is full, then on
+   out the other side — turning the whole way and drifting down, the way
+   a leaf carried on a gust actually travels. */
+@keyframes leafGust {
+  0% {
+    opacity: 0;
+    transform: translate(var(--x0), var(--y0)) rotate(var(--r0)) scale(var(--s0));
+  }
+  13%  { opacity: 1; }
+  44%, 60% {
+    opacity: 1;
+    transform: translate(var(--x1), var(--y1)) rotate(var(--r1)) scale(1);
+  }
+  88%  { opacity: 1; }
+  100% {
+    opacity: 0;
+    transform: translate(var(--x2), var(--y2)) rotate(var(--r2)) scale(var(--s2));
+  }
 }
 @keyframes dotIn {
   0%   { opacity: 0;   transform: scale(0); }
@@ -639,13 +887,21 @@ html, body {
 }
 
 /* Screen 4: she leaves the way she arrived. */
+/* She arrives from the left and leaves to the right, carrying straight
+   on rather than doubling back — so she never turns around, and the
+   dip at 16% is a wind-up before she pushes off.
+
+   The distance is set by the furthest she ever has to go: on a
+   distance screen she stands at x 400, so 1900px is what it takes to
+   clear the frame from there. From her field spot she is long gone
+   before the end, which the fade covers. */
 @keyframes flyOut {
   0%   { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 1; }
-  16%  { transform: translate(60px, -70px) scale(1.02) rotate(4deg); }
-  40%  { transform: translate(-230px, -175px) scale(.92) rotate(-4deg); }
-  65%  { transform: translate(-620px, -120px) scale(.8) rotate(3deg); }
-  88%  { transform: translate(-1080px, -215px) scale(.66) rotate(-5deg); opacity: 1; }
-  100% { transform: translate(-1440px, -160px) scale(.56) rotate(-6deg); opacity: 0; }
+  16%  { transform: translate(-60px, -70px) scale(1.02) rotate(-4deg); }
+  40%  { transform: translate(300px, -175px) scale(.92) rotate(4deg); }
+  65%  { transform: translate(820px, -120px) scale(.8) rotate(-3deg); }
+  88%  { transform: translate(1430px, -215px) scale(.66) rotate(5deg); opacity: 1; }
+  100% { transform: translate(1900px, -160px) scale(.56) rotate(6deg); opacity: 0; }
 }
 
 @keyframes floaty {

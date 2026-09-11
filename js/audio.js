@@ -251,6 +251,48 @@ window.Audio8 = (function () {
 
   /* Leaves sweeping the screen: layered rustles rather than one
      whoosh, so it reads as foliage instead of wind. */
+  /* A long gust for the leaf transition. Broadband noise pushed through
+     a band-pass that sweeps up and then back down, so it swells and
+     dies away like wind rather than hissing at one pitch, with a
+     whistle over the top and single leaves tumbling through it. */
+  function wind(dur) {
+    if (!ctx) return;
+    dur = dur || 2.4;
+
+    // the body of the gust: rising, then falling away
+    noise({ f0: 360, f1: 1500, dur: dur * 0.56, gain: 0.105, q: 0.55, attack: dur * 0.22 });
+    noise({ f0: 1500, f1: 280, dur: dur * 0.52, gain: 0.09,  q: 0.55,
+            attack: 0.04, delay: dur * 0.46 });
+
+    // a thinner whistle riding on it
+    noise({ f0: 900,  f1: 2700, dur: dur * 0.42, gain: 0.042, q: 2.4,
+            attack: dur * 0.18, delay: dur * 0.10 });
+    noise({ f0: 2500, f1: 820,  dur: dur * 0.44, gain: 0.038, q: 2.4,
+            attack: 0.05, delay: dur * 0.50 });
+
+    // leaves going past, thickest through the middle of the sweep
+    for (let i = 0; i < 16; i++) {
+      const at = 0.08 + Math.pow(Math.random(), 0.8) * 0.78;
+      noise({ f0: 1500 + Math.random() * 3000, f1: 600 + Math.random() * 1100,
+              dur: 0.16 + Math.random() * 0.24,
+              gain: 0.028 + Math.random() * 0.03, q: 2.2,
+              delay: dur * at });
+    }
+
+    // and a low body underneath, so it has some weight
+    tone({ type: 'sine', f0: 125, f1: 68, dur: dur * 0.72, gain: 0.032 });
+  }
+
+  /* One soft breath of wind, for a single leaf lifting off the tree.
+     Far quieter than the transition gust — this has to sit under
+     whatever else is happening without competing with it. */
+  function breeze() {
+    if (!ctx) return;
+    noise({ f0: 520, f1: 1650, dur: 1.15, gain: 0.030, q: 0.8, attack: 0.5 });
+    noise({ f0: 1650, f1: 430, dur: 1.0,  gain: 0.024, q: 0.8, attack: 0.12, delay: 0.95 });
+    noise({ f0: 2300, f1: 1150, dur: 0.45, gain: 0.013, q: 2.8, delay: 0.38 });
+  }
+
   function rustle() {
     if (!ctx) return;
     for (let i = 0; i < 5; i++) {
@@ -270,7 +312,7 @@ window.Audio8 = (function () {
   }
 
   return {
-    unlock, duck, setMuted, isMuted,
+    unlock, duck, setMuted, isMuted, wind, breeze,
     chirp, flap, land, pop, blip, sparkle, whoosh, chime, magic, draw, tick,
     correct, wrong, cheer, rustle,
     get ready() { return !!ctx; }

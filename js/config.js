@@ -13,15 +13,13 @@ window.CFG = (function () {
   /* ---------- Asset paths ---------- */
   const ART = {
     startScreen: 'assets/start screen.png',
-    background:  'assets/Background game.png',
+    background:  'assets/background game.png',
     clouds:      'assets/clouds.png',
     playButton:  'assets/play button .png',
-    dialogue:    'assets/dialouge box.png',
     swiftyFly:   'assets/swifty fly.png',
     swiftyTalk:  'assets/swifty talk.png',
     swiftyStand: 'assets/normal stand swifty.png',
-    gridPanel:   'assets/grid lines panel.png',
-    questionBar: 'assets/question template.png'
+    leaf:        'assets/leaf.png'
   };
   const MUSIC = 'sfx/bg music.mp3';
 
@@ -134,18 +132,49 @@ window.CFG = (function () {
      tail narrows to a tip at (265, 234). Offsets below are relative
      to the ink box so the art's transparent padding never matters.
      ------------------------------------------------------------- */
+  /* Swifty's speech bubble, drawn in CSS. The box positioned on screen
+     is the ink rectangle; the tail's tip sits at `tip` inside it, and
+     applyGeom() drives that point onto the top of her head so the two
+     touch instead of the bubble floating above her.
+
+     The body fills the box down to `bodyH`; the tail runs from there to
+     the tip. The frame is built from inset rings, the same way the
+     board's is, so the bubble reads as part of the same autumn set. */
   const BUBBLE = {
-    src: ART.dialogue,
-    srcW: 494, srcH: 247,
-    ink: { x: 6, y: 31, w: 482, h: 204 },
-    tip: { x: 259, y: 203 },       // tail tip, relative to the ink box
-    scale: 1.0,
-    // Text plate inside the bubble, as a fraction of the ink box.
-    text: { left: 0.06, top: 0.11, width: 0.88, height: 0.55 },
-    // How far the tail tip sinks into the head so it visibly touches
-    // it rather than hovering above it.
-    biteIntoHead: 10
+    ink: { w: 482, h: 204 },      // the box that gets positioned
+    tip: { x: 259, y: 203 },      // where the tail touches her head
+    scale: 1,
+    biteIntoHead: 10,             // how far the tip sinks into her crown
+
+    bodyH: 148,                   // the balloon; the rest is tail
+    radius: 46,
+
+    /* The tail is one square turned 45 degrees, with only its two lower
+       edges given a border — those become the two sides of the tail,
+       and a single element means they cannot drift out of line the way
+       stacked triangles do. Its upper half sits inside the balloon,
+       where cream on cream is invisible and it covers the rings to
+       open the mouth. Its size follows from the tail's length, since a
+       turned square puts its point exactly 1/root-2 of a side below its
+       centre: the mouth then comes out twice as wide as the tail is
+       long, which is the chunky, friendly shape this game wants. */
+    tailTip: 9,                   // rounding on the point
+
+    /* One stroke, the same colour and the same weight the whole way
+       round — balloon and tail alike. Stacked rings on the body could
+       never meet the tail's single edge without a step at the mouth,
+       and the step was the only thing there was to see. */
+    strokeW: 7,
+
+    fill:   '#FFF9E8',
+    sheen:  '#FFFDF5',
+    stroke: '#EF9312',
+    ink_:   '#123A72',            // the text
+
+    // the text plate, as fractions of the ink box
+    text: { left: 0.06, top: 0.11, width: 0.88, height: 0.55 }
   };
+;
 
   /* -------------------------------------------------------------
      PLAY BUTTON
@@ -159,7 +188,10 @@ window.CFG = (function () {
     src: ART.playButton,
     srcW: 1285, srcH: 1224,
     ink: { x: 70, y: 58, w: 1135, h: 1118 },
-    box: { cx: 950, cy: 659, w: 281, h: 267 },
+    /* Centred under the title on the start art: the wordmark's own
+       block measures x 857..1621, y 443..642 on the stage, so the
+       button sits on its centre line with a clear gap beneath it. */
+    box: { cx: 1239, cy: 776, w: 281, h: 267 },
     // Shrinks the briefed box about its centre — the button stays put,
     // it just gets smaller. 1 = the full 281 x 267 from the brief.
     sizeScale: 0.70
@@ -180,9 +212,22 @@ window.CFG = (function () {
        `top` is the cloud's top edge and `phase` is how far through its
        loop it starts, so the pair never travels in lockstep. Both sit
        well above the horizon (~640) so nothing drifts behind Swifty. */
+    /* Measured off the background across the rows the clouds occupy:
+       between the tree that fills the top left corner and the one on
+       the right, the sky is unbroken from x 424 to x 1771. A cloud
+       stays wholly inside that, drifting to one end and back again
+       rather than crossing the frame, so it never touches a tree at
+       any opacity — the sky is the only place it is ever seen. */
+    band: { x0: 440, x1: 1760 },
+
+    /* Deliberately barely-moving. This is scenery behind a lesson, so
+       it has to read as alive without ever pulling the eye off the
+       board: at these speeds a cloud shifts about a finger's width in
+       half a minute, which is under the threshold that catches
+       attention. */
     instances: [
-      { scale: 0.34, top: 96,  speed: 20, opacity: 1, phase: 0.30 },
-      { scale: 0.26, top: 212, speed: 14, opacity: 1, phase: 0.65 }
+      { scale: 0.34, top: 96,  speed: 7,   opacity: 1, phase: 0.30 },
+      { scale: 0.26, top: 212, speed: 4.5, opacity: 1, phase: 0.65 }
     ]
   };
 
@@ -204,8 +249,10 @@ window.CFG = (function () {
   };
 
   const GRID = {
-    src: ART.gridPanel,
-    w: 1507, h: 1044,               // native art size, and the SVG viewBox
+    /* The space the board is drawn in, and the SVG viewBox: kept at
+       the old artwork's pixel size so every measured offset below
+       still means what it did when it was taken off the image. */
+    w: 1507, h: 1044,
 
     /* The updated board is bigger than the frame allows, so it is
        fitted into the footprint the old one occupied — same place,
@@ -236,16 +283,68 @@ window.CFG = (function () {
        row (61px) above +6 and below -6, against five spare columns
        either side of x, so 40 keeps all four tips inside the drawn
        grid and all four arms the same length. */
-    overshoot: 40,
+    /* Long enough that the arrowhead clears the last number: at 40 the
+       head's base sat right on the 9 and the 6, because the arrow is
+       34 of it. */
+    overshoot: 58,
     arrow: { len: 34, halfW: 20 },
+    /* The board itself: a golden frame, a cream surface and a grid of
+       even squares, all drawn in CSS rather than dropped in as a
+       picture. Sizes are in the same 1507x1044 space the axes are
+       measured in and scale with the panel.
+
+       The grid is laid out from the origin outwards, one line every
+       stepX / stepY, so a line falls on every whole coordinate and the
+       numbers sit exactly where they always did.
+
+       Its extent is chosen to leave an even margin of cream inside the
+       frame. The origin sits above the panel's middle, so a grid
+       centred on it would leave a thin strip of cream at the top and a
+       wide empty band at the bottom; carrying it two rows below the
+       numbers instead of one fills that band and evens the margins to
+       31px top and 25px bottom. Sideways there is no whole cell to
+       gain — one more would run right up against the frame. */
+    paper: {
+      inner:     '#FFF9E8',
+      frame:     '#FFC93D',
+      edge:      '#DF8A0A',
+      highlight: 'rgba(255, 255, 255, .65)',
+      line:      'rgba(120, 135, 135, .55)',
+      lineW: 2,             // stage px, the same weight at every size
+      radius: 46,
+      edgeW: 3,
+      frameW: 26,
+      hiW: 5,               // the pale ring just inside the frame
+      gxFrom: -11, gxTo: 11,
+      gyFrom: -8,  gyTo: 7,
+
+      /* Autumn leaves pinned to two corners, sized off the panel so
+         they hold their place at any board size: one on its own at the
+         top left, two overlapping at the bottom right, each overhanging
+         the frame. They blow in whenever the board appears. Decoration
+         only — they sit under the gameplay overlay and take no pointer
+         events. */
+      leafSize: 132         // source-space px, like everything above
+    },
+
     labelSize: 32,
-    labelGap: 22,                   // number offset from its axis
-    zeroGap: 18,                    // 0 sits closer in, clear of -1
+    labelGap: 12,                   // x numbers, tucked under their axis
+    /* The y numbers need more room than the x ones: they sit beside
+       the axis rather than under it, and the 0 has to fit between them
+       and the origin without touching either. */
+    yLabelGap: 30,
+    /* 0 keeps the x numbers' row but sits in its own column, left of
+       the axis and right of where the y numbers start — the one spot
+       that clears both the axis and the -1 below it. */
+    zeroGap: 22,
 
     /* Axis names. `x` sits beyond the positive x arrow; `y` sits
        beside its arrow rather than above it — there are only 21px
        between that tip and the top of the grid. */
-    axisName: { size: 38, gap: 42, rise: 38, yDrop: 14 },
+    /* x and y sit just outside their own arrowhead, diagonally off the
+       tip — the same relationship on both axes rather than floating
+       away from them. */
+    axisName: { size: 38, gap: 22, rise: 26, yGap: 32, yDrop: 10 },
 
     /* Screen 6: a marker on every gridline intersection across the
        numbered range — 13 x 13 = 169 of them. Faint light blue so
@@ -385,11 +484,37 @@ window.CFG = (function () {
        y[32..127]; the bird sits at x[121..204] and sparkles at both
        ends, so the text plate clears them. */
     banner: {
-      src: ART.questionBar,
-      pos: place8(666, 2256), w: 1023, h: 158,
-      text: { left: 0.22, top: 0.20, width: 0.65, height: 0.60 },
-      size: 42
+      /* Small, and centred across the top: it is a line to read once,
+         not the thing on screen. Its own width sets the x so it stays
+         centred if the size is ever changed again. */
+      w: 800, h: 108,
+      pos: { x: (STAGE_W - 800) / 2, y: 26 },
+
+      /* Drawn rather than dropped in as a picture: a cream bar inside a
+         layered golden frame, built from inset rings so the box stays
+         one piece and the text plate can sit at its measured spot.
+         Sizes are in banner pixels and scale with the bar. */
+      paper: {
+        innerTop: '#FFFDF5',
+        inner:    '#FFF9E9',
+        innerBot: '#FFF4D8',
+        edge:     '#C96608',       // thin dark rim, outermost
+        mid:      '#F29113',
+        gold:     '#FFC536',
+        hi:       '#FFF0A8',       // bright highlight against the cream
+        radius: 23,
+        e1: 2, e2: 6, e3: 10, e4: 13,   // cumulative insets
+        leaf: 52                   // the corner leaves' size
+      },
+
+      /* The artwork it replaces carried a bird and sparkles at the
+         ends, which is what squeezed the text into the middle 65%. The
+         drawn bar has only leaves on its corners, so the line gets
+         nearly the whole width — room the longer questions needed. */
+      text: { left: 0.11, top: 0.16, width: 0.78, height: 0.68 },
+      size: 31
     },
+
 
     /* A distance question opens with the board on its own, centred in
        an otherwise empty frame; it only moves aside once the question
@@ -595,7 +720,7 @@ window.CFG = (function () {
        point she is about to make. */
     { id: 12, line: 'This one’s different.', entrance: 'fly',
       layout: 'grid', transition: 'leaves', bubbleScale: 0.9,
-      segment: { a: { x: 2, y: 1, name: 'A' }, b: { x: 6, y: 4, name: 'B' } } },
+      segment: { a: { x: 2, y: 1, name: 'A' }, b: { x: 6, y: 4, name: 'B', nameDx: 40, nameDy: 8 } } },
 
     // 13 — same board and same segment, she just carries on talking
     { id: 13, line: 'Can the grid help?', entrance: 'stay',
@@ -607,7 +732,7 @@ window.CFG = (function () {
        is that leg, not the diagonal, so the task measures from it. */
     { id: 14, line: 'How far apart are A and C?', entrance: 'none',
       layout: 'board', transition: 'leaves', distance: true, intro: 'measure',
-      segment: { a: { x: 2, y: 1, name: 'A' }, b: { x: 6, y: 4, name: 'B' } },
+      segment: { a: { x: 2, y: 1, name: 'A' }, b: { x: 6, y: 4, name: 'B', nameDx: 40, nameDy: 8 } },
       legs: [ { from: { x: 2, y: 1 }, to: { x: 6, y: 1 }, mark: { name: 'C' } } ],
       task: {
         kind: 'distance',
@@ -622,7 +747,7 @@ window.CFG = (function () {
        rises from the corner to B. */
     { id: 15, line: 'How far apart are C and B?', entrance: 'none',
       layout: 'board', distance: true, intro: 'measure', keepSegment: true,
-      segment: { a: { x: 2, y: 1, name: 'A' }, b: { x: 6, y: 4, name: 'B' } },
+      segment: { a: { x: 2, y: 1, name: 'A' }, b: { x: 6, y: 4, name: 'B', nameDx: 40, nameDy: 8 } },
       legs: [
         { from: { x: 2, y: 1 }, to: { x: 6, y: 1 }, mark: { name: 'C' },
           settled: true, length: true },
@@ -640,7 +765,7 @@ window.CFG = (function () {
        slider: she is just naming what they have built. */
     { id: 16, line: 'Look! We made a triangle.', entrance: 'none',
       layout: 'board', transition: 'leaves',
-      segment: { a: { x: 2, y: 1, name: 'A' }, b: { x: 6, y: 4, name: 'B' },
+      segment: { a: { x: 2, y: 1, name: 'A' }, b: { x: 6, y: 4, name: 'B', nameDx: 40, nameDy: 8 },
                  color: '#B3261E' },
       legs: [
         { from: { x: 2, y: 1 }, to: { x: 6, y: 1 }, mark: { name: 'C' }, length: true },
@@ -698,7 +823,7 @@ window.CFG = (function () {
       layout: 'grid', transition: 'leaves', bubbleScale: 0.9,
       segment: {
         a: { x: -5, y: 1, name: 'A', coordText: '(x1, y1)' },
-        b: { x:  5, y: 4, name: 'B', coordText: '(x2, y2)' },
+        b: { x:  5, y: 4, name: 'B', coordText: '(x2, y2)', nameDx: 40, nameDy: 8 },
         color: '#B3261E'
       } },
 
@@ -709,7 +834,7 @@ window.CFG = (function () {
       layout: 'grid', keepSegment: true,
       segment: {
         a: { x: -5, y: 1, name: 'A', coordText: '(x1, y1)' },
-        b: { x:  5, y: 4, name: 'B', coordText: '(x2, y2)' },
+        b: { x:  5, y: 4, name: 'B', coordText: '(x2, y2)', nameDx: 40, nameDy: 8 },
         color: '#B3261E'
       },
       legs: [
@@ -725,7 +850,7 @@ window.CFG = (function () {
       layout: 'grid', keepSegment: true, bubbleScale: 0.9,
       segment: {
         a: { x: -5, y: 1, name: 'A', coordText: '(x1, y1)' },
-        b: { x:  5, y: 4, name: 'B', coordText: '(x2, y2)' },
+        b: { x:  5, y: 4, name: 'B', coordText: '(x2, y2)', nameDx: 40, nameDy: 8 },
         color: '#B3261E'
       },
       legs: [
@@ -741,7 +866,7 @@ window.CFG = (function () {
       layout: 'grid', keepSegment: true, bubbleScale: 0.9,
       segment: {
         a: { x: -5, y: 1, name: 'A', coordText: '(x1, y1)' },
-        b: { x:  5, y: 4, name: 'B', coordText: '(x2, y2)' },
+        b: { x:  5, y: 4, name: 'B', coordText: '(x2, y2)', nameDx: 40, nameDy: 8 },
         color: '#B3261E'
       },
       legs: [

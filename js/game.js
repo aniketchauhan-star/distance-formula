@@ -221,10 +221,25 @@
     // Pop the bubble out of the tail tip, where it is anchored.
     el.bubble.style.transformOrigin = tipX + 'px ' + tipY + 'px';
 
-    el.bubbleImg.style.width = B.srcW * s + 'px';
-    el.bubbleImg.style.height = B.srcH * s + 'px';
-    el.bubbleImg.style.left = -B.ink.x * s + 'px';
-    el.bubbleImg.style.top = -B.ink.y * s + 'px';
+    /* The balloon fills the box down to bodyH; the tail is drawn below
+       it by the pseudo-elements, whose geometry all comes from here so
+       one bubble reads the same at whatever scale a screen asks for. */
+    el.bubbleImg.style.width = inkW + 'px';
+    el.bubbleImg.style.height = B.bodyH * s + 'px';
+
+    const bs = el.bubble.style;
+    bs.setProperty('--bodyH',   B.bodyH * s + 'px');
+    bs.setProperty('--tailX',   B.tip.x * s + 'px');
+    /* A square turned 45 degrees drops its corner 1/root-2 of a side
+       below its centre, so this side puts the point exactly on the tip
+       when the square is centred on the balloon's bottom edge. */
+    bs.setProperty('--tailSq', (B.tip.y - B.bodyH) * s * Math.SQRT2 + 'px');
+    bs.setProperty('--tailTip', B.tailTip * s + 'px');
+    bs.setProperty('--r',       B.radius * s + 'px');
+    bs.setProperty('--bw',      B.strokeW * s + 'px');
+    bs.setProperty('--fill',    B.fill);
+    bs.setProperty('--sheen',   B.sheen);
+    bs.setProperty('--stroke',  B.stroke);
 
     el.bubbleText.style.left = inkW * B.text.left + 'px';
     el.bubbleText.style.top = inkH * B.text.top + 'px';
@@ -246,6 +261,23 @@
     el.qBanner.style.height = Q.h + 'px';
     el.qBannerImg.style.width = Q.w + 'px';
     el.qBannerImg.style.height = Q.h + 'px';
+
+    /* The bar is drawn, so its frame and its corner leaves come from
+       config and scale with it rather than being baked into a picture. */
+    const QP = Q.paper, qs = el.qBanner.style;
+    qs.setProperty('--qr',  QP.radius + 'px');
+    qs.setProperty('--q1',  QP.e1 + 'px');
+    qs.setProperty('--q2',  QP.e2 + 'px');
+    qs.setProperty('--q3',  QP.e3 + 'px');
+    qs.setProperty('--q4',  QP.e4 + 'px');
+    qs.setProperty('--qleaf', QP.leaf + 'px');
+    qs.setProperty('--q-top', QP.innerTop);
+    qs.setProperty('--q-mid', QP.inner);
+    qs.setProperty('--q-bot', QP.innerBot);
+    qs.setProperty('--q-edge', QP.edge);
+    qs.setProperty('--q-orange', QP.mid);
+    qs.setProperty('--q-gold', QP.gold);
+    qs.setProperty('--q-hi', QP.hi);
     el.qBannerText.style.left = Q.w * Q.text.left + 'px';
     el.qBannerText.style.top = Q.h * Q.text.top + 'px';
     el.qBannerText.style.width = Q.w * Q.text.width + 'px';
@@ -421,9 +453,13 @@
         self.lines.push(l);
         return l;
       };
-      // four half-axes, each drawn outward from the origin
-      this.axisX = [half(xMin, oy), half(xMax, oy)];
-      this.axisY = [half(ox, yMin), half(ox, yMax)];
+      /* Four half-axes, each drawn outward from the origin and stopped
+         at its arrowhead's base rather than its tip: the round line cap
+         would otherwise stick out past the point of the arrow. Ending
+         at the base tucks the cap under the triangle instead. */
+      const al = G.arrow.len;
+      this.axisX = [half(xMin + al, oy), half(xMax - al, oy)];
+      this.axisY = [half(ox, yMin + al), half(ox, yMax - al)];
 
       const arrow = function (tx, ty, dx, dy) {
         const a = G.arrow, p = document.createElementNS(NS, 'polygon');
@@ -452,22 +488,26 @@
         svg.appendChild(t);
         self.labels.push(t);
       };
-      // x numbers sit under the axis, y numbers to its left, 0 in the
-      // corner between them — as in the reference board.
+      /* x numbers sit under the axis, y numbers to its left, 0 in the
+         corner between them. The three rows are tuned against each
+         other: at stepY 61 a 32px number cannot be centred on both the
+         x row and the y=-1 row without them touching, so the x row is
+         tucked up under its axis, which is what opens the gap the 0
+         and the -1 need. */
       for (let x = G.xFrom; x <= G.xTo; x++) {
         if (x === 0) continue;
         label(String(x), ox + x * G.stepX, oy + G.labelGap + G.labelSize * 0.42);
       }
       for (let y = G.yFrom; y <= G.yTo; y++) {
         if (y === 0) continue;
-        label(String(y), ox - G.labelGap - G.labelSize * 0.30, oy - y * G.stepY);
+        label(String(y), ox - G.yLabelGap - G.labelSize * 0.30, oy - y * G.stepY);
       }
       label('0', ox - G.zeroGap, oy + G.labelGap + G.labelSize * 0.42);
 
       // axis names, last so they pop in after the numbers
       const N = G.axisName;
-      label('x', xMax + N.gap, oy - N.rise, N.size);
-      label('y', ox + N.gap, yMin + N.yDrop, N.size);
+      label('x', xMax + N.gap,  oy - N.rise,    N.size);
+      label('y', ox + N.yGap,   yMin + N.yDrop, N.size);
 
       /* Screen 6's intersection markers: every gridline crossing in
          the numbered range. Built once, hidden until that screen. */
@@ -680,15 +720,55 @@
        a percent, so nothing reads as stretched, and the SVG overlay
        maps through the same viewBox — axes and numbers stay locked to
        the drawn gridlines either way. */
+    /* Restart the leaves' entrance. Called from every place the board
+       is revealed, so they blow in with it each time rather than being
+       there already. */
+    flutter: function () {
+      el.gridPanel.classList.remove('leaves-in');
+      void el.gridPanel.offsetWidth;          // restart the animation
+      el.gridPanel.classList.add('leaves-in');
+    },
+
     place: function (box) {
-      const G = C.GRID;
+      const G = C.GRID, P = G.paper;
       this.box = box;
       el.gridPanel.style.left = box.x + 'px';
       el.gridPanel.style.top = box.y + 'px';
       el.gridPanel.style.width = box.w + 'px';
       el.gridPanel.style.height = box.h + 'px';
-      el.gridImg.style.width = box.w + 'px';
-      el.gridImg.style.height = box.h + 'px';
+
+      /* The board is stretched to its box rather than fitted, so the
+         two axes scale by different amounts. Anything round — the
+         frame, the corners — follows the wider one. */
+      const sx = box.w / G.w, sy = box.h / G.h;
+      const st = el.gridPanel.style;
+      st.setProperty('--paper-inner', P.inner);
+      st.setProperty('--paper-frame', P.frame);
+      st.setProperty('--paper-edge',  P.edge);
+      st.setProperty('--paper-hi',    P.highlight);
+      st.setProperty('--radius', P.radius * sx + 'px');
+      st.setProperty('--edgeW',  P.edgeW  * sx + 'px');
+      st.setProperty('--frameW', P.frameW * sx + 'px');
+      st.setProperty('--hiW',   (P.frameW + P.hiW) * sx + 'px');
+      st.setProperty('--leaf',   P.leafSize * sx + 'px');
+
+      /* The grid is pinned to the origin, not to the panel: a line
+         every stepX across and every stepY down, so whatever size the
+         board is drawn at, a line still falls on every whole
+         coordinate and the numbers sit on it. */
+      const cw = G.stepX * sx, ch = G.stepY * sy, lw = P.lineW;
+      const left = (G.originX + P.gxFrom * G.stepX) * sx;
+      const top  = (G.originY - P.gyTo   * G.stepY) * sy;
+      const gs = el.gridImg.style;
+      gs.left   = (left - lw / 2) + 'px';
+      gs.top    = (top  - lw / 2) + 'px';
+      gs.width  = ((P.gxTo - P.gxFrom) * cw + lw) + 'px';
+      gs.height = ((P.gyTo - P.gyFrom) * ch + lw) + 'px';
+      gs.setProperty('--cw', cw + 'px');
+      gs.setProperty('--ch', ch + 'px');
+      gs.setProperty('--lw', lw + 'px');
+      gs.setProperty('--gridline', P.line);
+
       el.gridAxes.setAttribute('viewBox', '0 0 ' + G.w + ' ' + G.h);
       el.gridAxes.setAttribute('preserveAspectRatio', 'none');
       el.gridAxes.style.width = box.w + 'px';
@@ -795,10 +875,8 @@
         if (spec.mark) {
           later(function () { L.dot.classList.add('pop'); SFX.tick(1); }, base + 120);
         }
-        /* The leg a distance question is about holds its line back —
-           drawing it would lay out the very answer being asked for.
-           Its corner and labels still arrive, so there is something to
-           measure to. */
+        /* A leg can still be told to hold its line back from config,
+           though no screen asks for that now. */
         if (!spec.noLine) {
           later(function () { L.line.classList.add('draw'); SFX.draw(); }, base + 380);
         }
@@ -942,9 +1020,14 @@
           part.coord.textContent = p.coordText || ('(' + p.x + ',\u00A0' + p.y + ')');
         }
 
-        part.name.setAttribute('x', vertical ? X + side * SG.coordDx : X);
-        part.name.setAttribute('y', vertical ? Y + SG.vNameDy
-                                             : Y + (spec.nameDy != null ? spec.nameDy : SG.nameDy));
+        /* A point can carry its own letter offset. The default puts the
+           letter straight below, which lands on top of a leg dropped
+           from that same point — so those points push theirs aside. */
+        part.name.setAttribute('x', p.nameDx != null ? X + p.nameDx
+                                  : (vertical ? X + side * SG.coordDx : X));
+        part.name.setAttribute('y', p.nameDy != null ? Y + p.nameDy
+                                  : (vertical ? Y + SG.vNameDy
+                                              : Y + (spec.nameDy != null ? spec.nameDy : SG.nameDy)));
         part.name.textContent = p.name || '';
       });
     },
@@ -1006,9 +1089,14 @@
 
     /* points first, then the line joins them, then the labels */
     /* The opening of a distance question: the two points arrive one at
-       a time, then their coordinates, then their letters. No line
-       between them — the line is the answer, and the player draws it. */
-    runPoints: function (spec, later, done) {
+       a time, then their coordinates, then their letters.
+
+       `withLine` says whether to join them. A question asking about
+       this very pair leaves them unjoined — the line is the answer,
+       and the player draws it with the slider. A question asking about
+       a leg dropped from them draws the pair's own line, because there
+       it is the shape being reasoned about, not the answer. */
+    runPoints: function (spec, later, done, withLine) {
       const self = this;
       this.placeSegment(spec);
       this.clearSegment();
@@ -1016,6 +1104,9 @@
 
       later(function () { self.segParts.a.dot.classList.add('pop'); SFX.pop(); }, 220);
       later(function () { self.segParts.b.dot.classList.add('pop'); SFX.pop(); }, 720);
+      if (withLine) {
+        later(function () { self.segLine.classList.add('draw'); SFX.draw(); }, 980);
+      }
       later(function () { self.segParts.a.coord.classList.add('pop'); SFX.tick(2); }, 1260);
       later(function () { self.segParts.b.coord.classList.add('pop'); SFX.tick(3); }, 1530);
       later(function () { self.segParts.a.name.classList.add('pop'); SFX.tick(4); }, 1880);
@@ -1129,6 +1220,7 @@
       el.gridPanel.classList.remove('hidden');
       void el.gridPanel.offsetWidth;
       el.gridPanel.classList.add('magic-in');
+      this.flutter();
       SFX.magic();
       FX.ring(cx, cy, 420, 'rgba(255,235,150,.95)');
       FX.sparkles(cx, cy, 18, 420);
@@ -1386,6 +1478,7 @@
         if (onBoard && !holds) {
           Board.place(geom.panelBox || C.GRID.box);
           el.gridPanel.classList.remove('hidden');
+          Board.flutter();
           Board.shown = true;
           Board.setDots(!!entry.dots);
         } else {
@@ -1492,7 +1585,10 @@
         Board.place(C.BOARD.centre);
         Board.run(self.later.bind(self), function () {
 
-          // 2. the points, their coordinates, then their letters
+          /* 2. the points, their coordinates, then their letters — and
+             the line between them unless they are the pair being
+             asked about, in which case the player draws it. */
+          const measuringLeg = entry.task && entry.task.measureLeg != null;
           Board.runPoints(entry.segment, self.later.bind(self), function () {
             const asks = function () {
 
@@ -1507,17 +1603,14 @@
                 });
               });
             };
-            /* A leg question needs its legs on the board first — bar
-               the one it is asking about, which arrives as a corner
-               and a letter with no line joining it up. */
-            if (entry.legs) {
-              const measured = entry.task ? entry.task.measureLeg : null;
-              const legs = entry.legs.map(function (L, i) {
-                return i === measured ? Object.assign({}, L, { noLine: true }) : L;
-              });
-              Board.runLegs(legs, self.later.bind(self), asks);
-            } else asks();
-          });
+            /* A leg question draws every leg first, the one it is about
+               included: the triangle is being built up across these
+               screens, so each side goes on the board and is then
+               measured. Only a question about the segment itself keeps
+               its line back, since there the line is the answer. */
+            if (entry.legs) Board.runLegs(entry.legs, self.later.bind(self), asks);
+            else asks();
+          }, measuringLeg);
         });
       };
 
@@ -1548,7 +1641,7 @@
 
       if (entry.transition === 'leaves') {
         this.state = 'entering';
-        SFX.rustle();
+        SFX.wind(FX.leaves.seconds);
         /* Points and lines are drawn before anyone speaks, so the
            child sees what is being talked about. */
         FX.leaves(el.leafLayer, dress, function () {
@@ -1650,8 +1743,8 @@
       el.birdRig.addEventListener('animationend', onEnd);
     },
 
-    /* Screen 4: she flies back out the way she came in, off to the
-       left, and the screen hands over once she is gone. */
+    /* She flies on out to the right, carrying straight on past where
+       she landed, and the screen hands over once she is gone. */
     flyOut: function (done) {
       const self = this;
       el.birdWin.classList.remove('hidden');
@@ -1660,9 +1753,7 @@
       el.birdRig.classList.remove('fly-in', 'hop', 'pre-entrance');
       void el.birdRig.offsetWidth;
       el.birdRig.classList.add('fly-out');
-      el.birdFlip.classList.remove('turn');
-      void el.birdFlip.offsetWidth;
-      el.birdFlip.classList.add('turn');    // she faces the way she is going
+      el.birdFlip.classList.remove('turn');   // she leaves the way she came in
       el.shadow.classList.add('lifted');
       const g = this.geom || { anchor: C.ANCHOR, feetY: C.ANCHOR.y + C.FEET_DY };
       FX.puff(g.anchor.x - 10, g.feetY);
@@ -2069,6 +2160,7 @@
   function boot() {
     FX.init(el.fxLayer);
     FX.clouds(el.skyLayer);
+    FX.leafDrift(el.skyLayer);
     fitStage();
     Sprite.setup();     // must precede layout(): layout seats the rig
     layout();

@@ -43,7 +43,9 @@
       <!-- screen 5: the coordinate board. Axes, arrowheads and numbers
            are drawn as an SVG overlay so each part can animate in. -->
       <div id="gridPanel" class="hidden">
-        <img id="gridImg" src="assets/grid lines panel.png" alt="">
+        <div id="gridImg"></div>
+        <img class="leaf leaf-tl"  src="assets/leaf.png" alt="">
+        <img class="leaf leaf-br1" src="assets/leaf.png" alt="">
         <svg id="gridAxes" viewBox="0 0 1507 1044" aria-hidden="true"></svg>
       </div>
 
@@ -68,14 +70,18 @@
         <img id="standSwifty" class="hidden" src="assets/normal stand swifty.png" alt="Swifty">
 
         <div id="bubble" class="hidden">
-          <img id="bubbleImg" src="assets/dialouge box.png" alt="">
+          <div id="bubbleImg"></div>
           <div id="bubbleText"><span id="bubbleLine"></span></div>
         </div>
       </div>
 
       <!-- screen 8: the question moves out of her bubble into a banner -->
       <div id="qBanner" class="hidden">
-        <img id="qBannerImg" src="assets/question template.png" alt="">
+        <div id="qBannerImg"></div>
+        <img class="q-leaf q-leaf-tl-back"  src="assets/leaf.png" alt="">
+        <img class="q-leaf q-leaf-tl-front" src="assets/leaf.png" alt="">
+        <img class="q-leaf q-leaf-br-back"  src="assets/leaf.png" alt="">
+        <img class="q-leaf q-leaf-br-front" src="assets/leaf.png" alt="">
         <div id="qBannerText"><span id="qBannerLine"></span></div>
       </div>
 

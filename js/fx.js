@@ -132,7 +132,12 @@ window.FX = (function () {
     C.instances.forEach(function (inst) {
       const sc = inst.scale;
       const w = C.ink.w * sc, h = C.ink.h * sc;
-      const dist = 1920 + w + 160;               // off-screen right to off-screen left
+      /* The cloud drifts to one end of the open sky and back again,
+         never leaving it: its far edge stops exactly where the band
+         does, so no part of it ever reaches a tree. That means it
+         needs no fading at the ends — it is simply always in the sky. */
+      const B = C.band;
+      const dist = (B.x1 - w) - B.x0;
       const dur = dist / inst.speed;
 
       const d = document.createElement('div');
@@ -141,10 +146,10 @@ window.FX = (function () {
       d.style.width = w + 'px';
       d.style.height = h + 'px';
       d.style.opacity = inst.opacity;
-      d.style.setProperty('--x0', (1920 + 80) + 'px');
-      d.style.setProperty('--x1', -(w + 80) + 'px');
+      d.style.setProperty('--x0', B.x0 + 'px');
+      d.style.setProperty('--x1', (B.x1 - w) + 'px');
       d.style.animationDuration = dur + 's';
-      // a negative delay starts the loop already part-way across
+      // a negative delay starts it already part-way along the drift
       d.style.animationDelay = -(inst.phase * dur) + 's';
 
       const im = document.createElement('img');
@@ -159,56 +164,181 @@ window.FX = (function () {
     });
   }
 
-  /* A curtain of leaves sweeps the frame. `onCover` fires while the
-     screen is hidden, which is when the scene behind gets swapped;
-     `onDone` once they have blown clear. */
-  const LEAF = ['#4E9E38', '#63B845', '#3C8A2E', '#7FCB55', '#2F7A28', '#8FD766'];
+  /* One leaf at a time lifts off the tree in the top left corner,
+     loops once on the wind and drifts away to the right. A few speed
+     lines follow it down the same path a beat behind — the wake is
+     drawn as streaks, never as more leaves, so there is only ever the
+     one leaf in the air.
+
+     The path is an SVG one and the leaf rides it with offset-path, so
+     the loop is a real curve rather than a stack of translations, and
+     offset-rotate turns each piece to face the way it is going. */
+  const DRIFT = {
+    /* Slow and rare on purpose. The board is what the child should be
+       looking at, so a leaf takes its time crossing and a long while
+       passes before the next — long enough that it registers as
+       weather rather than as something happening. */
+    dur: 15000,              // one leaf's whole journey
+    /* The next only lifts off once the last has gone, so there is
+       never more than one leaf on the wing. */
+    gapMin: 14000, gapMax: 28000,
+    lines: 3                 // its wake — streaks only, never more leaves
+  };
+
+  /* Out of the canopy, once round a loop, then away east. The loop's
+     place and size move each time so no two leaves take the same
+     line. */
+  function driftPath(y0, cx, cy, r, endY) {
+    /* Starts inside the canopy, so the leaf reads as leaving the tree
+       rather than appearing in clear sky. The foliage reaches x 390 at
+       y 120 and narrows to x 234 by y 280, so 270 is inside it for the
+       whole range of heights a leaf can start from. */
+    return 'M 270,' + y0 +
+      ' C 470,' + (y0 - 70) + ' ' + (cx - 170) + ',' + (cy - r - 110) + ' ' + cx + ',' + (cy - r) +
+      ' A ' + r + ',' + r + ' 0 0 1 ' + cx + ',' + (cy + r) +
+      ' A ' + r + ',' + r + ' 0 0 1 ' + (cx + 0.4) + ',' + (cy - r) +
+      ' C ' + (cx + 230) + ',' + (cy - r + 50) + ' ' +
+              (cx + 640) + ',' + (endY - 80) + ' 2140,' + endY;
+  }
+
+  function driftOnce(host) {
+    const y0 = rnd(140, 250);          // up in the canopy, where it is widest
+    const cx = rnd(720, 1000), cy = rnd(300, 440), r = rnd(70, 125);
+    const path = driftPath(y0, cx, cy, r, rnd(360, 640));
+    const size = rnd(54, 78);
+    const spin = (Math.random() < 0.5 ? -1 : 1) * rnd(300, 520);
+
+    /* Everything rides the same path; what separates them is how far
+       behind they start and how solid they are. */
+    const ride = function (el, delay, op) {
+      el.classList.add('fx-drift');
+      el.style.setProperty('offset-path', 'path("' + path + '")');
+      el.style.setProperty('--spin', spin + 'deg');
+      el.style.setProperty('--op', op);
+      el.style.animationDuration = DRIFT.dur + 'ms, ' + DRIFT.dur + 'ms';
+      el.style.animationDelay = delay + 'ms, ' + delay + 'ms';
+      host.appendChild(el);
+      setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); },
+                 DRIFT.dur + delay + 200);
+    };
+
+    // the speed lines go first, furthest back
+    for (let i = 0; i < DRIFT.lines; i++) {
+      const l = document.createElement('div');
+      l.classList.add('fx-windline');
+      l.style.width = rnd(70, 140) + 'px';
+      l.style.marginTop = rnd(-26, 26) + 'px';
+      ride(l, 430 + i * 200, rnd(0.14, 0.28));
+    }
+    // and the one leaf, solid, in front of its own wake
+    const leaf = document.createElement('img');
+    leaf.src = window.CFG.ART.leaf;
+    leaf.alt = '';
+    leaf.style.width = size + 'px';
+    ride(leaf, 0, 1);
+
+    if (window.Audio8 && window.Audio8.breeze) window.Audio8.breeze();
+  }
+
+  /* Kicks the cycle off and keeps it going: one leaf, a pause, the
+     next. Started once at boot and left to run. */
+  function leafDrift(sky) {
+    let host = sky.querySelector('.drift-host');
+    if (!host) {
+      host = document.createElement('div');
+      host.className = 'drift-host';
+      sky.appendChild(host);
+    }
+    const again = function () {
+      driftOnce(host);
+      setTimeout(again, DRIFT.dur + rnd(DRIFT.gapMin, DRIFT.gapMax));
+    };
+    setTimeout(again, 1200);
+  }
+
+  /* A gust of leaves sweeps the frame. They blow in from the left,
+     fill it completely for a beat, then blow on out to the right —
+     `onCover` fires during that beat, which is when the scene behind
+     gets swapped, and `onDone` once the frame is clear again.
+
+     One leaf image serves the whole drift: each copy gets its own
+     size, tilt, spin and a filter that shifts it along the autumn
+     range, so nothing reads as the same leaf twice. */
+  const LEAF_TINT = [
+    'none',
+    'hue-rotate(-12deg) saturate(1.18)',                  // toward red
+    'hue-rotate(14deg) brightness(1.07)',                 // toward gold
+    'hue-rotate(24deg) saturate(.88) brightness(1.13)',   // pale yellow
+    'saturate(1.25) brightness(.9)',                      // deep and dark
+    'hue-rotate(-20deg) saturate(1.1) brightness(.95)'    // rust
+  ];
+
+  const LEAF_DUR = 2600;          // the whole sweep
+  const LEAF_COVER = 0.51;        // where it is solid, and the swap lands
 
   function leaves(el, onCover, onDone) {
-    const DUR = 1500, COVER = 0.46, HOLD = 0.60;   // fractions of DUR
     el.innerHTML = '';
     el.classList.remove('hidden');
 
-    // a green veil under the leaves guarantees the swap is not seen
+    /* A warm veil under the drift guarantees the swap is never seen,
+       however the leaves happen to fall. */
     const veil = document.createElement('div');
     veil.className = 'leaf-veil';
-    veil.style.animationDuration = DUR + 'ms';
+    veil.style.animationDuration = LEAF_DUR + 'ms';
     el.appendChild(veil);
 
-    for (let i = 0; i < 64; i++) {
-      const size = rnd(150, 330);
-      const fromLeft = Math.random() < 0.5;
-      const d = document.createElement('div');
+    const src = window.CFG.ART.leaf;
+    let maxDelay = 0;
+
+    for (let i = 0; i < 92; i++) {
+      const size = rnd(140, 380);
+      const d = document.createElement('img');
       d.className = 'leaf';
+      d.src = src;
+      d.alt = '';
       d.style.width = size + 'px';
-      d.style.height = size * rnd(0.62, 0.85) + 'px';
-      d.style.background = pick(LEAF);
-      d.style.left = rnd(-120, 1920) + 'px';
-      d.style.top = rnd(-120, 1080) + 'px';
-      // in from one side, out through the other
-      d.style.setProperty('--x0', (fromLeft ? rnd(-1500, -700) : rnd(2100, 2900)) + 'px');
-      d.style.setProperty('--y0', rnd(-700, -200) + 'px');
-      d.style.setProperty('--x1', rnd(-90, 90) + 'px');
-      d.style.setProperty('--y1', rnd(-60, 60) + 'px');
-      d.style.setProperty('--x2', (fromLeft ? rnd(900, 1700) : rnd(-1700, -900)) + 'px');
-      d.style.setProperty('--y2', rnd(500, 1100) + 'px');
-      d.style.setProperty('--r0', rnd(-220, 220) + 'deg');
-      d.style.setProperty('--r1', rnd(-60, 60) + 'deg');
-      d.style.setProperty('--r2', rnd(-420, 420) + 'deg');
-      d.style.animationDuration = DUR + 'ms';
-      d.style.animationDelay = rnd(0, 120) + 'ms';
+      d.style.filter = pick(LEAF_TINT);
+
+      // where it sits when the frame is full
+      d.style.left = rnd(-160, 1920) + 'px';
+      d.style.top  = rnd(-160, 1080) + 'px';
+
+      // in on the wind from the left, out to the right and downward
+      d.style.setProperty('--x0', -rnd(700, 2700) + 'px');
+      d.style.setProperty('--y0', rnd(-520, 420) + 'px');
+      d.style.setProperty('--x1', rnd(-70, 70) + 'px');
+      d.style.setProperty('--y1', rnd(-50, 50) + 'px');
+      d.style.setProperty('--x2', rnd(1000, 2900) + 'px');
+      d.style.setProperty('--y2', rnd(240, 920) + 'px');
+      d.style.setProperty('--r0', rnd(-300, 300) + 'deg');
+      d.style.setProperty('--r1', rnd(-45, 45) + 'deg');
+      d.style.setProperty('--r2', rnd(-560, 560) + 'deg');
+      d.style.setProperty('--s0', rnd(0.62, 0.95));
+      d.style.setProperty('--s2', rnd(0.8, 1.2));
+
+      /* Staggered so the gust arrives in waves rather than as one
+         wall, but every leaf is home before the frame goes solid. */
+      const delay = rnd(0, 330);
+      if (delay > maxDelay) maxDelay = delay;
+      d.style.animationDuration = LEAF_DUR + 'ms';
+      d.style.animationDelay = delay + 'ms';
       el.appendChild(d);
     }
 
-    setTimeout(function () { if (onCover) onCover(); }, DUR * ((COVER + HOLD) / 2));
+    setTimeout(function () { if (onCover) onCover(); }, LEAF_DUR * LEAF_COVER);
     setTimeout(function () {
       el.classList.add('hidden');
       el.innerHTML = '';
       if (onDone) onDone();
-    }, DUR + 180);
+    }, LEAF_DUR + maxDelay + 160);
   }
+
+  // how long a sweep runs, in seconds, so the gust can be scored to it
+  leaves.seconds = LEAF_DUR / 1000;
+
 
   function clear() { if (layer) layer.innerHTML = ''; }
 
-  return { init, starBurst, ring, confetti, sparkles, puff, motes, clouds, leaves, clear };
+  return { init, starBurst, ring, confetti, sparkles, puff, motes, clouds,
+           leafDrift, leaves, clear };
 })();
