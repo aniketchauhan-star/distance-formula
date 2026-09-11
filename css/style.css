@@ -254,9 +254,13 @@ html, body {
   top:  calc(var(--leaf, 62px) * -.42);
   transform: rotate(-22deg);
 }
+/* Hung off the balloon's own bottom-right corner, not the ink box's:
+   the box runs on down past the balloon to carry the tail, so a
+   bottom-anchored leaf ends up floating below the corner rather than
+   sitting on it. */
 #bubble .b-leaf-br {
-  right:  calc(var(--leaf, 62px) * -.14);
-  bottom: calc(var(--leaf, 62px) * .34);
+  right: calc(var(--leaf, 62px) * -.22);
+  top:   calc(var(--bodyH) - var(--leaf, 62px) * .62);
   transform: rotate(24deg);
 }
 

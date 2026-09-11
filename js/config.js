@@ -163,10 +163,13 @@ window.CFG = (function () {
     /* Cumulative insets, measured from the outside in: a dark rim, the
        orange body of the frame, then a golden inner band before the
        cream. The tail repeats them at the same widths. */
-    edgeW: 2, midW: 9, goldW: 12,
+    /* The rim is both darker and wider than the rest of the autumn set
+       needs: the bubble floats on open sky, which is very light and
+       very warm, so a thin mid-orange edge disappeared into it. */
+    edgeW: 4, midW: 9, goldW: 12,
 
     fill:   '#FFF8E8',
-    edge:   '#C95B08',
+    edge:   '#8F3F08',
     mid:    '#F28A0A',
     gold:   '#FFC433',
     ink_:   '#173A72',            // the text
