@@ -324,6 +324,17 @@ window.CFG = (function () {
       max: 18                // widest span the board allows (-9 to 9)
     },
 
+    /* The line the player lays down with the slider. It grows out of
+       the point the question starts from, one grid square per step, so
+       the answer is something measured rather than guessed: a short
+       guess visibly falls short of the other point, a long one runs
+       past it. */
+    measure: {
+      color: '#2E9BD4',
+      width: 9,
+      capR: 9
+    },
+
     /* The marker left behind once a point has been found, with its
        coordinates written beside it. */
     found: {
@@ -379,6 +390,18 @@ window.CFG = (function () {
       text: { left: 0.22, top: 0.20, width: 0.65, height: 0.60 },
       size: 42
     },
+
+    /* A distance question opens with the board on its own, centred in
+       an otherwise empty frame; it only moves aside once the question
+       has been put and the controls are on their way in. Same size, so
+       the move is a slide rather than a resize. */
+    centre: { x: 341, y: 112, w: 1239, h: 856 },
+
+    /* Where Swifty lands to put that question, while the board is
+       still centred: bottom left, in front of the board's blank
+       margin, with her bubble over the empty lower-left of the grid
+       where no screen plots a point. */
+    speak: { cx: 400, feetY: 985 },
 
     // the distance selector, mounted as its own component
     distance: { pos: place8(219, 2646), w: 610, h: 407 },
@@ -527,7 +550,7 @@ window.CFG = (function () {
        board re-seats itself and the empty banner drops in. No
        question and nothing to locate yet. */
     { id: 8, line: 'How far apart are A and B?', entrance: 'none',
-      layout: 'board', transition: 'leaves', distance: true,
+      layout: 'board', transition: 'leaves', distance: true, intro: 'measure',
 
       // plotted first, then the question is asked
       segment: { a: { x: 2, y: 1, name: 'A' }, b: { x: 6, y: 1, name: 'B' } },
@@ -548,19 +571,19 @@ window.CFG = (function () {
        are vertical segments, so the count-out stacks its squares
        beside the line instead of hanging them beneath it. */
     { id: 9, line: 'How far apart are A and B?', entrance: 'none', layout: 'board',
-      distance: true,
+      distance: true, intro: 'measure',
       segment: { a: { x: 4, y: 3, name: 'A' }, b: { x: -3, y: 3, name: 'B' } },
       task: { kind: 'distance', correctLine: 'Correct!',
               showLine: 'Let’s count the units.', tryAgainLine: 'Now try again!' } },
 
     { id: 10, line: 'How far apart are A and B?', entrance: 'none', layout: 'board',
-      distance: true,
+      distance: true, intro: 'measure',
       segment: { a: { x: 1, y: 2, name: 'A' }, b: { x: 1, y: -3, name: 'B' } },
       task: { kind: 'distance', correctLine: 'Correct!',
               showLine: 'Let’s count the units.', tryAgainLine: 'Now try again!' } },
 
     { id: 11, line: 'How far apart are A and B?', entrance: 'none', layout: 'board',
-      distance: true,
+      distance: true, intro: 'measure',
       segment: { a: { x: -2, y: 3, name: 'A' }, b: { x: -2, y: 1, name: 'B' } },
       task: { kind: 'distance', correctLine: 'Correct!',
               showLine: 'Let’s count the units.', tryAgainLine: 'Now try again!' } },
@@ -583,7 +606,7 @@ window.CFG = (function () {
        the horizontal step A-C can be measured on its own. The answer
        is that leg, not the diagonal, so the task measures from it. */
     { id: 14, line: 'How far apart are A and C?', entrance: 'none',
-      layout: 'board', transition: 'leaves', distance: true,
+      layout: 'board', transition: 'leaves', distance: true, intro: 'measure',
       segment: { a: { x: 2, y: 1, name: 'A' }, b: { x: 6, y: 4, name: 'B' } },
       legs: [ { from: { x: 2, y: 1 }, to: { x: 6, y: 1 }, mark: { name: 'C' } } ],
       task: {
@@ -598,7 +621,7 @@ window.CFG = (function () {
        already drawn, so it only gains its length, and the second leg
        rises from the corner to B. */
     { id: 15, line: 'How far apart are C and B?', entrance: 'none',
-      layout: 'board', distance: true, keepSegment: true,
+      layout: 'board', distance: true, intro: 'measure', keepSegment: true,
       segment: { a: { x: 2, y: 1, name: 'A' }, b: { x: 6, y: 4, name: 'B' } },
       legs: [
         { from: { x: 2, y: 1 }, to: { x: 6, y: 1 }, mark: { name: 'C' },

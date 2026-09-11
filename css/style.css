@@ -302,6 +302,31 @@ html, body {
   animation: termGlow 1.1s ease-in-out infinite;
 }
 
+/* The line the player lays down with the slider. It follows the drag
+   with no easing of its own — the knob is the thing being moved, and a
+   lagging line would feel disconnected from it. */
+#gridAxes .measline, #gridAxes .mescap { opacity: 0; }
+#gridAxes .measline.on, #gridAxes .mescap.on { opacity: 1; }
+#gridAxes .mescap {
+  transform-box: fill-box; transform-origin: center;
+}
+#gridAxes .mescap.on { animation: capIn .3s cubic-bezier(.22, .68, .3, 1) both; }
+@keyframes capIn {
+  0%   { transform: scale(.4); }
+  60%  { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+/* it reached: leave it lit, the way a confirmed segment is */
+#gridAxes .measline.lit { animation: segLit 1.4s ease-in-out infinite; }
+
+/* The board slides from the middle of the frame to its working place
+   once the question has been put. Same size either end, so only the
+   two offsets move and the grid art never rescales mid-flight. */
+#gridPanel.sliding {
+  transition: left .62s cubic-bezier(.3, .85, .35, 1),
+              top  .62s cubic-bezier(.3, .85, .35, 1);
+}
+
 /* the segment lit once it is the answer, with the answer on it */
 #gridAxes .segline.lit { animation: segLit 1.4s ease-in-out infinite; }
 @keyframes segLit {

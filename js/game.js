@@ -140,6 +140,25 @@
                bubbleScale: C.BUBBLE.scale,
                panelBox: { x: R.grid.x, y: R.grid.y, w: R.grid.w, h: R.grid.h } };
     }
+    /* A distance question has her on screen after all: she flies in to
+       put it, then leaves before the controls arrive. She lands at the
+       bottom left, in front of the centred board. */
+    if (entry.intro === 'measure') {
+      const S = C.BOARD.speak;
+      const a = { x: S.cx, y: S.feetY - C.FEET_DY };
+      return {
+        stand: false,
+        scale: C.CHAR_SCALE,
+        anchor: a,
+        aim:    { x: a.x + C.HEAD_TOP.dx, y: a.y + C.HEAD_TOP.dy },
+        feetY:  S.feetY,
+        feetCx: S.cx,
+        inkW:   REF_W * C.CHAR_SCALE,
+        bubbleScale: entry.bubbleScale || C.BUBBLE.scale,
+        panelBox: { x: C.BOARD.panel.pos.x, y: C.BOARD.panel.pos.y,
+                    w: C.BOARD.panel.w, h: C.BOARD.panel.h }
+      };
+    }
     if (entry.layout === 'board') {
       // Swifty is gone; nothing character-shaped to seat.
       return { stand: false, bare: true, scale: C.CHAR_SCALE, anchor: C.ANCHOR,
@@ -571,6 +590,20 @@
       segLine.setAttribute('stroke-linecap', 'round');
       seg.appendChild(segLine);
       this.segLine = segLine;
+
+      /* The player's own line, laid down with the slider. It sits in
+         the same group as the segment so it is cleared alongside it. */
+      const ml = document.createElementNS(NS, 'line');
+      ml.setAttribute('class', 'measline');
+      ml.setAttribute('stroke', G.measure.color);
+      ml.setAttribute('stroke-width', G.measure.width);
+      ml.setAttribute('stroke-linecap', 'round');
+      const mc = document.createElementNS(NS, 'circle');
+      mc.setAttribute('class', 'mescap');
+      mc.setAttribute('r', G.measure.capR);
+      mc.setAttribute('fill', G.measure.color);
+      seg.appendChild(ml); seg.appendChild(mc);
+      this.measLine = ml; this.measCap = mc;
       this.segParts = { a: {}, b: {} };
       ['a', 'b'].forEach(function (key) {
         const c = document.createElementNS(NS, 'circle');
@@ -762,7 +795,13 @@
         if (spec.mark) {
           later(function () { L.dot.classList.add('pop'); SFX.tick(1); }, base + 120);
         }
-        later(function () { L.line.classList.add('draw'); SFX.draw(); }, base + 380);
+        /* The leg a distance question is about holds its line back —
+           drawing it would lay out the very answer being asked for.
+           Its corner and labels still arrive, so there is something to
+           measure to. */
+        if (!spec.noLine) {
+          later(function () { L.line.classList.add('draw'); SFX.draw(); }, base + 380);
+        }
         if (spec.mark) {
           later(function () { L.coord.classList.add('pop'); SFX.tick(3); }, base + 980);
           later(function () { L.name.classList.add('pop'); SFX.tick(4); }, base + 1100);
@@ -949,6 +988,7 @@
     clearSegment: function () {
       this.clearUnits();
       this.clearLegs();
+      this.clearMeasure();
       if (!this.segGroup) return;
       this.glowCoords(false);
       if (this.segRes) { this.segRes.classList.remove('pop'); this.segResPlate.classList.remove('on'); }
@@ -965,6 +1005,55 @@
     },
 
     /* points first, then the line joins them, then the labels */
+    /* The opening of a distance question: the two points arrive one at
+       a time, then their coordinates, then their letters. No line
+       between them — the line is the answer, and the player draws it. */
+    runPoints: function (spec, later, done) {
+      const self = this;
+      this.placeSegment(spec);
+      this.clearSegment();
+      this.segGroup.classList.add('on');
+
+      later(function () { self.segParts.a.dot.classList.add('pop'); SFX.pop(); }, 220);
+      later(function () { self.segParts.b.dot.classList.add('pop'); SFX.pop(); }, 720);
+      later(function () { self.segParts.a.coord.classList.add('pop'); SFX.tick(2); }, 1260);
+      later(function () { self.segParts.b.coord.classList.add('pop'); SFX.tick(3); }, 1530);
+      later(function () { self.segParts.a.name.classList.add('pop'); SFX.tick(4); }, 1880);
+      later(function () { self.segParts.b.name.classList.add('pop'); SFX.tick(5); }, 2150);
+      later(done, 2560);
+    },
+
+    /* `units` squares out from the point the question starts from,
+       towards the other one. Clamped to the board so a long guess
+       stops at the edge rather than running off it. */
+    setMeasure: function (from, to, units) {
+      const G = C.GRID;
+      const px = function (v) { return G.originX + v * G.stepX; };
+      const py = function (v) { return G.originY - v * G.stepY; };
+      const sx = Math.sign(to.x - from.x), sy = Math.sign(to.y - from.y);
+      const ex = Math.max(G.xFrom, Math.min(G.xTo, from.x + sx * units));
+      const ey = Math.max(G.yFrom, Math.min(G.yTo, from.y + sy * units));
+      this.measLine.setAttribute('x1', px(from.x));
+      this.measLine.setAttribute('y1', py(from.y));
+      this.measLine.setAttribute('x2', px(ex));
+      this.measLine.setAttribute('y2', py(ey));
+      this.measCap.setAttribute('cx', px(ex));
+      this.measCap.setAttribute('cy', py(ey));
+      this.measLine.classList.add('on');
+      this.measCap.classList.add('on');
+    },
+
+    clearMeasure: function () {
+      if (!this.measLine) return;
+      this.measLine.classList.remove('on', 'lit');
+      this.measCap.classList.remove('on');
+    },
+
+    // the guess landed: leave it on the board, lit
+    litMeasure: function () {
+      if (this.measLine) this.measLine.classList.add('lit');
+    },
+
     runSegment: function (spec, later, done) {
       const self = this;
       const a = spec.a, b = spec.b;
@@ -1222,9 +1311,11 @@
 
       // a distance task is answered on the slider, so route Check to it
       if (Dist) {
-        Dist.onCheck(entry.task && entry.task.kind === 'distance'
-          ? function (v) { self.checkDistance(v); }
-          : null);
+        const measuring = entry.task && entry.task.kind === 'distance';
+        Dist.onCheck(measuring ? function (v) { self.checkDistance(v); } : null);
+        /* Dragging lays the line down as it goes, so the slider reads
+           as a ruler rather than a number picker. */
+        Dist.onChange(measuring ? function (v) { self.showMeasure(v); } : null);
       }
       // a choice task is answered on the options panel
       if (Opts) {
@@ -1288,7 +1379,11 @@
 
         /* Only a board screen brings the board through the sweep; the
            field screens leave it behind entirely. */
-        if (onBoard) {
+        /* A distance question arrives with the frame empty and brings
+           the board, the question and the controls in itself, in that
+           order — so the sweep must not put any of them up early. */
+        const holds = entry.intro === 'measure';
+        if (onBoard && !holds) {
           Board.place(geom.panelBox || C.GRID.box);
           el.gridPanel.classList.remove('hidden');
           Board.shown = true;
@@ -1300,7 +1395,7 @@
           Board.clearSegment();
         }
 
-        if (entry.layout === 'board' || AX) {
+        if ((entry.layout === 'board' || AX) && !holds) {
           /* Empty before it pops in: the banner is on screen while the
              board draws, and the last screen's line must not sit in it. */
           el.qBannerLine.textContent = '';
@@ -1312,7 +1407,7 @@
         }
 
         if (Dist) {
-          if (entry.distance) { Dist.reset(); Dist.show(); } else Dist.hide();
+          if (entry.distance && !holds) { Dist.reset(); Dist.show(); } else Dist.hide();
         }
         if (Opts) {
           if (entry.options) { Opts.reset(); Opts.show(); } else Opts.hide();
@@ -1376,6 +1471,81 @@
         });
       };
 
+      /* A distance question, from an empty frame: the board arrives on
+         its own and draws its axes, the two points and their labels
+         pop in one at a time with no line between them, Swifty flies
+         in to put the question and leaves again, and only then does
+         the board move aside for the banner and the slider. */
+      const runMeasure = function () {
+        self.state = 'entering';
+        el.gridPanel.classList.add('hidden');
+        el.qBanner.classList.add('hidden');
+        el.qBannerLine.textContent = '';
+        el.standSwifty.classList.add('hidden');
+        el.birdWin.classList.add('hidden');
+        if (Dist) Dist.hide();
+        Board.shown = false;
+        Board.setDots(false);
+        Board.clearSegment();
+
+        // 1. the board, alone in the middle of the frame
+        Board.place(C.BOARD.centre);
+        Board.run(self.later.bind(self), function () {
+
+          // 2. the points, their coordinates, then their letters
+          Board.runPoints(entry.segment, self.later.bind(self), function () {
+            const asks = function () {
+
+              // 3. she comes in, puts the question, and goes
+              self.flyIn(function () {
+                FX.sparkles(geom.aim.x, geom.aim.y, 7, 170 * C.CHAR_SCALE);
+                Bubble.open(entry.line, function () {
+                  self.later(function () {
+                    Bubble.close();
+                    self.flyOut(opens);
+                  }, 1100);
+                });
+              });
+            };
+            /* A leg question needs its legs on the board first — bar
+               the one it is asking about, which arrives as a corner
+               and a letter with no line joining it up. */
+            if (entry.legs) {
+              const measured = entry.task ? entry.task.measureLeg : null;
+              const legs = entry.legs.map(function (L, i) {
+                return i === measured ? Object.assign({}, L, { noLine: true }) : L;
+              });
+              Board.runLegs(legs, self.later.bind(self), asks);
+            } else asks();
+          });
+        });
+      };
+
+      /* 4. the board slides aside and the working layout assembles. */
+      const opens = function () {
+        el.gridPanel.classList.add('sliding');
+        Board.place(geom.panelBox);
+        Board.shown = true;
+        self.later(function () { el.gridPanel.classList.remove('sliding'); }, 700);
+
+        /* She has just said the line, so the banner takes it as a
+           standing reminder rather than typing it out a second time. */
+        self.later(function () {
+          el.qBannerLine.textContent = Bubble.keepPairs(entry.line);
+          el.qBanner.classList.remove('hidden', 'pop-in');
+          void el.qBanner.offsetWidth;
+          el.qBanner.classList.add('pop-in');
+          SFX.pop();
+        }, 460);
+
+        self.later(function () {
+          if (Dist) { Dist.reset(); Dist.show(); }
+          Board.clearMeasure();
+          self.state = 'waiting';
+          el.nextBtn.classList.add('ready');
+        }, 760);
+      };
+
       if (entry.transition === 'leaves') {
         this.state = 'entering';
         SFX.rustle();
@@ -1383,10 +1553,14 @@
            child sees what is being talked about. */
         FX.leaves(el.leafLayer, dress, function () {
           if (AX) runAxisCase(AX);
+          else if (entry.intro === 'measure') runMeasure();
           else plotThen(arrive);
         });
         return;
       }
+
+      // a distance question rebuilds from an empty frame, every time
+      if (entry.intro === 'measure') { runMeasure(); return; }
 
       if (geom.panelBox) Board.place(geom.panelBox);
       else Board.place(C.GRID.box);
@@ -1466,8 +1640,9 @@
           el.standSwifty.classList.add('land-in');
         }
         SFX.land();
-        FX.puff(C.ANCHOR.x - 10, C.ANCHOR.y + C.FEET_DY);
-        FX.sparkles(C.ANCHOR.x, C.ANCHOR.y - 120 * C.CHAR_SCALE, 12, 190 * C.CHAR_SCALE);
+        const g = self.geom || { anchor: C.ANCHOR, feetY: C.ANCHOR.y + C.FEET_DY };
+        FX.puff(g.anchor.x - 10, g.feetY);
+        FX.sparkles(g.anchor.x, g.anchor.y - 120 * C.CHAR_SCALE, 12, 190 * C.CHAR_SCALE);
         SFX.sparkle();
         self.later(done, 320);
       };
@@ -1489,7 +1664,8 @@
       void el.birdFlip.offsetWidth;
       el.birdFlip.classList.add('turn');    // she faces the way she is going
       el.shadow.classList.add('lifted');
-      FX.puff(C.ANCHOR.x - 10, C.ANCHOR.y + C.FEET_DY);
+      const g = this.geom || { anchor: C.ANCHOR, feetY: C.ANCHOR.y + C.FEET_DY };
+      FX.puff(g.anchor.x - 10, g.feetY);
       SFX.flap();
 
       let beats = 0;
@@ -1610,30 +1786,48 @@
     },
 
     /* The Check button on the distance panel. */
+    /* The two points a distance question is about: a named leg, or the
+       segment itself. Read from the board rather than typed into the
+       task, so a moved point can never leave a stale answer behind.
+       Both the slider's line and the grading go through here, so the
+       two can never disagree about what is being measured. */
+    measurePair: function () {
+      const entry = C.SCRIPT[this.index] || {};
+      const t = this.task;
+      const sg = entry.segment;
+      let from = sg ? sg.a : null, to = sg ? sg.b : null;
+      if (t && t.spec.measureLeg != null && entry.legs && entry.legs[t.spec.measureLeg]) {
+        const L = entry.legs[t.spec.measureLeg];
+        from = L.from; to = L.to;
+      }
+      return (from && to) ? { from: from, to: to } : null;
+    },
+
+    /* The slider moved: lay the line down that far. */
+    showMeasure: function (v) {
+      const t = this.task;
+      if (!t || t.done) return;
+      const pair = this.measurePair();
+      if (!pair) return;
+      Board.setMeasure(pair.from, pair.to, v);
+    },
+
     checkDistance: function (v) {
       const t = this.task;
       if (!t || t.done) return;
       const self = this;
       const sg = C.SCRIPT[this.index] && C.SCRIPT[this.index].segment;
 
-      /* Measured from the two points rather than typed into config, so
-         a moved point can never leave a stale answer behind. Only
-         axis-aligned segments are asked about, so one term is zero. */
-      const entry = C.SCRIPT[this.index] || {};
-      /* Measured from whichever pair the question is about: a named
-         leg, or the segment itself. */
-      let from = sg ? sg.a : null, to = sg ? sg.b : null;
-      if (t.spec.measureLeg != null && entry.legs && entry.legs[t.spec.measureLeg]) {
-        const L = entry.legs[t.spec.measureLeg];
-        from = L.from; to = L.to;
-      }
+      // only axis-aligned pairs are asked about, so one term is zero
+      const pair = this.measurePair();
       const answer = t.spec.answer != null ? t.spec.answer
-        : (from && to ? Math.abs(to.x - from.x) + Math.abs(to.y - from.y) : null);
+        : (pair ? Math.abs(pair.to.x - pair.from.x) + Math.abs(pair.to.y - pair.from.y) : null);
 
       if (v === answer) {
         t.done = true;
         this.state = 'waiting';
         SFX.correct();
+        Board.litMeasure();        // their line reached, and stays lit
         this.later(function () {
           SFX.cheer();
           FX.confetti(26);
