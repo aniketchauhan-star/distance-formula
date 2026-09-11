@@ -440,7 +440,8 @@ html, body {
 #gridAxes .legline.draw { animation: drawOut .6s cubic-bezier(.3, .85, .35, 1) forwards; }
 #gridAxes .legcoord, #gridAxes .legname {
   opacity: 0;
-  font-family: 'Lilita One', system-ui, sans-serif;
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 600;
   text-anchor: middle; dominant-baseline: middle;
   paint-order: stroke fill;
   stroke: #FDFBF0; stroke-width: 6;
@@ -461,7 +462,8 @@ html, body {
 #gridAxes .legplate.on { animation: labelPop .56s cubic-bezier(.22, .68, .3, 1) both; }
 #gridAxes .leglen {
   opacity: 0;
-  font-family: 'Lilita One', system-ui, sans-serif;
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 600;
   text-anchor: middle; dominant-baseline: middle;
   transform-box: fill-box; transform-origin: center;
 }
@@ -484,7 +486,8 @@ html, body {
 #gridAxes .uplate.on { animation: labelPop .58s cubic-bezier(.22, .68, .3, 1) both; }
 #gridAxes .ulabel {
   opacity: 0;
-  font-family: 'Lilita One', system-ui, sans-serif;
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 600;
   text-anchor: middle; dominant-baseline: middle;
   /* the plate behind it does the separating now, so no halo */
   /* Without a transform-box an SVG element scales about the view-box
@@ -538,7 +541,8 @@ html, body {
 #gridAxes .segresplate.on { animation: labelPop .58s cubic-bezier(.22, .68, .3, 1) both; }
 #gridAxes .segres {
   opacity: 0;
-  font-family: 'Lilita One', system-ui, sans-serif;
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 600;
   text-anchor: middle; dominant-baseline: middle;
   transform-box: fill-box; transform-origin: center;
 }
@@ -559,7 +563,8 @@ html, body {
 
 #gridAxes .segcoord, #gridAxes .segname {
   opacity: 0;
-  font-family: 'Lilita One', system-ui, sans-serif;
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 600;
   text-anchor: middle; dominant-baseline: middle;
   paint-order: stroke fill;
   stroke: #FDFBF0; stroke-width: 6;     /* halo, so labels read over the grid */
@@ -577,7 +582,8 @@ html, body {
 #gridAxes .found.on { animation: foundIn .6s cubic-bezier(.22, .68, .3, 1) both; }
 #gridAxes .found .fdot { paint-order: stroke fill; }
 #gridAxes .found .flabel {
-  font-family: 'Lilita One', system-ui, sans-serif;
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 600;
   text-anchor: middle; dominant-baseline: middle;
   paint-order: stroke fill;
   stroke: #FDFBF0; stroke-width: 6;   /* halo, so it reads over the gridlines */
@@ -585,7 +591,8 @@ html, body {
 
 #gridAxes .glabel {
   opacity: 0;
-  font-family: 'Lilita One', system-ui, sans-serif;
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 600;
   text-anchor: middle; dominant-baseline: middle;
   transform-box: fill-box; transform-origin: center;
 }

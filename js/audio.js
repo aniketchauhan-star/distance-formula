@@ -236,6 +236,32 @@ window.Audio8 = (function () {
   }
 
   // The celebration that rides with the confetti.
+  /* A party popper: the crack of the burst, then the paper coming
+     down after it. It plays alongside cheer() on a right answer, so it
+     is the confetti you hear rather than a second tune — short, dry,
+     and out of the way before the cheer has finished. */
+  function confettiPop() {
+    if (!ctx) return;
+
+    // the crack: a hard, very short noise transient with body under it
+    noise({ f0: 1800, f1: 320, dur: 0.09, gain: 0.22, q: 0.5, attack: 0.001 });
+    tone({ type: 'square', f0: 240, f1: 70, dur: 0.07, gain: 0.10, attack: 0.001 });
+
+    // the pop's ring, bright and immediately gone
+    noise({ f0: 5200, f1: 2600, dur: 0.13, gain: 0.10, q: 1.4, attack: 0.002, delay: 0.01 });
+
+    /* Then the paper: a scatter of short, dry ticks spread over the
+       next second, thickest just after the burst and thinning out as
+       the pieces fall. */
+    for (let i = 0; i < 22; i++) {
+      const at = 0.07 + Math.pow(Math.random(), 1.7) * 0.95;
+      noise({ f0: 2600 + Math.random() * 4200, f1: 1200 + Math.random() * 1600,
+              dur: 0.035 + Math.random() * 0.05,
+              gain: 0.030 + Math.random() * 0.022,
+              q: 3.2, attack: 0.002, delay: at });
+    }
+  }
+
   function cheer() {
     if (!ctx) return;
     const tune = [523, 659, 784, 1047, 1319];
@@ -312,7 +338,7 @@ window.Audio8 = (function () {
   }
 
   return {
-    unlock, duck, setMuted, isMuted, wind, breeze,
+    unlock, duck, setMuted, isMuted, wind, breeze, confettiPop,
     chirp, flap, land, pop, blip, sparkle, whoosh, chime, magic, draw, tick,
     correct, wrong, cheer, rustle,
     get ready() { return !!ctx; }

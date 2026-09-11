@@ -1949,7 +1949,8 @@
         Board.litMeasure();        // their line reached, and stays lit
         this.later(function () {
           SFX.cheer();
-          FX.confetti(26);
+          SFX.confettiPop();
+          FX.confetti(60);
           self.ask(t.spec.correctLine);
         }, 260);
         return;
@@ -2005,7 +2006,8 @@
         Board.litMeasure();
         this.later(function () {
           SFX.cheer();
-          FX.confetti(26);
+          SFX.confettiPop();
+          FX.confetti(60);
           self.ask(t.spec.correctLine);
         }, 260);
         return;
@@ -2042,7 +2044,8 @@
         SFX.correct();
         this.later(function () {
           SFX.cheer();
-          FX.confetti(26);
+          SFX.confettiPop();
+          FX.confetti(60);
           self.ask(t.spec.correctLine);
         }, 260);
         // the chosen method, worked through where the buttons were
@@ -2102,7 +2105,8 @@
       const self = this;
       this.later(function () {
         SFX.cheer();
-        FX.confetti(26);                         // enough to read as a shower, not a mess
+        SFX.confettiPop();
+        FX.confetti(60);
         (self.geom && self.geom.bare ? self.ask : self.speak).call(self, t.spec.correctLine);
       }, 260);
     },

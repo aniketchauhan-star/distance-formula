@@ -54,21 +54,26 @@ window.FX = (function () {
   }
 
   /* Confetti raining across the whole stage. */
+  /* Confetti over the whole frame, falling from above. The delays are
+     kept short so the pieces arrive as one burst rather than trickling
+     down — a long spread reads as weather, not as a celebration. */
   function confetti(count) {
     count = count || 46;
     for (let i = 0; i < count; i++) {
       const w = rnd(10, 20), h = rnd(14, 26);
-      const life = rnd(2200, 3600);
+      const life = rnd(2000, 3200);
       spawn('fx-confetti', {
-        left: rnd(-40, 1960) + 'px', top: rnd(-260, -40) + 'px',
+        left: rnd(-40, 1960) + 'px', top: rnd(-300, -60) + 'px',
         width: w + 'px', height: h + 'px',
         background: pick(CANDY),
         borderRadius: Math.random() < 0.4 ? '50%' : '3px',
-        '--dx': rnd(-140, 140) + 'px',
-        '--fall': rnd(1180, 1420) + 'px',
+        '--dx': rnd(-170, 170) + 'px',
+        '--fall': rnd(1240, 1500) + 'px',
         '--spin': rnd(-900, 900) + 'deg',
         animationDuration: life + 'ms',
-        animationDelay: rnd(0, 700) + 'ms'
+        /* Most of the burst lands together; a few stragglers follow so
+           the tail of it does not stop dead. */
+        animationDelay: (Math.random() < 0.8 ? rnd(0, 170) : rnd(170, 520)) + 'ms'
       }, life + 800);
     }
   }
