@@ -140,40 +140,43 @@ window.CFG = (function () {
      The body fills the box down to `bodyH`; the tail runs from there to
      the tip. The frame is built from inset rings, the same way the
      board's is, so the bubble reads as part of the same autumn set. */
+  /* Swifty's speech bubble, drawn in CSS. The box positioned on screen
+     is the ink rectangle; the tail's point sits at `tip` inside it, and
+     applyGeom() drives that point onto the top of her head so the two
+     touch instead of the bubble floating above her.
+
+     The body fills the box down to `bodyH`; the tail hangs from there
+     to the point. Both carry the same three-band frame at the same
+     total thickness, which is what lets them meet at the mouth without
+     a step — the thing that goes wrong if the tail is given a lighter
+     edge than the balloon. */
   const BUBBLE = {
-    ink: { w: 482, h: 204 },      // the box that gets positioned
-    tip: { x: 259, y: 203 },      // where the tail touches her head
+    ink: { w: 620, h: 188 },      // 3.3:1, the proportion asked for
+    tip: { x: 172, y: 187 },      // 27.7% across, on the lower left
     scale: 1,
-    biteIntoHead: 10,             // how far the tip sinks into her crown
+    biteIntoHead: 10,             // how far the point sinks into her crown
 
-    bodyH: 148,                   // the balloon; the rest is tail
-    radius: 46,
+    bodyH: 123,                   // the balloon; the 64 below it is tail
+    radius: 48,
+    tailTip: 10,                  // rounding on the point
 
-    /* The tail is one square turned 45 degrees, with only its two lower
-       edges given a border — those become the two sides of the tail,
-       and a single element means they cannot drift out of line the way
-       stacked triangles do. Its upper half sits inside the balloon,
-       where cream on cream is invisible and it covers the rings to
-       open the mouth. Its size follows from the tail's length, since a
-       turned square puts its point exactly 1/root-2 of a side below its
-       centre: the mouth then comes out twice as wide as the tail is
-       long, which is the chunky, friendly shape this game wants. */
-    tailTip: 9,                   // rounding on the point
+    /* Cumulative insets, measured from the outside in: a dark rim, the
+       orange body of the frame, then a golden inner band before the
+       cream. The tail repeats them at the same widths. */
+    edgeW: 2, midW: 9, goldW: 12,
 
-    /* One stroke, the same colour and the same weight the whole way
-       round — balloon and tail alike. Stacked rings on the body could
-       never meet the tail's single edge without a step at the mouth,
-       and the step was the only thing there was to see. */
-    strokeW: 7,
+    fill:   '#FFF8E8',
+    edge:   '#C95B08',
+    mid:    '#F28A0A',
+    gold:   '#FFC433',
+    ink_:   '#173A72',            // the text
 
-    fill:   '#FFF9E8',
-    sheen:  '#FFFDF5',
-    stroke: '#EF9312',
-    ink_:   '#123A72',            // the text
+    leaf: 62,                     // the corner decorations
 
     // the text plate, as fractions of the ink box
-    text: { left: 0.06, top: 0.11, width: 0.88, height: 0.55 }
+    text: { left: 0.073, top: 0.074, width: 0.855, height: 0.505 }
   };
+;
 ;
 
   /* -------------------------------------------------------------

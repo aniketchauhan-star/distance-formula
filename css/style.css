@@ -174,43 +174,90 @@ html, body {
 
 /* Swifty's speech bubble, drawn rather than dropped in as a picture.
 
-   #bubble is the box applyGeom() positions, and the tail's tip is the
-   point it drives onto her head. #bubbleImg is the balloon itself,
-   filling the box down to --bodyH, with the tail hanging off it. */
+   #bubble is the box applyGeom() positions, and the tail's point is
+   what it drives onto her head. #bubbleImg is the balloon, filling the
+   box down to --bodyH; the tail hangs below it.
+
+   The tail is four squares turned 45 degrees and stacked: three
+   coloured ones under the balloon, which hides their upper halves and
+   leaves only the two lower edges showing, and the cream one over it,
+   invisible where it crosses the balloon because both are the same
+   flat cream. That gives the tail the same three bands as the balloon
+   at the same total width, so the two meet without a step. */
 #bubble { position: absolute; }
 
 #bubbleImg {
   position: absolute; left: 0; top: 0;
   pointer-events: none;
-  border-radius: var(--r, 46px);
-  /* flat cream, so the tail's fill matches it at the mouth exactly */
-  background: var(--fill, #FFF9E8);
+  border-radius: var(--r, 48px);
+  /* flat, so the tail's cream matches it exactly where they join */
+  background: var(--fill, #FFF8E8);
   box-shadow:
-    inset 0 0 0 var(--bw, 7px) var(--stroke, #EF9312),
-    0 6px 10px rgba(120, 70, 20, .16);
+    inset 0 0 0 var(--e1, 2px)  var(--edge, #C95B08),
+    inset 0 0 0 var(--e2, 9px)  var(--mid,  #F28A0A),
+    inset 0 0 0 var(--e3, 12px) var(--gold, #FFC433),
+    0 8px 16px rgba(120, 60, 10, .16);
 }
 
-/* The tail: one square turned 45 degrees with only its two lower edges
-   given a border, so those edges become the sides of the tail and can
-   never drift out of line with each other. Its upper half sits inside
-   the balloon — cream on cream, no border on those edges — where it
-   also covers the inset rings and opens the mouth for free. */
-#bubbleImg::after {
-  content: '';
+/* the stacked squares — each inset from the last by one band */
+#bubble .bt, #bubbleImg::after {
+  content: "";
   position: absolute;
-  box-sizing: border-box;
-  width:  var(--tailSq, 78px);
-  height: var(--tailSq, 78px);
-  left: calc(var(--tailX) - var(--tailSq) / 2);
-  top:  calc(100% - var(--tailSq) / 2);
-  background: var(--fill, #FFF9E8);
-  border-right:  var(--bw, 7px) solid var(--stroke, #EF9312);
-  border-bottom: var(--bw, 7px) solid var(--stroke, #EF9312);
-  /* after the turn, this corner is the point */
-  border-bottom-right-radius: var(--tailTip, 9px);
+  left: var(--tailX);
+  top:  var(--tailY);
+  width:  var(--tailSq, 90px);
+  height: var(--tailSq, 90px);
+  margin-left: calc(var(--tailSq, 90px) / -2);
+  margin-top:  calc(var(--tailSq, 90px) / -2);
+  border-bottom-right-radius: var(--tailTip, 10px);
   transform: rotate(45deg);
   transform-origin: center;
   pointer-events: none;
+}
+#bubble .bt-edge { background: var(--edge, #C95B08); }
+#bubble .bt-mid {
+  background: var(--mid, #F28A0A);
+  width:  calc(var(--tailSq) - var(--e1) * 2);
+  height: calc(var(--tailSq) - var(--e1) * 2);
+  margin-left: calc((var(--tailSq) - var(--e1) * 2) / -2);
+  margin-top:  calc((var(--tailSq) - var(--e1) * 2) / -2);
+}
+#bubble .bt-gold {
+  background: var(--gold, #FFC433);
+  width:  calc(var(--tailSq) - var(--e2) * 2);
+  height: calc(var(--tailSq) - var(--e2) * 2);
+  margin-left: calc((var(--tailSq) - var(--e2) * 2) / -2);
+  margin-top:  calc((var(--tailSq) - var(--e2) * 2) / -2);
+}
+/* the interior, over the balloon so the mouth is open */
+#bubbleImg::after {
+  background: var(--fill, #FFF8E8);
+  width:  calc(var(--tailSq) - var(--e3) * 2);
+  height: calc(var(--tailSq) - var(--e3) * 2);
+  margin-left: calc((var(--tailSq) - var(--e3) * 2) / -2);
+  margin-top:  calc((var(--tailSq) - var(--e3) * 2) / -2);
+  /* positioned against the balloon, which sits at the box's origin */
+  top: 100%;
+}
+
+/* One leaf caught on each of two opposite corners, the same artwork
+   the board and the question bar use. */
+#bubble .b-leaf {
+  position: absolute;
+  width: var(--leaf, 62px);
+  height: auto;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 3px rgba(120, 60, 10, .3));
+}
+#bubble .b-leaf-tl {
+  left: calc(var(--leaf, 62px) * .20);
+  top:  calc(var(--leaf, 62px) * -.42);
+  transform: rotate(-22deg);
+}
+#bubble .b-leaf-br {
+  right:  calc(var(--leaf, 62px) * -.14);
+  bottom: calc(var(--leaf, 62px) * .34);
+  transform: rotate(24deg);
 }
 
 #bubbleText {

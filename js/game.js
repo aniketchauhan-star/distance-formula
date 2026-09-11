@@ -235,12 +235,17 @@
        below its centre, so this side puts the point exactly on the tip
        when the square is centred on the balloon's bottom edge. */
     bs.setProperty('--tailSq', (B.tip.y - B.bodyH) * s * Math.SQRT2 + 'px');
+    bs.setProperty('--tailY',  B.bodyH * s + 'px');
     bs.setProperty('--tailTip', B.tailTip * s + 'px');
-    bs.setProperty('--r',       B.radius * s + 'px');
-    bs.setProperty('--bw',      B.strokeW * s + 'px');
-    bs.setProperty('--fill',    B.fill);
-    bs.setProperty('--sheen',   B.sheen);
-    bs.setProperty('--stroke',  B.stroke);
+    bs.setProperty('--r',      B.radius * s + 'px');
+    bs.setProperty('--e1',     B.edgeW * s + 'px');
+    bs.setProperty('--e2',     B.midW  * s + 'px');
+    bs.setProperty('--e3',     B.goldW * s + 'px');
+    bs.setProperty('--fill',   B.fill);
+    bs.setProperty('--edge',   B.edge);
+    bs.setProperty('--mid',    B.mid);
+    bs.setProperty('--gold',   B.gold);
+    bs.setProperty('--leaf',   B.leaf * s + 'px');
 
     el.bubbleText.style.left = inkW * B.text.left + 'px';
     el.bubbleText.style.top = inkH * B.text.top + 'px';
