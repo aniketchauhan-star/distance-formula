@@ -14,7 +14,7 @@
    'bubble', 'bubbleImg', 'bubbleText', 'bubbleLine', 'nextBtn',
    'gridPanel', 'gridImg', 'gridAxes', 'standSwifty',
    'qBanner', 'qBannerImg', 'qBannerText', 'qBannerLine',
-   'formulaBoard', 'leafLayer', 'fxLayer'
+   'formulaBoard', 'leafLayer', 'fxLayer', 'sceneArt', 'startArt'
   ].forEach(function (id) { el[id] = document.getElementById(id); });
 
   /* ---------------- responsive stage ---------------- */
@@ -2224,6 +2224,14 @@
 
   /* ---------------- boot ---------------- */
   function boot() {
+    /* The two full-frame pictures take their source from config rather
+       than from the markup. They used to be hardcoded in the HTML,
+       which meant a renamed file left ART pointing at the new name
+       while the page still asked for the old one — and the background
+       silently failed to load. */
+    el.sceneArt.src = C.ART.background;
+    el.startArt.src = C.ART.startScreen;
+
     FX.init(el.fxLayer);
     FX.clouds(el.skyLayer);
     FX.leafDrift(el.skyLayer);

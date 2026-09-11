@@ -13,7 +13,7 @@ window.CFG = (function () {
   /* ---------- Asset paths ---------- */
   const ART = {
     startScreen: 'assets/start screen.png',
-    background:  'assets/background game.png',
+    background:  'assets/game Background .png',
     clouds:      'assets/clouds.png',
     playButton:  'assets/play button .png',
     swiftyFly:   'assets/swifty fly.png',
@@ -212,8 +212,11 @@ window.CFG = (function () {
      ------------------------------------------------------------- */
   const CLOUD = {
     src: ART.clouds,
-    srcW: 1920, srcH: 1080,
-    ink: { x: 545, y: 257, w: 852, h: 481 },
+    srcW: 2048, srcH: 768,
+    /* The opaque part of the artwork, measured off its alpha: the file
+       carries a wide transparent margin, and the drift is positioned
+       by the cloud itself rather than by the picture around it. */
+    ink: { x: 68, y: 64, w: 1881, h: 621 },
     /* Two small clouds only, at full opacity, looping across the sky.
        `top` is the cloud's top edge and `phase` is how far through its
        loop it starts, so the pair never travels in lockstep. Both sit
@@ -236,8 +239,8 @@ window.CFG = (function () {
          ever seen is the strip of sky above it — and even there they
          should read as distant weather, not as something on the same
          plane as the lesson. */
-      { scale: 0.34, top: 96,  speed: 7,   opacity: 0.5,  phase: 0.30 },
-      { scale: 0.26, top: 212, speed: 4.5, opacity: 0.38, phase: 0.65 }
+      { scale: 0.154, top: 96,  speed: 7,   opacity: 0.5,  phase: 0.30 },
+      { scale: 0.118, top: 212, speed: 4.5, opacity: 0.38, phase: 0.65 }
     ]
   };
 
