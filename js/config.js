@@ -533,7 +533,11 @@ window.CFG = (function () {
 
     /* The triangle-type answer panel takes the slider's place, centred
        on the same footprint so the left column stays put. */
-    options: { pos: { x: 70, y: 398 }, w: 520 }
+    options: { pos: { x: 70, y: 398 }, w: 520 },
+
+    /* And the answer pad takes the same column again, for the
+       questions whose answer is typed rather than chosen. */
+    entry: { pos: { x: 70, y: 330 }, w: 520 }
   };
 
   /* -------------------------------------------------------------
@@ -817,9 +821,45 @@ window.CFG = (function () {
         ]
       } },
 
-    /* 19 — leaves, back to the field layout, and the same idea stated
+    /* 19-20 — the method used straight away on two fresh triangles,
+       both already drawn. Only the coordinates are given: no side
+       lengths, so the legs have to be read off the grid before
+       Pythagoras can be applied. Both are Pythagorean triples, so the
+       answer comes out whole — 3-4-5 first, then the same shape
+       doubled to 6-8-10. */
+    { id: 19, line: 'Find the distance AB.', entrance: 'none',
+      layout: 'board', transition: 'leaves', intro: 'measure', entry: true,
+      segment: { a: { x: -2, y: 2, name: 'A' },
+                 b: { x:  2, y: 5, name: 'B', nameDx: 40, nameDy: 8 } },
+      legs: [
+        { from: { x: -2, y: 2 }, to: { x: 2, y: 2 }, mark: { name: 'C' } },
+        { from: { x:  2, y: 2 }, to: { x: 2, y: 5 } }
+      ],
+      task: { kind: 'entry', pair: 'AB', answer: 5,
+              correctLine: 'That\u2019s right!',
+              feedback: [
+                'Not quite. Count the two sides, then use Pythagoras.',
+                'The sides are 4 and 3. What is \u221a(4\u00b2 + 3\u00b2)?'
+              ] } },
+
+    { id: 20, line: 'Now find AB.', entrance: 'none',
+      layout: 'board', transition: 'leaves', intro: 'measure', entry: true,
+      segment: { a: { x: -3, y:  3, name: 'A' },
+                 b: { x:  5, y: -3, name: 'B', nameDx: 40, nameDy: 8 } },
+      legs: [
+        { from: { x: -3, y: 3 }, to: { x: 5, y:  3 }, mark: { name: 'C' } },
+        { from: { x:  5, y: 3 }, to: { x: 5, y: -3 } }
+      ],
+      task: { kind: 'entry', pair: 'AB', answer: 10,
+              correctLine: 'That\u2019s right!',
+              feedback: [
+                'Not quite. Count the two sides, then use Pythagoras.',
+                'The sides are 8 and 6. What is \u221a(8\u00b2 + 6\u00b2)?'
+              ] } },
+
+    /* 21 — leaves, back to the field layout, and the same idea stated
        in general: the points are named rather than numbered. */
-    { id: 19, line: 'The same idea works for any two points.', entrance: 'fly',
+    { id: 21, line: 'The same idea works for any two points.', entrance: 'fly',
       layout: 'grid', transition: 'leaves', bubbleScale: 0.9,
       segment: {
         a: { x: -5, y: 1, name: 'A', coordText: '(x1, y1)' },
@@ -827,10 +867,10 @@ window.CFG = (function () {
         color: '#B3261E'
       } },
 
-    /* 20 — the same general segment, with the corner dropped and both
+    /* 22 — the same general segment, with the corner dropped and both
        legs drawn: the right-angled triangle in its general form. The
        corner is named from the two points' own coordinates. */
-    { id: 20, line: null, entrance: 'stay',
+    { id: 22, line: null, entrance: 'stay',
       layout: 'grid', keepSegment: true,
       segment: {
         a: { x: -5, y: 1, name: 'A', coordText: '(x1, y1)' },
@@ -843,10 +883,10 @@ window.CFG = (function () {
         { from: { x:  5, y: 1 }, to: { x: 5, y: 4 } }
       ] },
 
-    /* 21 — the horizontal leg is named. Nothing is redrawn; it only
+    /* 23 — the horizontal leg is named. Nothing is redrawn; it only
        gains its length, written as the difference rather than a
        count of units. */
-    { id: 21, line: 'AC = x2 - x1', entrance: 'stay',
+    { id: 23, line: 'AC = x2 - x1', entrance: 'stay',
       layout: 'grid', keepSegment: true, bubbleScale: 0.9,
       segment: {
         a: { x: -5, y: 1, name: 'A', coordText: '(x1, y1)' },
@@ -860,9 +900,9 @@ window.CFG = (function () {
         { from: { x:  5, y: 1 }, to: { x: 5, y: 4 }, settled: true }
       ] },
 
-    /* 22 — and now the vertical leg is named too, so both differences
+    /* 24 — and now the vertical leg is named too, so both differences
        are on the board together. */
-    { id: 22, line: 'CB = y2 - y1', entrance: 'stay',
+    { id: 24, line: 'CB = y2 - y1', entrance: 'stay',
       layout: 'grid', keepSegment: true, bubbleScale: 0.9,
       segment: {
         a: { x: -5, y: 1, name: 'A', coordText: '(x1, y1)' },
@@ -877,38 +917,38 @@ window.CFG = (function () {
           settled: true, length: true, lengthText: 'y2 - y1' }
       ] },
 
-    /* 23 — the board is finished; she just turns to the question it
+    /* 25 — the board is finished; she just turns to the question it
        sets up. Nothing is declared to draw, so nothing redraws and
        her line comes straight up. */
-    { id: 23, line: 'Now, let’s find AB.', entrance: 'stay',
+    { id: 25, line: 'Now, let’s find AB.', entrance: 'stay',
       layout: 'grid', keepSegment: true, bubbleScale: 0.9 },
 
-    /* 24 — leaves, then the result on its own: board to the left, the
+    /* 26 — leaves, then the result on its own: board to the left, the
        working beside it, and nobody in shot. */
-    { id: 24, line: null, entrance: 'none',
+    { id: 26, line: null, entrance: 'none',
       layout: 'recap', transition: 'leaves', keepSegment: true },
 
-    /* 25-26 — leaves, then back to the opening arrangement: no board,
+    /* 27-28 — leaves, then back to the opening arrangement: no board,
        no panels, Swifty alone in the field. */
-    { id: 25, line: 'And that gives us the distance between any two points!',
+    { id: 27, line: 'And that gives us the distance between any two points!',
       entrance: 'fly', transition: 'leaves' },
 
-    { id: 26, line: 'What if both points are on the x-axis?', entrance: 'stay' },
+    { id: 28, line: 'What if both points are on the x-axis?', entrance: 'stay' },
 
-    /* 27 — the x-axis case worked through: the general formula narrows
+    /* 29 — the x-axis case worked through: the general formula narrows
        to |x2 - x1| as the y terms fall away. */
-    { id: 27, line: 'Both points are on the x-axis.', entrance: 'none',
+    { id: 29, line: 'Both points are on the x-axis.', entrance: 'none',
       layout: 'xaxis', transition: 'leaves' },
 
-    /* 28 — leaves again, and the same empty field as 25: board, banner
+    /* 30 — leaves again, and the same empty field as 25: board, banner
        and working all left behind, Swifty flying back in alone to put
        the next question. */
-    { id: 28, line: 'And what if they’re on the y-axis?',
+    { id: 30, line: 'And what if they’re on the y-axis?',
       entrance: 'fly', transition: 'leaves' },
 
-    /* 29 — the same working as 27 with the axes swapped: the x terms
+    /* 31 — the same working as 27 with the axes swapped: the x terms
        are the pair that falls away this time. */
-    { id: 29, line: 'Both points are on the y-axis.', entrance: 'none',
+    { id: 31, line: 'Both points are on the y-axis.', entrance: 'none',
       layout: 'yaxis', transition: 'leaves' }
   ];
 

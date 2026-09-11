@@ -110,6 +110,7 @@
   const REF_W = C.SHEETS.talk.frames[0].w;
   let Dist = null;              // the distance selector, mounted on demand
   let Opts = null;              // the triangle-type answer panel
+  let Pad  = null;              // the typed-answer pad
 
   /* Where the character, her shadow and her bubble sit on a given
      screen. Screens 1-4 use the small field pose; screen 5 puts her
@@ -293,6 +294,15 @@
     if (window.TriangleOptions && !Opts) {
       const OP = C.BOARD.options;
       Opts = window.TriangleOptions.mount(el.scene, { x: OP.pos.x, y: OP.pos.y, hidden: true });
+    }
+    /* The pad for answers that are worked out rather than picked, and
+       that the slider cannot reach: it only counts to 8. */
+    if (window.AnswerPad && !Pad) {
+      const EP = C.BOARD.entry;
+      Pad = window.AnswerPad.mount(el.scene);
+      Pad.el.style.left = EP.pos.x + 'px';
+      Pad.el.style.top = EP.pos.y + 'px';
+      Pad.el.style.width = EP.w + 'px';
     }
 
     const S = C.STAND;
@@ -1391,6 +1401,7 @@
         if (!entry.segment && !entry.keepSegment) Board.clearSegment();
         if (Dist && !entry.distance) Dist.hide();
         if (Opts && !entry.options) Opts.hide();
+        if (Pad && !entry.entry) Pad.hide();
       }
 
       /* What happens once she has arrived: speak her line, hand over
@@ -1408,6 +1419,12 @@
         /* Dragging lays the line down as it goes, so the slider reads
            as a ruler rather than a number picker. */
         Dist.onChange(measuring ? function (v) { self.showMeasure(v); } : null);
+      }
+      // a typed task is answered on the pad
+      if (Pad) {
+        const typed = entry.task && entry.task.kind === 'entry';
+        Pad.onCheck(typed ? function (v) { self.checkEntry(v); } : null);
+        if (typed) Pad.setPrompt((entry.task.pair || 'AB') + ' =');
       }
       // a choice task is answered on the options panel
       if (Opts) {
@@ -1504,6 +1521,9 @@
         }
         if (Opts) {
           if (entry.options) { Opts.reset(); Opts.show(); } else Opts.hide();
+        }
+        if (Pad) {
+          if (entry.entry && !holds) { Pad.reset(); Pad.show(); } else Pad.hide();
         }
 
         if (entry.layout === 'recap') {
@@ -1632,7 +1652,9 @@
         }, 460);
 
         self.later(function () {
-          if (Dist) { Dist.reset(); Dist.show(); }
+          /* whichever control this screen answers on */
+          if (Dist) { if (entry.distance) { Dist.reset(); Dist.show(); } else Dist.hide(); }
+          if (Pad)  { if (entry.entry)    { Pad.reset();  Pad.show();  } else Pad.hide(); }
           Board.clearMeasure();
           self.state = 'waiting';
           el.nextBtn.classList.add('ready');
@@ -1669,6 +1691,7 @@
         else Board.clearUnits();          // keep the drawing, drop any count-out
         if (Dist && entry.distance) { Dist.reset(); Dist.show(); }
         if (Opts && entry.options) { Opts.reset(); Opts.show(); }
+        if (Pad && entry.entry) { Pad.reset(); Pad.show(); }
       }
 
       /* A grid screen builds the board in first — but only if it is
@@ -1949,6 +1972,44 @@
           self.ask(fb.msg);                       // the slider is live again
         });
       }, 260);
+    },
+
+    /* A typed answer. The right answer is worked out from the board
+       rather than trusted from config where it can be: the legs are
+       measured off the two points, so a moved point cannot leave a
+       stale answer behind. */
+    checkEntry: function (v) {
+      const t = this.task;
+      if (!t || t.done) return;
+      const self = this;
+      const entry = C.SCRIPT[this.index] || {};
+
+      let answer = t.spec.answer;
+      if (entry.segment) {
+        const a = entry.segment.a, b = entry.segment.b;
+        const d = Math.hypot(b.x - a.x, b.y - a.y);
+        // only whole answers are asked for, so a clean one wins
+        if (Math.abs(d - Math.round(d)) < 1e-9) answer = Math.round(d);
+      }
+
+      if (v === answer) {
+        t.done = true;
+        this.state = 'waiting';
+        SFX.correct();
+        if (Pad) Pad.lock();
+        Board.litMeasure();
+        this.later(function () {
+          SFX.cheer();
+          FX.confetti(26);
+          self.ask(t.spec.correctLine);
+        }, 260);
+        return;
+      }
+
+      t.wrong++;
+      SFX.wrong();
+      const fb = this.feedbackFor(t);
+      this.later(function () { self.ask(fb.msg); }, 240);
     },
 
     /* The feedback ladder: each wrong attempt gets the next message,
