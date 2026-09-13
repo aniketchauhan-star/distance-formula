@@ -16,7 +16,14 @@ window.FX = (function () {
   function spawn(cls, styles, life) {
     const d = document.createElement('div');
     d.className = 'fx ' + cls;
-    Object.assign(d.style, styles);
+    /* Custom properties have to go through setProperty: assigning them
+       onto the style object does nothing, which silently left every
+       effect that animates through a var() with no values to animate
+       to — the pieces were created and then never moved. */
+    Object.keys(styles).forEach(function (k) {
+      if (k.indexOf('--') === 0) d.style.setProperty(k, styles[k]);
+      else d.style[k] = styles[k];
+    });
     layer.appendChild(d);
     setTimeout(function () { d.remove(); }, life);
     return d;
