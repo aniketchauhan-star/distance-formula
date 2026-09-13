@@ -78,8 +78,57 @@ html, body {
 #startScreen { position: absolute; inset: 0; z-index: 8; transition: opacity .5s ease; }
 #startScreen.fade-out { opacity: 0; }
 
+/* Swifty's arrival on the title screen, on the same rig convention as
+   the game's: a zero-size origin sitting on her belly anchor, so the
+   flight's scale and rotation turn about her body rather than a corner. */
+#startBird {
+  position: absolute; z-index: 1;
+  width: 0; height: 0;
+  transform-origin: 0 0;
+}
+/* Held invisible until the flight starts — its own first keyframe is
+   off-stage at opacity 0, so she is never drawn at rest on the rock
+   before she has flown to it. */
+#startBird.pre-flight { opacity: 0; }
+#startBird.flying { animation: startFlyIn 2600ms linear forwards; }
+#startBirdWin { position: absolute; overflow: hidden; }
+#startBirdWin img { position: absolute; display: block; }
+
+/* Contact shadow on the rock, faded in as she settles. */
+#startShadow {
+  position: absolute; z-index: 0;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center,
+              rgba(48, 40, 36, .42) 0%,
+              rgba(48, 40, 36, .27) 45%,
+              rgba(48, 40, 36, .09) 70%,
+              rgba(48, 40, 36, 0)   80%);
+  opacity: 0;
+  transition: opacity .5s ease;
+  pointer-events: none;
+}
+#startShadow.down { opacity: 1; }
+
+/* An undulating approach from off-stage left that flares and settles
+   onto the rock — the dips shorten as she nears it. Offsets are from
+   the perch, which is where the rig already sits. */
+@keyframes startFlyIn {
+  0%   { transform: translate(-560px, -262px) scale(.52) rotate(-9deg); opacity: 0; }
+  6%   { opacity: 1; }
+  17%  { transform: translate(-452px, -368px) scale(.60) rotate(6deg); }
+  30%  { transform: translate(-352px, -205px) scale(.68) rotate(-7deg); }
+  43%  { transform: translate(-262px, -338px) scale(.76) rotate(6deg); }
+  56%  { transform: translate(-182px, -178px) scale(.83) rotate(-6deg); }
+  68%  { transform: translate(-116px, -290px) scale(.90) rotate(5deg); }
+  79%  { transform: translate(-64px,  -148px) scale(.95) rotate(-4deg); }
+  88%  { transform: translate(-28px,  -212px) scale(.99) rotate(3deg); }
+  95%  { transform: translate(-4px,   -62px)  scale(1.02) rotate(-1deg); }
+  100% { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 1; }
+}
+
 #playBtn {
   position: absolute; z-index: 2;
+  opacity: 1; transition: opacity .45s ease;
   padding: 0; border: 0; background: none;
   cursor: pointer; overflow: visible;
   transform-origin: center center;
@@ -97,6 +146,9 @@ html, body {
   animation: halo 2.2s ease-in-out infinite;
   pointer-events: none;
 }
+/* Not offered until she has landed. Done as a transition, not an
+   animation, so it cannot fight the idle keyframes below. */
+#playBtn.veiled { opacity: 0; pointer-events: none; }
 #playBtn.idle { animation: playIdle 1.9s ease-in-out infinite; }
 #playBtn:hover { animation-duration: 1.1s; }
 #playBtn:active { animation: none; transform: scale(.9); }

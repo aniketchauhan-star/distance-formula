@@ -12,7 +12,7 @@ window.CFG = (function () {
 
   /* ---------- Asset paths ---------- */
   const ART = {
-    startScreen: 'assets/start screen.png',
+    startScreen: 'assets/image 15.png',
     background:  'assets/game Background .png',
     clouds:      'assets/clouds.png',
     playButton:  'assets/play button .png',
@@ -195,6 +195,32 @@ window.CFG = (function () {
 ;
 
   /* -------------------------------------------------------------
+     START SCREEN
+     She flies in and perches on the rock at the lower left before the
+     Play button is offered — the title shot, so she is the subject of
+     it rather than a presenter, and is drawn well above her in-game
+     size. Measured off the start art: the rock's crown runs x 320..410
+     and peaks at y 880, which is where her feet go.
+     ------------------------------------------------------------- */
+  const START = {
+    height: 400,                    // against SWIFTY.height of 240 in game
+    perch: { cx: 365, feetY: 880 },
+    flyMs: 2600,                    // a title screen can afford a long arc
+    buttonDelay: 420                // beat between her settling and Play
+  };
+  /* Derived exactly the way ANCHOR is, so the same belly-anchor rule
+     seats her here: the rig origin is the anchor, and her feet fall
+     FEET_DY below it at this scale. */
+  START.scale = START.height / REF.h;
+  START.anchor = {
+    x: START.perch.cx - (REF.w * START.scale) / 2 + REF_AX * START.scale,
+    y: START.perch.feetY - (REF.h - REF_AY) * START.scale
+  };
+  // A contact shadow on the rock's crown, narrower than the grass one:
+  // the crown is only about 90px across at the top.
+  START.shadow = { w: 196, h: 40 };
+
+  /* -------------------------------------------------------------
      PLAY BUTTON
      Brief: Position X = 1010, Y = 659 / Dimensions W = 281, H = 267.
      Read as the centre of a 281 x 267 box — which lands the button
@@ -206,10 +232,20 @@ window.CFG = (function () {
     src: ART.playButton,
     srcW: 1285, srcH: 1224,
     ink: { x: 70, y: 58, w: 1135, h: 1118 },
-    /* Centred under the title on the start art: the wordmark's own
-       block measures x 857..1621, y 443..642 on the stage, so the
-       button sits on its centre line with a clear gap beneath it. */
-    box: { cx: 1239, cy: 776, w: 281, h: 267 },
+    /* Centred under the title on the start art, which sits at
+       x 796..1667, y 211..643 on the stage.
+
+       cx is the centre of the lettering, not of that box: the logo
+       carries decorative leaves off its top and bottom right, and
+       centring on the full outline hangs the button 10px right of the
+       words. Measured off each word's own fill instead — "Formula"'s
+       white gives 1219, "Distance"'s yellow 1223.
+
+       The art was replaced with a larger logo, but its baseline landed
+       within a pixel of the old one, so cy is unchanged. At sizeScale
+       the disc renders 197 x 187 and spans y 683..870 — about 40px
+       clear of the type. */
+    box: { cx: 1221, cy: 776, w: 281, h: 267 },
     // Shrinks the briefed box about its centre — the button stays put,
     // it just gets smaller. 1 = the full 281 x 267 from the brief.
     sizeScale: 0.70
@@ -1008,6 +1044,6 @@ window.CFG = (function () {
     STAGE_W, STAGE_H, ART, SHEETS, SHEET_W, SHEET_H,
     SWIFTY, CHAR_SCALE, ANCHOR, HEAD_TOP, FEET_DY, SHADOW, CLOUD,
     S5_ORIGIN, GRID, STAND, S8_ORIGIN, BOARD, RECAP, XAXIS, YAXIS,
-    BUBBLE, PLAY, AUDIO, AUTO, SCRIPT
+    BUBBLE, PLAY, START, AUDIO, AUTO, SCRIPT
   };
 })();

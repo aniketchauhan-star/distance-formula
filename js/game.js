@@ -14,7 +14,8 @@
    'bubble', 'bubbleImg', 'bubbleText', 'bubbleLine', 'nextBtn',
    'gridPanel', 'gridImg', 'gridAxes', 'standSwifty',
    'qBanner', 'qBannerImg', 'qBannerText', 'qBannerLine',
-   'formulaBoard', 'leafLayer', 'fxLayer', 'sceneArt', 'startArt'
+   'formulaBoard', 'leafLayer', 'fxLayer', 'sceneArt', 'startArt',
+   'startBird', 'startBirdWin', 'startFly', 'startTalk', 'startShadow'
   ].forEach(function (id) { el[id] = document.getElementById(id); });
 
   /* ---------------- responsive stage ---------------- */
@@ -26,15 +27,21 @@
   window.addEventListener('orientationchange', fitStage);
 
   /* ---------------- sprite player ---------------- */
-  const Sprite = {
+  /* Built per rig rather than as a singleton: the title screen runs its
+     own Swifty, at its own size, on elements of its own — the game's rig
+     lives inside #scene, which is still hidden while that plays. */
+  function makeSprite() {
+   return {
     sheet: 'talk', frame: 0, playing: false, acc: 0, last: 0, loop: true,
-    scale: C.CHAR_SCALE,
+    scale: 1,
+    win: null,
     img: { fly: null, talk: null },
 
-    setup: function () {
-      this.img.fly = el.flySheet;
-      this.img.talk = el.talkSheet;
-      this.setScale(C.CHAR_SCALE);
+    setup: function (win, flyImg, talkImg, scale) {
+      this.win = win;
+      this.img.fly = flyImg;
+      this.img.talk = talkImg;
+      this.setScale(scale);
     },
 
     /* Screens draw her at different sizes — small in the field, full
@@ -56,10 +63,10 @@
       const f = C.SHEETS[sheet].frames[i];
       this.sheet = sheet; this.frame = i;
 
-      el.birdWin.style.left = -(f.ax - f.x) * S + 'px';
-      el.birdWin.style.top = -(f.ay - f.y) * S + 'px';
-      el.birdWin.style.width = f.w * S + 'px';
-      el.birdWin.style.height = f.h * S + 'px';
+      this.win.style.left = -(f.ax - f.x) * S + 'px';
+      this.win.style.top = -(f.ay - f.y) * S + 'px';
+      this.win.style.width = f.w * S + 'px';
+      this.win.style.height = f.h * S + 'px';
 
       const im = this.img[sheet], other = this.img[sheet === 'fly' ? 'talk' : 'fly'];
       im.style.left = -f.x * S + 'px';
@@ -96,13 +103,18 @@
         this.show(this.sheet, n);
       }
     }
-  };
+   };
+  }
+  const Sprite = makeSprite();        // the game's rig, inside #scene
+  const StartSprite = makeSprite();   // the title screen's, bigger
+
 
   let lastT = 0;
   function loop(t) {
     const dt = lastT ? Math.min(t - lastT, 60) : 16;
     lastT = t;
     Sprite.tick(dt);
+    StartSprite.tick(dt);
     requestAnimationFrame(loop);
   }
 
@@ -2271,6 +2283,59 @@
     });
   }
 
+  /* ---------------- title screen ---------------- */
+  /* She flies in from off-stage left and perches on the rock before the
+     Play button is offered. Runs silent on purpose: the audio context
+     is still suspended until the first gesture, so anything scheduled
+     here would either be dropped or land all at once the moment Play
+     is pressed. */
+  const StartBird = {
+    setup: function () {
+      const S = C.START;
+      el.startFly.src = C.ART.swiftyFly;
+      el.startTalk.src = C.ART.swiftyTalk;
+      StartSprite.setup(el.startBirdWin, el.startFly, el.startTalk, S.scale);
+      // the rig origin is her belly anchor; the flight moves it
+      el.startBird.style.left = S.anchor.x + 'px';
+      el.startBird.style.top = S.anchor.y + 'px';
+      el.startShadow.style.width = S.shadow.w + 'px';
+      el.startShadow.style.height = S.shadow.h + 'px';
+      el.startShadow.style.left = (S.perch.cx - S.shadow.w / 2) + 'px';
+      el.startShadow.style.top = (S.perch.feetY - S.shadow.h / 2) + 'px';
+    },
+
+    arrive: function (done) {
+      const S = C.START;
+      StartSprite.play('fly', true);
+      el.startBird.classList.remove('pre-flight');
+      el.startBird.classList.add('flying');
+
+      let settled = false;
+      const land = function () {
+        if (settled) return;
+        settled = true;
+        el.startBird.removeEventListener('animationend', land);
+        el.startScreen.removeEventListener('click', skip);
+        StartSprite.stopAt('talk', 0);      // wings in, standing pose
+        el.startShadow.classList.add('down');
+        setTimeout(done, S.buttonDelay);
+      };
+      /* Tapping through the arrival puts her straight on the perch: the
+         keyframes are offsets from where the rig already sits, so
+         dropping the class leaves her exactly where the flight would
+         have set her down. Nobody has to sit through it twice. */
+      const skip = function () {
+        el.startBird.classList.remove('flying');
+        land();
+      };
+      el.startBird.addEventListener('animationend', land);
+      el.startScreen.addEventListener('click', skip);
+      /* animationend never arrives if the tab is backgrounded mid-flight,
+         and the screen must not be left without a Play button. */
+      setTimeout(land, S.flyMs + 600);
+    }
+  };
+
   /* ---------------- boot ---------------- */
   function boot() {
     /* The two full-frame pictures take their source from config rather
@@ -2280,12 +2345,17 @@
        silently failed to load. */
     el.sceneArt.src = C.ART.background;
     el.startArt.src = C.ART.startScreen;
+    el.flySheet.src = C.ART.swiftyFly;
+    el.talkSheet.src = C.ART.swiftyTalk;
+    el.standSwifty.src = C.ART.swiftyStand;
+    el.playImg.src = C.ART.playButton;
 
     FX.init(el.fxLayer);
     FX.clouds(el.skyLayer);
     FX.leafDrift(el.skyLayer);
     fitStage();
-    Sprite.setup();     // must precede layout(): layout seats the rig
+    Sprite.setup(el.birdWin, el.flySheet, el.talkSheet, C.CHAR_SCALE);
+    StartBird.setup();  // must precede layout(): layout seats the rig
     layout();
     bind();
     requestAnimationFrame(loop);
@@ -2294,7 +2364,12 @@
       el.loader.classList.add('fade-out');
       setTimeout(function () { el.loader.classList.add('hidden'); }, 500);
       el.startScreen.classList.remove('hidden');
-      el.playBtn.classList.add('idle');
+      // Play is offered only once she has flown in and settled
+      StartBird.arrive(function () {
+        el.playBtn.disabled = false;   // also unreachable by keyboard until now
+        el.playBtn.classList.remove('veiled');
+        el.playBtn.classList.add('idle');
+      });
     });
   }
 

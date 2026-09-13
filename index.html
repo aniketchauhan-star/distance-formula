@@ -29,9 +29,21 @@
 
     <!-- ============ start screen ============ -->
     <div id="startScreen" class="hidden">
-      <img id="startArt" class="full" src="assets/start screen.png" alt="Distance Formula">
-      <button id="playBtn" aria-label="Play">
-        <img id="playImg" src="assets/play button .png" alt="">
+      <img id="startArt" class="full" src="" alt="Distance Formula">
+
+      <!-- She flies in and perches on the rock before Play is offered.
+           Her own rig rather than the game's: that one lives inside
+           #scene, which is still hidden while this plays. -->
+      <div id="startShadow"></div>
+      <div id="startBird" class="pre-flight">
+        <div id="startBirdWin">
+          <img id="startFly"  src="" alt="">
+          <img id="startTalk" src="" alt="Swifty">
+        </div>
+      </div>
+
+      <button id="playBtn" class="veiled" disabled aria-label="Play">
+        <img id="playImg" src="" alt="">
       </button>
     </div>
 
@@ -61,14 +73,14 @@
                she is travelling -->
           <div id="birdFlip">
             <div id="birdWin">
-              <img id="flySheet"  src="assets/swifty fly.png"  alt="">
-              <img id="talkSheet" src="assets/swifty talk.png" alt="Swifty">
+              <img id="flySheet"  src="" alt="">
+              <img id="talkSheet" src="" alt="Swifty">
             </div>
           </div>
         </div>
 
         <!-- screen 5 resting pose, swapped in when she lands -->
-        <img id="standSwifty" class="hidden" src="assets/normal stand swifty.png" alt="Swifty">
+        <img id="standSwifty" class="hidden" src="" alt="Swifty">
 
         <div id="bubble" class="hidden">
           <i class="bt bt-edge"></i>
