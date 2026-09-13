@@ -338,7 +338,7 @@
 
   /* ---------------- speech bubble ---------------- */
   const Bubble = {
-    typing: false, timer: null, full: '', shown: 0, onDone: null,
+    typing: false, timer: null, hideTimer: null, full: '', shown: 0, onDone: null,
 
     /* Pick the largest type size at which the whole line still fits
        the plate, so a long line can never spill out of the bubble
@@ -371,6 +371,7 @@
       text = this.keepPairs(text);
       this.full = text; this.shown = 0; this.onDone = done;
       // Unhide first: a display:none plate measures zero.
+      clearTimeout(this.hideTimer);
       el.bubble.classList.remove('hidden', 'pop-out');
       this.fitType(text);
       el.bubbleLine.textContent = '';
@@ -421,12 +422,19 @@
       if (this.onDone) { const d = this.onDone; this.onDone = null; d(); }
     },
 
+    /* The box has to stay in the layout until the pop-out has played,
+       so the hide waits 240ms — and a line arriving inside that window
+       would otherwise be hidden by the timer set for the box it
+       replaced. open() cancels it. */
     close: function () {
       if (this.typing) { this.typing = false; clearInterval(this.timer); SFX.duck(false); }
       el.bubble.classList.remove('pop-in');
       el.bubble.classList.add('pop-out');
       const b = el.bubble;
-      setTimeout(function () { b.classList.add('hidden'); b.classList.remove('pop-out'); }, 240);
+      clearTimeout(this.hideTimer);
+      this.hideTimer = setTimeout(function () {
+        b.classList.add('hidden'); b.classList.remove('pop-out');
+      }, 240);
     }
   };
 
@@ -1409,7 +1417,23 @@
          with nobody in shot sizes it to nothing — so behind a leaf
          sweep this waits for the cover too, or the last screen's
          bubble collapses in plain sight. */
-      if (entry.transition !== 'leaves') applyGeom(geom);
+      /* The box belongs to her: it goes the moment a screen has no line
+         for her to say, rather than lingering over a frame she has
+         already flown out of. A board screen puts its question in the
+         banner instead, so that counts as having no line either. A leaf
+         sweep closes it inside dress(), under the cover.
+
+         A distance screen has a line but does not say it here: the
+         board builds and the points go up first, and she only flies in
+         seconds later, so its box is closed now and runMeasure() opens
+         it when she lands. Screens where she is already standing are
+         left alone — there the next line is 140ms away, and closing
+         would blink the box between two sentences of the same breath. */
+      const speaks = !!entry.line && !geom.bare && entry.intro !== 'measure';
+      if (entry.transition !== 'leaves') {
+        if (!speaks) Bubble.close();
+        applyGeom(geom);
+      }
 
       const AX = axisOf(entry);
       const onBoard = entry.layout === 'grid' || entry.layout === 'board' ||
