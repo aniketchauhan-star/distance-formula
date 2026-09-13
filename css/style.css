@@ -269,12 +269,16 @@ html, body {
   display: flex; align-items: center; justify-content: center;
   text-align: center;
   font-family: 'Lilita One', system-ui, sans-serif;
-  font-weight: 400; font-size: 38px; line-height: 1.24;
+  /* 1.3 rather than a display face's usual tight setting: most lines
+     here run to two, and at 1.24 the two sat almost on top of each other. */
+  font-weight: 400; font-size: 38px; line-height: 1.3;
   color: #123A72;
   letter-spacing: .2px;
   overflow: hidden;
 }
-#bubbleLine { display: block; width: 100%; }
+/* Balanced rather than greedy: most lines here wrap to two, and greedy
+   wrapping leaves a widow — "Let's start with something / familiar." */
+#bubbleLine { display: block; width: 100%; text-wrap: balance; }
 
 /* ---------------- screen 5: coordinate board ---------------- */
 /* The board: a golden frame around a cream surface, drawn rather than

@@ -151,19 +151,20 @@ window.CFG = (function () {
      a step — the thing that goes wrong if the tail is given a lighter
      edge than the balloon. */
   const BUBBLE = {
-    ink: { w: 620, h: 188 },      // 3.3:1, the proportion asked for
-    tip: { x: 172, y: 187 },      // 27.7% across, on the lower left
+    ink: { w: 620, h: 221 },
+    tip: { x: 172, y: 220 },      // 27.7% across, on the lower left
     scale: 1,
     biteIntoHead: 10,             // how far the point sinks into her crown
 
-    bodyH: 123,                   // the balloon; the 64 below it is tail
+    bodyH: 156,                   // the balloon; the 64 below it is tail
     radius: 48,
     tailTip: 10,                  // rounding on the point
 
     /* Cumulative insets, measured from the outside in: a dark rim, the
        orange body of the frame, then a golden inner band before the
-       cream. The tail repeats them at the same widths. */
-    /* The rim is both darker and wider than the rest of the autumn set
+       cream. The tail repeats them at the same widths.
+
+       The rim is both darker and wider than the rest of the autumn set
        needs: the bubble floats on open sky, which is very light and
        very warm, so a thin mid-orange edge disappeared into it. */
     edgeW: 4, midW: 9, goldW: 12,
@@ -176,8 +177,19 @@ window.CFG = (function () {
 
     leaf: 62,                     // the corner decorations
 
-    // the text plate, as fractions of the ink box
-    text: { left: 0.073, top: 0.074, width: 0.855, height: 0.505 }
+    /* The text plate, as fractions of the ink box: x 45..575, y 25..131.
+
+       The inset is the bubble's padding, and it has to live here rather
+       than as slack inside the plate, because fitType() grows the type
+       until the line just fills the plate — any room left spare there is
+       room it will spend. Two lines at the size it settles on therefore
+       sit 14px clear of the golden band, not flush against it.
+
+       The plate is 106 tall and not the 104 two lines exactly need:
+       landing on the tie makes the fitted size turn on sub-pixel
+       rounding, so one screen could take 40px and the next 38px for no
+       visible reason. */
+    text: { left: 0.073, top: 0.113122, width: 0.855, height: 0.479638 }
   };
 ;
 ;
