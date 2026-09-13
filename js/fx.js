@@ -185,27 +185,37 @@ window.FX = (function () {
      The path is an SVG one and the leaf rides it with offset-path, so
      the loop is a real curve rather than a stack of translations, and
      offset-rotate turns each piece to face the way it is going. */
+  /* Defaults are the in-game weather: slow and rare on purpose. The
+     board is what the child should be looking at, so a leaf takes its
+     time crossing and a long while passes before the next — long
+     enough that it registers as weather rather than as something
+     happening. The title screen overrides these to something livelier;
+     see CFG.START.wind. */
   const DRIFT = {
-    /* Slow and rare on purpose. The board is what the child should be
-       looking at, so a leaf takes its time crossing and a long while
-       passes before the next — long enough that it registers as
-       weather rather than as something happening. */
     dur: 15000,              // one leaf's whole journey
-    /* The next only lifts off once the last has gone, so there is
-       never more than one leaf on the wing. */
+    /* `solo` holds the next leaf back until the last has gone, so there
+       is never more than one on the wing. The game requires that; the
+       title screen turns it off and lets them overlap. */
+    solo: true,
     gapMin: 14000, gapMax: 28000,
-    lines: 3                 // its wake — streaks only, never more leaves
+    lines: 3,                // its wake — streaks only, never more leaves
+    fromX: 270,              // inside the canopy, so it leaves the tree
+    y0: [140, 250],          // up where the foliage is widest
+    loopX: [720, 1000], loopY: [300, 440], loopR: [70, 125],
+    endY: [360, 640],
+    size: [54, 78]
   };
 
   /* Out of the canopy, once round a loop, then away east. The loop's
      place and size move each time so no two leaves take the same
      line. */
-  function driftPath(y0, cx, cy, r, endY) {
+  function driftPath(fromX, y0, cx, cy, r, endY) {
     /* Starts inside the canopy, so the leaf reads as leaving the tree
-       rather than appearing in clear sky. The foliage reaches x 390 at
-       y 120 and narrows to x 234 by y 280, so 270 is inside it for the
-       whole range of heights a leaf can start from. */
-    return 'M 270,' + y0 +
+       rather than appearing in clear sky. On the game background the
+       foliage reaches x 390 at y 120 and narrows to x 234 by y 280, so
+       270 is inside it at any height a leaf can start from; the title
+       art has a wider tree and passes its own fromX. */
+    return 'M ' + fromX + ',' + y0 +
       ' C 470,' + (y0 - 70) + ' ' + (cx - 170) + ',' + (cy - r - 110) + ' ' + cx + ',' + (cy - r) +
       ' A ' + r + ',' + r + ' 0 0 1 ' + cx + ',' + (cy + r) +
       ' A ' + r + ',' + r + ' 0 0 1 ' + (cx + 0.4) + ',' + (cy - r) +
@@ -213,11 +223,14 @@ window.FX = (function () {
               (cx + 640) + ',' + (endY - 80) + ' 2140,' + endY;
   }
 
-  function driftOnce(host) {
-    const y0 = rnd(140, 250);          // up in the canopy, where it is widest
-    const cx = rnd(720, 1000), cy = rnd(300, 440), r = rnd(70, 125);
-    const path = driftPath(y0, cx, cy, r, rnd(360, 640));
-    const size = rnd(54, 78);
+  function driftOnce(host, cfg) {
+    cfg = cfg || DRIFT;
+    const y0 = rnd(cfg.y0[0], cfg.y0[1]);
+    const cx = rnd(cfg.loopX[0], cfg.loopX[1]),
+          cy = rnd(cfg.loopY[0], cfg.loopY[1]),
+          r  = rnd(cfg.loopR[0], cfg.loopR[1]);
+    const path = driftPath(cfg.fromX, y0, cx, cy, r, rnd(cfg.endY[0], cfg.endY[1]));
+    const size = rnd(cfg.size[0], cfg.size[1]);
     const spin = (Math.random() < 0.5 ? -1 : 1) * rnd(300, 520);
 
     /* Everything rides the same path; what separates them is how far
@@ -227,15 +240,15 @@ window.FX = (function () {
       el.style.setProperty('offset-path', 'path("' + path + '")');
       el.style.setProperty('--spin', spin + 'deg');
       el.style.setProperty('--op', op);
-      el.style.animationDuration = DRIFT.dur + 'ms, ' + DRIFT.dur + 'ms';
+      el.style.animationDuration = cfg.dur + 'ms, ' + cfg.dur + 'ms';
       el.style.animationDelay = delay + 'ms, ' + delay + 'ms';
       host.appendChild(el);
       setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); },
-                 DRIFT.dur + delay + 200);
+                 cfg.dur + delay + 200);
     };
 
     // the speed lines go first, furthest back
-    for (let i = 0; i < DRIFT.lines; i++) {
+    for (let i = 0; i < cfg.lines; i++) {
       const l = document.createElement('div');
       l.classList.add('fx-windline');
       l.style.width = rnd(70, 140) + 'px';
@@ -249,23 +262,92 @@ window.FX = (function () {
     leaf.style.width = size + 'px';
     ride(leaf, 0, 1);
 
-    if (window.Audio8 && window.Audio8.breeze) window.Audio8.breeze();
+    /* The leaf leaving the canopy, then the air it rides on. The game
+       keeps the breeze alone; the title screen adds the rustle, where
+       a leaf coming off the tree is meant to be noticed. */
+    const A = window.Audio8;
+    if (A) {
+      if (cfg.rustleOnLift && A.rustle) A.rustle();
+      if (A.breeze) A.breeze();
+    }
   }
 
   /* Kicks the cycle off and keeps it going: one leaf, a pause, the
      next. Started once at boot and left to run. */
-  function leafDrift(sky) {
+  function leafDrift(sky, opts) {
+    const cfg = Object.assign({}, DRIFT, opts || {});
     let host = sky.querySelector('.drift-host');
     if (!host) {
       host = document.createElement('div');
       host.className = 'drift-host';
       sky.appendChild(host);
     }
+    let timer = null, stopped = false;
     const again = function () {
-      driftOnce(host);
-      setTimeout(again, DRIFT.dur + rnd(DRIFT.gapMin, DRIFT.gapMax));
+      if (stopped) return;
+      driftOnce(host, cfg);
+      /* solo waits out the whole journey before the next lifts off;
+         otherwise the gap is from one departure to the next, so several
+         are crossing at once. */
+      timer = setTimeout(again, (cfg.solo ? cfg.dur : 0) + rnd(cfg.gapMin, cfg.gapMax));
     };
-    setTimeout(again, 1200);
+    timer = setTimeout(again, cfg.firstDelay || 1200);
+    /* The title screen is taken out of the layout once the game starts;
+       without this its weather would keep spawning into a hidden box. */
+    return function () { stopped = true; clearTimeout(timer); host.innerHTML = ''; };
+  }
+
+  /* A gust: a handful of streaks sweeping the frame left to right,
+     staggered so the air reads as moving rather than as a row of lines
+     being dragged across. Nothing but the streaks — the leaves are the
+     drift's job, and doubling them up here would crowd the frame. */
+  function windGust(host, cfg) {
+    const n = (rnd(cfg.gustLines[0], cfg.gustLines[1]) + 0.5) | 0;
+    /* One sound for the gust, not one per streak — the streaks are the
+       same gust seen, so several overlapping would read as several
+       gusts. Silent until audio has been authorised. */
+    const A = window.Audio8;
+    if (A && A.wind) A.wind(rnd(cfg.gustMs[0], cfg.gustMs[1]) / 1000 * 0.85);
+    for (let i = 0; i < n; i++) {
+      const l = document.createElement('div');
+      l.className = 'fx-windline fx-sweep';
+      const dur = rnd(cfg.gustMs[0], cfg.gustMs[1]);
+      l.style.width = rnd(90, 230) + 'px';
+      l.style.left = '-260px';
+      const band = pick(cfg.gustBands);
+      l.style.top = rnd(band[0], band[1]) + 'px';
+      l.style.setProperty('--travel', rnd(2180, 2360) + 'px');
+      l.style.setProperty('--dy', rnd(-40, 40) + 'px');
+      l.style.setProperty('--op', rnd(0.20, 0.42));
+      l.style.animationDuration = dur + 'ms';
+      l.style.animationDelay = (i * rnd(90, 260)) + 'ms';
+      host.appendChild(l);
+      setTimeout(function () { if (l.parentNode) l.parentNode.removeChild(l); },
+                 dur + i * 260 + 400);
+    }
+  }
+
+  /* Keeps gusts coming. Separate from leafDrift so the wind can blow
+     whether or not a leaf happens to be crossing. */
+  function wind(sky, opts) {
+    const cfg = Object.assign({
+      gustLines: [4, 7], gustMs: [2100, 3400], gustBands: [[120, 620]],
+      gapMin: 3200, gapMax: 7200, firstDelay: 700
+    }, opts || {});
+    let host = sky.querySelector('.gust-host');
+    if (!host) {
+      host = document.createElement('div');
+      host.className = 'gust-host';
+      sky.appendChild(host);
+    }
+    let timer = null, stopped = false;
+    const again = function () {
+      if (stopped) return;
+      windGust(host, cfg);
+      timer = setTimeout(again, rnd(cfg.gapMin, cfg.gapMax));
+    };
+    timer = setTimeout(again, cfg.firstDelay);
+    return function () { stopped = true; clearTimeout(timer); host.innerHTML = ''; };
   }
 
   /* A gust of leaves sweeps the frame. They blow in from the left,
@@ -352,5 +434,5 @@ window.FX = (function () {
   function clear() { if (layer) layer.innerHTML = ''; }
 
   return { init, starBurst, ring, confetti, sparkles, puff, motes, clouds,
-           leafDrift, leaves, clear };
+           leafDrift, wind, leaves, clear };
 })();

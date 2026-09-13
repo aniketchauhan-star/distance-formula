@@ -820,8 +820,36 @@ html, body {
   to   { transform: rotate(var(--spin, 360deg)); }
 }
 
+/* A gust: faint streaks sweeping the frame. Their own host so the wind
+   can blow whether or not a leaf happens to be crossing. */
+.gust-host { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.fx-sweep {
+  position: absolute;
+  animation-name: windSweep;
+  animation-timing-function: cubic-bezier(.2, .55, .35, 1);
+  animation-fill-mode: forwards;
+  will-change: transform, opacity;
+}
+/* Stretching from short to full length as it crosses reads as a gust
+   picking up, rather than a fixed line being dragged over. */
+@keyframes windSweep {
+  0%   { transform: translate(0, 0) scaleX(.45); opacity: 0; }
+  12%  { opacity: var(--op, .3); }
+  72%  { opacity: var(--op, .3); }
+  100% { transform: translate(var(--travel, 2200px), var(--dy, 0)) scaleX(1); opacity: 0; }
+}
+
+/* The title screen's own weather layer, behind Swifty and the button. */
+#startSky {
+  position: absolute; left: 0; top: 0;
+  width: 1920px; height: 1080px;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .drift-host { display: none; }
+  .drift-host, .gust-host { display: none; }
 }
 
 .leaf-veil {

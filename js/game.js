@@ -15,7 +15,7 @@
    'gridPanel', 'gridImg', 'gridAxes', 'standSwifty',
    'qBanner', 'qBannerImg', 'qBannerText', 'qBannerLine',
    'formulaBoard', 'leafLayer', 'fxLayer', 'sceneArt', 'startArt',
-   'startBird', 'startBirdWin', 'startFly', 'startTalk', 'startShadow'
+   'startBird', 'startBirdWin', 'startFly', 'startTalk', 'startShadow', 'startSky'
   ].forEach(function (id) { el[id] = document.getElementById(id); });
 
   /* ---------------- responsive stage ---------------- */
@@ -1407,6 +1407,7 @@
 
       setTimeout(function () {
         el.startScreen.classList.add('hidden');
+        stopWeather.splice(0).forEach(function (f) { f(); });
         FX.confetti(50);
         FX.motes(18);
         self.busy = false;
@@ -2284,6 +2285,11 @@
   }
 
   /* ---------------- title screen ---------------- */
+  /* Cancellers for the title screen's wind and leaves, run when the
+     game starts: #startScreen is taken out of the layout then, and
+     without this its weather would keep spawning into a hidden box. */
+  const stopWeather = [];
+
   /* She flies in from off-stage left and perches on the rock before the
      Play button is offered. Runs silent on purpose: the audio context
      is still suspended until the first gesture, so anything scheduled
@@ -2310,14 +2316,23 @@
       el.startBird.classList.remove('pre-flight');
       el.startBird.classList.add('flying');
 
+      // a wingbeat every few frames of the approach; she glides the last bit
+      let beats = 0;
+      const flapper = setInterval(function () {
+        SFX.flap();
+        if (++beats > 11) clearInterval(flapper);
+      }, 175);
+
       let settled = false;
       const land = function () {
         if (settled) return;
         settled = true;
         el.startBird.removeEventListener('animationend', land);
         el.startScreen.removeEventListener('click', skip);
+        clearInterval(flapper);
         StartSprite.stopAt('talk', 0);      // wings in, standing pose
         el.startShadow.classList.add('down');
+        SFX.land();
         setTimeout(done, S.buttonDelay);
       };
       /* Tapping through the arrival puts her straight on the perch: the
@@ -2350,9 +2365,29 @@
     el.standSwifty.src = C.ART.swiftyStand;
     el.playImg.src = C.ART.playButton;
 
+    /* Browsers refuse audio before a gesture, so the title screen's
+       wind, leaves and landing are silent on a cold load and every
+       sound is a no-op rather than a queued burst. This tries anyway —
+       it succeeds for a visitor the browser already trusts — and the
+       first touch of anything arms it for the rest of the screen,
+       including the tap that lands her early. */
+    SFX.prime();
+    const armAudio = function () {
+      SFX.prime(true);           // from a gesture, so it takes effect at once
+      ['pointerdown', 'keydown', 'touchstart'].forEach(function (ev) {
+        document.removeEventListener(ev, armAudio);
+      });
+    };
+    ['pointerdown', 'keydown', 'touchstart'].forEach(function (ev) {
+      document.addEventListener(ev, armAudio, { passive: true });
+    });
+
     FX.init(el.fxLayer);
     FX.clouds(el.skyLayer);
     FX.leafDrift(el.skyLayer);
+    // the title screen blows its own weather, on its own layer
+    stopWeather.push(FX.wind(el.startSky, C.START.wind),
+                     FX.leafDrift(el.startSky, C.START.drift));
     fitStage();
     Sprite.setup(el.birdWin, el.flySheet, el.talkSheet, C.CHAR_SCALE);
     StartBird.setup();  // must precede layout(): layout seats the rig

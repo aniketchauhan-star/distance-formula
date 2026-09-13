@@ -199,12 +199,17 @@ window.CFG = (function () {
      She flies in and perches on the rock at the lower left before the
      Play button is offered — the title shot, so she is the subject of
      it rather than a presenter, and is drawn well above her in-game
-     size. Measured off the start art: the rock's crown runs x 320..410
-     and peaks at y 880, which is where her feet go.
-     ------------------------------------------------------------- */
+     size.
+
+     feetY is where the bottom of her toes lands, and it is 12px below
+     the rock's painted top edge (which runs y 873..888 under her, the
+     crown being domed rather than flat). Sitting her exactly on that
+     edge left both feet hovering 7-10px clear, because only her very
+     toe tips reach the bottom of the sprite box — the sole reads about
+     14px higher. Sinking her instead puts weight on the rock. */
   const START = {
     height: 400,                    // against SWIFTY.height of 240 in game
-    perch: { cx: 365, feetY: 880 },
+    perch: { cx: 365, feetY: 892 },
     flyMs: 2600,                    // a title screen can afford a long arc
     buttonDelay: 420                // beat between her settling and Play
   };
@@ -219,6 +224,39 @@ window.CFG = (function () {
   // A contact shadow on the rock's crown, narrower than the grass one:
   // the crown is only about 90px across at the top.
   START.shadow = { w: 196, h: 40 };
+
+  /* The title screen's weather, livelier than the game's: there is
+     nothing here anyone has to read, so leaves overlap instead of
+     queueing and the wind itself is visible.
+
+     This art's tree is wider than the game's — its foliage reaches
+     x 648 at y 120 and x 516 at y 160 — so leaves lift off further
+     right and still read as leaving the canopy. */
+  START.drift = {
+    solo: false,                  // several on the wing at once
+    rustleOnLift: true,           // heard leaving the tree, not just drifting
+    dur: 11000,
+    gapMin: 2800, gapMax: 5400,
+    firstDelay: 500,
+    lines: 4,
+    fromX: 340,
+    y0: [110, 250],
+    /* The loop is held left of and below the wordmark (x 796..1667,
+       y 211..643) so no leaf ever circles over the type, and they
+       leave the frame beneath it rather than across it. */
+    loopX: [520, 780], loopY: [450, 600], loopR: [60, 120],
+    endY: [680, 860],
+    size: [46, 88]
+  };
+  START.wind = {
+    gustLines: [4, 7], gustMs: [2000, 3300],
+    /* Two bands, high sky and low over the lake, chosen so no streak
+       ever crosses the wordmark (y 211..643). A leaf blowing past the
+       type reads as a leaf; a straight 3px line reads as a scratch on
+       it. The leaves carry the wind through the middle instead. */
+    gustBands: [[110, 200], [655, 800]],
+    gapMin: 2600, gapMax: 5600, firstDelay: 600
+  };
 
   /* -------------------------------------------------------------
      PLAY BUTTON

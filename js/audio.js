@@ -10,6 +10,10 @@ window.Audio8 = (function () {
   const A = window.CFG.AUDIO;
 
   let ctx = null, master = null, sfxGain = null;
+  /* Whether playback has actually been authorised. Scheduling into a
+     suspended context is worse than silence: currentTime is frozen, so
+     everything queued lands in one burst the moment it resumes. */
+  let armed = false;
   let musicEl = null, noiseBuf = null, musicRamp = null;
   let started = false, duckDepth = 0, muted = false, musicWant = 0;
 
@@ -66,10 +70,31 @@ window.Audio8 = (function () {
     }, 1000 / 30);
   }
 
+  /* Brings the engine up without starting the music — for the title
+     screen, whose wind and leaves should be heard but which should not
+     begin the soundtrack. Browsers refuse to resume before a gesture,
+     so `armed` only turns on if the resume actually succeeds, and every
+     sound stays a no-op until it does. Calling this on load costs
+     nothing and works for a visitor the browser already trusts. */
+  function prime(fromGesture) {
+    build();
+    if (ctx.state === 'running') { armed = true; return; }
+    /* resume() resolves a tick or two later, which is too late for a
+       sound fired by the very gesture that authorised it — the tap that
+       lands her early is both at once. A gesture is permission enough,
+       so arm now and let the resume catch up. */
+    if (fromGesture) armed = true;
+    const p = ctx.resume();
+    if (p && p.then) p.then(function () { armed = true; },
+                            function () { if (!fromGesture) armed = false; });
+    else if (!fromGesture) armed = ctx.state === 'running';
+  }
+
   /* Called from the first real user gesture — browsers block audio
      until then. Safe to call repeatedly. */
   function unlock() {
     build();
+    armed = true;              // a gesture authorises playback outright
     if (ctx.state === 'suspended') ctx.resume();
     if (!started) {
       started = true;
@@ -112,7 +137,7 @@ window.Audio8 = (function () {
   }
 
   function tone(opts) {
-    if (!ctx) return;
+    if (!ctx || !armed) return;
     const t0 = now() + (opts.delay || 0);
     const o = ctx.createOscillator();
     o.type = opts.type || 'sine';
@@ -125,7 +150,7 @@ window.Audio8 = (function () {
   }
 
   function noise(opts) {
-    if (!ctx) return;
+    if (!ctx || !armed) return;
     const t0 = now() + (opts.delay || 0);
     const s = ctx.createBufferSource();
     s.buffer = noiseBuf;
@@ -338,7 +363,7 @@ window.Audio8 = (function () {
   }
 
   return {
-    unlock, duck, setMuted, isMuted, wind, breeze, confettiPop,
+    unlock, prime, duck, setMuted, isMuted, wind, breeze, confettiPop,
     chirp, flap, land, pop, blip, sparkle, whoosh, chime, magic, draw, tick,
     correct, wrong, cheer, rustle,
     get ready() { return !!ctx; }
