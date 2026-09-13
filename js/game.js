@@ -1327,6 +1327,26 @@
     index: -1, state: 'start', busy: false, geom: null, task: null, askTimer: null,
     pending: [], entranceCancel: null,
 
+    /* A screen is done: arm Skip and hand over by itself after a pause.
+       The hand-over is held back while a question is still unanswered,
+       and there is nothing to hand over to on the last screen. Because
+       it is queued through later(), tapping Skip cancels it along with
+       everything else the screen had pending. */
+    settle: function (pause) {
+      const self = this, i = this.index;
+      this.state = 'waiting';
+      el.nextBtn.classList.add('ready');
+
+      if (i + 1 >= C.SCRIPT.length) return;
+      const entry = C.SCRIPT[i] || {};
+      if (entry.task && !(this.task && this.task.done)) return;
+
+      this.later(function () {
+        if (self.index !== i) return;        // something got there first
+        self.goTo(i + 1);
+      }, pause || C.AUTO.afterLine);
+    },
+
     /* Every queued step goes through here so a skip can cancel it. */
     later: function (fn, ms) {
       const self = this;
@@ -1451,8 +1471,7 @@
         else if (entry.auto && i + 1 < C.SCRIPT.length) {
           self.later(function () { self.goTo(i + 1); }, 160);
         } else {
-          self.state = 'waiting';
-          el.nextBtn.classList.add('ready');
+          self.settle(C.AUTO.afterSilent);
         }
       };
 
@@ -1570,10 +1589,7 @@
             SFX.chime();
             SFX.sparkle();
           }, t += 900);
-          self.later(function () {
-            self.state = 'waiting';
-            el.nextBtn.classList.add('ready');
-          }, t += 900);
+          self.later(function () { self.settle(); }, t += 900);
         };
 
         /* The line runs alongside the drawing rather than after it —
@@ -1666,8 +1682,7 @@
           if (Dist) { if (entry.distance) { Dist.reset(); Dist.show(); } else Dist.hide(); }
           if (Pad)  { if (entry.entry)    { Pad.reset();  Pad.show();  } else Pad.hide(); }
           Board.clearMeasure();
-          self.state = 'waiting';
-          el.nextBtn.classList.add('ready');
+          self.settle();
         }, 760);
       };
 
@@ -1868,8 +1883,9 @@
       this.state = 'speaking';
       FX.sparkles(C.ANCHOR.x, C.ANCHOR.y - 200 * C.CHAR_SCALE, 7, 170 * C.CHAR_SCALE);
       Bubble.open(line, function () {
-        self.state = 'waiting';
-        el.nextBtn.classList.add('ready');    // gentle nudge once she is done
+        /* Longer after a right answer than after an ordinary line: the
+           confetti is still coming down. */
+        self.settle(self.task && self.task.done ? C.AUTO.afterCorrect : C.AUTO.afterLine);
       });
     },
 
@@ -1897,8 +1913,7 @@
           self.askTimer = null;
           SFX.duck(false);
           SFX.chime();
-          self.state = 'waiting';
-          el.nextBtn.classList.add('ready');
+          self.settle(self.task && self.task.done ? C.AUTO.afterCorrect : C.AUTO.afterLine);
           return;
         }
         const ch = text[n++];
@@ -2074,7 +2089,8 @@
             Opts.showFormula(t.spec.formula);
             SFX.chime();
             SFX.sparkle();
-            el.nextBtn.classList.add('ready');
+            // longer than usual: there are four lines of working to read
+            self.settle(C.AUTO.afterReveal);
           }, 420);
           return;
         }

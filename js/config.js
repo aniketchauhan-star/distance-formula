@@ -649,6 +649,17 @@ window.CFG = (function () {
   };
 
   /* ---------- Audio ---------- */
+  /* Screens hand over by themselves rather than waiting to be tapped.
+     Skip is still there to jump ahead early, but nothing needs a tap
+     to continue. The holds are the pause after the thing that ended
+     the screen, long enough to take it in before the next arrives. */
+  const AUTO = {
+    afterLine: 1500,          // she has finished speaking
+    afterCorrect: 2100,       // a question has been answered right
+    afterSilent: 900,         // nothing was said; the screen just drew
+    afterReveal: 3800         // a worked solution, which takes reading
+  };
+
   const AUDIO = {
     musicSrc: MUSIC,
     musicVolume: 0.20,   // brief: background music at 20%
@@ -985,6 +996,6 @@ window.CFG = (function () {
     STAGE_W, STAGE_H, ART, SHEETS, SHEET_W, SHEET_H,
     SWIFTY, CHAR_SCALE, ANCHOR, HEAD_TOP, FEET_DY, SHADOW, CLOUD,
     S5_ORIGIN, GRID, STAND, S8_ORIGIN, BOARD, RECAP, XAXIS, YAXIS,
-    BUBBLE, PLAY, AUDIO, SCRIPT
+    BUBBLE, PLAY, AUDIO, AUTO, SCRIPT
   };
 })();
