@@ -965,11 +965,16 @@
       }
 
       later(function () {
+        /* Horizontal: centred in the band under the line. Vertical:
+           above the top of the column, pushed to the squares' far edge
+           so it clears the coordinate labels opposite. */
+        const boxSide = (a.x >= 0) ? -1 : 1;
         self.unitLabel.setAttribute('x', vertical
-          ? (a.x >= 0 ? px(a.x) - U.labelDy : px(a.x) + U.labelDy)
+          ? px(a.x) + boxSide * G.stepX * 0.85
           : (px(loX) + px(loX + n)) / 2);
-        self.unitLabel.setAttribute('y', vertical ? (py(loY) + py(loY + n)) / 2
-                                                  : py(a.y) + U.labelDy);
+        self.unitLabel.setAttribute('y', vertical
+          ? py(Math.max(a.y, b.y)) - U.labelUpV
+          : py(a.y) + U.labelDy);
         self.unitLabel.textContent = n + '\u00A0unit' + (n === 1 ? '' : 's');
         self.unitLabel.classList.add('on');
         /* Size the plate to the text once it is set. A segment can sit

@@ -442,7 +442,13 @@ window.CFG = (function () {
          would collide worse on a shorter segment. Inside, it also ties
          the number directly to the squares being counted. */
       labelSize: 32,
-      labelDy: 31,           // half a cell below the line = band centre
+      labelDy: 31,           // horizontal: half a cell below the line
+      /* A vertical count stacks its squares in a band one cell wide,
+         and the total is far wider than that — it cannot sit beside
+         them without covering the very squares being counted. It goes
+         above the top of the column instead, clear of the squares and
+         of the coordinate labels on the other side of the line. */
+      labelUpV: 46,
       max: 18                // widest span the board allows (-9 to 9)
     },
 
