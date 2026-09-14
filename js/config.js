@@ -168,16 +168,21 @@ window.CFG = (function () {
        The rim is both darker and wider than the rest of the autumn set
        needs: the bubble floats on open sky, which is very light and
        very warm, so a thin mid-orange edge disappeared into it. */
-    /* One stroke. The three cumulative insets are kept as the mechanism
-       — the balloon and the tail are both built from them — but set to
-       the same width and colour, so what is drawn is a single line
-       rather than a dark rim, an orange band and a golden one. */
-    edgeW: 5, midW: 5, goldW: 5,
+    /* One stroke, and a heavy one: comic lettering sits inside drawn
+       ink, not a hairline. The three cumulative insets are kept as the
+       mechanism — the balloon and the tail are both built from them —
+       but set to the same width and colour, so what is drawn is a
+       single line rather than three bands. */
+    edgeW: 8, midW: 8, goldW: 8,
 
-    fill:   '#FFF8E8',
-    edge:   '#C07A17',
-    mid:    '#C07A17',
-    gold:   '#C07A17',
+    /* Near-white rather than cream: the sky behind her runs from peach
+       to gold, and a cream balloon on it had almost nothing to separate
+       the two. The ink is a deep brown from the same autumn family
+       rather than black, so it reads as drawn and not as a border. */
+    fill:   '#FFFDF7',
+    edge:   '#6E3A07',
+    mid:    '#6E3A07',
+    gold:   '#6E3A07',
     ink_:   '#173A72',            // the text
     size:   32,                   // the size every line is set at
 
@@ -418,7 +423,7 @@ window.CFG = (function () {
          in a box sized for the longest question in the game. */
       pad: { x: 38, y: 22 },
       lineH: 44,
-      tailLen: 54
+      tailLen: 44
     }),
 
     bubble: Object.assign({}, BUBBLE, {
@@ -432,7 +437,7 @@ window.CFG = (function () {
       biteIntoHead: 0,
       ink: { w: 760, h: 112 },      // w is a starting size; see autoWidth
       tip: { x: 0, y: 56 },         // mid-height on the balloon's left edge
-      tailLen: 34,
+      tailLen: 30,
       bodyH: 112,
       radius: 34,
       leaf: 44,
@@ -652,10 +657,12 @@ window.CFG = (function () {
     /* The marker left behind once a point has been found, with its
        coordinates written beside it. */
     found: {
-      r: 15,
+      // a located point reads against the pale tappable dots without
+      // having to be three times their size
+      r: 9,
       fill: '#35B94B',
       stroke: '#FFFFFF',
-      strokeWidth: 3.5,
+      strokeWidth: 2.5,
       labelSize: 34,
       labelDx: 46,          // label offset from the point
       labelDy: -42
@@ -954,8 +961,10 @@ window.CFG = (function () {
         revealLine: 'Here it is — (3, 2).'
       } },
 
-    // 7 — same again with a new point.
-    { id: 7, line: 'Locate the point (6, 2).', entrance: 'stay',
+    /* 7 — same again with a new point, and without the nudge: the first
+       one showed how, so pointing at this one too would be doing it for
+       them rather than letting them try. */
+    { id: 7, line: 'Locate the point (6, 2).', entrance: 'stay', hint: false,
       layout: 'grid', dots: true, bubbleScale: 0.9,
       task: {
         target: { x: 6, y: 2 },

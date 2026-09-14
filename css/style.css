@@ -248,7 +248,16 @@ html, body {
    invisible where it crosses the balloon because both are the same
    flat cream. That gives the tail the same three bands as the balloon
    at the same total width, so the two meet without a step. */
-#bubble { position: absolute; }
+/* Lifted off the sky with a hard offset shadow and a soft one under
+   it — the flat one is what makes it read as drawn rather than as a
+   panel, and both follow the tail because a filter shadows the shape
+   rather than the box. */
+#bubble {
+  position: absolute;
+  filter:
+    drop-shadow(5px 7px 0 rgba(110, 58, 8, .20))
+    drop-shadow(0 10px 16px rgba(90, 50, 10, .26));
+}
 
 #bubbleImg {
   position: absolute; left: 0; top: 0;

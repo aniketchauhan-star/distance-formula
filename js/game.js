@@ -1235,7 +1235,6 @@
     },
 
     clearSegment: function () {
-      this.clearFound();        // a plotted question starts from a clean board
       this.clearUnits();
       this.clearLegs();
       this.clearMeasure();
@@ -1269,6 +1268,11 @@
        it is the shape being reasoned about, not the answer. */
     runPoints: function (spec, later, done, withLine) {
       const self = this;
+      /* This screen plots its own points, so anything located on an
+         earlier one goes. A locate screen plots nothing and keeps what
+         is already there — that is how the first point stays put while
+         the second is being found. */
+      this.clearFound();
       this.placeSegment(spec);
       this.clearSegment();
       this.segGroup.classList.add('on');
@@ -1321,6 +1325,11 @@
 
     runSegment: function (spec, later, done) {
       const self = this;
+      /* This screen plots its own points, so anything located on an
+         earlier one goes. A locate screen plots nothing and keeps what
+         is already there — that is how the first point stays put while
+         the second is being found. */
+      this.clearFound();
       const a = spec.a, b = spec.b;
       this.placeSegment(spec);
       this.clearSegment();
@@ -1526,8 +1535,11 @@
       if (i + 1 >= C.SCRIPT.length) return;
       const entry = C.SCRIPT[i] || {};
       if (entry.task && !(this.task && this.task.done)) {
-        // nothing more will happen until they tap, so start the clock
-        if (entry.dots && entry.task.target) Hint.arm(entry.task.target);
+        /* Nothing more will happen until they tap, so point the way —
+           unless the screen has asked not to be helped. */
+        if (entry.dots && entry.task.target && entry.hint !== false) {
+          Hint.arm(entry.task.target);
+        }
         return;
       }
 
