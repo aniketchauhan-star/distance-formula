@@ -167,13 +167,18 @@ window.CFG = (function () {
        The rim is both darker and wider than the rest of the autumn set
        needs: the bubble floats on open sky, which is very light and
        very warm, so a thin mid-orange edge disappeared into it. */
-    edgeW: 4, midW: 9, goldW: 12,
+    /* One stroke. The three cumulative insets are kept as the mechanism
+       — the balloon and the tail are both built from them — but set to
+       the same width and colour, so what is drawn is a single line
+       rather than a dark rim, an orange band and a golden one. */
+    edgeW: 5, midW: 5, goldW: 5,
 
     fill:   '#FFF8E8',
-    edge:   '#8F3F08',
-    mid:    '#F28A0A',
-    gold:   '#FFC433',
+    edge:   '#C07A17',
+    mid:    '#C07A17',
+    gold:   '#C07A17',
     ink_:   '#173A72',            // the text
+    size:   32,                   // the size every line is set at
 
     leaf: 62,                     // the corner decorations
 
@@ -362,9 +367,9 @@ window.CFG = (function () {
 
     /* Centred, and filling everything below the band that carries
        Swifty and her line. Square cells tie the panel's aspect to the
-       frame's, so height is what limits it: the band costs 130px and
+       frame's, so height is what limits it: the band costs 178px and
        the rest is grid. */
-    box: { x: 331, y: 130, w: 1257, h: 938 },
+    box: { x: 356, y: 178, w: 1193, h: 890 },
 
     /* A wide, shallow bubble for these screens instead of the tall one
        she uses elsewhere. Two reasons: the band above the panel is only
@@ -374,13 +379,26 @@ window.CFG = (function () {
        Only the balloon has to clear the panel — the tail is meant to
        cross into it, since that is where her head is. */
     bubble: Object.assign({}, BUBBLE, {
-      ink: { w: 1000, h: 179 },
-      tip: { x: 150, y: 178 },      // 15% across, on her head below
+      /* Standing on the panel's top rail puts her head near the top of
+         the frame, so nothing can sit above it — a downward tail would
+         force the balloon over her and push the panel down about 300px,
+         leaving the grid smaller than it started. The tail points left
+         instead, out of the balloon's side, so she and her line share
+         one shallow band. */
+      tailSide: 'left',
+      biteIntoHead: 0,
+      ink: { w: 760, h: 112 },      // w is a starting size; see autoWidth
+      tip: { x: 0, y: 56 },         // mid-height on the balloon's left edge
+      tailLen: 34,
       bodyH: 112,
-      radius: 38,
-      leaf: 48,
-      // plate x 45..955, y 22..90 — 10px inside the frame all round
-      text: { left: 0.045, top: 0.12291, width: 0.91, height: 0.37989 }
+      radius: 34,
+      leaf: 44,
+      /* Sized to the line rather than fixed: most of what she says here
+         is short, and a bar of empty cream either side of "Correct!"
+         reads as a mistake. */
+      autoWidth: { min: 330, max: 1080, pad: 46 },
+      size: 32,
+      text: { left: 0.06, top: 0.1964, width: 0.88, height: 0.607 }
     }),
 
     /* Axis geometry in panel-local pixels, measured off the drawn
@@ -595,15 +613,28 @@ window.CFG = (function () {
      on these screens are all right of centre and low.
 
      Every offset is in rendered stage pixels, so they scale with her. */
-  const STAND_S = 0.62;
+  const STAND_S = 0.55;
   const STAND = {
     src: ART.swiftyStand,
     w: 398 * STAND_S, h: 307 * STAND_S,
-    pos: { x: 360, y: 180 },
+    /* Feet planted in the panel's top rail rather than balanced on its
+       outer edge: the frame is about 28px thick and its top corner
+       curves away, so feet exactly on the boundary read as hovering.
+       12px in puts her weight on the rail. */
+    pos: { x: 392, y: 178 + 12 - 300 * 0.55 },
     headTop: { x: 206 * STAND_S, y: 3 * STAND_S },
     belly:   { x: 223 * STAND_S, y: 228.4 * STAND_S },
     feet:    { y: 300 * STAND_S, cx: 208 * STAND_S },
-    inkW: 335 * STAND_S
+    // where a side-tailed bubble points: just off her right edge, level
+    // with the middle of her body
+    speak:   { x: 398 * STAND_S - 14, y: 307 * STAND_S * 0.50 },
+    inkW: 335 * STAND_S,
+    /* The sheet she flies in on and the artwork she lands in are two
+       different pictures, so a scale that suits one does not suit the
+       other. This is the sprite scale that renders the flying frames at
+       the same height as this landed pose — without it she arrives at
+       twice the size she settles into. */
+    charScale: 307 * STAND_S / 355
   };
 
   /* -------------------------------------------------------------
@@ -667,7 +698,7 @@ window.CFG = (function () {
          drawn bar has only leaves on its corners, so the line gets
          nearly the whole width — room the longer questions needed. */
       text: { left: 0.11, top: 0.16, width: 0.78, height: 0.68 },
-      size: 31
+      size: 32
     },
 
 
@@ -780,6 +811,11 @@ window.CFG = (function () {
      to continue. The holds are the pause after the thing that ended
      the screen, long enough to take it in before the next arrives. */
   const AUTO = {
+    /* One word at a time rather than one letter: a word appearing whole
+       is read as a word, where a letter crawl has to be reassembled
+       before it means anything. Paced so a short line still takes about
+       as long to deliver as it did. */
+    wordMs: 190,
     afterLine: 1500,          // she has finished speaking
     afterCorrect: 2100,       // a question has been answered right
     afterSilent: 900,         // nothing was said; the screen just drew

@@ -156,6 +156,16 @@ html, body {
 
 /* ---------------- scene ---------------- */
 #scene { position: absolute; inset: 0; z-index: 1; opacity: 0; }
+
+/* The scene behind the game is set back a little so the eye goes to the
+   board, Swifty and her line rather than to the trees. Scaled a touch
+   past the frame because a blur samples beyond its own edges and would
+   otherwise leave a soft rim all round. */
+#sceneArt {
+  filter: blur(4px) saturate(.94) brightness(.97);
+  transform: scale(1.02);
+  transform-origin: center center;
+}
 #scene.fade-in { animation: fadeIn .6s ease forwards; }
 
 /* Everything ambient lives here — the clouds and the drifting leaf.
@@ -201,6 +211,8 @@ html, body {
 }
 /* while she is in the air during the fly-in */
 #shadow.lifted { opacity: 0; transform: scale(.35); }
+/* No ground under her at all on some screens — see applyGeom. */
+#shadow.gone { opacity: 0 !important; }
 
 /* rig origin sits exactly on the belly anchor, so flight and hop
    transforms rotate and scale around the body, not a corner */
@@ -292,6 +304,18 @@ html, body {
   top: 100%;
 }
 
+/* A tail leaving the balloon's left side instead of its bottom, for
+   the screens where she stands above the board with nothing over her.
+   The same stacked squares; only which corner is rounded and where the
+   cream one sits have to change, since a 45-degree square already has
+   a corner pointing left. */
+#bubble.tail-left .bt,
+#bubble.tail-left #bubbleImg::after {
+  border-bottom-right-radius: 0;
+  border-bottom-left-radius: var(--tailTip, 10px);
+}
+#bubble.tail-left #bubbleImg::after { top: 50%; }
+
 /* One leaf caught on each of two opposite corners, the same artwork
    the board and the question bar use. */
 #bubble .b-leaf {
@@ -323,7 +347,7 @@ html, body {
   font-family: 'Lilita One', system-ui, sans-serif;
   /* 1.3 rather than a display face's usual tight setting: most lines
      here run to two, and at 1.24 the two sat almost on top of each other. */
-  font-weight: 400; font-size: 38px; line-height: 1.3;
+  font-weight: 400; font-size: 32px; line-height: 1.3;
   color: #123A72;
   letter-spacing: .2px;
   overflow: hidden;

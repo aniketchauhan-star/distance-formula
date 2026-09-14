@@ -184,9 +184,13 @@
       const S = C.STAND;
       return {
         stand: true,
-        scale: 1,
+        // matches the flying sheet to the landed artwork's height
+        scale: S.charScale,
+        noShadow: true,          // she is on the board's rail, not on grass
         anchor: { x: S.pos.x + S.belly.x,   y: S.pos.y + S.belly.y },
-        aim:    { x: S.pos.x + S.belly.x,   y: S.pos.y + S.headTop.y },
+        /* The tail comes in from the side here, so it aims at her face
+           rather than the top of her head. */
+        aim:    { x: S.pos.x + S.speak.x,   y: S.pos.y + S.speak.y },
         feetY:  S.pos.y + S.feet.y,
         feetCx: S.pos.x + S.feet.cx,
         inkW:   S.inkW,
@@ -215,6 +219,10 @@
     el.birdRig.style.left = g.anchor.x + 'px';
     el.birdRig.style.top = g.anchor.y + 'px';
 
+    /* The shadow is a soft ellipse on the ground. On the grid screens
+       she is up on the board's frame, and a ground shadow on a 28px rail
+       reads as her hovering over a surface that is not there. */
+    el.shadow.classList.toggle('gone', !!g.noShadow);
     const SH = C.SHADOW;
     const shW = g.inkW * SH.widthRatio;
     const shH = shW * SH.heightRatio;
@@ -226,13 +234,23 @@
     /* Speech bubble: the tail tip is driven onto the top of her head
        (sinking `biteIntoHead` px into it) so the two touch instead of
        the bubble floating above. */
-    /* A layout may bring its own bubble shape — the grid screens use a
-       wide, shallow one that fits the band above the panel. */
-    const B = g.bubble || C.BUBBLE, s = g.bubbleScale;
-    const tip = { x: g.aim.x, y: g.aim.y + B.biteIntoHead };
-    const inkW = B.ink.w * s, inkH = B.ink.h * s;
-    const tipX = B.tip.x * s, tipY = B.tip.y * s;
+    seatBubble(g);
+  }
 
+  /* Seats the speech bubble for one screen. Split out of applyGeom so a
+     line can re-seat it at a width measured from the text. */
+  function seatBubble(g, inkWOverride) {
+    /* A layout may bring its own bubble shape — the grid screens use a
+       wide, shallow one whose tail leaves the side rather than the
+       bottom, because she stands above the board with nothing over her. */
+    const B = g.bubble || C.BUBBLE, s = g.bubbleScale;
+    const side = B.tailSide === 'left';
+    const inkW = (inkWOverride != null ? inkWOverride : B.ink.w) * s;
+    const inkH = B.ink.h * s;
+    const tipX = B.tip.x * s, tipY = B.tip.y * s;
+    const tip = { x: g.aim.x, y: g.aim.y + B.biteIntoHead };
+
+    el.bubble.classList.toggle('tail-left', side);
     el.bubble.style.left = (tip.x - tipX) + 'px';
     el.bubble.style.top = (tip.y - tipY) + 'px';
     el.bubble.style.width = inkW + 'px';
@@ -240,20 +258,18 @@
     // Pop the bubble out of the tail tip, where it is anchored.
     el.bubble.style.transformOrigin = tipX + 'px ' + tipY + 'px';
 
-    /* The balloon fills the box down to bodyH; the tail is drawn below
-       it by the pseudo-elements, whose geometry all comes from here so
-       one bubble reads the same at whatever scale a screen asks for. */
     el.bubbleImg.style.width = inkW + 'px';
     el.bubbleImg.style.height = B.bodyH * s + 'px';
 
     const bs = el.bubble.style;
-    bs.setProperty('--bodyH',   B.bodyH * s + 'px');
-    bs.setProperty('--tailX',   B.tip.x * s + 'px');
+    bs.setProperty('--bodyH', B.bodyH * s + 'px');
     /* A square turned 45 degrees drops its corner 1/root-2 of a side
-       below its centre, so this side puts the point exactly on the tip
-       when the square is centred on the balloon's bottom edge. */
-    bs.setProperty('--tailSq', (B.tip.y - B.bodyH) * s * Math.SQRT2 + 'px');
-    bs.setProperty('--tailY',  B.bodyH * s + 'px');
+       past its centre, so this side puts the point exactly on the tip
+       when the square is centred on the balloon's edge. */
+    const reach = side ? B.tailLen : (B.tip.y - B.bodyH);
+    bs.setProperty('--tailSq', reach * s * Math.SQRT2 + 'px');
+    bs.setProperty('--tailX', (side ? 0 : B.tip.x * s) + 'px');
+    bs.setProperty('--tailY', (side ? B.bodyH * s / 2 : B.bodyH * s) + 'px');
     bs.setProperty('--tailTip', B.tailTip * s + 'px');
     bs.setProperty('--r',      B.radius * s + 'px');
     bs.setProperty('--e1',     B.edgeW * s + 'px');
@@ -357,6 +373,12 @@
   /* ---------------- speech bubble ---------------- */
   const Bubble = {
     typing: false, timer: null, hideTimer: null, full: '', shown: 0, onDone: null,
+    /* The line split into words, each keeping its trailing space, so
+       joining the shown ones reproduces the text exactly. The reveal
+       steps a word at a time rather than a letter at a time — at this
+       reading age a word appearing whole is read as a word, where a
+       letter crawl has to be reassembled before it means anything. */
+    words: [],
 
     /* Pick the largest type size at which the whole line still fits
        the plate, so a long line can never spill out of the bubble
@@ -364,7 +386,8 @@
     fitType: function (text) {
       const line = el.bubbleLine, plate = el.bubbleText;
       const max = plate.clientHeight;      // 0 while the bubble is hidden
-      let size = 42;
+      const g = Game.geom;
+      let size = (g && g.bubble && g.bubble.size) || C.BUBBLE.size;
       line.style.fontSize = size + 'px';
       line.textContent = text;
       if (max > 0) {
@@ -374,6 +397,28 @@
         }
       }
       line.textContent = '';
+    },
+
+    /* Shrink-wraps the balloon to the line it is about to say, for the
+       shapes that ask for it. Measured with the real face at the size
+       fitType settled on, so the cream either side is the padding the
+       shape asks for and nothing more — a fixed bar leaves "Correct!"
+       marooned in the middle of it. */
+    fitBox: function (text) {
+      const g = Game.geom, B = g && g.bubble;
+      if (!B || !B.autoWidth) return;
+      const A = B.autoWidth, line = el.bubbleLine, plate = el.bubbleText;
+      const prevWrap = line.style.whiteSpace, prevW = plate.style.width;
+      line.style.whiteSpace = 'nowrap';
+      plate.style.width = 'auto';
+      line.textContent = text;
+      const measured = line.offsetWidth;
+      line.textContent = '';
+      line.style.whiteSpace = prevWrap;
+      plate.style.width = prevW;
+      if (!measured) return;               // hidden, or no metrics yet
+      const want = Math.min(A.max, Math.max(A.min, measured + A.pad * 2));
+      seatBubble(g, want);
     },
 
     /* A coordinate pair must never break across lines, so the space
@@ -388,10 +433,12 @@
       if (this.typing) { this.typing = false; clearInterval(this.timer); SFX.duck(false); }
       text = this.keepPairs(text);
       this.full = text; this.shown = 0; this.onDone = done;
+      this.words = text.match(/\S+\s*/g) || [];
       // Unhide first: a display:none plate measures zero.
       clearTimeout(this.hideTimer);
       el.bubble.classList.remove('hidden', 'pop-out');
       this.fitType(text);
+      this.fitBox(text);
       el.bubbleLine.textContent = '';
       // restart the pop animation
       el.bubble.classList.remove('pop-in');
@@ -408,23 +455,19 @@
       SFX.duck(true);                 // dip the music under her voice
       if (!standPose) Sprite.play('talk', true);   // beak moves while she speaks
 
-      let sinceChirp = 0;
       this.timer = setInterval(function () {
-        if (self.shown >= self.full.length) { self.finish(); return; }
-        const ch = self.full[self.shown++];
-        el.bubbleLine.textContent = self.full.slice(0, self.shown);
-        sinceChirp++;
-        if (ch !== ' ' && sinceChirp >= 2) {
-          sinceChirp = 0;
-          SFX.chirp(/[.!?]/.test(ch) ? 0.7 : 1);
-        }
-      }, 42);
+        if (self.shown >= self.words.length) { self.finish(); return; }
+        const w = self.words[self.shown++];
+        el.bubbleLine.textContent = self.words.slice(0, self.shown).join('');
+        // one note per word, dropping at the end of a sentence
+        SFX.chirp(/[.!?]\s*$/.test(w) ? 0.7 : 1);
+      }, C.AUTO.wordMs);
     },
 
     /* Tapping mid-line reveals the rest immediately. */
     skip: function () {
       if (!this.typing) return false;
-      this.shown = this.full.length;
+      this.shown = this.words.length;
       el.bubbleLine.textContent = this.full;
       this.finish();
       return true;
@@ -809,6 +852,20 @@
       gs.setProperty('--ch', ch + 'px');
       gs.setProperty('--lw', lw + 'px');
       gs.setProperty('--gridline', P.line);
+
+      /* Keep the lines off the frame. Clipped rather than shrunk: the
+         gradient's phase is measured from this element's own origin, so
+         moving or resizing it slides every line off its coordinate,
+         while a clip leaves them exactly where they fall. The radius
+         follows the cream's inner corner. */
+      const inset = (P.frameW + P.hiW) * sx;
+      const gw = (P.gxTo - P.gxFrom) * cw + lw, gh = (P.gyTo - P.gyFrom) * ch + lw;
+      const cl = Math.max(0, inset - (left - lw / 2));
+      const ct = Math.max(0, inset - (top  - lw / 2));
+      const cr = Math.max(0, (left - lw / 2 + gw) - (box.w - inset));
+      const cb = Math.max(0, (top  - lw / 2 + gh) - (box.h - inset));
+      gs.clipPath = 'inset(' + ct + 'px ' + cr + 'px ' + cb + 'px ' + cl +
+                    'px round ' + Math.max(0, P.radius * sx - inset) + 'px)';
 
       el.gridAxes.setAttribute('viewBox', '0 0 ' + G.w + ' ' + G.h);
       el.gridAxes.setAttribute('preserveAspectRatio', 'none');
@@ -1949,9 +2006,10 @@
       el.qBannerLine.textContent = '';
       SFX.duck(true);
 
-      let n = 0, since = 0;
+      const words = text.match(/\S+\s*/g) || [];
+      let n = 0;
       const timer = setInterval(function () {
-        if (n >= text.length) {
+        if (n >= words.length) {
           clearInterval(timer);
           self.askTimer = null;
           SFX.duck(false);
@@ -1959,10 +2017,10 @@
           self.settle(self.task && self.task.done ? C.AUTO.afterCorrect : C.AUTO.afterLine);
           return;
         }
-        const ch = text[n++];
-        el.qBannerLine.textContent = text.slice(0, n);
-        if (ch !== ' ' && ++since >= 2) { since = 0; SFX.chirp(1); }
-      }, 42);
+        const w = words[n++];
+        el.qBannerLine.textContent = words.slice(0, n).join('');
+        SFX.chirp(/[.!?]\s*$/.test(w) ? 0.7 : 1);
+      }, C.AUTO.wordMs);
       this.askTimer = timer;
       this.pending.push(timer);
     },
