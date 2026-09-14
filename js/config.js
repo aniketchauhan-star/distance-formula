@@ -590,9 +590,16 @@ window.CFG = (function () {
     return { x: fx - S8_ORIGIN.x, y: fy - S8_ORIGIN.y };
   };
 
+  /* The brief laid the answering screens out with the board on the
+     right and the controls down its left; the two were later switched
+     over. Mirroring about the stage's centre line rather than picking
+     fresh numbers keeps every margin and gap the brief chose — the
+     board keeps its 25px outer edge, the controls theirs. */
+  const flipX = function (pos, w) { return { x: STAGE_W - pos.x - w, y: pos.y }; };
+
   const BOARD = {
     // the same grid art, re-seated and a little smaller
-    panel: { pos: place8(850, 2422), w: 1239, h: 856 },
+    panel: { pos: flipX(place8(850, 2422), 1239), w: 1239, h: 856 },
 
     /* Swifty has left, so the question moves out of her speech bubble
        and into the banner. Its cream interior runs x[41..981]
@@ -644,15 +651,15 @@ window.CFG = (function () {
     speak: { cx: 400, feetY: 985 },
 
     // the distance selector, mounted as its own component
-    distance: { pos: place8(219, 2646), w: 610, h: 407 },
+    distance: { pos: flipX(place8(219, 2646), 610), w: 610, h: 407 },
 
     /* The triangle-type answer panel takes the slider's place, centred
        on the same footprint so the left column stays put. */
-    options: { pos: { x: 70, y: 398 }, w: 520 },
+    options: { pos: flipX({ x: 70, y: 398 }, 520), w: 520 },
 
     /* And the answer pad takes the same column again, for the
        questions whose answer is typed rather than chosen. */
-    entry: { pos: { x: 70, y: 330 }, w: 520 }
+    entry: { pos: flipX({ x: 70, y: 330 }, 520), w: 520 }
   };
 
   /* -------------------------------------------------------------
