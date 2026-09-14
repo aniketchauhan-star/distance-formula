@@ -2205,7 +2205,14 @@
         const L = entry.legs[t.spec.measureLeg];
         from = L.from; to = L.to;
       }
-      return (from && to) ? { from: from, to: to } : null;
+      if (!from || !to) return null;
+      /* Always measured left to right, and top to bottom on a vertical
+         pair, whichever order the script happens to list the two points
+         in — otherwise the line grows backwards on the screens whose
+         first point is the right-hand or lower one. The answer is the
+         same either way, since it is a distance. */
+      const backwards = (to.x < from.x) || (to.x === from.x && to.y > from.y);
+      return backwards ? { from: to, to: from } : { from: from, to: to };
     },
 
     /* The slider moved: lay the line down that far. */

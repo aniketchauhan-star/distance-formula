@@ -696,9 +696,11 @@ window.CFG = (function () {
   /* Where she stands to talk: down on the grass, front of frame. */
   const STAND = standAt(1, 60, 700);
   /* And where she moves to when a control arrives: standing on its top
-     edge, feet at 688 against a panel whose top is 680. She only goes
-     up when something turns up that needs the room. */
-  const STAND_UP = standAt(1, 60, 388);
+     edge, feet at 688 against a panel whose top is 680, and a little
+     smaller — she is further away up there, and the control is what
+     should hold the eye once it has arrived. The move animates, so the
+     size settles with the travel rather than snapping. */
+  const STAND_UP = standAt(0.88, 60, 424);
 
   /* -------------------------------------------------------------
      SCREEN 8 — board on its own, question in a banner

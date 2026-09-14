@@ -342,9 +342,13 @@ html, body {
 
 /* She travels to her raised spot rather than being redrawn there, so
    the move reads as her stepping aside for the control. */
+/* width and height ride along with the move, so she shrinks as she
+   travels rather than changing size in a single frame. */
 #standSwifty.rising, #bubble.rising, #shadow.rising, #birdRig.rising {
   transition: top .62s cubic-bezier(.3, .85, .35, 1),
-              left .62s cubic-bezier(.3, .85, .35, 1);
+              left .62s cubic-bezier(.3, .85, .35, 1),
+              width .62s cubic-bezier(.3, .85, .35, 1),
+              height .62s cubic-bezier(.3, .85, .35, 1);
 }
 
 /* ---------------- screen 5: coordinate board ---------------- */
