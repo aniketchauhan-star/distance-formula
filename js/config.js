@@ -19,7 +19,8 @@ window.CFG = (function () {
     swiftyFly:   'assets/swifty fly.png',
     swiftyTalk:  'assets/swifty talk.png',
     swiftyStand: 'assets/normal stand swifty.png',
-    leaf:        'assets/leaf.png'
+    leaf:        'assets/leaf.png',
+    handNudge:   'hand nudge.png'
   };
   const MUSIC = 'sfx/bg music.mp3';
 
@@ -363,7 +364,7 @@ window.CFG = (function () {
        every offset is relative to the origin, so trimming the frame
        only stops the panel drawing cells nobody names, and the same
        range is then drawn at 56px a cell instead of 51px. */
-    w: 1124, h: 990,
+    w: 1161, h: 990,
 
     /* Centred, and filling everything below the band that carries
        Swifty and her line. Square cells tie the panel's aspect to the
@@ -373,14 +374,19 @@ window.CFG = (function () {
        The frame was widened symmetrically to do it, so the board grew
        into the dead space without the axes leaving its centre — the
        extra columns either side of 6 are unnumbered grid. */
-    box: { x: 700, y: 12, w: 1208, h: 1056 },
+    /* As far left as her column allows. What sets the limit is the
+       slider: it is 610 wide and has to live in whatever the board
+       leaves, so 660 is the last position where it still fits with
+       margins. The frame was widened to suit, so the board grew
+       without the axes leaving its centre. */
+    box: { x: 660, y: 12, w: 1248, h: 1056 },
 
     /* Where the board builds itself before anyone is on screen: the
        middle of an empty frame, since it is the whole picture until
        there is someone to share it with. It moves to `box` as she
        flies in. Same size either end, so the slide moves two offsets
        and the grid art never rescales mid-flight. */
-    centre: { x: (STAGE_W - 1208) / 2, y: 12, w: 1208, h: 1056 },
+    centre: { x: (STAGE_W - 1248) / 2, y: 12, w: 1248, h: 1056 },
 
     /* A wide, shallow bubble for these screens instead of the tall one
        she uses elsewhere. Two reasons: the band above the panel is only
@@ -393,15 +399,20 @@ window.CFG = (function () {
        down at her head the ordinary way. Same shallow shape and single
        stroke as the rail version — only the tail differs. */
     bubbleDown: Object.assign({}, BUBBLE, {
-      ink: { w: 620, h: 166 },
-      tip: { x: 150, y: 165 },
-      bodyH: 112,
+      /* Two lines tall. The longest thing she says here — the distance
+         question — cannot fit on one line inside the width her column
+         allows, and a balloon sized for one line would shrink the type
+         to 26px to cope. */
+      ink: { w: 620, h: 186 },
+      tip: { x: 150, y: 185 },
+      bodyH: 132,
       radius: 34,
       leaf: 44,
       size: 32,
       // bounded so the balloon never reaches the board at x 866
-      autoWidth: { min: 320, max: 560, pad: 46 },
-      text: { left: 0.06, top: 0.1325, width: 0.88, height: 0.4096 }
+      autoWidth: { min: 320, max: 520, pad: 46 },
+      // plate 88 tall: two lines of 32px at 1.3, with 22px inset all round
+      text: { left: 0.06, top: 0.118279, width: 0.88, height: 0.473118 }
     }),
 
     bubble: Object.assign({}, BUBBLE, {
@@ -437,7 +448,7 @@ window.CFG = (function () {
     /* The origin sits at the centre of the cream, so the axes are
        centred in the grid rather than merely centred on their own
        extents. */
-    originX: 562, originY: 495,
+    originX: 580.5, originY: 495,
     /* Sized so 12 cells each way across and 8 each way down exactly
        fill the cream. Down, that leaves a 12px margin. Across, the
        outermost column on each side is left undrawn, so the sides
@@ -668,7 +679,7 @@ window.CFG = (function () {
 
   /* The grid screens put her back on the grass at the left, full size,
      and give the whole right of the frame to the board. */
-  const STAND = standAt(1, 60, 660);
+  const STAND = standAt(1, 60, 700);
 
   /* -------------------------------------------------------------
      SCREEN 8 — board on its own, question in a banner
@@ -695,13 +706,11 @@ window.CFG = (function () {
   const flipX = function (pos, w) { return { x: STAGE_W - pos.x - w, y: pos.y }; };
 
   const BOARD = {
-    // the same grid art, re-seated and a little smaller
-    /* Left, and below the band that carries Swifty and her line — the
-       same 178px band the grid screens use, since she stands on this
-       board's rail too. Aspect matches the frame so cells stay square. */
-    /* Board and controls read as one group, centred together: 878 of
-       board, a gap, then the 610 of the control column. */
-    panel: { pos: { x: 105, y: 178 }, w: 1019, h: 890 },
+    /* The same board, in the same place, as every other screen: right
+       of the frame, floor to ceiling. The answering screens used to put
+       it left with the controls beside it; they share one layout now,
+       so nothing jumps between a question and the screens around it. */
+    panel: { pos: { x: GRID.box.x, y: GRID.box.y }, w: GRID.box.w, h: GRID.box.h },
 
     /* Swifty has left, so the question moves out of her speech bubble
        and into the banner. Its cream interior runs x[41..981]
@@ -744,7 +753,7 @@ window.CFG = (function () {
        an otherwise empty frame; it only moves aside once the question
        has been put and the controls are on their way in. Same size, so
        the move is a slide rather than a resize. */
-    centre: { x: 430, y: 112, w: 1059, h: 925 },
+    centre: { x: 413, y: 112, w: 1094, h: 925 },
 
     /* Where Swifty lands to put that question, while the board is
        still centred: bottom left, in front of the board's blank
@@ -755,18 +764,24 @@ window.CFG = (function () {
     /* Where she stands to ask: on this board's top rail, near its left
        end. Same pose and scale as the grid screens — only the spot
        differs, because this board sits further left. */
-    stand: standAt(0.55, 210, 178 + 7 - 300 * 0.55),
+    /* She stands on the grass at the left, exactly as she does on the
+       grid screens — the rail pose is gone along with the band it
+       needed. */
+    stand: STAND,
 
     // the distance selector, mounted as its own component
-    distance: { pos: { x: 1204, y: 419 }, w: 610, h: 407 },
+    /* Stacked above her rather than off to the right: the board takes
+       the whole right of the frame now, so her column is what is left,
+       and it reads control, then her line, then her. */
+    distance: { pos: { x: 20, y: 105 }, w: 610, h: 407 },
 
     /* The triangle-type answer panel takes the slider's place, centred
        on the same footprint so the left column stays put. */
-    options: { pos: { x: 1249, y: 398 }, w: 520 },
+    options: { pos: { x: 65, y: 115 }, w: 520 },
 
     /* And the answer pad takes the same column again, for the
        questions whose answer is typed rather than chosen. */
-    entry: { pos: { x: 1249, y: 330 }, w: 520 }
+    entry: { pos: { x: 65, y: 115 }, w: 520 }
   };
 
   /* -------------------------------------------------------------
@@ -774,7 +789,7 @@ window.CFG = (function () {
      Board on the left, the formula beside it, nobody on screen.
      ------------------------------------------------------------- */
   const RECAP = {
-    grid: { x: 46, y: 142, w: 982, h: 858 },
+    grid: { x: 46, y: 142, w: 1014, h: 858 },
     formula: { x: 1246, y: 372, w: 630 },
     /* Plain "x2" rather than a subscript glyph, and the square root
        written with brackets rather than an overline: both keep to
@@ -792,7 +807,7 @@ window.CFG = (function () {
      narrowed step by step until only |x2 - x1| is left.
      ------------------------------------------------------------- */
   const XAXIS = {
-    grid: { x: 60, y: 250, w: 854, h: 746 },
+    grid: { x: 60, y: 250, w: 882, h: 746 },
     formula: { x: 1110, y: 470, w: 750 },
 
     /* Both points sit on the axis, so their labels stack above it —
@@ -863,6 +878,22 @@ window.CFG = (function () {
     afterCorrect: 2100,       // a question has been answered right
     afterSilent: 900,         // nothing was said; the screen just drew
     afterReveal: 3800         // a worked solution, which takes reading
+  };
+
+  /* The nudge for a child who has stopped on a locate screen. Measured
+     off the artwork: the hand's own ink runs x 488..770, y 484..840 in
+     a 1234 square, and the fingertip — the part that has to land on the
+     point — is at (571, 484). */
+  const NUDGE = {
+    srcW: 1234, srcH: 1234,
+    tip: { x: 571, y: 484 },
+    inkH: 356,            // the hand's height in source pixels
+    height: 210,          // what it renders at on the stage
+    /* The point speaks up first and the hand only follows if that was
+       not enough — a hand arriving straight away would read as being
+       hurried rather than helped. */
+    pulseAfter: 2000,
+    handAfter: 5000
   };
 
   const AUDIO = {
@@ -1204,6 +1235,6 @@ window.CFG = (function () {
     STAGE_W, STAGE_H, ART, SHEETS, SHEET_W, SHEET_H,
     SWIFTY, CHAR_SCALE, ANCHOR, HEAD_TOP, FEET_DY, SHADOW, CLOUD,
     S5_ORIGIN, GRID, STAND, S8_ORIGIN, BOARD, RECAP, XAXIS, YAXIS,
-    BUBBLE, PLAY, START, AUDIO, AUTO, SCRIPT
+    BUBBLE, PLAY, START, NUDGE, AUDIO, AUTO, SCRIPT
   };
 })();

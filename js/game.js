@@ -15,7 +15,7 @@
    'gridPanel', 'gridImg', 'gridAxes', 'standSwifty',
    'qBanner', 'qBannerImg', 'qBannerText', 'qBannerLine',
    'formulaBoard', 'leafLayer', 'fxLayer', 'sceneArt', 'startArt',
-   'startBird', 'startBirdWin', 'startFly', 'startTalk', 'startShadow', 'startSky'
+   'startBird', 'startBirdWin', 'startFly', 'startTalk', 'startShadow', 'startSky', 'nudge'
   ].forEach(function (id) { el[id] = document.getElementById(id); });
 
   /* ---------------- responsive stage ---------------- */
@@ -157,22 +157,21 @@
        put it, then leaves before the controls arrive. She lands at the
        bottom left, in front of the centred board. */
     if (entry.intro === 'measure') {
-      /* She lands on the board's top rail and stays there, the same way
-         she does on the grid screens — so the board no longer has to
-         slide aside to make room for her, and the question stays in her
-         bubble instead of being handed to a banner when she leaves. */
+      /* Exactly the rig the grid screens use — she lands on the grass at
+         the left and the board sits right — so an answering screen is
+         the screens around it plus a control panel, rather than a
+         layout of its own that everything has to rearrange into. */
       const S = C.BOARD.stand;
       return {
         stand: true,
         scale: S.charScale,
-        noShadow: true,
-        anchor: { x: S.pos.x + S.belly.x, y: S.pos.y + S.belly.y },
-        aim:    { x: S.pos.x + S.speak.x, y: S.pos.y + S.speak.y },
+        standBox: { x: S.pos.x, y: S.pos.y, w: S.w, h: S.h },
+        anchor: { x: S.pos.x + S.belly.x,   y: S.pos.y + S.belly.y },
+        aim:    { x: S.pos.x + S.headTop.x, y: S.pos.y + S.headTop.y },
         feetY:  S.pos.y + S.feet.y,
         feetCx: S.pos.x + S.feet.cx,
         inkW:   S.inkW,
-        standBox: { x: S.pos.x, y: S.pos.y, w: S.w, h: S.h },
-        bubble: C.GRID.bubble,
+        bubble: C.GRID.bubbleDown,
         bubbleScale: 1,
         panelBox: { x: C.BOARD.panel.pos.x, y: C.BOARD.panel.pos.y,
                     w: C.BOARD.panel.w, h: C.BOARD.panel.h }
@@ -1463,7 +1462,11 @@
 
       if (i + 1 >= C.SCRIPT.length) return;
       const entry = C.SCRIPT[i] || {};
-      if (entry.task && !(this.task && this.task.done)) return;
+      if (entry.task && !(this.task && this.task.done)) {
+        // nothing more will happen until they tap, so start the clock
+        if (entry.dots && entry.task.target) Hint.arm(entry.task.target);
+        return;
+      }
 
       this.later(function () {
         if (self.index !== i) return;        // something got there first
@@ -1522,6 +1525,7 @@
     goTo: function (i) {
       const self = this;
       this.clearPending();
+      Hint.clear();
       this.index = i;
       this.state = 'entering';
       el.nextBtn.classList.remove('ready');
@@ -1768,11 +1772,8 @@
         Board.setDots(false);
         Board.clearSegment();
 
-        /* 1. the board, already where it stays. It used to arrive
-           centred and slide aside to make room for her; she stands on
-           its rail now and the controls sit off to the side, so there
-           is nothing to move out of the way. */
-        Board.place(geom.panelBox);
+        // 1. the board builds itself in the middle of an empty frame
+        Board.place(C.GRID.centre);
         Board.run(self.later.bind(self), function () {
           Board.shown = true;
 
@@ -1783,7 +1784,16 @@
           Board.runPoints(entry.segment, self.later.bind(self), function () {
             const asks = function () {
 
-              // 3. she flies in, lands on the board's rail, and stays
+              /* 3. it moves aside as she arrives — the same slide the
+                 grid screens use, and for the same reason: there is
+                 someone to share the frame with now. */
+              el.gridPanel.classList.add('sliding');
+              Board.place(geom.panelBox);
+              self.later(function () {
+                el.gridPanel.classList.remove('sliding');
+              }, 700);
+
+              // 4. she flies in, lands on the grass, and stays
               self.flyIn(function () {
                 FX.sparkles(geom.aim.x, geom.aim.y, 7, 170 * geom.scale);
                 Bubble.open(entry.line, function () { self.later(opens, 620); });
@@ -2246,6 +2256,7 @@
     tapPoint: function (gx, gy, node) {
       const t = this.task;
       const at = Board.stagePos(gx, gy);
+      Hint.clear();          // they are answering; the hint has done its job
 
       if (!t || t.done) {
         SFX.blip();
@@ -2390,6 +2401,62 @@
     });
   }
 
+  /* ---------------- the nudge ---------------- */
+  /* For a child who has stopped on a locate screen. The point they are
+     looking for speaks up on its own first; only if that goes unanswered
+     does a hand come down and tap it. Touching anything at all puts the
+     clock back to the start — this is a hint for someone stuck, not a
+     timer to beat, so a child who is still thinking and moving the
+     cursor never sees it. */
+  const Hint = {
+    pulseT: null, handT: null, dot: null, target: null,
+
+    clear: function () {
+      clearTimeout(this.pulseT); clearTimeout(this.handT);
+      this.pulseT = this.handT = null;
+      this.target = null;
+      if (this.dot) { this.dot.classList.remove('hint'); this.dot = null; }
+      el.nudge.classList.add('hidden');
+      el.nudge.classList.remove('tapping');
+    },
+
+    /* Only screens with one right place to point at arm it. */
+    arm: function (target) {
+      const t = target || this.target;
+      this.clear();
+      if (!t) return;
+      this.target = t;
+      const self = this, N = C.NUDGE;
+
+      this.pulseT = setTimeout(function () {
+        const dot = Board.dots.filter(function (d) {
+          return Number(d.dataset.gx) === t.x && Number(d.dataset.gy) === t.y;
+        })[0];
+        if (!dot) return;
+        self.dot = dot;
+        dot.classList.add('hint');
+        SFX.blip();
+      }, N.pulseAfter);
+
+      this.handT = setTimeout(function () {
+        const at = Board.stagePos(t.x, t.y);
+        const k = N.height / N.inkH;          // the hand's ink at its rendered size
+        const st = el.nudge.style;
+        st.width  = N.srcW * k + 'px';
+        st.height = N.srcH * k + 'px';
+        // the fingertip, not the corner, is what lands on the point
+        st.left = (at.x - N.tip.x * k) + 'px';
+        st.top  = (at.y - N.tip.y * k) + 'px';
+        el.nudge.classList.remove('hidden');
+        void el.nudge.offsetWidth;
+        el.nudge.classList.add('tapping');
+      }, N.handAfter);
+    },
+
+    // any activity restarts the wait, if one is running
+    poke: function () { if (this.target) this.arm(this.target); }
+  };
+
   /* ---------------- title screen ---------------- */
   /* Cancellers for the title screen's wind and leaves, run when the
      game starts: #startScreen is taken out of the layout then, and
@@ -2493,6 +2560,9 @@
     el.talkSheet.src = C.ART.swiftyTalk;
     el.standSwifty.src = C.ART.swiftyStand;
     el.playImg.src = C.ART.playButton;
+    el.nudge.src = C.ART.handNudge;
+    el.nudge.style.setProperty('--tipx', (C.NUDGE.tip.x / C.NUDGE.srcW * 100) + '%');
+    el.nudge.style.setProperty('--tipy', (C.NUDGE.tip.y / C.NUDGE.srcH * 100) + '%');
 
     /* Browsers refuse audio before a gesture, so the title screen's
        wind, leaves and landing are silent on a cold load and every
@@ -2511,6 +2581,7 @@
     ['pointerdown', 'keydown', 'touchstart'].forEach(function (ev) {
       document.addEventListener(ev, armAudio, { passive: true });
     });
+    document.addEventListener('pointerdown', function () { Hint.poke(); }, { passive: true });
 
     FX.init(el.fxLayer);
     FX.clouds(el.skyLayer);

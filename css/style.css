@@ -914,6 +914,47 @@ html, body {
    finished her line, as a hint that you can move on. */
 #nextBtn.ready { animation: nudge 1.4s ease-in-out infinite; }
 
+/* ---------------- the nudge ---------------- */
+/* A hand that comes down and taps the point, for a child who has
+   stopped. Positioned by Hint so the fingertip lands on the point
+   itself, which is why the tap scales about that corner rather than
+   the middle — the finger stays put and the hand swings under it. */
+#nudge {
+  position: absolute;
+  z-index: 7;
+  pointer-events: none;
+  transform-origin: var(--tipx, 50%) var(--tipy, 0%);
+  opacity: 0;
+}
+#nudge.tapping { animation: nudgeIn .4s ease-out both, nudgeTap 1.5s ease-in-out .4s infinite; }
+@keyframes nudgeIn {
+  from { opacity: 0; transform: translateY(26px) scale(.86); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+/* Down onto the point, a beat, then back — the pause is what makes it
+   read as tapping rather than bobbing. */
+@keyframes nudgeTap {
+  0%, 62%, 100% { transform: translate(0, 0) scale(1); }
+  16%           { transform: translate(0, 12px) scale(.94); }
+  30%           { transform: translate(0, 12px) scale(.94); }
+  44%           { transform: translate(0, 0) scale(1); }
+}
+
+/* The point it is pointing at, saying so on its own first. */
+#gridAxes .dots.on .gdot.hint {
+  animation: dotHint 1s ease-in-out infinite;
+  fill: #FFB020;
+}
+@keyframes dotHint {
+  0%, 100% { transform: scale(1);   opacity: .9; }
+  50%      { transform: scale(1.9); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #nudge.tapping { animation: nudgeIn .4s ease-out both; }
+  #gridAxes .dots.on .gdot.hint { animation: none; fill: #FFB020; }
+}
+
 /* ---------------- effects layer ---------------- */
 #fxLayer { position: absolute; inset: 0; z-index: 9; pointer-events: none; overflow: hidden; }
 .fx { position: absolute; will-change: transform, opacity; }
