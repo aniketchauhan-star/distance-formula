@@ -1760,19 +1760,26 @@
          the board move aside for the banner and the slider. */
       const runMeasure = function () {
         self.state = 'entering';
-        el.gridPanel.classList.add('hidden');
         el.qBanner.classList.add('hidden');
         el.qBannerLine.textContent = '';
-        el.standSwifty.classList.add('hidden');
-        el.birdWin.classList.add('hidden');
         if (Sel) Sel.hide();
-        Board.shown = false;
+
+        /* A screen that follows straight on from the one before keeps
+           the board it inherited, and her with it: no sweep, no
+           rebuild, no slide. The points simply appear on the board
+           already in front of them, which is the whole difference
+           between this and a fresh question. */
+        const inherited = entry.transition !== 'leaves' && Board.shown;
+        if (!inherited) {
+          el.gridPanel.classList.add('hidden');
+          el.standSwifty.classList.add('hidden');
+          el.birdWin.classList.add('hidden');
+          Board.shown = false;
+        }
         Board.setDots(false);
         Board.clearSegment();
 
-        // 1. the board builds itself in the middle of an empty frame
-        Board.place(C.GRID.centre);
-        Board.run(self.later.bind(self), function () {
+        const plot = function () {
           Board.shown = true;
 
           /* 2. the points, then their coordinates, then their letters,
@@ -1781,20 +1788,10 @@
           const measuringLeg = entry.task && entry.task.measureLeg != null;
           Board.runPoints(entry.segment, self.later.bind(self), function () {
             const asks = function () {
-
-              /* 3. it moves aside as she arrives — the same slide the
-                 grid screens use, and for the same reason: there is
-                 someone to share the frame with now. */
-              el.gridPanel.classList.add('sliding');
-              Board.place(geom.panelBox);
-              self.later(function () {
-                el.gridPanel.classList.remove('sliding');
-              }, 700);
-
-              /* 4. she flies in, puts the question, and leaves — the
-                 control takes the space she was standing in, so she has
-                 to be out of the frame before it arrives. */
-              self.flyIn(function () {
+              /* She puts the question and leaves — the control takes the
+                 space she was standing in, so she has to be out of the
+                 frame before it arrives. */
+              const speak = function () {
                 FX.sparkles(geom.aim.x, geom.aim.y, 7, 170 * geom.scale);
                 Bubble.open(entry.line, function () {
                   self.later(function () {
@@ -1802,7 +1799,23 @@
                     self.flyOut(opens);
                   }, 900);
                 });
-              });
+              };
+
+              if (inherited) {
+                // already standing here from the screen before
+                self.stay(speak);
+                return;
+              }
+
+              /* Otherwise the board moves aside as she arrives — the
+                 same slide the grid screens use, and for the same
+                 reason: there is someone to share the frame with now. */
+              el.gridPanel.classList.add('sliding');
+              Board.place(geom.panelBox);
+              self.later(function () {
+                el.gridPanel.classList.remove('sliding');
+              }, 700);
+              self.flyIn(speak);
             };
             /* A leg question draws every leg first, the one it is about
                included: the triangle is being built up across these
@@ -1812,7 +1825,16 @@
             if (entry.legs) Board.runLegs(entry.legs, self.later.bind(self), asks);
             else asks();
           }, measuringLeg);
-        });
+        };
+
+        if (inherited) {
+          Board.place(geom.panelBox);
+          plot();
+        } else {
+          // the board builds itself in the middle of an empty frame
+          Board.place(C.GRID.centre);
+          Board.run(self.later.bind(self), plot);
+        }
       };
 
       /* 4. the controls arrive. The board does not move and there is no

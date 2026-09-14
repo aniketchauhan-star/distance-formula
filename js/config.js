@@ -890,7 +890,7 @@ window.CFG = (function () {
     srcW: 1234, srcH: 1234,
     tip: { x: 571, y: 484 },
     inkH: 356,            // the hand's height in source pixels
-    height: 128,          // what it renders at on the stage: about two cells
+    height: 88,           // what it renders at on the stage: under a cell and a half
     /* The point speaks up first and the hand only follows if that was
        not enough — a hand arriving straight away would read as being
        hurried rather than helped. */
@@ -956,8 +956,11 @@ window.CFG = (function () {
     /* 8 — leaves sweep the screen; behind them Swifty leaves, the
        board re-seats itself and the empty banner drops in. No
        question and nothing to locate yet. */
+    /* No sweep between 7 and 8: this question is asked on the very board
+       the point was just located on, so the board and Swifty both stay
+       and only the two points arrive. */
     { id: 8, line: 'What is the distance between points A and B?', entrance: 'none',
-      layout: 'board', transition: 'leaves', distance: true, intro: 'measure',
+      layout: 'board', distance: true, intro: 'measure',
 
       /* Plotted first, then joined by a dashed guide, and only then is
          the question asked. The guide shows which span is being asked

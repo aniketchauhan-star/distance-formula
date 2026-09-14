@@ -316,30 +316,6 @@ html, body {
 }
 #bubble.tail-left #bubbleImg::after { top: 50%; }
 
-/* One leaf caught on each of two opposite corners, the same artwork
-   the board and the question bar use. */
-#bubble .b-leaf {
-  position: absolute;
-  width: var(--leaf, 62px);
-  height: auto;
-  pointer-events: none;
-  filter: drop-shadow(0 2px 3px rgba(120, 60, 10, .3));
-}
-#bubble .b-leaf-tl {
-  left: calc(var(--leaf, 62px) * .20);
-  top:  calc(var(--leaf, 62px) * -.42);
-  transform: rotate(-22deg);
-}
-/* Hung off the balloon's own bottom-right corner, not the ink box's:
-   the box runs on down past the balloon to carry the tail, so a
-   bottom-anchored leaf ends up floating below the corner rather than
-   sitting on it. */
-#bubble .b-leaf-br {
-  right: calc(var(--leaf, 62px) * -.22);
-  top:   calc(var(--bodyH) - var(--leaf, 62px) * .62);
-  transform: rotate(24deg);
-}
-
 #bubbleText {
   position: absolute;
   display: flex; align-items: center; justify-content: center;
@@ -676,7 +652,15 @@ html, body {
   text-anchor: middle; dominant-baseline: middle;
   transform-box: fill-box; transform-origin: center;
 }
-#gridAxes .glabel.pop { animation: labelPop .56s cubic-bezier(.22, .68, .3, 1) forwards; }
+/* The axis numbers pop out where they sit — no travel, no settle. The
+   plotted-point labels keep labelPop, which rises them into place;
+   these are simply revealed, one after the next. */
+#gridAxes .glabel.pop { animation: numPop .34s cubic-bezier(.25, 1.6, .45, 1) forwards; }
+@keyframes numPop {
+  0%   { opacity: 0; transform: scale(.35); }
+  60%  { opacity: 1; transform: scale(1.16); }
+  100% { opacity: 1; transform: scale(1); }
+}
 
 /* screen 5 resting pose */
 #standSwifty { position: absolute; display: block; }
