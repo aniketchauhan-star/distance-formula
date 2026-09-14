@@ -358,56 +358,64 @@ window.FX = (function () {
      One leaf image serves the whole drift: each copy gets its own
      size, tilt, spin and a filter that shifts it along the autumn
      range, so nothing reads as the same leaf twice. */
-  const LEAF_TINT = [
-    'none',
-    'hue-rotate(-12deg) saturate(1.18)',                  // toward red
-    'hue-rotate(14deg) brightness(1.07)',                 // toward gold
-    'hue-rotate(24deg) saturate(.88) brightness(1.13)',   // pale yellow
-    'saturate(1.25) brightness(.9)',                      // deep and dark
-    'hue-rotate(-20deg) saturate(1.1) brightness(.95)'    // rust
-  ];
-
   const LEAF_DUR = 2600;          // the whole sweep
   const LEAF_COVER = 0.51;        // where it is solid, and the swap lands
+
+  /* Three passes over the frame, each a grid whose cells are filled one
+     leaf apiece and jittered inside themselves. Scattering at random
+     leaves holes — with a leaf's own gaps between its lobes, thin spots
+     show the scene straight through — so the resting places are dealt
+     out rather than drawn, and the passes are offset from each other so
+     one pass's seams fall in the middle of the next pass's cells. */
+  const LEAF_COLS = 7, LEAF_ROWS = 5, LEAF_PASSES = 3;
+  const LEAF_AREA = { x: -240, y: -240, w: 2400, h: 1560 };
 
   function leaves(el, onCover, onDone) {
     el.innerHTML = '';
     el.classList.remove('hidden');
 
-    /* A warm veil under the drift guarantees the swap is never seen,
-       however the leaves happen to fall. */
-    const veil = document.createElement('div');
-    veil.className = 'leaf-veil';
-    veil.style.animationDuration = LEAF_DUR + 'ms';
-    el.appendChild(veil);
-
     const src = window.CFG.ART.leaf;
     let maxDelay = 0;
 
-    for (let i = 0; i < 92; i++) {
-      const size = rnd(140, 380);
+    const cw = LEAF_AREA.w / LEAF_COLS, chh = LEAF_AREA.h / LEAF_ROWS;
+    const spots = [];
+    for (let pass = 0; pass < LEAF_PASSES; pass++) {
+      // half a cell of stagger per pass, so seams never line up
+      const ox = (pass % 2) * cw * 0.5, oy = (pass % 3) * chh * 0.34;
+      for (let r = 0; r < LEAF_ROWS; r++) {
+        for (let c = 0; c < LEAF_COLS; c++) {
+          spots.push({
+            x: LEAF_AREA.x + ox + c * cw + rnd(-cw * 0.18, cw * 0.18),
+            y: LEAF_AREA.y + oy + r * chh + rnd(-chh * 0.18, chh * 0.18)
+          });
+        }
+      }
+    }
+
+    for (let i = 0; i < spots.length; i++) {
+      // big enough that a cell is covered even by the leaf's narrow axis
+      const size = rnd(300, 480);
       const d = document.createElement('img');
       d.className = 'leaf';
       d.src = src;
       d.alt = '';
       d.style.width = size + 'px';
-      d.style.filter = pick(LEAF_TINT);
 
-      // where it sits when the frame is full
-      d.style.left = rnd(-160, 1920) + 'px';
-      d.style.top  = rnd(-160, 1080) + 'px';
+      // where it sits when the frame is full: its own cell, centred
+      d.style.left = (spots[i].x - size / 2) + 'px';
+      d.style.top  = (spots[i].y - size * 0.44) + 'px';
 
       // in on the wind from the left, out to the right and downward
       d.style.setProperty('--x0', -rnd(700, 2700) + 'px');
       d.style.setProperty('--y0', rnd(-520, 420) + 'px');
-      d.style.setProperty('--x1', rnd(-70, 70) + 'px');
-      d.style.setProperty('--y1', rnd(-50, 50) + 'px');
+      d.style.setProperty('--x1', rnd(-24, 24) + 'px');
+      d.style.setProperty('--y1', rnd(-18, 18) + 'px');
       d.style.setProperty('--x2', rnd(1000, 2900) + 'px');
       d.style.setProperty('--y2', rnd(240, 920) + 'px');
       d.style.setProperty('--r0', rnd(-300, 300) + 'deg');
       d.style.setProperty('--r1', rnd(-45, 45) + 'deg');
       d.style.setProperty('--r2', rnd(-560, 560) + 'deg');
-      d.style.setProperty('--s0', rnd(0.62, 0.95));
+      d.style.setProperty('--s0', rnd(0.72, 1.0));
       d.style.setProperty('--s2', rnd(0.8, 1.2));
 
       /* Staggered so the gust arrives in waves rather than as one

@@ -888,12 +888,6 @@ html, body {
   .drift-host, .gust-host { display: none; }
 }
 
-.leaf-veil {
-  position: absolute; inset: -10%;
-  background: radial-gradient(ellipse at 50% 45%, #F6AE43 0%, #E2801F 54%, #BE5E10 100%);
-  opacity: 0;
-  animation-name: veilCover; animation-timing-function: ease-in-out; animation-fill-mode: both;
-}
 /* Each leaf is the artwork, sized and tinted per copy by FX.leaves(). */
 .leaf {
   position: absolute;
