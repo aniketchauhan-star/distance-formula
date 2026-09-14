@@ -650,12 +650,16 @@ html, body {
   font-family: 'Nunito', system-ui, sans-serif;
   font-weight: 600;
   text-anchor: middle; dominant-baseline: middle;
-  transform-box: fill-box; transform-origin: center;
+  /* view-box, with each label's own point set as the origin from the
+     code that places it — see Board.build(). fill-box on SVG text is
+     not dependable, and when it fails the origin silently becomes the
+     centre of the whole board. */
+  transform-box: view-box;
 }
 /* The axis numbers pop out where they sit — no travel, no settle. The
    plotted-point labels keep labelPop, which rises them into place;
    these are simply revealed, one after the next. */
-#gridAxes .glabel.pop { animation: numPop .3s ease-out forwards; }
+#gridAxes .glabel.pop { animation: numPop .42s ease-out forwards; }
 @keyframes numPop {
   0%   { opacity: 0; transform: scale(0); }
   55%  { opacity: 1; transform: scale(1.25); }

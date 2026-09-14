@@ -959,7 +959,7 @@ window.CFG = (function () {
     /* No sweep between 7 and 8: this question is asked on the very board
        the point was just located on, so the board and Swifty both stay
        and only the two points arrive. */
-    { id: 8, line: 'What is the distance between points A and B?', entrance: 'none',
+    { id: 8, line: 'What is the distance between two points?', entrance: 'none',
       layout: 'board', distance: true, intro: 'measure',
 
       /* Plotted first, then joined by a dashed guide, and only then is
@@ -983,19 +983,19 @@ window.CFG = (function () {
     /* 9-11 — three more of the same, staying on the board. Two of them
        are vertical segments, so the count-out stacks its squares
        beside the line instead of hanging them beneath it. */
-    { id: 9, line: 'How far apart are A and B?', entrance: 'none', layout: 'board',
+    { id: 9, line: 'What is the distance between two points?', entrance: 'none', layout: 'board',
       distance: true, intro: 'measure',
       segment: { a: { x: 4, y: 3, name: 'A' }, b: { x: -3, y: 3, name: 'B' } , dash: true},
       task: { kind: 'distance', correctLine: 'Correct!',
               showLine: 'Let’s count the units.', tryAgainLine: 'Now try again!' } },
 
-    { id: 10, line: 'How far apart are A and B?', entrance: 'none', layout: 'board',
+    { id: 10, line: 'What is the distance between two points?', entrance: 'none', layout: 'board',
       distance: true, intro: 'measure',
       segment: { a: { x: 1, y: 2, name: 'A' }, b: { x: 1, y: -3, name: 'B' } , dash: true},
       task: { kind: 'distance', correctLine: 'Correct!',
               showLine: 'Let’s count the units.', tryAgainLine: 'Now try again!' } },
 
-    { id: 11, line: 'How far apart are A and B?', entrance: 'none', layout: 'board',
+    { id: 11, line: 'What is the distance between two points?', entrance: 'none', layout: 'board',
       distance: true, intro: 'measure',
       segment: { a: { x: -2, y: 3, name: 'A' }, b: { x: -2, y: 1, name: 'B' } , dash: true},
       task: { kind: 'distance', correctLine: 'Correct!',
@@ -1111,7 +1111,7 @@ window.CFG = (function () {
        Pythagoras can be applied. Both are Pythagorean triples, so the
        answer comes out whole — 3-4-5 first, then the same shape
        doubled to 6-8-10. */
-    { id: 19, line: 'Find the distance AB.', range: { min: 0, max: 12 }, entrance: 'none',
+    { id: 19, line: 'What is the distance between two points?', range: { min: 0, max: 12 }, entrance: 'none',
       layout: 'board', transition: 'leaves', intro: 'measure', entry: true,
       segment: { a: { x: -2, y: 2, name: 'A' },
                  b: { x:  2, y: 5, name: 'B', nameDx: 40, nameDy: 8 } , dash: true},
@@ -1126,7 +1126,7 @@ window.CFG = (function () {
                 'The sides are 4 and 3. What is \u221a(4\u00b2 + 3\u00b2)?'
               ] } },
 
-    { id: 20, line: 'Now find AB.', range: { min: 0, max: 12 }, entrance: 'none',
+    { id: 20, line: 'What is the distance between two points?', range: { min: 0, max: 12 }, entrance: 'none',
       layout: 'board', transition: 'leaves', intro: 'measure', entry: true,
       segment: { a: { x: -3, y:  3, name: 'A' },
                  b: { x:  5, y: -3, name: 'B', nameDx: 40, nameDy: 8 } , dash: true},

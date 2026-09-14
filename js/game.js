@@ -571,6 +571,14 @@
       const label = function (txt, x, y, size) {
         const t = document.createElementNS(NS, 'text');
         t.setAttribute('x', x); t.setAttribute('y', y);
+        /* Scale it about its own spot, in the SVG's own units. Relying
+           on `transform-box: fill-box` here is what stops the pop being
+           seen in some browsers — Safari has long been unreliable about
+           the fill box of an SVG <text>, and when it falls back the
+           origin becomes the whole viewBox's centre, so the label flies
+           in from the middle of the board instead of growing in place.
+           Naming the point outright removes the guesswork. */
+        t.style.transformOrigin = x + 'px ' + y + 'px';
         t.setAttribute('fill', G.ink);
         t.setAttribute('font-size', size || G.labelSize);
         t.setAttribute('class', 'glabel');
@@ -1386,7 +1394,7 @@
       // numbers only once every line and arrowhead is in
       later(function () {
         self.labels.forEach(function (t, i) {
-          later(function () { t.classList.add('pop'); SFX.tick(i); }, i * 46);
+          later(function () { t.classList.add('pop'); SFX.tick(i); }, i * 60);
         });
       }, 1860);
 
