@@ -348,15 +348,40 @@ window.CFG = (function () {
   };
 
   const GRID = {
-    /* The space the board is drawn in, and the SVG viewBox: kept at
-       the old artwork's pixel size so every measured offset below
-       still means what it did when it was taken off the image. */
-    w: 1507, h: 1044,
+    /* The space the board is drawn in, and the SVG viewBox. It used to
+       be the old artwork's 1507 x 1044, which showed x -12.8..12.7 and
+       y -8.8..8.8 while only ever labelling x -9..9 and y -6..6 — close
+       to four unlabelled columns of padding on each side.
 
-    /* The updated board is bigger than the frame allows, so it is
-       fitted into the footprint the old one occupied — same place,
-       same size on screen. */
-    box: { x: 593, y: 92, w: 1299, h: 896 },
+       Trimmed to just what the labels need plus the axis overshoot,
+       the arrowhead and the x/y glyph. Nothing measured below moves:
+       every offset is relative to the origin, so trimming the frame
+       only stops the panel drawing cells nobody names, and the same
+       range is then drawn at 56px a cell instead of 51px. */
+    w: 1324, h: 996,
+
+    /* Centred, and filling everything below the band that carries
+       Swifty and her line. Square cells tie the panel's aspect to the
+       frame's, so height is what limits it: the band costs 130px and
+       the rest is grid. */
+    box: { x: 331, y: 130, w: 1257, h: 938 },
+
+    /* A wide, shallow bubble for these screens instead of the tall one
+       she uses elsewhere. Two reasons: the band above the panel is only
+       130px, and at 910px the text plate puts every line these screens
+       speak on a single line, which is what keeps the band shallow.
+
+       Only the balloon has to clear the panel — the tail is meant to
+       cross into it, since that is where her head is. */
+    bubble: Object.assign({}, BUBBLE, {
+      ink: { w: 1000, h: 179 },
+      tip: { x: 150, y: 178 },      // 15% across, on her head below
+      bodyH: 112,
+      radius: 38,
+      leaf: 48,
+      // plate x 45..955, y 22..90 — 10px inside the frame all round
+      text: { left: 0.045, top: 0.12291, width: 0.91, height: 0.37989 }
+    }),
 
     /* Axis geometry in panel-local pixels, measured off the drawn
        grid. The artwork is 22 x 14 cells at ~61px: 23 vertical lines
@@ -366,7 +391,7 @@ window.CFG = (function () {
     /* The origin sits at the centre of the cream, so the axes are
        centred in the grid rather than merely centred on their own
        extents. */
-    originX: 754, originY: 521.5,
+    originX: 662, originY: 498,
     /* Sized so 12 cells each way across and 8 each way down exactly
        fill the cream. Down, that leaves a 12px margin. Across, the
        outermost column on each side is left undrawn, so the sides
@@ -563,14 +588,22 @@ window.CFG = (function () {
   };
 
   /* Standing pose used once she has landed on screen 5. */
+  /* She stands on the grid itself now, at its top left, rather than in
+     a column of her own beside it — that column was most of the wasted
+     space. Drawn at 0.62 of the artwork's size so she sits in the
+     panel's empty upper left without reaching the plotted points, which
+     on these screens are all right of centre and low.
+
+     Every offset is in rendered stage pixels, so they scale with her. */
+  const STAND_S = 0.62;
   const STAND = {
     src: ART.swiftyStand,
-    w: 398, h: 307,
-    pos: place(241, 1761),          // -> 44, 647
-    headTop: { x: 206, y: 3 },      // crest tuft, sprite-local
-    belly:   { x: 223, y: 228.4 },  // matches the sheet's belly anchor
-    feet:    { y: 300, cx: 208 },
-    inkW: 335
+    w: 398 * STAND_S, h: 307 * STAND_S,
+    pos: { x: 360, y: 180 },
+    headTop: { x: 206 * STAND_S, y: 3 * STAND_S },
+    belly:   { x: 223 * STAND_S, y: 228.4 * STAND_S },
+    feet:    { y: 300 * STAND_S, cx: 208 * STAND_S },
+    inkW: 335 * STAND_S
   };
 
   /* -------------------------------------------------------------
@@ -599,7 +632,7 @@ window.CFG = (function () {
 
   const BOARD = {
     // the same grid art, re-seated and a little smaller
-    panel: { pos: flipX(place8(850, 2422), 1239), w: 1239, h: 856 },
+    panel: { pos: { x: flipX(place8(850, 2422), 1239).x, y: 143 }, w: 1239, h: 925 },
 
     /* Swifty has left, so the question moves out of her speech bubble
        and into the banner. Its cream interior runs x[41..981]
@@ -642,7 +675,7 @@ window.CFG = (function () {
        an otherwise empty frame; it only moves aside once the question
        has been put and the controls are on their way in. Same size, so
        the move is a slide rather than a resize. */
-    centre: { x: 341, y: 112, w: 1239, h: 856 },
+    centre: { x: 341, y: 112, w: 1239, h: 925 },
 
     /* Where Swifty lands to put that question, while the board is
        still centred: bottom left, in front of the board's blank
@@ -667,7 +700,7 @@ window.CFG = (function () {
      Board on the left, the formula beside it, nobody on screen.
      ------------------------------------------------------------- */
   const RECAP = {
-    grid: { x: 46, y: 142, w: 1150, h: 797 },
+    grid: { x: 46, y: 142, w: 1150, h: 858 },
     formula: { x: 1246, y: 372, w: 630 },
     /* Plain "x2" rather than a subscript glyph, and the square root
        written with brackets rather than an overline: both keep to
@@ -685,7 +718,7 @@ window.CFG = (function () {
      narrowed step by step until only |x2 - x1| is left.
      ------------------------------------------------------------- */
   const XAXIS = {
-    grid: { x: 60, y: 250, w: 1000, h: 693 },
+    grid: { x: 60, y: 250, w: 1000, h: 746 },
     formula: { x: 1110, y: 470, w: 750 },
 
     /* Both points sit on the axis, so their labels stack above it —

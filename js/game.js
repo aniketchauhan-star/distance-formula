@@ -190,7 +190,11 @@
         feetY:  S.pos.y + S.feet.y,
         feetCx: S.pos.x + S.feet.cx,
         inkW:   S.inkW,
-        bubbleScale: entry.bubbleScale || C.BUBBLE.scale
+        /* Its own wide bubble, at full size: the screens' own
+           bubbleScale was tuning the tall one down to fit beside the
+           board, and there is no board beside her any more. */
+        bubble: C.GRID.bubble,
+        bubbleScale: 1
       };
     }
     return {
@@ -222,7 +226,9 @@
     /* Speech bubble: the tail tip is driven onto the top of her head
        (sinking `biteIntoHead` px into it) so the two touch instead of
        the bubble floating above. */
-    const B = C.BUBBLE, s = g.bubbleScale;
+    /* A layout may bring its own bubble shape — the grid screens use a
+       wide, shallow one that fits the band above the panel. */
+    const B = g.bubble || C.BUBBLE, s = g.bubbleScale;
     const tip = { x: g.aim.x, y: g.aim.y + B.biteIntoHead };
     const inkW = B.ink.w * s, inkH = B.ink.h * s;
     const tipX = B.tip.x * s, tipY = B.tip.y * s;
