@@ -355,19 +355,24 @@ window.FX = (function () {
      `onCover` fires during that beat, which is when the scene behind
      gets swapped, and `onDone` once the frame is clear again.
 
-     One leaf image serves the whole drift: each copy gets its own
-     size, tilt, spin and a filter that shifts it along the autumn
-     range, so nothing reads as the same leaf twice. */
+     One leaf image serves the whole sweep, at its own colours: each copy
+     gets its own size, tilt and spin, which is enough that nothing
+     reads as the same leaf twice without tinting any of them. */
   const LEAF_DUR = 2600;          // the whole sweep
   const LEAF_COVER = 0.51;        // where it is solid, and the swap lands
 
-  /* Three passes over the frame, each a grid whose cells are filled one
+  /* Four passes over the frame, each a grid whose cells are filled one
      leaf apiece and jittered inside themselves. Scattering at random
      leaves holes — with a leaf's own gaps between its lobes, thin spots
      show the scene straight through — so the resting places are dealt
      out rather than drawn, and the passes are offset from each other so
      one pass's seams fall in the middle of the next pass's cells. */
-  const LEAF_COLS = 7, LEAF_ROWS = 5, LEAF_PASSES = 3;
+  /* 9 x 6 cells, four passes — 216 leaves. Simulated against the leaf's
+     own alpha, that covers the frame completely: fewer passes or a
+     coarser grid leaves pinholes the scene shows through, and this is
+     the point of the sweep, since the whole screen is rebuilt behind
+     it. */
+  const LEAF_COLS = 9, LEAF_ROWS = 6, LEAF_PASSES = 4;
   const LEAF_AREA = { x: -240, y: -240, w: 2400, h: 1560 };
 
   function leaves(el, onCover, onDone) {
@@ -385,8 +390,8 @@ window.FX = (function () {
       for (let r = 0; r < LEAF_ROWS; r++) {
         for (let c = 0; c < LEAF_COLS; c++) {
           spots.push({
-            x: LEAF_AREA.x + ox + c * cw + rnd(-cw * 0.18, cw * 0.18),
-            y: LEAF_AREA.y + oy + r * chh + rnd(-chh * 0.18, chh * 0.18)
+            x: LEAF_AREA.x + ox + c * cw + rnd(-cw * 0.12, cw * 0.12),
+            y: LEAF_AREA.y + oy + r * chh + rnd(-chh * 0.12, chh * 0.12)
           });
         }
       }
@@ -394,7 +399,7 @@ window.FX = (function () {
 
     for (let i = 0; i < spots.length; i++) {
       // big enough that a cell is covered even by the leaf's narrow axis
-      const size = rnd(300, 480);
+      const size = rnd(340, 540);
       const d = document.createElement('img');
       d.className = 'leaf';
       d.src = src;

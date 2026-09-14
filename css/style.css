@@ -344,10 +344,9 @@ html, body {
   position: absolute;
   display: flex; align-items: center; justify-content: center;
   text-align: center;
-  font-family: 'Lilita One', system-ui, sans-serif;
-  /* 1.3 rather than a display face's usual tight setting: most lines
-     here run to two, and at 1.24 the two sat almost on top of each other. */
-  font-weight: 400; font-size: 32px; line-height: 1.3;
+  font-family: 'Nunito', system-ui, sans-serif;
+  /* 1.3, so a line that does run to two has room between them. */
+  font-weight: 600; font-size: 32px; line-height: 1.3;
   color: #123A72;
   letter-spacing: .2px;
   overflow: hidden;
@@ -463,17 +462,6 @@ html, body {
 
 #gridAxes  { position: absolute; left: 0; top: 0; overflow: visible; }
 
-/* Each axis number is drawn twice — a fat cream stroke first, then the
-   ink over it — so the gridline behind it is knocked out and the digit
-   reads against clean paper instead of having a line through it.
-   paint-order is what puts the stroke underneath; without it the stroke
-   would sit on top and eat the glyph. */
-#gridAxes .glabel {
-  paint-order: stroke fill;
-  stroke: var(--paper-inner, #FFFDF1);
-  stroke-width: 9px;
-  stroke-linejoin: round;
-}
 
 /* the board arriving out of nowhere */
 #gridPanel.magic-in { animation: magicIn .85s cubic-bezier(.22, 1.35, .4, 1) both; }
@@ -805,7 +793,8 @@ html, body {
   position: absolute;
   display: flex; align-items: center; justify-content: center;
   text-align: center;
-  font-family: 'Lilita One', system-ui, sans-serif;
+  font-family: 'Nunito', system-ui, sans-serif;
+  font-weight: 600;
   color: #14418c;
   overflow: hidden;
 }

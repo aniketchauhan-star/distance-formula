@@ -363,16 +363,24 @@ window.CFG = (function () {
        every offset is relative to the origin, so trimming the frame
        only stops the panel drawing cells nobody names, and the same
        range is then drawn at 56px a cell instead of 51px. */
-    w: 969, h: 990,
+    w: 1124, h: 990,
 
     /* Centred, and filling everything below the band that carries
        Swifty and her line. Square cells tie the panel's aspect to the
        frame's, so height is what limits it: the band costs 178px and
        the rest is grid. */
-    /* The whole right of the frame, floor to ceiling. Nothing sits above
-       it any more, so height is no longer rationed by a band — which is
-       what lets the squares grow from 53px to 63px. The left is hers. */
-    box: { x: 866, y: 12, w: 1042, h: 1056 },
+    /* Floor to ceiling, and reaching left as far as her bubble allows.
+       The frame was widened symmetrically to do it, so the board grew
+       into the dead space without the axes leaving its centre — the
+       extra columns either side of 6 are unnumbered grid. */
+    box: { x: 700, y: 12, w: 1208, h: 1056 },
+
+    /* Where the board builds itself before anyone is on screen: the
+       middle of an empty frame, since it is the whole picture until
+       there is someone to share it with. It moves to `box` as she
+       flies in. Same size either end, so the slide moves two offsets
+       and the grid art never rescales mid-flight. */
+    centre: { x: (STAGE_W - 1208) / 2, y: 12, w: 1208, h: 1056 },
 
     /* A wide, shallow bubble for these screens instead of the tall one
        she uses elsewhere. Two reasons: the band above the panel is only
@@ -392,7 +400,7 @@ window.CFG = (function () {
       leaf: 44,
       size: 32,
       // bounded so the balloon never reaches the board at x 866
-      autoWidth: { min: 320, max: 620, pad: 46 },
+      autoWidth: { min: 320, max: 560, pad: 46 },
       text: { left: 0.06, top: 0.1325, width: 0.88, height: 0.4096 }
     }),
 
@@ -429,7 +437,7 @@ window.CFG = (function () {
     /* The origin sits at the centre of the cream, so the axes are
        centred in the grid rather than merely centred on their own
        extents. */
-    originX: 484.5, originY: 495,
+    originX: 562, originY: 495,
     /* Sized so 12 cells each way across and 8 each way down exactly
        fill the cream. Down, that leaves a 12px margin. Across, the
        outermost column on each side is left undrawn, so the sides
@@ -490,7 +498,7 @@ window.CFG = (function () {
       edgeW: 2,
       frameW: 13,
       hiW: 3,               // the pale ring just inside the frame
-      gxFrom: -8, gxTo: 8,
+      gxFrom: -9, gxTo: 9,
       gyFrom: -8,  gyTo: 8,
 
       /* Autumn leaves pinned to two corners, sized off the panel so
@@ -660,7 +668,7 @@ window.CFG = (function () {
 
   /* The grid screens put her back on the grass at the left, full size,
      and give the whole right of the frame to the board. */
-  const STAND = standAt(1, 170, 660);
+  const STAND = standAt(1, 60, 660);
 
   /* -------------------------------------------------------------
      SCREEN 8 — board on its own, question in a banner
@@ -693,7 +701,7 @@ window.CFG = (function () {
        board's rail too. Aspect matches the frame so cells stay square. */
     /* Board and controls read as one group, centred together: 878 of
        board, a gap, then the 610 of the control column. */
-    panel: { pos: { x: 166, y: 178 }, w: 878, h: 890 },
+    panel: { pos: { x: 105, y: 178 }, w: 1019, h: 890 },
 
     /* Swifty has left, so the question moves out of her speech bubble
        and into the banner. Its cream interior runs x[41..981]
@@ -736,7 +744,7 @@ window.CFG = (function () {
        an otherwise empty frame; it only moves aside once the question
        has been put and the controls are on their way in. Same size, so
        the move is a slide rather than a resize. */
-    centre: { x: 503, y: 112, w: 913, h: 925 },
+    centre: { x: 430, y: 112, w: 1059, h: 925 },
 
     /* Where Swifty lands to put that question, while the board is
        still centred: bottom left, in front of the board's blank
@@ -747,18 +755,18 @@ window.CFG = (function () {
     /* Where she stands to ask: on this board's top rail, near its left
        end. Same pose and scale as the grid screens — only the spot
        differs, because this board sits further left. */
-    stand: standAt(0.55, 231, 178 + 7 - 300 * 0.55),
+    stand: standAt(0.55, 210, 178 + 7 - 300 * 0.55),
 
     // the distance selector, mounted as its own component
-    distance: { pos: { x: 1144, y: 419 }, w: 610, h: 407 },
+    distance: { pos: { x: 1204, y: 419 }, w: 610, h: 407 },
 
     /* The triangle-type answer panel takes the slider's place, centred
        on the same footprint so the left column stays put. */
-    options: { pos: { x: 1189, y: 398 }, w: 520 },
+    options: { pos: { x: 1249, y: 398 }, w: 520 },
 
     /* And the answer pad takes the same column again, for the
        questions whose answer is typed rather than chosen. */
-    entry: { pos: { x: 1189, y: 330 }, w: 520 }
+    entry: { pos: { x: 1249, y: 330 }, w: 520 }
   };
 
   /* -------------------------------------------------------------
@@ -766,7 +774,7 @@ window.CFG = (function () {
      Board on the left, the formula beside it, nobody on screen.
      ------------------------------------------------------------- */
   const RECAP = {
-    grid: { x: 46, y: 142, w: 847, h: 858 },
+    grid: { x: 46, y: 142, w: 982, h: 858 },
     formula: { x: 1246, y: 372, w: 630 },
     /* Plain "x2" rather than a subscript glyph, and the square root
        written with brackets rather than an overline: both keep to
@@ -784,7 +792,7 @@ window.CFG = (function () {
      narrowed step by step until only |x2 - x1| is left.
      ------------------------------------------------------------- */
   const XAXIS = {
-    grid: { x: 60, y: 250, w: 736, h: 746 },
+    grid: { x: 60, y: 250, w: 854, h: 746 },
     formula: { x: 1110, y: 470, w: 750 },
 
     /* Both points sit on the axis, so their labels stack above it —

@@ -1853,8 +1853,22 @@
       /* Plot the segment before asking about it, on any screen that
          has one. */
       if (entry.layout === 'grid' && !Board.shown) {
+        /* A screen that brings her in builds the board centred first
+           and only moves it aside once she is on her way — until then
+           there is nobody to share the frame with, so the board has no
+           reason to sit off to one side. Screens where she is already
+           standing inherit the board where it is and skip all this. */
+        const slides = entry.entrance === 'fly';
+        if (slides) Board.place(C.GRID.centre);
         Board.run(this.later.bind(this), function () {
           Board.setDots(!!entry.dots);
+          if (slides) {
+            el.gridPanel.classList.add('sliding');
+            Board.place(C.GRID.box);
+            self.later(function () {
+              el.gridPanel.classList.remove('sliding');
+            }, 700);
+          }
           plotThen(arrive);
         });
       } else {
