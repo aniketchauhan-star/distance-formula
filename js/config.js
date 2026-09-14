@@ -606,7 +606,10 @@ window.CFG = (function () {
        coloured line joining it, used to break a diagonal into a
        horizontal and a vertical step. */
     leg: {
-      color: '#B3261E',
+      /* A deep teal rather than red: red read as a mistake next to the
+         green "found" markers and the navy hypotenuse, and it is the
+         one colour in the game that means something is wrong. */
+      color: '#2F8F6F',
       width: 7,
       dotR: 11,
       coordDx: 84,        // coordinates to the right of the corner
@@ -628,12 +631,11 @@ window.CFG = (function () {
       strokeW: 3,
       flash: '#FFD747',
       stepMs: 380,           // pause between squares, so they can be counted
-      /* The total sits inside the shaded band rather than above the
-         line: above, it collides with the two coordinate labels, and
-         would collide worse on a shorter segment. Inside, it also ties
-         the number directly to the squares being counted. */
+      /* The total sits above the line, with nothing behind it — the
+         coordinates it used to collide with are now under their points,
+         so the space above the segment is free. */
       labelSize: 32,
-      labelDy: 31,           // horizontal: half a cell below the line
+      labelDy: -34,          // horizontal: above the line
       /* A vertical count stacks its squares in a band one cell wide,
          and the total is far wider than that — it cannot sit beside
          them without covering the very squares being counted. It goes
@@ -832,8 +834,8 @@ window.CFG = (function () {
      narrowed step by step until only |x2 - x1| is left.
      ------------------------------------------------------------- */
   const XAXIS = {
-    grid: { x: 60, y: 250, w: 924, h: 746 },
-    formula: { x: 1110, y: 470, w: 750 },
+    grid: { x: 640, y: 40, w: 867, h: 700 },
+    formula: { x: 640, y: 790, w: 750 },
 
     /* Both points sit on the axis, so their labels stack above it —
        below is where the axis numbering already lives. */

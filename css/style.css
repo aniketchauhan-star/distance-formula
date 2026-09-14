@@ -485,13 +485,10 @@ html, body {
   transform-box: fill-box; transform-origin: center;
 }
 #gridAxes .ubox.on { animation: uboxIn .42s cubic-bezier(.25, 1.7, .45, 1) both; }
-#gridAxes .uplate {
-  opacity: 0;
-  fill: #FDFBF0;
-  stroke: #2E6FD0;
-  stroke-width: 2.5;
-  transform-box: fill-box; transform-origin: center;
-}
+/* No plate behind the total any more — it sits on open paper above the
+   line. The element is left in place so nothing has to be rebuilt; it
+   simply draws nothing. */
+#gridAxes .uplate { display: none; }
 #gridAxes .uplate.on { animation: labelPop .58s cubic-bezier(.22, .68, .3, 1) both; }
 #gridAxes .ulabel {
   opacity: 0;

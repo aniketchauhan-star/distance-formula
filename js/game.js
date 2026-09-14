@@ -2554,8 +2554,18 @@
        one action — her stepping aside and it taking the space. */
     setTimeout(function () {
       if (Sel) {
-        if (entry.distance || entry.entry) { Sel.reset(); Sel.show(); }
-        else Sel.hide();
+        if (entry.distance || entry.entry) {
+          Sel.reset();
+          Sel.show();
+          /* Lay the line down at the value it opens on. reset() does not
+             report a change — nothing has changed yet — so without this
+             the board stays bare until the first arrow press, and the
+             control does not read as a ruler until you have already
+             moved it. */
+          if (entry.task && entry.task.kind === 'distance') {
+            Game.showMeasure(Sel.value);
+          }
+        } else Sel.hide();
       }
       if (Opts) {
         if (entry.options) { Opts.reset(); Opts.show(); } else Opts.hide();

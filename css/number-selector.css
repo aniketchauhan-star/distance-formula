@@ -33,14 +33,17 @@
   justify-content: center;
   gap: 42px;
 
-  background: linear-gradient(180deg, #FFFDF5 0%, #FFF8E8 100%);
+  /* A warm tan rather than cream: the grass behind it is pale gold, and
+     a cream panel on it had almost no edge. The controls inside stay
+     light, so the panel reads as the tray they sit in. */
+  background: linear-gradient(180deg, #F0DCA8 0%, #E7CB8A 100%);
   border: 5px solid #F6B818;
   border-radius: 32px;
 
   box-shadow:
-    0 10px 0 #CF7A08,
-    0 16px 24px rgba(110, 60, 10, 0.18),
-    inset 0 3px 0 rgba(255, 255, 255, 0.9);
+    0 10px 0 #B9670A,
+    0 16px 26px rgba(110, 60, 10, 0.26),
+    inset 0 3px 0 rgba(255, 255, 255, 0.55);
 
   font-family: 'Nunito', system-ui, sans-serif;
   transform-origin: top left;
