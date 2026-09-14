@@ -363,13 +363,16 @@ window.CFG = (function () {
        every offset is relative to the origin, so trimming the frame
        only stops the panel drawing cells nobody names, and the same
        range is then drawn at 56px a cell instead of 51px. */
-    w: 1324, h: 996,
+    w: 969, h: 990,
 
     /* Centred, and filling everything below the band that carries
        Swifty and her line. Square cells tie the panel's aspect to the
        frame's, so height is what limits it: the band costs 178px and
        the rest is grid. */
-    box: { x: 356, y: 178, w: 1193, h: 890 },
+    /* The whole right of the frame, floor to ceiling. Nothing sits above
+       it any more, so height is no longer rationed by a band — which is
+       what lets the squares grow from 53px to 63px. The left is hers. */
+    box: { x: 866, y: 12, w: 1042, h: 1056 },
 
     /* A wide, shallow bubble for these screens instead of the tall one
        she uses elsewhere. Two reasons: the band above the panel is only
@@ -378,6 +381,21 @@ window.CFG = (function () {
 
        Only the balloon has to clear the panel — the tail is meant to
        cross into it, since that is where her head is. */
+    /* On the grid screens she stands below her line, so the tail points
+       down at her head the ordinary way. Same shallow shape and single
+       stroke as the rail version — only the tail differs. */
+    bubbleDown: Object.assign({}, BUBBLE, {
+      ink: { w: 620, h: 166 },
+      tip: { x: 150, y: 165 },
+      bodyH: 112,
+      radius: 34,
+      leaf: 44,
+      size: 32,
+      // bounded so the balloon never reaches the board at x 866
+      autoWidth: { min: 320, max: 620, pad: 46 },
+      text: { left: 0.06, top: 0.1325, width: 0.88, height: 0.4096 }
+    }),
+
     bubble: Object.assign({}, BUBBLE, {
       /* Standing on the panel's top rail puts her head near the top of
          the frame, so nothing can sit above it — a downward tail would
@@ -398,7 +416,7 @@ window.CFG = (function () {
          reads as a mistake. */
       /* max is bounded by the distance screens: she stands at the board's
          left end there, and the slider starts at x 1285. */
-      autoWidth: { min: 330, max: 960, pad: 46 },
+      autoWidth: { min: 330, max: 800, pad: 46 },
       size: 32,
       text: { left: 0.06, top: 0.1964, width: 0.88, height: 0.607 }
     }),
@@ -411,7 +429,7 @@ window.CFG = (function () {
     /* The origin sits at the centre of the cream, so the axes are
        centred in the grid rather than merely centred on their own
        extents. */
-    originX: 662, originY: 498,
+    originX: 484.5, originY: 495,
     /* Sized so 12 cells each way across and 8 each way down exactly
        fill the cream. Down, that leaves a 12px margin. Across, the
        outermost column on each side is left undrawn, so the sides
@@ -426,7 +444,7 @@ window.CFG = (function () {
        label all still sit inside the drawn grid, where ±10 would push
        the label off the board. Cells are square (61.18 x 61.43), so a
        unit is the same length on both axes. */
-    xFrom: -9, xTo: 9,
+    xFrom: -6, xTo: 6,
     yFrom: -6, yTo: 6,
 
     ink: '#213258',                 // axes, arrowheads and numbers
@@ -465,11 +483,14 @@ window.CFG = (function () {
       highlight: 'rgba(255, 255, 255, .65)',
       line:      'rgba(120, 135, 135, .55)',
       lineW: 2,             // stage px, the same weight at every size
-      radius: 46,
-      edgeW: 3,
-      frameW: 26,
-      hiW: 5,               // the pale ring just inside the frame
-      gxFrom: -11, gxTo: 11,
+      radius: 40,
+      /* Slimmed: the frame used to be 34px of stacked rings, which at
+         this board size read as a heavy border around the work rather
+         than a edge to it. */
+      edgeW: 2,
+      frameW: 13,
+      hiW: 3,               // the pale ring just inside the frame
+      gxFrom: -8, gxTo: 8,
       gyFrom: -8,  gyTo: 8,
 
       /* Autumn leaves pinned to two corners, sized off the panel so
@@ -513,7 +534,7 @@ window.CFG = (function () {
       rippleMs: 60,         // per-ring delay, so the pulse travels outward
       skipOnAxes: true,     // no marker where a point would sit on an axis
       // markers cover every numbered intersection on both axes
-      xFrom: -9, xTo: 9,
+      xFrom: -6, xTo: 6,
       yFrom: -6, yTo: 6
     },
 
@@ -616,36 +637,30 @@ window.CFG = (function () {
   };
 
   /* Standing pose used once she has landed on screen 5. */
-  /* She stands on the grid itself now, at its top left, rather than in
-     a column of her own beside it — that column was most of the wasted
-     space. Drawn at 0.62 of the artwork's size so she sits in the
-     panel's empty upper left without reaching the plotted points, which
-     on these screens are all right of centre and low.
-
-     Every offset is in rendered stage pixels, so they scale with her. */
-  const STAND_S = 0.55;
-  const STAND = {
-    src: ART.swiftyStand,
-    w: 398 * STAND_S, h: 307 * STAND_S,
-    /* Feet planted in the panel's top rail rather than balanced on its
-       outer edge: the frame is about 28px thick and its top corner
-       curves away, so feet exactly on the boundary read as hovering.
-       12px in puts her weight on the rail. */
-    pos: { x: 392, y: 178 + 12 - 300 * 0.55 },
-    headTop: { x: 206 * STAND_S, y: 3 * STAND_S },
-    belly:   { x: 223 * STAND_S, y: 228.4 * STAND_S },
-    feet:    { y: 300 * STAND_S, cx: 208 * STAND_S },
-    // where a side-tailed bubble points: just off her right edge, level
-    // with the middle of her body
-    speak:   { x: 398 * STAND_S - 14, y: 307 * STAND_S * 0.50 },
-    inkW: 335 * STAND_S,
-    /* The sheet she flies in on and the artwork she lands in are two
-       different pictures, so a scale that suits one does not suit the
-       other. This is the sprite scale that renders the flying frames at
-       the same height as this landed pose — without it she arrives at
-       twice the size she settles into. */
-    charScale: 307 * STAND_S / 355
+  /* The resting pose, built at whatever size a screen needs. Every
+     offset is in rendered stage pixels, so they scale with her, and
+     charScale is the sprite-sheet scale that renders the flying frames
+     at this same height — the sheet and this artwork are two different
+     pictures, so a scale that suits one does not suit the other. */
+  const standAt = function (k, x, y) {
+    return {
+      src: ART.swiftyStand,
+      w: 398 * k, h: 307 * k,
+      pos: { x: x, y: y },
+      headTop: { x: 206 * k, y: 3 * k },
+      belly:   { x: 223 * k, y: 228.4 * k },
+      feet:    { y: 300 * k, cx: 208 * k },
+      // where a side-tailed bubble points: off her right edge, level
+      // with the middle of her body
+      speak:   { x: 384 * k, y: 307 * k * 0.50 },
+      inkW: 335 * k,
+      charScale: 307 * k / 355
+    };
   };
+
+  /* The grid screens put her back on the grass at the left, full size,
+     and give the whole right of the frame to the board. */
+  const STAND = standAt(1, 170, 660);
 
   /* -------------------------------------------------------------
      SCREEN 8 — board on its own, question in a banner
@@ -676,7 +691,9 @@ window.CFG = (function () {
     /* Left, and below the band that carries Swifty and her line — the
        same 178px band the grid screens use, since she stands on this
        board's rail too. Aspect matches the frame so cells stay square. */
-    panel: { pos: { x: 25, y: 178 }, w: 1193, h: 890 },
+    /* Board and controls read as one group, centred together: 878 of
+       board, a gap, then the 610 of the control column. */
+    panel: { pos: { x: 166, y: 178 }, w: 878, h: 890 },
 
     /* Swifty has left, so the question moves out of her speech bubble
        and into the banner. Its cream interior runs x[41..981]
@@ -719,7 +736,7 @@ window.CFG = (function () {
        an otherwise empty frame; it only moves aside once the question
        has been put and the controls are on their way in. Same size, so
        the move is a slide rather than a resize. */
-    centre: { x: 341, y: 112, w: 1239, h: 925 },
+    centre: { x: 503, y: 112, w: 913, h: 925 },
 
     /* Where Swifty lands to put that question, while the board is
        still centred: bottom left, in front of the board's blank
@@ -730,18 +747,18 @@ window.CFG = (function () {
     /* Where she stands to ask: on this board's top rail, near its left
        end. Same pose and scale as the grid screens — only the spot
        differs, because this board sits further left. */
-    stand: Object.assign({}, STAND, { pos: { x: 90, y: 178 + 12 - 300 * 0.55 } }),
+    stand: standAt(0.55, 231, 178 + 7 - 300 * 0.55),
 
     // the distance selector, mounted as its own component
-    distance: { pos: flipX(place8(219, 2646), 610), w: 610, h: 407 },
+    distance: { pos: { x: 1144, y: 419 }, w: 610, h: 407 },
 
     /* The triangle-type answer panel takes the slider's place, centred
        on the same footprint so the left column stays put. */
-    options: { pos: flipX({ x: 70, y: 398 }, 520), w: 520 },
+    options: { pos: { x: 1189, y: 398 }, w: 520 },
 
     /* And the answer pad takes the same column again, for the
        questions whose answer is typed rather than chosen. */
-    entry: { pos: flipX({ x: 70, y: 330 }, 520), w: 520 }
+    entry: { pos: { x: 1189, y: 330 }, w: 520 }
   };
 
   /* -------------------------------------------------------------
@@ -749,7 +766,7 @@ window.CFG = (function () {
      Board on the left, the formula beside it, nobody on screen.
      ------------------------------------------------------------- */
   const RECAP = {
-    grid: { x: 46, y: 142, w: 1150, h: 858 },
+    grid: { x: 46, y: 142, w: 847, h: 858 },
     formula: { x: 1246, y: 372, w: 630 },
     /* Plain "x2" rather than a subscript glyph, and the square root
        written with brackets rather than an overline: both keep to
@@ -767,7 +784,7 @@ window.CFG = (function () {
      narrowed step by step until only |x2 - x1| is left.
      ------------------------------------------------------------- */
   const XAXIS = {
-    grid: { x: 60, y: 250, w: 1000, h: 746 },
+    grid: { x: 60, y: 250, w: 736, h: 746 },
     formula: { x: 1110, y: 470, w: 750 },
 
     /* Both points sit on the axis, so their labels stack above it —

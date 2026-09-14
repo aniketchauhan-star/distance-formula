@@ -463,6 +463,18 @@ html, body {
 
 #gridAxes  { position: absolute; left: 0; top: 0; overflow: visible; }
 
+/* Each axis number is drawn twice — a fat cream stroke first, then the
+   ink over it — so the gridline behind it is knocked out and the digit
+   reads against clean paper instead of having a line through it.
+   paint-order is what puts the stroke underneath; without it the stroke
+   would sit on top and eat the glyph. */
+#gridAxes .glabel {
+  paint-order: stroke fill;
+  stroke: var(--paper-inner, #FFFDF1);
+  stroke-width: 9px;
+  stroke-linejoin: round;
+}
+
 /* the board arriving out of nowhere */
 #gridPanel.magic-in { animation: magicIn .85s cubic-bezier(.22, 1.35, .4, 1) both; }
 
@@ -897,22 +909,24 @@ html, body {
 /* Top right, out of the way: it is a way past a screen rather than the
    way through one, and the bottom of the frame is where the board, the
    answer panels and Swifty all live. */
+/* Top left and small: the board now runs the full height of the right
+   of the frame, and this is a way out rather than the way on. */
 #nextBtn {
-  position: absolute; right: 84px; top: 48px; z-index: 6;
-  display: inline-flex; align-items: center; gap: 16px;
-  padding: 22px 46px;
-  font-family: inherit; font-size: 40px; font-weight: 400; color: #fff;
+  position: absolute; left: 34px; top: 28px; z-index: 6;
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 11px 26px;
+  font-family: inherit; font-size: 26px; font-weight: 400; color: #fff;
   background: linear-gradient(180deg, #ffc93c 0%, #ff9522 100%);
-  border: 6px solid #fff;
+  border: 4px solid #fff;
   border-radius: 999px;
   cursor: pointer;
-  text-shadow: 0 3px 0 rgba(180, 90, 0, .55);
-  box-shadow: 0 10px 0 #d4761a, 0 18px 30px rgba(0, 0, 0, .28);
+  text-shadow: 0 2px 0 rgba(180, 90, 0, .55);
+  box-shadow: 0 6px 0 #d4761a, 0 11px 18px rgba(0, 0, 0, .24);
   transition: transform .12s ease, box-shadow .12s ease;
 }
-#nextBtn .arrow { font-size: 30px; }
-#nextBtn:hover  { transform: translateY(-3px); box-shadow: 0 13px 0 #d4761a, 0 22px 34px rgba(0, 0, 0, .3); }
-#nextBtn:active { transform: translateY(6px); box-shadow: 0 4px 0 #d4761a, 0 8px 16px rgba(0, 0, 0, .3); }
+#nextBtn .arrow { font-size: 20px; }
+#nextBtn:hover  { transform: translateY(-2px); box-shadow: 0 8px 0 #d4761a, 0 14px 20px rgba(0, 0, 0, .28); }
+#nextBtn:active { transform: translateY(4px); box-shadow: 0 2px 0 #d4761a, 0 5px 10px rgba(0, 0, 0, .28); }
 /* The button is on screen the whole time; it only nudges once she has
    finished her line, as a hint that you can move on. */
 #nextBtn.ready { animation: nudge 1.4s ease-in-out infinite; }

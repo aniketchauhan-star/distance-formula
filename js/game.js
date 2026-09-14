@@ -192,19 +192,17 @@
         stand: true,
         // matches the flying sheet to the landed artwork's height
         scale: S.charScale,
-        noShadow: true,          // she is on the board's rail, not on grass
         standBox: { x: S.pos.x, y: S.pos.y, w: S.w, h: S.h },
         anchor: { x: S.pos.x + S.belly.x,   y: S.pos.y + S.belly.y },
-        /* The tail comes in from the side here, so it aims at her face
-           rather than the top of her head. */
-        aim:    { x: S.pos.x + S.speak.x,   y: S.pos.y + S.speak.y },
+        // she is under her line here, so the tail comes down on her crown
+        aim:    { x: S.pos.x + S.headTop.x, y: S.pos.y + S.headTop.y },
         feetY:  S.pos.y + S.feet.y,
         feetCx: S.pos.x + S.feet.cx,
         inkW:   S.inkW,
         /* Its own wide bubble, at full size: the screens' own
            bubbleScale was tuning the tall one down to fit beside the
            board, and there is no board beside her any more. */
-        bubble: C.GRID.bubble,
+        bubble: C.GRID.bubbleDown,
         bubbleScale: 1
       };
     }
