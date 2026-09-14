@@ -182,6 +182,31 @@ window.Audio8 = (function () {
   }
 
   // A single wing beat: airy noise sweep plus a soft body thump.
+  /* A proper two- or three-note tweet. chirp() is a single blip used as
+     a typing tick, and one of those on its own does not read as a bird;
+     this gives the note a contour and puts a couple in sequence, which
+     is what the ear hears as a call. */
+  function birdCall(strength) {
+    if (!ctx) return;
+    const g = 0.18 * (strength || 1);
+    const base = 1480 + Math.random() * 460;
+    const notes = Math.random() < 0.5 ? 2 : 3;
+    for (let i = 0; i < notes; i++) {
+      const rise = i % 2 === 0;           // alternates up-slur, down-slur
+      const f = base * Math.pow(1.15, i);
+      const at = i * (0.085 + Math.random() * 0.05);
+      tone({ type: 'triangle',
+             f0: rise ? f * 0.80 : f * 1.26,
+             f1: rise ? f * 1.46 : f * 0.82,
+             f2: rise ? f * 1.14 : f * 0.96,
+             dur: 0.07 + Math.random() * 0.04,
+             gain: g * (1 - i * 0.17), delay: at });
+      // a thin harmonic on top, which is what makes it whistle
+      tone({ type: 'sine', f0: f * 1.95, f1: f * 2.5, dur: 0.035,
+             gain: g * 0.3, delay: at + 0.012 });
+    }
+  }
+
   function flap() {
     noise({ f0: 1700, f1: 380, dur: 0.13, gain: 0.16, q: 0.8 });
     tone({ type: 'sine', f0: 190, f1: 90, dur: 0.1, gain: 0.09 });
@@ -364,8 +389,10 @@ window.Audio8 = (function () {
 
   return {
     unlock, prime, duck, setMuted, isMuted, wind, breeze, confettiPop,
-    chirp, flap, land, pop, blip, sparkle, whoosh, chime, magic, draw, tick,
+    chirp, birdCall, flap, land, pop, blip, sparkle, whoosh, chime, magic, draw, tick,
     correct, wrong, cheer, rustle,
-    get ready() { return !!ctx; }
+    get ready() { return !!ctx; },
+    // whether playback is actually authorised, not merely built
+    get armed() { return armed; }
   };
 })();

@@ -2296,6 +2296,19 @@
      here would either be dropped or land all at once the moment Play
      is pressed. */
   const StartBird = {
+    arrivedSilent: false,
+
+    /* Called the first time a gesture authorises audio. If she flew in
+       unheard and is still sitting on the rock, she calls once now —
+       not a replayed entrance, just the bird you watched land finally
+       making a sound. */
+    greetIfUnheard: function () {
+      if (!this.arrivedSilent) return;
+      if (el.startScreen.classList.contains('hidden')) return;
+      this.arrivedSilent = false;
+      setTimeout(function () { SFX.birdCall(0.9); }, 140);
+    },
+
     setup: function () {
       const S = C.START;
       el.startFly.src = C.ART.swiftyFly;
@@ -2322,6 +2335,10 @@
         SFX.flap();
         if (++beats > 11) clearInterval(flapper);
       }, 175);
+      /* She calls once on her way in — around the point the arc brings
+         her into frame — and again as she settles on the rock. */
+      const calls = [setTimeout(function () { SFX.birdCall(1); }, 640),
+                     setTimeout(function () { SFX.birdCall(0.75); }, 1560)];
 
       let settled = false;
       const land = function () {
@@ -2330,9 +2347,15 @@
         el.startBird.removeEventListener('animationend', land);
         el.startScreen.removeEventListener('click', skip);
         clearInterval(flapper);
+        calls.forEach(clearTimeout);        // a skipped flight loses its calls
         StartSprite.stopAt('talk', 0);      // wings in, standing pose
         el.startShadow.classList.add('down');
         SFX.land();
+        setTimeout(function () { SFX.birdCall(0.85); }, 260);
+        /* A cold load has had no gesture yet, so the browser blocked
+           all of that and her whole arrival was silent. Remember it, so
+           the first moment sound is allowed she is at least heard. */
+        StartBird.arrivedSilent = !SFX.armed;
         setTimeout(done, S.buttonDelay);
       };
       /* Tapping through the arrival puts her straight on the perch: the
@@ -2374,6 +2397,7 @@
     SFX.prime();
     const armAudio = function () {
       SFX.prime(true);           // from a gesture, so it takes effect at once
+      StartBird.greetIfUnheard();
       ['pointerdown', 'keydown', 'touchstart'].forEach(function (ev) {
         document.removeEventListener(ev, armAudio);
       });
