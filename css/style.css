@@ -340,6 +340,13 @@ html, body {
    wrapping leaves a widow — "Let's start with something / familiar." */
 #bubbleLine { display: block; width: 100%; text-wrap: balance; }
 
+/* She travels to her raised spot rather than being redrawn there, so
+   the move reads as her stepping aside for the control. */
+#standSwifty.rising, #bubble.rising, #shadow.rising, #birdRig.rising {
+  transition: top .62s cubic-bezier(.3, .85, .35, 1),
+              left .62s cubic-bezier(.3, .85, .35, 1);
+}
+
 /* ---------------- screen 5: coordinate board ---------------- */
 /* The board: a golden frame around a cream surface, drawn rather than
    dropped in as a picture. The frame is built from inset rings instead

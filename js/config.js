@@ -693,7 +693,12 @@ window.CFG = (function () {
 
   /* The grid screens put her back on the grass at the left, full size,
      and give the whole right of the frame to the board. */
+  /* Where she stands to talk: down on the grass, front of frame. */
   const STAND = standAt(1, 60, 700);
+  /* And where she moves to when a control arrives: standing on its top
+     edge, feet at 688 against a panel whose top is 680. She only goes
+     up when something turns up that needs the room. */
+  const STAND_UP = standAt(1, 60, 388);
 
   /* -------------------------------------------------------------
      SCREEN 8 — board on its own, question in a banner
@@ -782,17 +787,20 @@ window.CFG = (function () {
        grid screens — the rail pose is gone along with the band it
        needed. */
     stand: STAND,
+    standUp: STAND_UP,
 
     /* The one control every answering screen uses now — the number
        selector that replaced both the slider and the typed pad. It is
        built at its own natural 760 x 430 and scaled to fit her column,
        so its proportions stay the ones it was designed at rather than
        whatever happened to fit. */
-    selector: { pos: { x: 34, y: 380 }, w: 760, h: 430, scale: 0.70 },
+    selector: { pos: { x: 34, y: 680 }, w: 760, h: 430, scale: 0.70 },
 
     /* The triangle-type answer panel takes the slider's place, centred
        on the same footprint so the left column stays put. */
-    options: { pos: { x: 30, y: 115 }, w: 520 },
+    /* Below her, like the selector — its natural height is about 432,
+       so it is scaled to clear the bottom of the frame. */
+    options: { pos: { x: 40, y: 660 }, w: 520, h: 432, scale: 0.82 },
 
     /* And the answer pad takes the same column again, for the
        questions whose answer is typed rather than chosen. */
@@ -1072,7 +1080,7 @@ window.CFG = (function () {
     /* 16 — leaves, then the whole shape redrawn as one closed red
        triangle with both legs measured. Nothing to answer here, so no
        slider: she is just naming what they have built. */
-    { id: 16, line: 'Look! We made a triangle.', entrance: 'none',
+    { id: 16, line: 'Look! We made a triangle.', entrance: 'stay',
       layout: 'board', transition: 'leaves',
       segment: { a: { x: 2, y: 1 }, b: { x: 6, y: 4, nameDx: 40, nameDy: 8 },
                  color: '#B3261E' },
@@ -1084,7 +1092,7 @@ window.CFG = (function () {
     /* 17 — same triangle, now named. The slider is replaced by the
        three triangle types; the square corner at C makes it a
        right-angled triangle. */
-    { id: 17, line: 'What kind of triangle is it?', entrance: 'none',
+    { id: 17, line: 'What kind of triangle is it?', entrance: 'stay',
       layout: 'board', keepSegment: true,
       options: [
         { key: 'scalene',      cls: 'scalene',      label: 'Scalene Triangle' },
@@ -1101,7 +1109,7 @@ window.CFG = (function () {
     /* 18 — same triangle again, now asking how to reach the third
        side. Same panel, different three answers. */
     { id: 18, line: 'We know two sides. How can we find the third?',
-      entrance: 'none', layout: 'board', keepSegment: true,
+      entrance: 'stay', layout: 'board', keepSegment: true,
       options: [
         { key: 'area',       label: 'Area' },
         { key: 'perimeter',  label: 'Perimeter' },

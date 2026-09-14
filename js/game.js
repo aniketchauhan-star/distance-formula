@@ -138,6 +138,25 @@
     return null;
   }
 
+  /* Her rig for a given standing spot. Two screens' worth of geometry
+     used to be written out twice; they differ only in where she is. */
+  function standGeom(S, extra) {
+    const g = {
+      stand: true,
+      scale: S.charScale,
+      standBox: { x: S.pos.x, y: S.pos.y, w: S.w, h: S.h },
+      anchor: { x: S.pos.x + S.belly.x,   y: S.pos.y + S.belly.y },
+      aim:    { x: S.pos.x + S.headTop.x, y: S.pos.y + S.headTop.y },
+      feetY:  S.pos.y + S.feet.y,
+      feetCx: S.pos.x + S.feet.cx,
+      inkW:   S.inkW,
+      bubble: C.GRID.bubbleDown,
+      bubbleScale: 1
+    };
+    if (extra) Object.keys(extra).forEach(function (k) { g[k] = extra[k]; });
+    return g;
+  }
+
   function geomFor(i) {
     const entry = C.SCRIPT[i] || {};
     const AX = axisOf(entry);
@@ -160,33 +179,21 @@
        put it, then leaves before the controls arrive. She lands at the
        bottom left, in front of the centred board. */
     if (entry.intro === 'measure') {
-      /* Exactly the rig the grid screens use — she lands on the grass at
-         the left and the board sits right — so an answering screen is
-         the screens around it plus a control panel, rather than a
-         layout of its own that everything has to rearrange into. */
-      const S = C.BOARD.stand;
-      return {
-        stand: true,
-        scale: S.charScale,
-        standBox: { x: S.pos.x, y: S.pos.y, w: S.w, h: S.h },
-        anchor: { x: S.pos.x + S.belly.x,   y: S.pos.y + S.belly.y },
-        aim:    { x: S.pos.x + S.headTop.x, y: S.pos.y + S.headTop.y },
-        feetY:  S.pos.y + S.feet.y,
-        feetCx: S.pos.x + S.feet.cx,
-        inkW:   S.inkW,
-        bubble: C.GRID.bubbleDown,
-        bubbleScale: 1,
+      /* The same rig the grid screens use — she lands on the grass at
+         the left and the board sits right. She stays down here to ask;
+         if a control turns up it moves her out of its way. */
+      return standGeom(C.BOARD.stand, {
         panelBox: { x: C.BOARD.panel.pos.x, y: C.BOARD.panel.pos.y,
                     w: C.BOARD.panel.w, h: C.BOARD.panel.h }
-      };
+      });
     }
     if (entry.layout === 'board') {
-      // Swifty is gone; nothing character-shaped to seat.
-      return { stand: false, bare: true, scale: C.CHAR_SCALE, anchor: C.ANCHOR,
-               aim: C.ANCHOR, feetY: 0, feetCx: 0, inkW: 0,
-               bubbleScale: C.BUBBLE.scale, panelBox: {
-                 x: C.BOARD.panel.pos.x, y: C.BOARD.panel.pos.y,
-                 w: C.BOARD.panel.w, h: C.BOARD.panel.h } };
+      /* The same rig as a distance screen: she stands in her column and
+         speaks from her own bubble. */
+      return standGeom(C.BOARD.stand, {
+        panelBox: { x: C.BOARD.panel.pos.x, y: C.BOARD.panel.pos.y,
+                    w: C.BOARD.panel.w, h: C.BOARD.panel.h }
+      });
     }
     if (entry.layout === 'grid') {
       const S = C.STAND;
@@ -361,6 +368,9 @@
     if (window.TriangleOptions && !Opts) {
       const OP = C.BOARD.options;
       Opts = window.TriangleOptions.mount(el.scene, { x: OP.pos.x, y: OP.pos.y, hidden: true });
+      // scaled to her column, the same way the number selector is
+      Opts.el.style.transformOrigin = 'top left';
+      Opts.el.style.transform = 'scale(' + OP.scale + ')';
     }
 
     /* The standing pose is seated per screen now, in applyGeom — the
@@ -1645,7 +1655,9 @@
           Board.shown = false;
           Board.setDots(false);
         }
-        if (entry.layout !== 'board' && !AX) el.qBanner.classList.add('hidden');
+        /* The banner belongs to the axis screens now; every other screen
+           asks through her bubble. */
+        if (!AX) el.qBanner.classList.add('hidden');
         if (entry.layout !== 'recap' && !AX) el.formulaBoard.classList.add('hidden');
         if (!entry.segment && !entry.keepSegment) Board.clearSegment();
         if (Opts && !entry.options) Opts.hide();
@@ -1685,9 +1697,11 @@
         Opts.onAnswer(choice ? function (key, right) { self.checkChoice(right); } : null);
       }
 
+      const withControl = entry.options && entry.intro !== 'measure';
       const after = function () {
         if (entry.line && geom.bare) self.ask(entry.line);   // banner, not bubble
-        else if (entry.line) self.speak(entry.line);
+        else if (entry.line) self.speak(entry.line, withControl
+          ? function () { revealControl(entry); } : null);
         else if (entry.auto && i + 1 < C.SCRIPT.length) {
           self.later(function () { self.goTo(i + 1); }, 160);
         } else {
@@ -1769,9 +1783,7 @@
           if ((entry.distance || entry.entry) && !holds) { Sel.reset(); Sel.show(); }
           else Sel.hide();
         }
-        if (Opts) {
-          if (entry.options) { Opts.reset(); Opts.show(); } else Opts.hide();
-        }
+        if (Opts && !entry.options) Opts.hide();   // shown by revealControl
 
         if (entry.layout === 'recap') {
           Formula.place(C.RECAP.formula);
@@ -1863,16 +1875,13 @@
           const measuringLeg = entry.task && entry.task.measureLeg != null;
           Board.runPoints(entry.segment, self.later.bind(self), function () {
             const asks = function () {
-              /* She puts the question and leaves — the control takes the
-                 space she was standing in, so she has to be out of the
-                 frame before it arrives. */
+              /* She puts the question and stays, line and all — the
+                 control arrives below her rather than in her place, so
+                 there is no reason for her to leave. */
               const speak = function () {
                 FX.sparkles(geom.aim.x, geom.aim.y, 7, 170 * geom.scale);
                 Bubble.open(entry.line, function () {
-                  self.later(function () {
-                    Bubble.close();
-                    self.flyOut(opens);
-                  }, 900);
+                  self.later(opens, 700);
                 });
               };
 
@@ -1918,11 +1927,7 @@
          same sentence twice. */
       const opens = function () {
         self.later(function () {
-          /* whichever control this screen answers on */
-          if (Sel) {
-            if (entry.distance || entry.entry) { Sel.reset(); Sel.show(); }
-            else Sel.hide();
-          }
+          revealControl(entry);        // she rises, the control follows
           Board.clearMeasure();
           self.settle();
         }, 240);
@@ -1951,8 +1956,9 @@
          rebuild — just clear the last segment and plot the next. */
       if (entry.layout === 'board' && entry.transition !== 'leaves') {
         el.gridPanel.classList.remove('hidden');
+        // she asks from her own bubble on these screens; no banner
         el.qBannerLine.textContent = '';
-        el.qBanner.classList.remove('hidden');
+        el.qBanner.classList.add('hidden');
         Board.shown = true;
         if (!entry.keepSegment) Board.clearSegment();
         else Board.clearUnits();          // keep the drawing, drop any count-out
@@ -2133,11 +2139,15 @@
       }, 720);
     },
 
-    speak: function (line) {
+    /* `then` runs once the line has finished — a screen with a control
+       uses it to move her aside and bring the control in, so the two
+       happen after she has spoken rather than while she is speaking. */
+    speak: function (line, then) {
       const self = this;
       this.state = 'speaking';
       FX.sparkles(C.ANCHOR.x, C.ANCHOR.y - 200 * C.CHAR_SCALE, 7, 170 * C.CHAR_SCALE);
       Bubble.open(line, function () {
+        if (then) then();
         /* Longer after a right answer than after an ordinary line: the
            confetti is still coming down. */
         self.settle(self.task && self.task.done ? C.AUTO.afterCorrect : C.AUTO.afterLine);
@@ -2506,6 +2516,44 @@
       im.onerror = bump;   // never let one bad path stall the game
       im.src = src;
     });
+  }
+
+  /* A control wants the bottom of her column, so she moves up out of
+     its way as it arrives — she is not drawn in a different place, she
+     travels there, which is why the move carries a transition and why
+     her line has to be re-fitted afterwards (re-seating the rig resets
+     the balloon to its default size). */
+  function revealControl(entry) {
+    const moving = [el.standSwifty, el.bubble, el.shadow, el.birdRig];
+    const g = standGeom(C.BOARD.standUp, {
+      noShadow: true,        // she is standing on the control, not on grass
+      panelBox: { x: C.BOARD.panel.pos.x, y: C.BOARD.panel.pos.y,
+                  w: C.BOARD.panel.w, h: C.BOARD.panel.h }
+    });
+    Game.geom = g;
+    moving.forEach(function (n) { n.classList.add('rising'); });
+    applyGeom(g);
+    /* Re-seating the rig resets the balloon to its default size, so the
+       line is re-fitted — and then written back, because fitBox() blanks
+       the line after measuring it (it normally runs just before the text
+       is typed in, where leaving it empty is the point). */
+    Bubble.fitBox(Bubble.full);
+    el.bubbleLine.textContent = Bubble.full;
+    setTimeout(function () {
+      moving.forEach(function (n) { n.classList.remove('rising'); });
+    }, 720);
+
+    /* The control comes in while she is still moving, so the two read as
+       one action — her stepping aside and it taking the space. */
+    setTimeout(function () {
+      if (Sel) {
+        if (entry.distance || entry.entry) { Sel.reset(); Sel.show(); }
+        else Sel.hide();
+      }
+      if (Opts) {
+        if (entry.options) { Opts.reset(); Opts.show(); } else Opts.hide();
+      }
+    }, 150);
   }
 
   /* ---------------- the nudge ---------------- */
