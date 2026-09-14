@@ -411,9 +411,14 @@ window.CFG = (function () {
       leaf: 44,
       size: 32,
       // bounded so the balloon never reaches the board at x 866
-      autoWidth: { min: 320, max: 460, pad: 46 },
-      // plate 88 tall: two lines of 32px at 1.3, with 22px inset all round
-      text: { left: 0.06, top: 0.118279, width: 0.88, height: 0.473118 }
+      autoWidth: { min: 250, max: 460, pad: 40 },
+      /* The cream around the text, and one row's height — the balloon is
+         built from these rather than from fractions of a fixed box, so
+         a one-line greeting gets a one-line balloon instead of sitting
+         in a box sized for the longest question in the game. */
+      pad: { x: 38, y: 22 },
+      lineH: 44,
+      tailLen: 54
     }),
 
     bubble: Object.assign({}, BUBBLE, {
@@ -547,7 +552,8 @@ window.CFG = (function () {
        a white ring keeping each legible where it crosses a navy axis.
        They brighten and grow under the cursor. */
     dot: {
-      r: 8,
+      // small enough to read as a place you could tap, not as a plotted point
+      r: 5,
       fill: '#6FC0E8',      // soft light blue, held faint by the pulse opacity
       stroke: '#FFFFFF',
       strokeWidth: 2,
@@ -891,11 +897,14 @@ window.CFG = (function () {
     tip: { x: 571, y: 484 },
     inkH: 356,            // the hand's height in source pixels
     height: 88,           // what it renders at on the stage: under a cell and a half
-    /* The point speaks up first and the hand only follows if that was
-       not enough — a hand arriving straight away would read as being
-       hurried rather than helped. */
-    pulseAfter: 2000,
-    handAfter: 5000
+    /* Part of the sequence now rather than a rescue for someone stuck:
+       the point starts pulsing as soon as she has finished asking, the
+       hand follows once that is established, and the hand leaves again
+       on its own — it is a pointer, not something to wait out. The
+       pulse stays until the point is found. */
+    pulseAfter: 500,
+    handAfter: 1500,
+    handFor: 3200
   };
 
   const AUDIO = {
@@ -926,8 +935,11 @@ window.CFG = (function () {
 
     // 5 — no dialogue: the grid builds itself in and she flies back in
     //     and lands on the left. The question comes on screen 6.
+    /* The grid builds itself, then the tappable points wiggle in, and
+       only then does she fly back to the left — so the board is whole
+       and alive before anyone is asked to do anything with it. */
     { id: 5, line: null, entrance: 'fly',
-      layout: 'grid', bubbleScale: 0.9 },
+      layout: 'grid', dots: true },
 
     /* 6 — the highlighters come up and the board goes live: tap the
        point she asked for. Two wrong taps and she shows the answer
@@ -966,7 +978,7 @@ window.CFG = (function () {
          the question asked. The guide shows which span is being asked
          about without answering it — the solid line the slider lays
          down is still the answer. */
-      segment: { a: { x: 3, y: 2, name: 'A' }, b: { x: 6, y: 2, name: 'B' }, dash: true },
+      segment: { a: { x: 3, y: 2 }, b: { x: 6, y: 2 }, dash: true },
 
       /* `answer` is left out on purpose: the game measures it from the
          two points, so moving a point can never leave a stale answer
@@ -985,19 +997,19 @@ window.CFG = (function () {
        beside the line instead of hanging them beneath it. */
     { id: 9, line: 'What is the distance between two points?', entrance: 'none', layout: 'board',
       distance: true, intro: 'measure',
-      segment: { a: { x: 4, y: 3, name: 'A' }, b: { x: -3, y: 3, name: 'B' } , dash: true},
+      segment: { a: { x: 4, y: 3 }, b: { x: -3, y: 3 } , dash: true},
       task: { kind: 'distance', correctLine: 'Correct!',
               showLine: 'Let’s count the units.', tryAgainLine: 'Now try again!' } },
 
     { id: 10, line: 'What is the distance between two points?', entrance: 'none', layout: 'board',
       distance: true, intro: 'measure',
-      segment: { a: { x: 1, y: 2, name: 'A' }, b: { x: 1, y: -3, name: 'B' } , dash: true},
+      segment: { a: { x: 1, y: 2 }, b: { x: 1, y: -3 } , dash: true},
       task: { kind: 'distance', correctLine: 'Correct!',
               showLine: 'Let’s count the units.', tryAgainLine: 'Now try again!' } },
 
     { id: 11, line: 'What is the distance between two points?', entrance: 'none', layout: 'board',
       distance: true, intro: 'measure',
-      segment: { a: { x: -2, y: 3, name: 'A' }, b: { x: -2, y: 1, name: 'B' } , dash: true},
+      segment: { a: { x: -2, y: 3 }, b: { x: -2, y: 1 } , dash: true},
       task: { kind: 'distance', correctLine: 'Correct!',
               showLine: 'Let’s count the units.', tryAgainLine: 'Now try again!' } },
 
@@ -1008,7 +1020,7 @@ window.CFG = (function () {
        point she is about to make. */
     { id: 12, line: 'This one’s different.', entrance: 'fly',
       layout: 'grid', transition: 'leaves', bubbleScale: 0.9,
-      segment: { a: { x: 2, y: 1, name: 'A' }, b: { x: 6, y: 4, name: 'B', nameDx: 40, nameDy: 8 } } },
+      segment: { a: { x: 2, y: 1 }, b: { x: 6, y: 4, nameDx: 40, nameDy: 8 } } },
 
     // 13 — same board and same segment, she just carries on talking
     { id: 13, line: 'Can the grid help?', entrance: 'stay',
@@ -1018,10 +1030,10 @@ window.CFG = (function () {
        The diagonal is redrawn and a corner C is dropped from it, so
        the horizontal step A-C can be measured on its own. The answer
        is that leg, not the diagonal, so the task measures from it. */
-    { id: 14, line: 'How far apart are A and C?', entrance: 'none',
+    { id: 14, line: 'What is the distance between two points?', entrance: 'none',
       layout: 'board', transition: 'leaves', distance: true, intro: 'measure',
-      segment: { a: { x: 2, y: 1, name: 'A' }, b: { x: 6, y: 4, name: 'B', nameDx: 40, nameDy: 8 } },
-      legs: [ { from: { x: 2, y: 1 }, to: { x: 6, y: 1 }, mark: { name: 'C' } } ],
+      segment: { a: { x: 2, y: 1 }, b: { x: 6, y: 4, nameDx: 40, nameDy: 8 } },
+      legs: [ { from: { x: 2, y: 1 }, to: { x: 6, y: 1 }, mark: {} } ],
       task: {
         kind: 'distance',
         measureLeg: 0,        // A to C, not A to B
@@ -1033,11 +1045,11 @@ window.CFG = (function () {
     /* 15 — the board is kept exactly as it was. The first leg is
        already drawn, so it only gains its length, and the second leg
        rises from the corner to B. */
-    { id: 15, line: 'How far apart are C and B?', entrance: 'none',
+    { id: 15, line: 'What is the distance between two points?', entrance: 'none',
       layout: 'board', distance: true, intro: 'measure', keepSegment: true,
-      segment: { a: { x: 2, y: 1, name: 'A' }, b: { x: 6, y: 4, name: 'B', nameDx: 40, nameDy: 8 } },
+      segment: { a: { x: 2, y: 1 }, b: { x: 6, y: 4, nameDx: 40, nameDy: 8 } },
       legs: [
-        { from: { x: 2, y: 1 }, to: { x: 6, y: 1 }, mark: { name: 'C' },
+        { from: { x: 2, y: 1 }, to: { x: 6, y: 1 }, mark: {},
           settled: true, length: true },
         { from: { x: 6, y: 1 }, to: { x: 6, y: 4 } }
       ],
@@ -1053,10 +1065,10 @@ window.CFG = (function () {
        slider: she is just naming what they have built. */
     { id: 16, line: 'Look! We made a triangle.', entrance: 'none',
       layout: 'board', transition: 'leaves',
-      segment: { a: { x: 2, y: 1, name: 'A' }, b: { x: 6, y: 4, name: 'B', nameDx: 40, nameDy: 8 },
+      segment: { a: { x: 2, y: 1 }, b: { x: 6, y: 4, nameDx: 40, nameDy: 8 },
                  color: '#B3261E' },
       legs: [
-        { from: { x: 2, y: 1 }, to: { x: 6, y: 1 }, mark: { name: 'C' }, length: true },
+        { from: { x: 2, y: 1 }, to: { x: 6, y: 1 }, mark: {}, length: true },
         { from: { x: 6, y: 1 }, to: { x: 6, y: 4 }, length: true }
       ] },
 
@@ -1113,10 +1125,10 @@ window.CFG = (function () {
        doubled to 6-8-10. */
     { id: 19, line: 'What is the distance between two points?', range: { min: 0, max: 12 }, entrance: 'none',
       layout: 'board', transition: 'leaves', intro: 'measure', entry: true,
-      segment: { a: { x: -2, y: 2, name: 'A' },
-                 b: { x:  2, y: 5, name: 'B', nameDx: 40, nameDy: 8 } , dash: true},
+      segment: { a: { x: -2, y: 2 },
+                 b: { x:  2, y: 5, nameDx: 40, nameDy: 8 } , dash: true},
       legs: [
-        { from: { x: -2, y: 2 }, to: { x: 2, y: 2 }, mark: { name: 'C' } },
+        { from: { x: -2, y: 2 }, to: { x: 2, y: 2 }, mark: {} },
         { from: { x:  2, y: 2 }, to: { x: 2, y: 5 } }
       ],
       task: { kind: 'entry', pair: 'AB', answer: 5,
@@ -1128,10 +1140,10 @@ window.CFG = (function () {
 
     { id: 20, line: 'What is the distance between two points?', range: { min: 0, max: 12 }, entrance: 'none',
       layout: 'board', transition: 'leaves', intro: 'measure', entry: true,
-      segment: { a: { x: -3, y:  3, name: 'A' },
-                 b: { x:  5, y: -3, name: 'B', nameDx: 40, nameDy: 8 } , dash: true},
+      segment: { a: { x: -3, y:  3 },
+                 b: { x:  5, y: -3, nameDx: 40, nameDy: 8 } , dash: true},
       legs: [
-        { from: { x: -3, y: 3 }, to: { x: 5, y:  3 }, mark: { name: 'C' } },
+        { from: { x: -3, y: 3 }, to: { x: 5, y:  3 }, mark: {} },
         { from: { x:  5, y: 3 }, to: { x: 5, y: -3 } }
       ],
       task: { kind: 'entry', pair: 'AB', answer: 10,

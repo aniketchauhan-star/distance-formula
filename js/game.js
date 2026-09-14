@@ -255,15 +255,20 @@
 
   /* Seats the speech bubble for one screen. Split out of applyGeom so a
      line can re-seat it at a width measured from the text. */
-  function seatBubble(g, inkWOverride) {
+  function seatBubble(g, inkWOverride, bodyHOverride) {
     /* A layout may bring its own bubble shape — the grid screens use a
        wide, shallow one whose tail leaves the side rather than the
        bottom, because she stands above the board with nothing over her. */
     const B = g.bubble || C.BUBBLE, s = g.bubbleScale;
     const side = B.tailSide === 'left';
     const inkW = (inkWOverride != null ? inkWOverride : B.ink.w) * s;
-    const inkH = B.ink.h * s;
-    const tipX = B.tip.x * s, tipY = B.tip.y * s;
+    /* A shape can be given a shorter balloon for a line that only needs
+       one row — the tail keeps its length, so the box shrinks from the
+       top and the point stays on her head. */
+    const bodyH = bodyHOverride != null ? bodyHOverride : B.bodyH;
+    const tailLen = B.tailLen != null ? B.tailLen : (B.tip.y - B.bodyH);
+    const inkH = (bodyH + tailLen + 1) * s;
+    const tipX = B.tip.x * s, tipY = (bodyH + tailLen) * s;
     const tip = { x: g.aim.x, y: g.aim.y + B.biteIntoHead };
 
     el.bubble.classList.toggle('tail-left', side);
@@ -275,17 +280,16 @@
     el.bubble.style.transformOrigin = tipX + 'px ' + tipY + 'px';
 
     el.bubbleImg.style.width = inkW + 'px';
-    el.bubbleImg.style.height = B.bodyH * s + 'px';
+    el.bubbleImg.style.height = bodyH * s + 'px';
 
     const bs = el.bubble.style;
-    bs.setProperty('--bodyH', B.bodyH * s + 'px');
+    bs.setProperty('--bodyH', bodyH * s + 'px');
     /* A square turned 45 degrees drops its corner 1/root-2 of a side
        past its centre, so this side puts the point exactly on the tip
        when the square is centred on the balloon's edge. */
-    const reach = side ? B.tailLen : (B.tip.y - B.bodyH);
-    bs.setProperty('--tailSq', reach * s * Math.SQRT2 + 'px');
+    bs.setProperty('--tailSq', tailLen * s * Math.SQRT2 + 'px');
     bs.setProperty('--tailX', (side ? 0 : B.tip.x * s) + 'px');
-    bs.setProperty('--tailY', (side ? B.bodyH * s / 2 : B.bodyH * s) + 'px');
+    bs.setProperty('--tailY', (side ? bodyH * s / 2 : bodyH * s) + 'px');
     bs.setProperty('--tailTip', B.tailTip * s + 'px');
     bs.setProperty('--r',      B.radius * s + 'px');
     bs.setProperty('--e1',     B.edgeW * s + 'px');
@@ -297,10 +301,17 @@
     bs.setProperty('--gold',   B.gold);
     bs.setProperty('--leaf',   B.leaf * s + 'px');
 
-    el.bubbleText.style.left = inkW * B.text.left + 'px';
-    el.bubbleText.style.top = inkH * B.text.top + 'px';
-    el.bubbleText.style.width = inkW * B.text.width + 'px';
-    el.bubbleText.style.height = inkH * B.text.height + 'px';
+    if (B.pad) {
+      el.bubbleText.style.left = B.pad.x * s + 'px';
+      el.bubbleText.style.top = B.pad.y * s + 'px';
+      el.bubbleText.style.width = (inkW - B.pad.x * 2 * s) + 'px';
+      el.bubbleText.style.height = (bodyH - B.pad.y * 2) * s + 'px';
+    } else {
+      el.bubbleText.style.left = inkW * B.text.left + 'px';
+      el.bubbleText.style.top = inkH * B.text.top + 'px';
+      el.bubbleText.style.width = inkW * B.text.width + 'px';
+      el.bubbleText.style.height = inkH * B.text.height + 'px';
+    }
   }
 
   function layout() {
@@ -424,7 +435,16 @@
       plate.style.width = prevW;
       if (!measured) return;               // hidden, or no metrics yet
       const want = Math.min(A.max, Math.max(A.min, measured + A.pad * 2));
-      seatBubble(g, want);
+      /* And the height: a line that fits across in one row gets a
+         balloon one row tall, instead of sitting in a box built for the
+         longest question in the game. */
+      let bodyH = null;
+      if (B.pad && B.lineH) {
+        const usable = want - B.pad.x * 2 * (g.bubbleScale || 1);
+        const rows = Math.max(1, Math.ceil(measured / Math.max(1, usable)));
+        bodyH = Math.round(rows * B.lineH + B.pad.y * 2);
+      }
+      seatBubble(g, want, bodyH);
     },
 
     /* A coordinate pair must never break across lines, so the space
@@ -512,6 +532,7 @@
      drawn gridlines (measured into CFG.GRID). */
   const Board = {
     built: false, shown: false, labels: [], lines: [], arrows: [], dots: [],
+    foundMarks: [],          // points already located, left on the board
 
     build: function () {
       if (this.built) return;
@@ -910,8 +931,10 @@
     setDots: function (on) {
       if (!this.dotGroup) return;
       this.dotGroup.classList.toggle('on', !!on);
-      // clear any point marked by the previous question, either way
-      this.clearFound();
+      /* Marked points are NOT cleared here any more: the second locate
+         screen turns the highlighters back on, and doing it here rubbed
+         out the point they had just found. They go when the board is
+         rebuilt or a question plots its own segment instead. */
     },
 
     /* Where a grid point sits in stage coordinates, for effects that
@@ -1212,6 +1235,7 @@
     },
 
     clearSegment: function () {
+      this.clearFound();        // a plotted question starts from a clean board
       this.clearUnits();
       this.clearLegs();
       this.clearMeasure();
@@ -1319,22 +1343,46 @@
 
     /* Marks a point as found: the pulsing markers clear away and the
        point is left labelled with its coordinates. */
+    /* A located point is marked, labelled with its coordinates, and left
+       there. Each one gets its own marker rather than the single one
+       being moved, so the first stays locked in place while the second
+       is being found. */
     solve: function (gx, gy) {
+      const NS2 = 'http://www.w3.org/2000/svg';
       const G = C.GRID, F = G.found;
       const px = G.originX + gx * G.stepX, py = G.originY - gy * G.stepY;
-      this.foundDot.setAttribute('cx', px);
-      this.foundDot.setAttribute('cy', py);
-      this.foundLabel.setAttribute('x', px + F.labelDx);
-      this.foundLabel.setAttribute('y', py + F.labelDy);
-      this.foundLabel.textContent = '(' + gx + ',\u00A0' + gy + ')';
+
+      const g = document.createElementNS(NS2, 'g');
+      g.setAttribute('class', 'found');
+      const c = document.createElementNS(NS2, 'circle');
+      c.setAttribute('cx', px); c.setAttribute('cy', py);
+      c.setAttribute('r', F.r);
+      c.setAttribute('fill', F.fill);
+      c.setAttribute('stroke', F.stroke);
+      c.setAttribute('stroke-width', F.strokeWidth);
+      c.setAttribute('class', 'fdot');
+      const t = document.createElementNS(NS2, 'text');
+      t.setAttribute('x', px + F.labelDx);
+      t.setAttribute('y', py + F.labelDy);
+      t.setAttribute('fill', G.ink);
+      t.setAttribute('font-size', F.labelSize);
+      t.setAttribute('class', 'flabel');
+      t.textContent = '(' + gx + ',\u00A0' + gy + ')';
+      g.appendChild(c); g.appendChild(t);
+      el.gridAxes.appendChild(g);
+      this.foundMarks.push(g);
+
       if (this.dotGroup) this.dotGroup.classList.remove('on');   // highlighters away
-      this.foundGroup.classList.remove('on');
-      void this.foundGroup.getBoundingClientRect;
-      this.foundGroup.classList.add('on');
+      void g.getBoundingClientRect;
+      g.classList.add('on');
     },
 
     clearFound: function () {
       if (this.foundGroup) this.foundGroup.classList.remove('on');
+      (this.foundMarks || []).forEach(function (g) {
+        if (g.parentNode) g.parentNode.removeChild(g);
+      });
+      this.foundMarks = [];
     },
 
     /* A wrong tap: the point flashes red and settles back. */
@@ -1351,6 +1399,7 @@
       this.lines.forEach(function (l) { l.classList.remove('draw'); });
       this.arrows.forEach(function (a) { a.classList.remove('pop'); });
       this.labels.forEach(function (t) { t.classList.remove('pop'); });
+      this.clearFound();
       el.gridPanel.classList.add('hidden');
       el.gridPanel.classList.remove('magic-in');
       this.setDots(false);
@@ -1370,10 +1419,13 @@
       el.gridPanel.classList.remove('hidden');
       void el.gridPanel.offsetWidth;
       el.gridPanel.classList.add('magic-in');
+      // the ruling washes in under the axes, a beat behind the panel
+      el.gridImg.classList.remove('ruling');
+      void el.gridImg.offsetWidth;
+      el.gridImg.classList.add('ruling');
       this.flutter();
       SFX.magic();
-      FX.ring(cx, cy, 420, 'rgba(255,235,150,.95)');
-      FX.sparkles(cx, cy, 18, 420);
+      FX.sparkles(cx, cy, 12, 380);
 
       later(function () {
         self.axisX.forEach(function (l) { l.classList.add('draw'); });
@@ -1391,14 +1443,18 @@
         });
       }, 1520);
 
-      // numbers only once every line and arrowhead is in
+      /* Numbers only once every line and arrowhead is in, and `done`
+         only once the last number has finished popping — the two were
+         using different spacings, so the dots used to start while the
+         final few numbers were still arriving. */
+      const STEP = 60, POP = 420;
       later(function () {
         self.labels.forEach(function (t, i) {
-          later(function () { t.classList.add('pop'); SFX.tick(i); }, i * 60);
+          later(function () { t.classList.add('pop'); SFX.tick(i); }, i * STEP);
         });
       }, 1860);
 
-      later(done, 1860 + this.labels.length * 46 + 320);
+      later(done, 1860 + (this.labels.length - 1) * STEP + POP + 140);
     }
   };
 
@@ -1522,7 +1578,6 @@
       setTimeout(function () {
         el.startScreen.classList.add('hidden');
         stopWeather.splice(0).forEach(function (f) { f(); });
-        FX.confetti(50);
         FX.motes(18);
         self.busy = false;
         self.goTo(0);
@@ -2330,6 +2385,7 @@
       t.wrong++;
       SFX.wrong();
       Board.reject(node);
+      Hint.again();          // point it out again, from the top
 
       const self = this;
       if (t.wrong >= (t.spec.maxWrong || 2)) {
@@ -2448,11 +2504,11 @@
      timer to beat, so a child who is still thinking and moving the
      cursor never sees it. */
   const Hint = {
-    pulseT: null, handT: null, dot: null, target: null,
+    pulseT: null, handT: null, hideT: null, dot: null, target: null,
 
     clear: function () {
-      clearTimeout(this.pulseT); clearTimeout(this.handT);
-      this.pulseT = this.handT = null;
+      clearTimeout(this.pulseT); clearTimeout(this.handT); clearTimeout(this.hideT);
+      this.pulseT = this.handT = this.hideT = null;
       this.target = null;
       if (this.dot) { this.dot.classList.remove('hint'); this.dot = null; }
       el.nudge.classList.add('hidden');
@@ -2478,6 +2534,11 @@
       }, N.pulseAfter);
 
       this.handT = setTimeout(function () {
+        // and away again after a while: a pointer, not a fixture
+        self.hideT = setTimeout(function () {
+          el.nudge.classList.add('hidden');
+          el.nudge.classList.remove('tapping');
+        }, N.handFor);
         const at = Board.stagePos(t.x, t.y);
         const k = N.height / N.inkH;          // the hand's ink at its rendered size
         const st = el.nudge.style;
@@ -2492,8 +2553,8 @@
       }, N.handAfter);
     },
 
-    // any activity restarts the wait, if one is running
-    poke: function () { if (this.target) this.arm(this.target); }
+    // after a wrong tap the point speaks up again, from the top
+    again: function () { if (this.target) this.arm(this.target); }
   };
 
   /* ---------------- title screen ---------------- */
@@ -2620,7 +2681,6 @@
     ['pointerdown', 'keydown', 'touchstart'].forEach(function (ev) {
       document.addEventListener(ev, armAudio, { passive: true });
     });
-    document.addEventListener('pointerdown', function () { Hint.poke(); }, { passive: true });
 
     FX.init(el.fxLayer);
     FX.clouds(el.skyLayer);

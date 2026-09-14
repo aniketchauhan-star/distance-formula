@@ -364,83 +364,16 @@ html, body {
       transparent var(--lw, 2px) var(--ch, 50px));
 }
 
-/* One autumn leaf caught on each of two corners of the board, top
-   left and bottom right. Both offsets are multiples of --leaf, which
-   Board.place() scales with the panel, so the pair holds its place at
-   any board size. Each sits far enough onto the frame that the whole
-   leaf reads against it rather than half against the sky.
-
-   The resting angle lives in --rot and the keyframes end on it, which
-   is what lets one animation serve both leaves at different angles. */
-#gridPanel .leaf {
-  position: absolute;
-  width: var(--leaf, 108px);
-  height: auto;
-  pointer-events: none;
-  transform: rotate(var(--rot, 0deg));
-  filter: drop-shadow(0 3px 5px rgba(120, 75, 20, .3));
-}
-
-#gridPanel .leaf-tl {
-  --rot: -16deg;
-  --fx: -1.1;  --fy: -2.0;  --frot: -190deg;
-  left: calc(var(--leaf, 108px) * -.18);
-  top:  calc(var(--leaf, 108px) * -.34);
-}
-#gridPanel .leaf-br1 {
-  --rot: 26deg;
-  --fx: 1.2;  --fy: 1.9;  --frot: 200deg;
-  right:  calc(var(--leaf, 108px) * -.16);
-  bottom: calc(var(--leaf, 108px) * -.26);
-}
-
-/* Each leaf drifts down into place whenever the board arrives — slowly,
-   the way a leaf actually falls, turning as it comes and rocking twice
-   past its resting angle before it settles. */
-#gridPanel.leaves-in .leaf {
-  animation: leafDrift 2.6s cubic-bezier(.22, .62, .3, 1) both;
-}
-#gridPanel.leaves-in .leaf-br1 { animation-delay: .45s; }
-
-@keyframes leafDrift {
-  0% {
-    opacity: 0;
-    transform:
-      translate(calc(var(--leaf, 108px) * var(--fx)), calc(var(--leaf, 108px) * var(--fy)))
-      rotate(var(--frot)) scale(.86);
-  }
-  18% { opacity: 1; }
-  /* the long, slow part of the fall */
-  55% {
-    transform:
-      translate(calc(var(--leaf, 108px) * var(--fx) * .28),
-                calc(var(--leaf, 108px) * var(--fy) * .34))
-      rotate(calc(var(--rot) + 26deg)) scale(.96);
-  }
-  /* and two smaller rocks as it comes to rest */
-  78% {
-    transform:
-      translate(calc(var(--leaf, 108px) * -.05), calc(var(--leaf, 108px) * -.04))
-      rotate(calc(var(--rot) - 9deg)) scale(1.02);
-  }
-  91% {
-    transform:
-      translate(calc(var(--leaf, 108px) * .02), calc(var(--leaf, 108px) * .01))
-      rotate(calc(var(--rot) + 4deg)) scale(1);
-  }
-  100% { opacity: 1; transform: translate(0, 0) rotate(var(--rot)) scale(1); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  #gridPanel.leaves-in .leaf { animation: leafFade .5s ease both; }
-  @keyframes leafFade { from { opacity: 0; } to { opacity: 1; } }
-}
-
 #gridAxes  { position: absolute; left: 0; top: 0; overflow: visible; }
 
 
 /* the board arriving out of nowhere */
-#gridPanel.magic-in { animation: magicIn .85s cubic-bezier(.22, 1.35, .4, 1) both; }
+#gridPanel.magic-in { animation: magicIn .7s cubic-bezier(.25, .9, .3, 1) both; }
+
+/* The ruled paper washes in under the axes instead of arriving with the
+   panel, so the board fills in rather than turning up complete. */
+#gridImg.ruling { animation: ruleIn 1s ease-out both; }
+@keyframes ruleIn { from { opacity: 0; } to { opacity: 1; } }
 
 /* Each axis is two half-lines drawn outward from the origin, so the
    middle lines grow from the centre rather than sweeping in. */
@@ -975,11 +908,11 @@ html, body {
 /* ---------------- keyframes ---------------- */
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
+/* The board settles in rather than bursting in: it used to arrive at
+   0.55 scale, rotated, over-bright and blurred, then overshoot. */
 @keyframes magicIn {
-  0%   { opacity: 0; transform: scale(.55) rotate(-7deg); filter: brightness(2.4) blur(9px); }
-  55%  { opacity: 1; transform: scale(1.06) rotate(2deg); filter: brightness(1.3) blur(0); }
-  78%  { transform: scale(.98) rotate(-.8deg); }
-  100% { opacity: 1; transform: scale(1) rotate(0deg); filter: none; }
+  0%   { opacity: 0; transform: scale(.965); }
+  100% { opacity: 1; transform: scale(1); }
 }
 @keyframes drawOut  { to { stroke-dashoffset: 0; } }
 @keyframes arrowPop {
