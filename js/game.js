@@ -120,9 +120,12 @@
 
   /* ---------------- layout of positioned art ---------------- */
   const REF_W = C.SHEETS.talk.frames[0].w;
-  let Dist = null;              // the distance selector, mounted on demand
+  /* One control answers every screen that has a number for an answer —
+     the distance questions and the two worked-out ones alike. It
+     replaced a slider and a typed keypad that did the same job in two
+     different shapes. */
+  let Sel  = null;              // the number selector, mounted on demand
   let Opts = null;              // the triangle-type answer panel
-  let Pad  = null;              // the typed-answer pad
 
   /* Where the character, her shadow and her bubble sit on a given
      screen. Screens 1-4 use the small field pose; screen 5 puts her
@@ -337,24 +340,16 @@
     el.qBannerText.style.height = Q.h * Q.text.height + 'px';
     el.qBannerText.style.fontSize = Q.size + 'px';
 
-    /* Screen 8's distance selector. It mounts itself and owns its own
-       markup and styles; the game only decides where and when. */
-    if (window.DistancePanel && !Dist) {
-      const DP = C.BOARD.distance;
-      Dist = window.DistancePanel.mount(el.scene, { x: DP.pos.x, y: DP.pos.y, hidden: true });
+    /* It mounts itself and owns its own markup and styles; the game
+       only decides where, when, and what range it counts over. */
+    if (window.NumberSelector && !Sel) {
+      const SP = C.BOARD.selector;
+      Sel = window.NumberSelector.mount(el.scene,
+        { x: SP.pos.x, y: SP.pos.y, scale: SP.scale, hidden: true });
     }
     if (window.TriangleOptions && !Opts) {
       const OP = C.BOARD.options;
       Opts = window.TriangleOptions.mount(el.scene, { x: OP.pos.x, y: OP.pos.y, hidden: true });
-    }
-    /* The pad for answers that are worked out rather than picked, and
-       that the slider cannot reach: it only counts to 8. */
-    if (window.AnswerPad && !Pad) {
-      const EP = C.BOARD.entry;
-      Pad = window.AnswerPad.mount(el.scene);
-      Pad.el.style.left = EP.pos.x + 'px';
-      Pad.el.style.top = EP.pos.y + 'px';
-      Pad.el.style.width = EP.w + 'px';
     }
 
     /* The standing pose is seated per screen now, in applyGeom — the
@@ -1574,9 +1569,8 @@
         if (entry.layout !== 'board' && !AX) el.qBanner.classList.add('hidden');
         if (entry.layout !== 'recap' && !AX) el.formulaBoard.classList.add('hidden');
         if (!entry.segment && !entry.keepSegment) Board.clearSegment();
-        if (Dist && !entry.distance) Dist.hide();
         if (Opts && !entry.options) Opts.hide();
-        if (Pad && !entry.entry) Pad.hide();
+        if (Sel && !(entry.distance || entry.entry)) Sel.hide();
       }
 
       /* What happens once she has arrived: speak her line, hand over
@@ -1587,19 +1581,20 @@
         ? { target: entry.task.target, spec: entry.task, wrong: 0, done: false }
         : null;
 
-      // a distance task is answered on the slider, so route Check to it
-      if (Dist) {
-        const measuring = entry.task && entry.task.kind === 'distance';
-        Dist.onCheck(measuring ? function (v) { self.checkDistance(v); } : null);
-        /* Dragging lays the line down as it goes, so the slider reads
-           as a ruler rather than a number picker. */
-        Dist.onChange(measuring ? function (v) { self.showMeasure(v); } : null);
-      }
-      // a typed task is answered on the pad
-      if (Pad) {
-        const typed = entry.task && entry.task.kind === 'entry';
-        Pad.onCheck(typed ? function (v) { self.checkEntry(v); } : null);
-        if (typed) Pad.setPrompt((entry.task.pair || 'AB') + ' =');
+      /* Both kinds of numeric question are answered on the same
+         control; only a distance one lays a line down as it changes. */
+      if (Sel) {
+        const numeric = entry.task && (entry.task.kind === 'distance' || entry.task.kind === 'entry');
+        const r = entry.range || { min: window.NumberSelector.MIN, max: window.NumberSelector.MAX };
+        Sel.setRange(r.min, r.max);
+        Sel.onCheck(!numeric ? null : function (v) {
+          if (entry.task.kind === 'distance') self.checkDistance(v);
+          else self.checkEntry(v);
+        });
+        /* Changing it lays the measuring line down as it goes, so the
+           control reads as a ruler rather than a number picker. */
+        Sel.onChange(entry.task && entry.task.kind === 'distance'
+          ? function (v) { self.showMeasure(v); } : null);
       }
       // a choice task is answered on the options panel
       if (Opts) {
@@ -1690,14 +1685,12 @@
           el.qBanner.classList.add('hidden');
         }
 
-        if (Dist) {
-          if (entry.distance && !holds) { Dist.reset(); Dist.show(); } else Dist.hide();
+        if (Sel) {
+          if ((entry.distance || entry.entry) && !holds) { Sel.reset(); Sel.show(); }
+          else Sel.hide();
         }
         if (Opts) {
           if (entry.options) { Opts.reset(); Opts.show(); } else Opts.hide();
-        }
-        if (Pad) {
-          if (entry.entry && !holds) { Pad.reset(); Pad.show(); } else Pad.hide();
         }
 
         if (entry.layout === 'recap') {
@@ -1767,7 +1760,7 @@
         el.qBannerLine.textContent = '';
         el.standSwifty.classList.add('hidden');
         el.birdWin.classList.add('hidden');
-        if (Dist) Dist.hide();
+        if (Sel) Sel.hide();
         Board.shown = false;
         Board.setDots(false);
         Board.clearSegment();
@@ -1793,10 +1786,17 @@
                 el.gridPanel.classList.remove('sliding');
               }, 700);
 
-              // 4. she flies in, lands on the grass, and stays
+              /* 4. she flies in, puts the question, and leaves — the
+                 control takes the space she was standing in, so she has
+                 to be out of the frame before it arrives. */
               self.flyIn(function () {
                 FX.sparkles(geom.aim.x, geom.aim.y, 7, 170 * geom.scale);
-                Bubble.open(entry.line, function () { self.later(opens, 620); });
+                Bubble.open(entry.line, function () {
+                  self.later(function () {
+                    Bubble.close();
+                    self.flyOut(opens);
+                  }, 900);
+                });
               });
             };
             /* A leg question draws every leg first, the one it is about
@@ -1817,8 +1817,10 @@
       const opens = function () {
         self.later(function () {
           /* whichever control this screen answers on */
-          if (Dist) { if (entry.distance) { Dist.reset(); Dist.show(); } else Dist.hide(); }
-          if (Pad)  { if (entry.entry)    { Pad.reset();  Pad.show();  } else Pad.hide(); }
+          if (Sel) {
+            if (entry.distance || entry.entry) { Sel.reset(); Sel.show(); }
+            else Sel.hide();
+          }
           Board.clearMeasure();
           self.settle();
         }, 240);
@@ -1852,9 +1854,8 @@
         Board.shown = true;
         if (!entry.keepSegment) Board.clearSegment();
         else Board.clearUnits();          // keep the drawing, drop any count-out
-        if (Dist && entry.distance) { Dist.reset(); Dist.show(); }
+        if (Sel && (entry.distance || entry.entry)) { Sel.reset(); Sel.show(); }
         if (Opts && entry.options) { Opts.reset(); Opts.show(); }
-        if (Pad && entry.entry) { Pad.reset(); Pad.show(); }
       }
 
       /* A grid screen builds the board in first — but only if it is
@@ -2175,7 +2176,7 @@
         t.done = true;
         this.state = 'waiting';
         SFX.correct();
-        if (Pad) Pad.lock();
+        if (Sel) Sel.lock();
         Board.litMeasure();
         this.later(function () {
           SFX.cheer();

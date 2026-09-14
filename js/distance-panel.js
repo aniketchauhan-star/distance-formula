@@ -13,7 +13,7 @@ window.DistancePanel = (function () {
   'use strict';
 
   const MIN = 1, MAX = 8;
-  const TRACK_W = 490;     // must match .dtrack-wrap / .drange in the CSS
+  const TRACK_W = 400;     // must match .dtrack-wrap / .drange in the CSS
   const THUMB_W = 48;      // must match ::-webkit-slider-thumb
 
   /* Where the knob's centre sits for a given value. A native range

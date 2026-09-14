@@ -8,7 +8,7 @@
 .dpanel {
   position: absolute;
   box-sizing: border-box;
-  width: 610px;
+  width: 520px;
   height: 407px;
   padding: 13px;
   background: #FFD747;                    /* golden border */
@@ -43,7 +43,7 @@
 
 .dtrack-wrap {
   position: relative;
-  width: 490px;
+  width: 400px;
   height: 54px;
   margin: 0 auto;
 }
@@ -65,7 +65,7 @@
   -webkit-appearance: none;
   appearance: none;
   position: relative;
-  width: 490px;
+  width: 400px;
   height: 54px;
   margin: 0;
   background: transparent;
@@ -117,7 +117,7 @@
 /* ---------------- number boxes ---------------- */
 .dnumbers {
   position: relative;
-  width: 490px;
+  width: 400px;
   height: 42px;
   margin: 16px auto 0;
 }

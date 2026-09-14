@@ -364,7 +364,7 @@ window.CFG = (function () {
        every offset is relative to the origin, so trimming the frame
        only stops the panel drawing cells nobody names, and the same
        range is then drawn at 56px a cell instead of 51px. */
-    w: 1161, h: 990,
+    w: 1216, h: 990,
 
     /* Centred, and filling everything below the band that carries
        Swifty and her line. Square cells tie the panel's aspect to the
@@ -374,19 +374,20 @@ window.CFG = (function () {
        The frame was widened symmetrically to do it, so the board grew
        into the dead space without the axes leaving its centre — the
        extra columns either side of 6 are unnumbered grid. */
-    /* As far left as her column allows. What sets the limit is the
-       slider: it is 610 wide and has to live in whatever the board
-       leaves, so 660 is the last position where it still fits with
-       margins. The frame was widened to suit, so the board grew
-       without the axes leaving its centre. */
-    box: { x: 660, y: 12, w: 1248, h: 1056 },
+    /* As far left as her column allows. The slider used to set that
+       limit at 660 — it was 610 wide and had to live in whatever the
+       board left; narrowing it to 520, the width the answer pad and the
+       options panel already use, bought the board another 60px. The
+       frame was widened to suit, so the board grew without the axes
+       leaving its centre. */
+    box: { x: 600, y: 12, w: 1308, h: 1056 },
 
     /* Where the board builds itself before anyone is on screen: the
        middle of an empty frame, since it is the whole picture until
        there is someone to share it with. It moves to `box` as she
        flies in. Same size either end, so the slide moves two offsets
        and the grid art never rescales mid-flight. */
-    centre: { x: (STAGE_W - 1248) / 2, y: 12, w: 1248, h: 1056 },
+    centre: { x: (STAGE_W - 1308) / 2, y: 12, w: 1308, h: 1056 },
 
     /* A wide, shallow bubble for these screens instead of the tall one
        she uses elsewhere. Two reasons: the band above the panel is only
@@ -410,7 +411,7 @@ window.CFG = (function () {
       leaf: 44,
       size: 32,
       // bounded so the balloon never reaches the board at x 866
-      autoWidth: { min: 320, max: 520, pad: 46 },
+      autoWidth: { min: 320, max: 460, pad: 46 },
       // plate 88 tall: two lines of 32px at 1.3, with 22px inset all round
       text: { left: 0.06, top: 0.118279, width: 0.88, height: 0.473118 }
     }),
@@ -448,7 +449,7 @@ window.CFG = (function () {
     /* The origin sits at the centre of the cream, so the axes are
        centred in the grid rather than merely centred on their own
        extents. */
-    originX: 580.5, originY: 495,
+    originX: 608, originY: 495,
     /* Sized so 12 cells each way across and 8 each way down exactly
        fill the cream. Down, that leaves a 12px margin. Across, the
        outermost column on each side is left undrawn, so the sides
@@ -509,7 +510,7 @@ window.CFG = (function () {
       edgeW: 2,
       frameW: 13,
       hiW: 3,               // the pale ring just inside the frame
-      gxFrom: -9, gxTo: 9,
+      gxFrom: -10, gxTo: 10,
       gyFrom: -8,  gyTo: 8,
 
       /* Autumn leaves pinned to two corners, sized off the panel so
@@ -753,7 +754,7 @@ window.CFG = (function () {
        an otherwise empty frame; it only moves aside once the question
        has been put and the controls are on their way in. Same size, so
        the move is a slide rather than a resize. */
-    centre: { x: 413, y: 112, w: 1094, h: 925 },
+    centre: { x: 387, y: 112, w: 1146, h: 925 },
 
     /* Where Swifty lands to put that question, while the board is
        still centred: bottom left, in front of the board's blank
@@ -769,19 +770,20 @@ window.CFG = (function () {
        needed. */
     stand: STAND,
 
-    // the distance selector, mounted as its own component
-    /* Stacked above her rather than off to the right: the board takes
-       the whole right of the frame now, so her column is what is left,
-       and it reads control, then her line, then her. */
-    distance: { pos: { x: 20, y: 105 }, w: 610, h: 407 },
+    /* The one control every answering screen uses now — the number
+       selector that replaced both the slider and the typed pad. It is
+       built at its own natural 760 x 430 and scaled to fit her column,
+       so its proportions stay the ones it was designed at rather than
+       whatever happened to fit. */
+    selector: { pos: { x: 34, y: 380 }, w: 760, h: 430, scale: 0.70 },
 
     /* The triangle-type answer panel takes the slider's place, centred
        on the same footprint so the left column stays put. */
-    options: { pos: { x: 65, y: 115 }, w: 520 },
+    options: { pos: { x: 30, y: 115 }, w: 520 },
 
     /* And the answer pad takes the same column again, for the
        questions whose answer is typed rather than chosen. */
-    entry: { pos: { x: 65, y: 115 }, w: 520 }
+    entry: { pos: { x: 30, y: 115 }, w: 520 }
   };
 
   /* -------------------------------------------------------------
@@ -789,7 +791,7 @@ window.CFG = (function () {
      Board on the left, the formula beside it, nobody on screen.
      ------------------------------------------------------------- */
   const RECAP = {
-    grid: { x: 46, y: 142, w: 1014, h: 858 },
+    grid: { x: 46, y: 142, w: 1063, h: 858 },
     formula: { x: 1246, y: 372, w: 630 },
     /* Plain "x2" rather than a subscript glyph, and the square root
        written with brackets rather than an overline: both keep to
@@ -807,7 +809,7 @@ window.CFG = (function () {
      narrowed step by step until only |x2 - x1| is left.
      ------------------------------------------------------------- */
   const XAXIS = {
-    grid: { x: 60, y: 250, w: 882, h: 746 },
+    grid: { x: 60, y: 250, w: 924, h: 746 },
     formula: { x: 1110, y: 470, w: 750 },
 
     /* Both points sit on the axis, so their labels stack above it —
@@ -888,7 +890,7 @@ window.CFG = (function () {
     srcW: 1234, srcH: 1234,
     tip: { x: 571, y: 484 },
     inkH: 356,            // the hand's height in source pixels
-    height: 210,          // what it renders at on the stage
+    height: 128,          // what it renders at on the stage: about two cells
     /* The point speaks up first and the hand only follows if that was
        not enough — a hand arriving straight away would read as being
        hurried rather than helped. */
@@ -1106,7 +1108,7 @@ window.CFG = (function () {
        Pythagoras can be applied. Both are Pythagorean triples, so the
        answer comes out whole — 3-4-5 first, then the same shape
        doubled to 6-8-10. */
-    { id: 19, line: 'Find the distance AB.', entrance: 'none',
+    { id: 19, line: 'Find the distance AB.', range: { min: 1, max: 12 }, entrance: 'none',
       layout: 'board', transition: 'leaves', intro: 'measure', entry: true,
       segment: { a: { x: -2, y: 2, name: 'A' },
                  b: { x:  2, y: 5, name: 'B', nameDx: 40, nameDy: 8 } },
@@ -1121,7 +1123,7 @@ window.CFG = (function () {
                 'The sides are 4 and 3. What is \u221a(4\u00b2 + 3\u00b2)?'
               ] } },
 
-    { id: 20, line: 'Now find AB.', entrance: 'none',
+    { id: 20, line: 'Now find AB.', range: { min: 1, max: 12 }, entrance: 'none',
       layout: 'board', transition: 'leaves', intro: 'measure', entry: true,
       segment: { a: { x: -3, y:  3, name: 'A' },
                  b: { x:  5, y: -3, name: 'B', nameDx: 40, nameDy: 8 } },
