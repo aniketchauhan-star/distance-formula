@@ -336,10 +336,9 @@
     }
     if (window.TriangleOptions && !Opts) {
       const OP = C.BOARD.options;
-      Opts = window.TriangleOptions.mount(el.scene, { x: OP.pos.x, y: OP.pos.y, hidden: true });
       // scaled to her column, the same way the number selector is
-      Opts.el.style.transformOrigin = 'top left';
-      Opts.el.style.transform = 'scale(' + OP.scale + ')';
+      Opts = window.TriangleOptions.mount(el.scene,
+        { x: OP.pos.x, y: OP.pos.y, scale: OP.scale, hidden: true });
     }
 
     /* The standing pose is seated per screen now, in applyGeom — the
@@ -510,7 +509,7 @@
      can animate in on its own, and so the numbers land exactly on the
      drawn gridlines (measured into CFG.GRID). */
   const Board = {
-    built: false, shown: false, labels: [], lines: [], arrows: [], dots: [],
+    built: false, shown: false, labels: [], axisLabels: [], lines: [], arrows: [], dots: [],
     foundMarks: [],          // points already located, left on the board
 
     build: function () {
@@ -528,6 +527,10 @@
       const yMin = oy - G.yTo   * G.stepY - ov;
       const yMax = oy - G.yFrom * G.stepY + ov;
       const self = this;
+
+      svg.style.setProperty('--axisDraw', G.axisDrawMs + 'ms');
+      svg.style.setProperty('--numLit', G.numLit);
+      svg.style.setProperty('--numInk', G.ink);
 
       const half = function (x2, y2) {
         const l = document.createElementNS(NS, 'line');
@@ -568,7 +571,7 @@
       arrow(ox, yMin, 0, -1);
       arrow(ox, yMax, 0,  1);
 
-      const label = function (txt, x, y, size) {
+      const label = function (txt, x, y, size, axis, v) {
         const t = document.createElementNS(NS, 'text');
         t.setAttribute('x', x); t.setAttribute('y', y);
         /* Scale it about its own spot, in the SVG's own units. Relying
@@ -585,6 +588,9 @@
         t.textContent = txt;
         svg.appendChild(t);
         self.labels.push(t);
+        /* Which axis it belongs to and how far along it, so it can be
+           revealed by the line as that line reaches it. */
+        self.axisLabels.push({ el: t, axis: axis || 'x', v: v || 0 });
       };
       /* x numbers sit under the axis, y numbers to its left, 0 in the
          corner between them. The three rows are tuned against each
@@ -594,18 +600,19 @@
          and the -1 need. */
       for (let x = G.xFrom; x <= G.xTo; x++) {
         if (x === 0) continue;
-        label(String(x), ox + x * G.stepX, oy + G.labelGap + G.labelSize * 0.42);
+        label(String(x), ox + x * G.stepX, oy + G.labelGap + G.labelSize * 0.42, 0, 'x', x);
       }
       for (let y = G.yFrom; y <= G.yTo; y++) {
         if (y === 0) continue;
-        label(String(y), ox - G.yLabelGap - G.labelSize * 0.30, oy - y * G.stepY);
+        label(String(y), ox - G.yLabelGap - G.labelSize * 0.30, oy - y * G.stepY, 0, 'y', y);
       }
-      label('0', ox - G.zeroGap, oy + G.labelGap + G.labelSize * 0.42);
+      // at the origin, so it lights as the sweep sets off
+      label('0', ox - G.zeroGap, oy + G.labelGap + G.labelSize * 0.42, 0, 'x', 0);
 
-      // axis names, last so they pop in after the numbers
+      // the axis names sit past the last number, where each sweep ends
       const N = G.axisName;
-      label('x', xMax + N.gap,  oy - N.rise,    N.size);
-      label('y', ox + N.yGap,   yMin + N.yDrop, N.size);
+      label('x', xMax + N.gap,  oy - N.rise,    N.size, 'x', G.xTo + 1);
+      label('y', ox + N.yGap,   yMin + N.yDrop, N.size, 'y', G.yTo + 1);
 
       /* Screen 6's intersection markers: every gridline crossing in
          the numbered range. Built once, hidden until that screen. */
@@ -1354,20 +1361,21 @@
       if (units <= 0) { this.clearMeasure(); return; }
       const px = function (v) { return G.originX + v * G.stepX; };
       const py = function (v) { return G.originY - v * G.stepY; };
-      const sx = Math.sign(to.x - from.x), sy = Math.sign(to.y - from.y);
-      /* It stops at the point it is measuring to. A guess longer than
-         the gap used to carry the line on past it and out into empty
-         board — six cells past, on the shortest of these questions —
-         which read as the line having come off its rails rather than as
-         the number being too big. The board still only goes so far
-         either way, so the frame clamps it too. */
-      const cap = function (v, end, dir, lo, hi) {
-        if (dir > 0) v = Math.min(v, end);
-        else if (dir < 0) v = Math.max(v, end);
-        return Math.max(lo, Math.min(hi, v));
-      };
-      const ex = cap(from.x + sx * units, to.x, sx, G.xFrom, G.xTo);
-      const ey = cap(from.y + sy * units, to.y, sy, G.yFrom, G.yTo);
+      const dx = to.x - from.x, dy = to.y - from.y;
+      const span = Math.hypot(dx, dy);
+      if (!span) { this.clearMeasure(); return; }
+      /* A unit of this ruler is a unit of length along the pair, not a
+         square across the grid. On a pair sharing a row or a column the
+         two are the same thing; on a diagonal only the first means
+         anything — stepping one square right and one square up per unit
+         would run the line clean off the segment it is measuring.
+
+         And it stops at the point it is measuring to: a guess longer
+         than the gap used to carry the line on past it and out into
+         empty board, which read as the line having come off its rails
+         rather than as the number being too big. */
+      const t = Math.min(units, span) / span;
+      const ex = from.x + dx * t, ey = from.y + dy * t;
       this.measLine.setAttribute('x1', px(from.x));
       this.measLine.setAttribute('y1', py(from.y));
       this.measLine.setAttribute('x2', px(ex));
@@ -1502,34 +1510,40 @@
       SFX.magic();
       FX.sparkles(cx, cy, 12, 380);
 
-      later(function () {
-        self.axisX.forEach(function (l) { l.classList.add('draw'); });
-        SFX.draw();
-      }, 760);
+      /* The numbers are not written on afterwards: each one is revealed
+         by the line that passes it, lighting as the sweep drawing its
+         own axis reaches its place. The ruling and its labels arrive as
+         one movement, out from the origin in both directions, instead
+         of the board being drawn and then labelled. */
+      const SWEEP = G.axisDrawMs, POP = 300;
+      const X_AT = 760, Y_AT = 1020;
+      const xReach = Math.max(Math.abs(G.xFrom), Math.abs(G.xTo)) + 1;
+      const yReach = Math.max(Math.abs(G.yFrom), Math.abs(G.yTo)) + 1;
 
-      later(function () {
-        self.axisY.forEach(function (l) { l.classList.add('draw'); });
-        SFX.draw();
-      }, 1020);
-
-      later(function () {
-        self.arrows.forEach(function (a, i) {
-          later(function () { a.classList.add('pop'); SFX.tick(i); }, i * 70);
+      const sweepAxis = function (which, at, reach, halves) {
+        later(function () {
+          halves.forEach(function (l) { l.classList.add('draw'); });
+          SFX.draw();
+        }, at);
+        self.axisLabels.forEach(function (L) {
+          if (L.axis !== which) return;
+          const d = Math.abs(L.v);
+          later(function () {
+            L.el.classList.add('pop');
+            // one note per step outward, not two for the matching pair
+            if (L.v >= 0) SFX.tick(d);
+          }, at + (d / reach) * SWEEP);
         });
-      }, 1520);
-
-      /* Numbers only once every line and arrowhead is in, and `done`
-         only once the last number has finished popping — the two were
-         using different spacings, so the dots used to start while the
-         final few numbers were still arriving. */
-      const STEP = 60, POP = 420;
-      later(function () {
-        self.labels.forEach(function (t, i) {
-          later(function () { t.classList.add('pop'); SFX.tick(i); }, i * STEP);
+        // and the arrowheads land as their own line finishes
+        halves.forEach(function (l, i) {
+          const a = self.arrows[(which === 'x' ? 0 : 2) + i];
+          if (a) later(function () { a.classList.add('pop'); SFX.tick(reach); }, at + SWEEP);
         });
-      }, 1860);
+      };
+      sweepAxis('x', X_AT, xReach, this.axisX);
+      sweepAxis('y', Y_AT, yReach, this.axisY);
 
-      later(done, 1860 + (this.labels.length - 1) * STEP + POP + 140);
+      later(done, Y_AT + SWEEP + POP + 140);
     }
   };
 
@@ -1586,7 +1600,7 @@
   /* ---------------- screen flow ---------------- */
   const Game = {
     index: -1, state: 'start', busy: false, geom: null, task: null,
-    flight: null, landFlight: null, raised: false,
+    flight: null, landFlight: null, raised: false, hintOn: false,
     pending: [], entranceCancel: null,
 
     /* A screen is done: arm Skip and hand over by itself after a pause.
@@ -1680,8 +1694,8 @@
          them both away and bringing them both back — with her flying
          down and up again in between — for what is the same question
          about two new points read as the screen restarting. */
-      const keepsControl = entry.intro === 'measure' &&
-                           !!(entry.distance || entry.entry) &&
+      const keepsControl = (entry.intro === 'measure' || entry.layout === 'board') &&
+                           !!(entry.distance || entry.entry || entry.options) &&
                            entry.transition !== 'leaves' &&
                            this.raised && Board.shown;
       this.raised = keepsControl;
@@ -1752,8 +1766,7 @@
         });
         /* Changing it lays the measuring line down as it goes, so the
            control reads as a ruler rather than a number picker. */
-        Sel.onChange(entry.task && entry.task.kind === 'distance'
-          ? function (v) { self.showMeasure(v); } : null);
+        Sel.onChange(numeric ? function (v) { self.showMeasure(v); } : null);
       }
       // a choice task is answered on the options panel
       if (Opts) {
@@ -1766,7 +1779,7 @@
 
       const withControl = entry.options && entry.intro !== 'measure';
       const after = function () {
-        if (entry.line) self.speak(entry.line, withControl
+        if (entry.line) self.speak(entry.line, withControl && !keepsControl
           ? function () { revealControl(entry); } : null);
         else if (entry.auto && i + 1 < C.SCRIPT.length) {
           self.later(function () { self.goTo(i + 1); }, 160);
@@ -2025,8 +2038,12 @@
         Board.shown = true;
         if (!entry.keepSegment) Board.clearSegment();
         else Board.clearUnits();          // keep the drawing, drop any count-out
-        if (Sel && (entry.distance || entry.entry)) { Sel.reset(); Sel.show(); }
-        if (Opts && entry.options) { Opts.reset(); Opts.show(); }
+        /* A control that revealControl is going to bring in must not be
+           up already: it rises into the space under her once she has
+           asked the question, not before she has opened her mouth. */
+        const brought = withControl && !!entry.line && !keepsControl;
+        if (Sel && (entry.distance || entry.entry) && !brought) { Sel.reset(); Sel.show(); }
+        if (Opts && entry.options && !brought) { Opts.reset(); Opts.show(); }
       }
 
       /* A grid screen builds the board in first — but only if it is
@@ -2252,6 +2269,7 @@
       if (!t || t.done) return;
       const pair = this.measurePair();
       if (!pair) return;
+      this.dropHint();          // they are drawing again; the hint is done
       Board.setMeasure(pair.from, pair.to, v);
     },
 
@@ -2302,15 +2320,30 @@
       }
 
       this.state = 'showing';
+      this.hintOn = false;
       this.later(function () {
         // a screen with its own line for this says that; the rest have
         // a try-again that already points at the squares
         self.speak(t.spec.showLine || fb.msg);
         Board.runUnits(pair.from, pair.to, self.later.bind(self), function () {
           self.state = 'waiting';
-          if (t.spec.showLine) self.speak(fb.msg);  // the control is live again
+          self.hintOn = true;
+          const drop = function () { self.dropHint(); };
+          const hold = C.GRID.unitBox.holdMs;
+          // read it, then take it away and let them go again
+          if (t.spec.showLine) self.speak(fb.msg, function () { self.later(drop, hold); });
+          else self.later(drop, hold);
         });
       }, 260);
+    },
+
+    /* The count-out has been read: clear it so the next attempt starts
+       on a clean board. Also called the moment they start drawing
+       again, since by then it has plainly been read. */
+    dropHint: function () {
+      if (!this.hintOn) return;
+      this.hintOn = false;
+      Board.clearUnits();
     },
 
     /* A typed answer. The right answer is worked out from the board
@@ -2349,6 +2382,7 @@
       t.wrong++;
       SFX.wrong();
       if (Sel) Sel.markWrong();
+      Board.clearMeasure();     // the guess they drew goes, as elsewhere
       const fb = this.feedbackFor(t);
       this.later(function () { self.speak(fb.msg); }, 240);
     },
@@ -2680,7 +2714,7 @@
              the board stays bare until the first arrow press, and the
              control does not read as a ruler until you have already
              moved it. */
-          if (entry.task && entry.task.kind === 'distance') {
+          if (entry.task && (entry.task.kind === 'distance' || entry.task.kind === 'entry')) {
             Game.showMeasure(Sel.value);
           }
         } else Sel.hide();

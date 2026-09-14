@@ -28,6 +28,7 @@ window.TriangleOptions = (function () {
     root.id = opts.id || 'triangleOptions';
     if (opts.x !== undefined) root.style.left = opts.x + 'px';
     if (opts.y !== undefined) root.style.top = opts.y + 'px';
+    if (opts.scale) root.style.setProperty('--k', opts.scale);
     if (opts.hidden) root.classList.add('hidden');
 
     let buttons = [];

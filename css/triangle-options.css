@@ -22,6 +22,15 @@
 
   user-select: none;
   -webkit-user-select: none;
+
+  /* Scaled by the host through --k rather than through an inline
+     transform: every animation on this panel has to carry the scale in
+     its own keyframes, and it can only do that if the value is readable
+     from CSS. An inline transform was silently overwritten by the
+     entrance below, which left the panel at full size and hanging off
+     the bottom of the frame. */
+  transform-origin: top left;
+  transform: scale(var(--k, 1));
 }
 .triangle-options-panel * { box-sizing: border-box; }
 
@@ -130,15 +139,11 @@
   85%      { transform: translateX(3px); }
 }
 
-/* ---------------- responsive ---------------- */
-@media (max-width: 1100px) {
-  .triangle-options-panel { width: min(500px, 90vw); padding: 22px 22px 26px; gap: 18px; }
-  .triangle-option { height: 92px; border-radius: 24px; }
-}
-@media (max-width: 640px) {
-  .triangle-options-panel { width: 92vw; padding: 16px 16px 20px; gap: 14px; border-width: 7px; }
-  .triangle-option { height: 76px; border-radius: 20px; }
-}
+/* No viewport media queries here on purpose. The whole stage is one
+   fixed 1920x1080 box scaled to the window, so a rule keyed to the
+   window's width fires on a measurement that has nothing to do with
+   this panel's own size — the panel used to jump to 90vw inside a
+   1920px stage. Everything here is fixed, and --k does the fitting. */
 
 /* =============================================================
    Formula view — takes the buttons' place once the method has been
@@ -197,9 +202,9 @@
   animation: toRise .42s cubic-bezier(.22, .68, .3, 1) both;
 }
 @keyframes toRise {
-  0%   { opacity: 0; transform: translateY(90px); }
-  60%  { opacity: 1; transform: translateY(-8px); }
-  100% { opacity: 1; transform: translateY(0); }
+  0%   { opacity: 0; transform: scale(var(--k, 1)) translateY(90px); }
+  60%  { opacity: 1; transform: scale(var(--k, 1)) translateY(-8px); }
+  100% { opacity: 1; transform: scale(var(--k, 1)) translateY(0); }
 }
 @media (prefers-reduced-motion: reduce) {
   .triangle-options-panel.rising { animation: none; }

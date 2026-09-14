@@ -401,7 +401,7 @@ html, body {
   stroke-linecap: round; fill: none;
   stroke-dashoffset: var(--len);
 }
-#gridAxes .axis.draw { animation: drawOut .5s cubic-bezier(.3, .85, .35, 1) forwards; }
+#gridAxes .axis.draw { animation: drawOut var(--axisDraw, .9s) cubic-bezier(.3, .85, .35, 1) forwards; }
 
 #gridAxes .arrow { opacity: 0; transform-box: fill-box; transform-origin: center; }
 #gridAxes .arrow.pop { animation: arrowPop .34s cubic-bezier(.3, 1.7, .5, 1) forwards; }
@@ -482,6 +482,8 @@ html, body {
 #gridAxes .units { pointer-events: none; }
 #gridAxes .ubox {
   opacity: 0;
+  /* so the hint fades away when it is taken down rather than vanishing */
+  transition: opacity .3s ease;
   transform-box: fill-box; transform-origin: center;
 }
 /* Each square simply arrives lit: a fade up to its colour with a warm
@@ -499,6 +501,7 @@ html, body {
 #gridAxes .uplate.on { animation: labelPop .58s cubic-bezier(.22, .68, .3, 1) both; }
 #gridAxes .ulabel {
   opacity: 0;
+  transition: opacity .3s ease;
   font-family: 'Nunito', system-ui, sans-serif;
   font-weight: 600;
   text-anchor: middle; dominant-baseline: middle;
@@ -615,14 +618,20 @@ html, body {
      centre of the whole board. */
   transform-box: view-box;
 }
-/* The axis numbers pop out where they sit — no travel, no settle. The
-   plotted-point labels keep labelPop, which rises them into place;
-   these are simply revealed, one after the next. */
-#gridAxes .glabel.pop { animation: numPop .42s ease-out forwards; }
+/* Each number is struck alight as the line sweeping past it arrives:
+   it grows into place and burns the sweep's own warm colour for a beat
+   before cooling to the board's ink.
+
+   The colour does the work on purpose. A scale alone is easy to miss on
+   a board this bright, and it is the one part of this that cannot fail
+   quietly — if a browser mishandles transforms on an SVG <text>, the
+   number still visibly lights and fades in. The plotted-point labels
+   keep labelPop, which rises them into place. */
+#gridAxes .glabel.pop { animation: numPop .52s cubic-bezier(.3, .85, .35, 1) forwards; }
 @keyframes numPop {
-  0%   { opacity: 0; transform: scale(0); }
-  55%  { opacity: 1; transform: scale(1.25); }
-  100% { opacity: 1; transform: scale(1); }
+  0%   { opacity: 0; transform: scale(.25); fill: var(--numLit, #F0A310); }
+  55%  { opacity: 1; transform: scale(1.14); fill: var(--numLit, #F0A310); }
+  100% { opacity: 1; transform: scale(1);    fill: var(--numInk, #213258); }
 }
 
 /* screen 5 resting pose */

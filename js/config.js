@@ -479,6 +479,15 @@ window.CFG = (function () {
 
     ink: '#213258',                 // axes, arrowheads and numbers
     axisWidth: 7,
+    /* How long a half-axis takes to draw itself outward from the
+       origin. The stylesheet reads it from a custom property set in
+       Board.build(), so the numbers riding the sweep and the sweep
+       itself can never drift apart. */
+    axisDrawMs: 900,
+    /* The colour a number is struck in as the sweep uncovers it, before
+       it cools to the board's ink. Scale alone was too quiet to notice
+       on a bright board; a number that lights up is not missable. */
+    numLit: '#F0A310',
 
     /* How far each axis runs past its last number before the
        arrowhead. Sized to the tighter axis: there is only one spare
@@ -657,6 +666,11 @@ window.CFG = (function () {
       strokeW: 3,
       glow: 'rgba(226, 146, 10, .7)',
       stepMs: 300,           // pause between squares, so they can be counted
+      /* How long the finished count stays up before the board is handed
+         back. It is a hint, not a caption: it says how long a unit is
+         and how many fit, and then gets out of the way so the next try
+         starts on a clean board. */
+      holdMs: 2600,
       /* The total sits above the line, with nothing behind it — the
          coordinates it used to collide with are now under their points,
          so the space above the segment is free. */
@@ -797,7 +811,13 @@ window.CFG = (function () {
        on the same footprint so the left column stays put. */
     /* Below her, like the selector — its natural height is about 432,
        so it is scaled to clear the bottom of the frame. */
-    options: { pos: { x: 40, y: 660 }, w: 520, h: 432, scale: 0.82 },
+    /* The same slot the number selector takes: top edge at 680, so she
+       stands on it at exactly the height she stands on that one. Three
+       stacked buttons is a taller shape than a row of tiles, so it is
+       scaled to land its foot near the selector's rather than to match
+       its width. h is its real built height — 9px borders, 28/32
+       padding, three 108px buttons and two 24px gaps. */
+    options: { pos: { x: 34, y: 680 }, w: 520, h: 450, scale: 0.73 },
 
     /* And the answer pad takes the same column again, for the
        questions whose answer is typed rather than chosen. */
