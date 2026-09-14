@@ -5,19 +5,27 @@
    Self-contained: it owns its markup and its styles, exposes the same
    small surface the game already used for the slider it replaces
    (mount / show / hide / reset / onChange / onCheck), and knows
-   nothing about what any answer should be.
+   nothing about what any answer should be — the game tells it whether
+   a guess was right, it does not work that out.
+
+   All of the look and all of the feedback live in CSS classes; this
+   file only sets values and toggles state.
    ============================================================= */
 window.NumberSelector = (function () {
   'use strict';
 
-  const MIN = 1, MAX = 8;
+  /* The range starts at 0 so the slot to the left of 1 has a number in
+     it rather than sitting empty, but it opens on 1 — 0 is reachable,
+     it is simply not where anyone starts counting from. */
+  const MIN = 0, MAX = 8, START = 1;
 
   function mount(parent, opts) {
     opts = opts || {};
 
     let min = opts.min != null ? opts.min : MIN;
     let max = opts.max != null ? opts.max : MAX;
-    let current = min;
+    let startAt = opts.start != null ? opts.start : START;
+    let current = startAt;
     let onChange = null, onCheck = null;
 
     const root = document.createElement('div');
@@ -45,6 +53,13 @@ window.NumberSelector = (function () {
     const prev = mk('div', 'number previous');
     const active = mk('div', 'number active');
     const next = mk('div', 'number next');
+    /* The tile's digit is its own element so the tick can be a sibling
+       inside the tile — writing textContent on the tile itself would
+       take the tick out with it every time the number changed. */
+    const digit = mk('span', 'num-digit');
+    const tick = mk('span', 'yes-tick', '✓');
+    active.appendChild(digit);
+    active.appendChild(tick);
     win.appendChild(prev); win.appendChild(active); win.appendChild(next);
 
     const right = mk('button', 'arrow-btn right-arrow', '▶');
@@ -68,16 +83,30 @@ window.NumberSelector = (function () {
 
     /* Past either end there is no number to show. The slot is kept and
        left blank rather than removed, so the selected number stays
-       exactly in the middle at 1 and at 8 too. */
+       exactly in the middle at either end too. */
     function paint() {
       const lo = current - 1, hi = current + 1;
       prev.textContent = lo >= min ? String(lo) : '';
       next.textContent = hi <= max ? String(hi) : '';
       prev.classList.toggle('blank', lo < min);
       next.classList.toggle('blank', hi > max);
-      active.textContent = String(current);
+      digit.textContent = String(current);
       left.disabled = current <= min;
       right.disabled = current >= max;
+    }
+
+    /* A press that shows on the button however it was triggered —
+       :active only covers the mouse, and these are reachable by
+       keyboard too. */
+    function press(btn) {
+      btn.classList.add('is-pressed');
+      setTimeout(function () { btn.classList.remove('is-pressed'); }, 110);
+    }
+
+    let verdict = null;
+    function clearVerdict() {
+      clearTimeout(verdict);
+      root.classList.remove('is-correct', 'is-wrong');
     }
 
     let sliding = null;
@@ -87,25 +116,36 @@ window.NumberSelector = (function () {
       const dir = v > current ? 'right' : 'left';
       current = v;
 
-      /* Lean the way it is going, then settle — the class comes off on
-         the next frame so the transition plays back to rest. */
+      clearVerdict();          // a new guess clears the verdict on the last
+
+      /* Lean the way it is going, then let it settle: the class comes
+         off a frame later so the transition plays back to rest, and the
+         tile that lands overshoots a little on the way. */
       clearTimeout(sliding);
-      root.classList.remove('slide-left', 'slide-right');
+      root.classList.remove('is-moving-left', 'is-moving-right');
+      active.classList.remove('is-landing');
       void root.offsetWidth;
-      root.classList.add('slide-' + dir);
+      root.classList.add('is-moving-' + dir);
       paint();
       sliding = setTimeout(function () {
-        root.classList.remove('slide-left', 'slide-right');
-      }, 20);
+        root.classList.remove('is-moving-left', 'is-moving-right');
+        void active.offsetWidth;
+        active.classList.add('is-landing');
+      }, 30);
 
       if (window.Audio8 && window.Audio8.blip) window.Audio8.blip();
       if (tell !== false && onChange) onChange(current);
     }
 
-    left.addEventListener('click', function (e) { e.stopPropagation(); set(current - 1); });
-    right.addEventListener('click', function (e) { e.stopPropagation(); set(current + 1); });
+    left.addEventListener('click', function (e) {
+      e.stopPropagation(); press(left); set(current - 1);
+    });
+    right.addEventListener('click', function (e) {
+      e.stopPropagation(); press(right); set(current + 1);
+    });
     check.addEventListener('click', function (e) {
       e.stopPropagation();
+      press(check);
       if (onCheck) onCheck(current);
     });
     // taps inside the panel are its own; they must not skip the screen
@@ -118,18 +158,36 @@ window.NumberSelector = (function () {
       get value() { return current; },
       set: set,
 
-      /* A screen can widen the range — the typed answers reach past 8 —
-         without the component knowing what any of them mean. */
-      setRange: function (lo, hi) {
+      /* A screen can widen the range — the worked-out answers reach
+         past 8 — without the component knowing what any of them mean. */
+      setRange: function (lo, hi, start) {
         min = lo; max = hi;
+        startAt = Math.min(max, Math.max(min, start != null ? start : START));
         current = Math.min(max, Math.max(min, current));
         paint();
       },
 
       reset: function () {
-        current = min;
+        current = startAt;
+        clearVerdict();
         root.classList.remove('locked');
+        active.classList.remove('is-landing');
+        left.disabled = right.disabled = check.disabled = false;
         paint();
+      },
+
+      /* The game decides what is right; these only show it. */
+      markCorrect: function () {
+        clearVerdict();
+        void active.offsetWidth;
+        root.classList.add('is-correct');
+      },
+      markWrong: function () {
+        clearVerdict();
+        void active.offsetWidth;
+        root.classList.add('is-wrong');
+        // back to the ordinary selected state once the shake is done
+        verdict = setTimeout(function () { root.classList.remove('is-wrong'); }, 320);
       },
 
       /* Once the answer is right there is nothing left to choose, so
@@ -140,9 +198,7 @@ window.NumberSelector = (function () {
         left.disabled = right.disabled = check.disabled = true;
       },
 
-      show: function () {
-        root.classList.remove('hidden');
-      },
+      show: function () { root.classList.remove('hidden'); },
       hide: function () { root.classList.add('hidden'); },
 
       onChange: function (fn) { onChange = fn; },
@@ -150,5 +206,5 @@ window.NumberSelector = (function () {
     };
   }
 
-  return { mount: mount, MIN: MIN, MAX: MAX };
+  return { mount: mount, MIN: MIN, MAX: MAX, START: START };
 })();

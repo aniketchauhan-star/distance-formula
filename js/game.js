@@ -1213,6 +1213,10 @@
       if (this.segLine) this.segLine.classList.remove('lit');
       this.segGroup.classList.remove('on');
       this.segLine.classList.remove('draw');
+      /* The dashed guide has to be reset too, or once one screen draws
+         it every screen after inherits it — already complete, so it
+         never reads as arriving at the end of the plot. */
+      if (this.segDashG) this.segDashG.classList.remove('draw');
       const self = this;
       ['a', 'b'].forEach(function (k) {
         const p = self.segParts[k];
@@ -1585,8 +1589,9 @@
          control; only a distance one lays a line down as it changes. */
       if (Sel) {
         const numeric = entry.task && (entry.task.kind === 'distance' || entry.task.kind === 'entry');
-        const r = entry.range || { min: window.NumberSelector.MIN, max: window.NumberSelector.MAX };
-        Sel.setRange(r.min, r.max);
+        const NS = window.NumberSelector;
+        const r = entry.range || { min: NS.MIN, max: NS.MAX };
+        Sel.setRange(r.min, r.max, r.start);
         Sel.onCheck(!numeric ? null : function (v) {
           if (entry.task.kind === 'distance') self.checkDistance(v);
           else self.checkEntry(v);
@@ -2120,6 +2125,7 @@
         t.done = true;
         this.state = 'waiting';
         SFX.correct();
+        if (Sel) { Sel.markCorrect(); Sel.lock(); }
         Board.litMeasure();        // their line reached, and stays lit
         this.later(function () {
           SFX.cheer();
@@ -2135,6 +2141,7 @@
          back so they can try again. */
       t.wrong++;
       SFX.wrong();
+      if (Sel) Sel.markWrong();
       const fb = this.feedbackFor(t);
 
       /* No showLine means no count-out: some questions want a hint
@@ -2176,7 +2183,7 @@
         t.done = true;
         this.state = 'waiting';
         SFX.correct();
-        if (Sel) Sel.lock();
+        if (Sel) { Sel.markCorrect(); Sel.lock(); }
         Board.litMeasure();
         this.later(function () {
           SFX.cheer();
@@ -2189,6 +2196,7 @@
 
       t.wrong++;
       SFX.wrong();
+      if (Sel) Sel.markWrong();
       const fb = this.feedbackFor(t);
       this.later(function () { self.ask(fb.msg); }, 240);
     },

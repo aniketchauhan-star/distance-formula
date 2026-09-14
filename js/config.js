@@ -982,19 +982,19 @@ window.CFG = (function () {
        beside the line instead of hanging them beneath it. */
     { id: 9, line: 'How far apart are A and B?', entrance: 'none', layout: 'board',
       distance: true, intro: 'measure',
-      segment: { a: { x: 4, y: 3, name: 'A' }, b: { x: -3, y: 3, name: 'B' } },
+      segment: { a: { x: 4, y: 3, name: 'A' }, b: { x: -3, y: 3, name: 'B' } , dash: true},
       task: { kind: 'distance', correctLine: 'Correct!',
               showLine: 'Let’s count the units.', tryAgainLine: 'Now try again!' } },
 
     { id: 10, line: 'How far apart are A and B?', entrance: 'none', layout: 'board',
       distance: true, intro: 'measure',
-      segment: { a: { x: 1, y: 2, name: 'A' }, b: { x: 1, y: -3, name: 'B' } },
+      segment: { a: { x: 1, y: 2, name: 'A' }, b: { x: 1, y: -3, name: 'B' } , dash: true},
       task: { kind: 'distance', correctLine: 'Correct!',
               showLine: 'Let’s count the units.', tryAgainLine: 'Now try again!' } },
 
     { id: 11, line: 'How far apart are A and B?', entrance: 'none', layout: 'board',
       distance: true, intro: 'measure',
-      segment: { a: { x: -2, y: 3, name: 'A' }, b: { x: -2, y: 1, name: 'B' } },
+      segment: { a: { x: -2, y: 3, name: 'A' }, b: { x: -2, y: 1, name: 'B' } , dash: true},
       task: { kind: 'distance', correctLine: 'Correct!',
               showLine: 'Let’s count the units.', tryAgainLine: 'Now try again!' } },
 
@@ -1108,10 +1108,10 @@ window.CFG = (function () {
        Pythagoras can be applied. Both are Pythagorean triples, so the
        answer comes out whole — 3-4-5 first, then the same shape
        doubled to 6-8-10. */
-    { id: 19, line: 'Find the distance AB.', range: { min: 1, max: 12 }, entrance: 'none',
+    { id: 19, line: 'Find the distance AB.', range: { min: 0, max: 12 }, entrance: 'none',
       layout: 'board', transition: 'leaves', intro: 'measure', entry: true,
       segment: { a: { x: -2, y: 2, name: 'A' },
-                 b: { x:  2, y: 5, name: 'B', nameDx: 40, nameDy: 8 } },
+                 b: { x:  2, y: 5, name: 'B', nameDx: 40, nameDy: 8 } , dash: true},
       legs: [
         { from: { x: -2, y: 2 }, to: { x: 2, y: 2 }, mark: { name: 'C' } },
         { from: { x:  2, y: 2 }, to: { x: 2, y: 5 } }
@@ -1123,10 +1123,10 @@ window.CFG = (function () {
                 'The sides are 4 and 3. What is \u221a(4\u00b2 + 3\u00b2)?'
               ] } },
 
-    { id: 20, line: 'Now find AB.', range: { min: 1, max: 12 }, entrance: 'none',
+    { id: 20, line: 'Now find AB.', range: { min: 0, max: 12 }, entrance: 'none',
       layout: 'board', transition: 'leaves', intro: 'measure', entry: true,
       segment: { a: { x: -3, y:  3, name: 'A' },
-                 b: { x:  5, y: -3, name: 'B', nameDx: 40, nameDy: 8 } },
+                 b: { x:  5, y: -3, name: 'B', nameDx: 40, nameDy: 8 } , dash: true},
       legs: [
         { from: { x: -3, y: 3 }, to: { x: 5, y:  3 }, mark: { name: 'C' } },
         { from: { x:  5, y: 3 }, to: { x: 5, y: -3 } }
