@@ -1123,6 +1123,21 @@ html, body {
   100% { transform: translateY(0) scale(1); }
 }
 
+/* The dashed guide grows out of A toward B. Scaling the group rather
+   than the line keeps the transform-origin fixed at A, and
+   non-scaling-stroke holds the dots at a constant size while it grows
+   — without it they would swell from nothing along with the line. */
+#gridAxes .segdash-g {
+  transform-box: view-box;
+  transform: scale(0);
+  opacity: 0;
+}
+#gridAxes .segdash-g.draw { animation: dashGrow .9s cubic-bezier(.42, 0, .9, .62) forwards; }
+@keyframes dashGrow {
+  from { transform: scale(0); opacity: 1; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
 @keyframes bubblePop {
   0%   { opacity: 0; transform: scale(.18) rotate(-7deg); }
   55%  { opacity: 1; transform: scale(1.09) rotate(2.5deg); }

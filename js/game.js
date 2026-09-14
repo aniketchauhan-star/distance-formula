@@ -157,17 +157,23 @@
        put it, then leaves before the controls arrive. She lands at the
        bottom left, in front of the centred board. */
     if (entry.intro === 'measure') {
-      const S = C.BOARD.speak;
-      const a = { x: S.cx, y: S.feetY - C.FEET_DY };
+      /* She lands on the board's top rail and stays there, the same way
+         she does on the grid screens — so the board no longer has to
+         slide aside to make room for her, and the question stays in her
+         bubble instead of being handed to a banner when she leaves. */
+      const S = C.BOARD.stand;
       return {
-        stand: false,
-        scale: C.CHAR_SCALE,
-        anchor: a,
-        aim:    { x: a.x + C.HEAD_TOP.dx, y: a.y + C.HEAD_TOP.dy },
-        feetY:  S.feetY,
-        feetCx: S.cx,
-        inkW:   REF_W * C.CHAR_SCALE,
-        bubbleScale: entry.bubbleScale || C.BUBBLE.scale,
+        stand: true,
+        scale: S.charScale,
+        noShadow: true,
+        anchor: { x: S.pos.x + S.belly.x, y: S.pos.y + S.belly.y },
+        aim:    { x: S.pos.x + S.speak.x, y: S.pos.y + S.speak.y },
+        feetY:  S.pos.y + S.feet.y,
+        feetCx: S.pos.x + S.feet.cx,
+        inkW:   S.inkW,
+        standBox: { x: S.pos.x, y: S.pos.y, w: S.w, h: S.h },
+        bubble: C.GRID.bubble,
+        bubbleScale: 1,
         panelBox: { x: C.BOARD.panel.pos.x, y: C.BOARD.panel.pos.y,
                     w: C.BOARD.panel.w, h: C.BOARD.panel.h }
       };
@@ -187,6 +193,7 @@
         // matches the flying sheet to the landed artwork's height
         scale: S.charScale,
         noShadow: true,          // she is on the board's rail, not on grass
+        standBox: { x: S.pos.x, y: S.pos.y, w: S.w, h: S.h },
         anchor: { x: S.pos.x + S.belly.x,   y: S.pos.y + S.belly.y },
         /* The tail comes in from the side here, so it aims at her face
            rather than the top of her head. */
@@ -218,6 +225,15 @@
     Sprite.setScale(g.scale);
     el.birdRig.style.left = g.anchor.x + 'px';
     el.birdRig.style.top = g.anchor.y + 'px';
+
+    /* She stands on a different board's rail depending on the screen,
+       so the resting artwork is seated here rather than once at boot. */
+    if (g.standBox) {
+      el.standSwifty.style.left = g.standBox.x + 'px';
+      el.standSwifty.style.top = g.standBox.y + 'px';
+      el.standSwifty.style.width = g.standBox.w + 'px';
+      el.standSwifty.style.height = g.standBox.h + 'px';
+    }
 
     /* The shadow is a soft ellipse on the ground. On the grid screens
        she is up on the board's frame, and a ground shadow on a 28px rail
@@ -344,11 +360,9 @@
       Pad.el.style.width = EP.w + 'px';
     }
 
-    const S = C.STAND;
-    el.standSwifty.style.left = S.pos.x + 'px';
-    el.standSwifty.style.top = S.pos.y + 'px';
-    el.standSwifty.style.width = S.w + 'px';
-    el.standSwifty.style.height = S.h + 'px';
+    /* The standing pose is seated per screen now, in applyGeom — the
+       grid screens and the distance screens put her on different
+       boards' rails. */
 
     /* Play button: the glowing disc is fitted into the briefed box. */
     const P = C.PLAY;
@@ -707,6 +721,26 @@
       const SG = G.segment;
       const seg = document.createElementNS(NS, 'g');
       seg.setAttribute('class', 'seg');
+      /* A dashed guide along the segment, shown before the question so
+         the span being asked about is visible without being answered.
+         It goes in first so the solid line and the player's measuring
+         line both draw over it. Wrapped in a group because the reveal
+         scales it out from A, and scaling the line itself would drag
+         its own transform-origin with it. */
+      const dashG = document.createElementNS(NS, 'g');
+      dashG.setAttribute('class', 'segdash-g');
+      const segDash = document.createElementNS(NS, 'line');
+      segDash.setAttribute('class', 'segdash');
+      segDash.setAttribute('stroke', SG.dashColor);
+      segDash.setAttribute('stroke-width', SG.dashWidth);
+      segDash.setAttribute('stroke-linecap', 'round');
+      segDash.setAttribute('stroke-dasharray', SG.dashArray);
+      segDash.setAttribute('vector-effect', 'non-scaling-stroke');
+      dashG.appendChild(segDash);
+      seg.appendChild(dashG);
+      this.segDash = segDash;
+      this.segDashG = dashG;
+
       const segLine = document.createElementNS(NS, 'line');
       segLine.setAttribute('class', 'segline');
       segLine.setAttribute('stroke', SG.lineColor);
@@ -1090,6 +1124,12 @@
 
       this.segLine.setAttribute('x1', px(a.x)); this.segLine.setAttribute('y1', py(a.y));
       this.segLine.setAttribute('x2', px(b.x)); this.segLine.setAttribute('y2', py(b.y));
+
+      /* Same two ends for the dashed guide; it grows out of A, so the
+         group's origin is pinned there. */
+      this.segDash.setAttribute('x1', px(a.x)); this.segDash.setAttribute('y1', py(a.y));
+      this.segDash.setAttribute('x2', px(b.x)); this.segDash.setAttribute('y2', py(b.y));
+      this.segDashG.style.transformOrigin = px(a.x) + 'px ' + py(a.y) + 'px';
       const len = Math.hypot(px(b.x) - px(a.x), py(b.y) - py(a.y));
       this.segLine.setAttribute('stroke-dasharray', len);
       this.segLine.style.strokeDashoffset = len;
@@ -1214,7 +1254,10 @@
       later(function () { self.segParts.b.coord.classList.add('pop'); SFX.tick(3); }, 1530);
       later(function () { self.segParts.a.name.classList.add('pop'); SFX.tick(4); }, 1880);
       later(function () { self.segParts.b.name.classList.add('pop'); SFX.tick(5); }, 2150);
-      later(done, 2560);
+      if (spec.dash) {
+        later(function () { self.segDashG.classList.add('draw'); SFX.draw(); }, 2420);
+        later(done, 3320);
+      } else later(done, 2560);
     },
 
     /* `units` squares out from the point the question starts from,
@@ -1727,26 +1770,25 @@
         Board.setDots(false);
         Board.clearSegment();
 
-        // 1. the board, alone in the middle of the frame
-        Board.place(C.BOARD.centre);
+        /* 1. the board, already where it stays. It used to arrive
+           centred and slide aside to make room for her; she stands on
+           its rail now and the controls sit off to the side, so there
+           is nothing to move out of the way. */
+        Board.place(geom.panelBox);
         Board.run(self.later.bind(self), function () {
+          Board.shown = true;
 
-          /* 2. the points, their coordinates, then their letters — and
-             the line between them unless they are the pair being
-             asked about, in which case the player draws it. */
+          /* 2. the points, then their coordinates, then their letters,
+             then the dashed guide along the span being asked about.
+             The solid line is still held back — that is the answer. */
           const measuringLeg = entry.task && entry.task.measureLeg != null;
           Board.runPoints(entry.segment, self.later.bind(self), function () {
             const asks = function () {
 
-              // 3. she comes in, puts the question, and goes
+              // 3. she flies in, lands on the board's rail, and stays
               self.flyIn(function () {
-                FX.sparkles(geom.aim.x, geom.aim.y, 7, 170 * C.CHAR_SCALE);
-                Bubble.open(entry.line, function () {
-                  self.later(function () {
-                    Bubble.close();
-                    self.flyOut(opens);
-                  }, 1100);
-                });
+                FX.sparkles(geom.aim.x, geom.aim.y, 7, 170 * geom.scale);
+                Bubble.open(entry.line, function () { self.later(opens, 620); });
               });
             };
             /* A leg question draws every leg first, the one it is about
@@ -1760,30 +1802,18 @@
         });
       };
 
-      /* 4. the board slides aside and the working layout assembles. */
+      /* 4. the controls arrive. The board does not move and there is no
+         banner: she is still standing on the rail with the question in
+         her bubble, so repeating it in a bar underneath would be the
+         same sentence twice. */
       const opens = function () {
-        el.gridPanel.classList.add('sliding');
-        Board.place(geom.panelBox);
-        Board.shown = true;
-        self.later(function () { el.gridPanel.classList.remove('sliding'); }, 700);
-
-        /* She has just said the line, so the banner takes it as a
-           standing reminder rather than typing it out a second time. */
-        self.later(function () {
-          el.qBannerLine.textContent = Bubble.keepPairs(entry.line);
-          el.qBanner.classList.remove('hidden', 'pop-in');
-          void el.qBanner.offsetWidth;
-          el.qBanner.classList.add('pop-in');
-          SFX.pop();
-        }, 460);
-
         self.later(function () {
           /* whichever control this screen answers on */
           if (Dist) { if (entry.distance) { Dist.reset(); Dist.show(); } else Dist.hide(); }
           if (Pad)  { if (entry.entry)    { Pad.reset();  Pad.show();  } else Pad.hide(); }
           Board.clearMeasure();
           self.settle();
-        }, 760);
+        }, 240);
       };
 
       if (entry.transition === 'leaves') {

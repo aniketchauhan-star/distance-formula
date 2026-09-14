@@ -396,7 +396,9 @@ window.CFG = (function () {
       /* Sized to the line rather than fixed: most of what she says here
          is short, and a bar of empty cream either side of "Correct!"
          reads as a mistake. */
-      autoWidth: { min: 330, max: 1080, pad: 46 },
+      /* max is bounded by the distance screens: she stands at the board's
+         left end there, and the slider starts at x 1285. */
+      autoWidth: { min: 330, max: 960, pad: 46 },
       size: 32,
       text: { left: 0.06, top: 0.1964, width: 0.88, height: 0.607 }
     }),
@@ -524,14 +526,22 @@ window.CFG = (function () {
       dotStrokeW: 3,
       lineColor: '#213258',
       lineWidth: 6,
+      // the guide drawn between the two points before the question
+      dashColor: '#5B7AA8',
+      dashWidth: 5,
+      dashArray: '2 15',
       coordSize: 34,
       nameSize: 40,
       /* A horizontal segment carries its labels above and below the
          points. A vertical one cannot — the two points sit one above
          the other and the labels would run into each other — so it
          puts them to either side instead. */
-      coordDy: -42,       // horizontal: coordinates above
-      nameDy: 46,         // horizontal: letter below
+      /* Coordinates under the point and the letter over it. The pair
+         reads downward — dot, then what it is called, then where it is
+         — and it keeps the numbers clear of a guide line drawn along
+         the segment. */
+      coordDy: 54,        // horizontal: coordinates below
+      nameDy: -38,        // horizontal: letter above
       /* Vertical: both labels go to whichever side faces away from the
          y-axis, or they land on the axis numbers. Stacked slightly so
          the two points' labels stay apart even 2 units in. */
@@ -663,7 +673,10 @@ window.CFG = (function () {
 
   const BOARD = {
     // the same grid art, re-seated and a little smaller
-    panel: { pos: { x: flipX(place8(850, 2422), 1239).x, y: 143 }, w: 1239, h: 925 },
+    /* Left, and below the band that carries Swifty and her line — the
+       same 178px band the grid screens use, since she stands on this
+       board's rail too. Aspect matches the frame so cells stay square. */
+    panel: { pos: { x: 25, y: 178 }, w: 1193, h: 890 },
 
     /* Swifty has left, so the question moves out of her speech bubble
        and into the banner. Its cream interior runs x[41..981]
@@ -713,6 +726,11 @@ window.CFG = (function () {
        margin, with her bubble over the empty lower-left of the grid
        where no screen plots a point. */
     speak: { cx: 400, feetY: 985 },
+
+    /* Where she stands to ask: on this board's top rail, near its left
+       end. Same pose and scale as the grid screens — only the spot
+       differs, because this board sits further left. */
+    stand: Object.assign({}, STAND, { pos: { x: 90, y: 178 + 12 - 300 * 0.55 } }),
 
     // the distance selector, mounted as its own component
     distance: { pos: flipX(place8(219, 2646), 610), w: 610, h: 407 },
@@ -856,35 +874,38 @@ window.CFG = (function () {
     /* 6 — the highlighters come up and the board goes live: tap the
        point she asked for. Two wrong taps and she shows the answer
        herself. */
-    { id: 6, line: 'Locate the point (2, 1).', entrance: 'stay',
+    { id: 6, line: 'Locate the point (3, 2).', entrance: 'stay',
       layout: 'grid', dots: true, bubbleScale: 0.9,
       task: {
-        target: { x: 2, y: 1 },
+        target: { x: 3, y: 2 },
         maxWrong: 2,
         correctLine: 'Correct!',
         tryAgainLine: 'Not quite — try again!',
-        revealLine: 'Here it is — (2, 1).'
+        revealLine: 'Here it is — (3, 2).'
       } },
 
     // 7 — same again with a new point.
-    { id: 7, line: 'Locate the point (6, 1).', entrance: 'stay',
+    { id: 7, line: 'Locate the point (6, 2).', entrance: 'stay',
       layout: 'grid', dots: true, bubbleScale: 0.9,
       task: {
-        target: { x: 6, y: 1 },
+        target: { x: 6, y: 2 },
         maxWrong: 2,
         correctLine: 'Correct!',
         tryAgainLine: 'Not quite — try again!',
-        revealLine: 'Here it is — (6, 1).'
+        revealLine: 'Here it is — (6, 2).'
       } },
 
     /* 8 — leaves sweep the screen; behind them Swifty leaves, the
        board re-seats itself and the empty banner drops in. No
        question and nothing to locate yet. */
-    { id: 8, line: 'How far apart are A and B?', entrance: 'none',
+    { id: 8, line: 'What is the distance between points A and B?', entrance: 'none',
       layout: 'board', transition: 'leaves', distance: true, intro: 'measure',
 
-      // plotted first, then the question is asked
-      segment: { a: { x: 2, y: 1, name: 'A' }, b: { x: 6, y: 1, name: 'B' } },
+      /* Plotted first, then joined by a dashed guide, and only then is
+         the question asked. The guide shows which span is being asked
+         about without answering it — the solid line the slider lays
+         down is still the answer. */
+      segment: { a: { x: 3, y: 2, name: 'A' }, b: { x: 6, y: 2, name: 'B' }, dash: true },
 
       /* `answer` is left out on purpose: the game measures it from the
          two points, so moving a point can never leave a stale answer
