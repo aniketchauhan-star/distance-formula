@@ -572,7 +572,10 @@ window.CFG = (function () {
     /* A plotted segment: two named points joined by a line, each
        labelled with its coordinates above and its letter below. */
     segment: {
-      dotR: 15,
+      /* About a third of a cell across. At half a cell the two points
+         were the loudest thing on the board — bigger than the numbers
+         beside them and nearly touching the ruling on either side. */
+      dotR: 10,
       dotFill: '#3B7DD8',
       dotStroke: '#FFFFFF',
       dotStrokeW: 3,
@@ -594,6 +597,11 @@ window.CFG = (function () {
          the segment. */
       coordDy: 54,        // horizontal: coordinates below
       nameDy: -38,        // horizontal: letter above
+      /* A point one square above the x-axis writes its coordinates
+         straight across the axis and the numbering under it, so those
+         go above the point instead — and out along the segment, away
+         from whatever else is written near the other end of it. */
+      coordFlipDx: 46,
       /* Vertical: both labels go to whichever side faces away from the
          y-axis, or they land on the axis numbers. Stacked slightly so
          the two points' labels stay apart even 2 units in. */
@@ -611,26 +619,44 @@ window.CFG = (function () {
          one colour in the game that means something is wrong. */
       color: '#2F8F6F',
       width: 7,
-      dotR: 11,
+      dotR: 8,            // the corner, a shade under a plotted point
       coordDx: 84,        // coordinates to the right of the corner
       nameDy: 46,         // letter below it
+      /* Straight up from the corner is where the other leg rises, so a
+         letter driven off the x-axis goes up and to the side of it
+         rather than sitting on the line. */
+      nameFlipDx: -52,
       slots: 2,           // a right-angled path needs two
       lenSize: 32,        // "4 units" written along a leg
-      lenGap: 38,         // below a horizontal leg
-      /* Beside a vertical leg it has to clear the upper point's letter
-         as well as the line, so it sits further out. */
-      lenGapV: 96
+      /* No plate behind these any more, so they need far less room —
+         and where they sit matters more, since nothing boxes them off
+         from what they are near.
+
+         Above a horizontal leg, which is inside the right angle and
+         the one clear space on the board: below it are the x-axis
+         numbering and the start point's own coordinates. */
+      lenGap: -34,
+      /* Beside a vertical leg, on the outside. Both ends of that side
+         are taken — the far point's coordinates above, the corner's
+         below — so it is pushed along the leg towards the corner, into
+         the gap between the two. */
+      lenGapV: 78,
+      lenBiasV: 34
     },
 
     /* Unit squares that count out a segment's length when a child
        gets the distance wrong. Filled strongly enough to be obvious
        against the cream board, with a brighter flash as each lands. */
     unitBox: {
-      fill: '#8FC2F0',
-      stroke: '#2E6FD0',
+      /* A warm highlight rather than the measuring line's blue: these
+         come up when a guess was wrong, and they are the thing to look
+         at now — reading them as more of the line they just drew is
+         exactly the wrong idea. */
+      fill: '#FFD34D',
+      stroke: '#D9840A',
       strokeW: 3,
-      flash: '#FFD747',
-      stepMs: 380,           // pause between squares, so they can be counted
+      glow: 'rgba(226, 146, 10, .7)',
+      stepMs: 300,           // pause between squares, so they can be counted
       /* The total sits above the line, with nothing behind it — the
          coordinates it used to collide with are now under their points,
          so the space above the segment is free. */
@@ -641,7 +667,10 @@ window.CFG = (function () {
          them without covering the very squares being counted. It goes
          above the top of the column instead, clear of the squares and
          of the coordinate labels on the other side of the line. */
-      labelUpV: 46,
+      /* Clear of the upper point's own coordinates, which on a vertical
+         span sit just above the point and off to one side — the total
+         used to be written straight across them. */
+      labelUpV: 86,
       max: 18                // widest span the board allows (-9 to 9)
     },
 
@@ -653,7 +682,8 @@ window.CFG = (function () {
     measure: {
       color: '#2E9BD4',
       width: 9,
-      capR: 9
+      // the growing end, kept under the plotted points it runs between
+      capR: 7
     },
 
     /* The marker left behind once a point has been found, with its
@@ -705,16 +735,15 @@ window.CFG = (function () {
   const STAND_UP = standAt(0.88, 60, 424);
 
   /* -------------------------------------------------------------
-     SCREEN 8 — board on its own, question in a banner
+     SCREEN 8 — board on its own, the question in her bubble
 
-     Brief: grid panel (850, 2422) 1239 x 856, question banner
-     (666, 2256) 1023 x 158, distance panel (219, 2646) 610 x 407.
+     Brief: grid panel (850, 2422) 1239 x 856, distance panel
+     (219, 2646) 610 x 407.
 
-     Three elements pin the artboard origin to (194, 2227) — the only
-     value that fits all of them in a 1920 x 1080 frame and leaves
-     symmetric margins (25px left and right, 29px top and bottom).
-     It lands the grid on the right, the banner across the top and the
-     distance panel on the left, as briefed.
+     These pin the artboard origin to (194, 2227) — the only value that
+     fits them in a 1920 x 1080 frame and leaves symmetric margins
+     (25px left and right, 29px top and bottom). It lands the grid on
+     the right and the distance panel on the left, as briefed.
      ------------------------------------------------------------- */
   const S8_ORIGIN = { x: 194, y: 2227 };
   const place8 = function (fx, fy) {
@@ -734,42 +763,6 @@ window.CFG = (function () {
        it left with the controls beside it; they share one layout now,
        so nothing jumps between a question and the screens around it. */
     panel: { pos: { x: GRID.box.x, y: GRID.box.y }, w: GRID.box.w, h: GRID.box.h },
-
-    /* Swifty has left, so the question moves out of her speech bubble
-       and into the banner. Its cream interior runs x[41..981]
-       y[32..127]; the bird sits at x[121..204] and sparkles at both
-       ends, so the text plate clears them. */
-    banner: {
-      /* Small, and centred across the top: it is a line to read once,
-         not the thing on screen. Its own width sets the x so it stays
-         centred if the size is ever changed again. */
-      w: 800, h: 108,
-      pos: { x: (STAGE_W - 800) / 2, y: 26 },
-
-      /* Drawn rather than dropped in as a picture: a cream bar inside a
-         layered golden frame, built from inset rings so the box stays
-         one piece and the text plate can sit at its measured spot.
-         Sizes are in banner pixels and scale with the bar. */
-      paper: {
-        innerTop: '#FFFDF5',
-        inner:    '#FFF9E9',
-        innerBot: '#FFF4D8',
-        edge:     '#C96608',       // thin dark rim, outermost
-        mid:      '#F29113',
-        gold:     '#FFC536',
-        hi:       '#FFF0A8',       // bright highlight against the cream
-        radius: 23,
-        e1: 2, e2: 6, e3: 10, e4: 13,   // cumulative insets
-        leaf: 52                   // the corner leaves' size
-      },
-
-      /* The artwork it replaces carried a bird and sparkles at the
-         ends, which is what squeezed the text into the middle 65%. The
-         drawn bar has only leaves on its corners, so the line gets
-         nearly the whole width — room the longer questions needed. */
-      text: { left: 0.11, top: 0.16, width: 0.78, height: 0.68 },
-      size: 32
-    },
 
 
     /* A distance question opens with the board on its own, centred in
@@ -834,8 +827,11 @@ window.CFG = (function () {
      narrowed step by step until only |x2 - x1| is left.
      ------------------------------------------------------------- */
   const XAXIS = {
-    grid: { x: 640, y: 40, w: 867, h: 700 },
-    formula: { x: 640, y: 790, w: 750 },
+    /* Her column is x 60..616 once the bubble is at its widest, so the
+       board starts clear of it and the working sits centred underneath
+       rather than beside — there is no room for a third column. */
+    grid: { x: 660, y: 16, w: 1040, h: 840 },
+    formula: { x: 800, y: 884, w: 760 },
 
     /* Both points sit on the axis, so their labels stack above it —
        below is where the axis numbering already lives. */
@@ -986,9 +982,6 @@ window.CFG = (function () {
         revealLine: 'Here it is — (6, 2).'
       } },
 
-    /* 8 — leaves sweep the screen; behind them Swifty leaves, the
-       board re-seats itself and the empty banner drops in. No
-       question and nothing to locate yet. */
     /* No sweep between 7 and 8: this question is asked on the very board
        the point was just located on, so the board and Swifty both stay
        and only the two points arrive. */
@@ -1036,7 +1029,7 @@ window.CFG = (function () {
 
     /* 12 — leaves sweep again and the scene goes back to the field
        layout of screen 5: board on the right, Swifty standing on the
-       left, no banner and no slider. The segment is diagonal this
+       left, and no slider. The segment is diagonal this
        time, so counting whole squares no longer works — which is the
        point she is about to make. */
     { id: 12, line: 'This one’s different.', entrance: 'fly',
@@ -1086,8 +1079,7 @@ window.CFG = (function () {
        slider: she is just naming what they have built. */
     { id: 16, line: 'Look! We made a triangle.', entrance: 'stay',
       layout: 'board', transition: 'leaves',
-      segment: { a: { x: 2, y: 1 }, b: { x: 6, y: 4, nameDx: 40, nameDy: 8 },
-                 color: '#B3261E' },
+      segment: { a: { x: 2, y: 1 }, b: { x: 6, y: 4, nameDx: 40, nameDy: 8 } },
       legs: [
         { from: { x: 2, y: 1 }, to: { x: 6, y: 1 }, mark: {}, length: true },
         { from: { x: 6, y: 1 }, to: { x: 6, y: 4 }, length: true }
@@ -1179,9 +1171,8 @@ window.CFG = (function () {
     { id: 21, line: 'The same idea works for any two points.', entrance: 'fly',
       layout: 'grid', transition: 'leaves', bubbleScale: 0.9,
       segment: {
-        a: { x: -5, y: 1, name: 'A', coordText: '(x1, y1)' },
-        b: { x:  5, y: 4, name: 'B', coordText: '(x2, y2)', nameDx: 40, nameDy: 8 },
-        color: '#B3261E'
+        a: { x: -5, y: 1, name: 'A', coordText: '(x1, y1)', nameDx: -46, nameDy: 8 },
+        b: { x:  5, y: 4, name: 'B', coordText: '(x2, y2)', nameDx: 40, nameDy: 8 }
       } },
 
     /* 22 — the same general segment, with the corner dropped and both
@@ -1190,9 +1181,8 @@ window.CFG = (function () {
     { id: 22, line: null, entrance: 'stay',
       layout: 'grid', keepSegment: true,
       segment: {
-        a: { x: -5, y: 1, name: 'A', coordText: '(x1, y1)' },
-        b: { x:  5, y: 4, name: 'B', coordText: '(x2, y2)', nameDx: 40, nameDy: 8 },
-        color: '#B3261E'
+        a: { x: -5, y: 1, name: 'A', coordText: '(x1, y1)', nameDx: -46, nameDy: 8 },
+        b: { x:  5, y: 4, name: 'B', coordText: '(x2, y2)', nameDx: 40, nameDy: 8 }
       },
       legs: [
         { from: { x: -5, y: 1 }, to: { x: 5, y: 1 },
@@ -1206,9 +1196,8 @@ window.CFG = (function () {
     { id: 23, line: 'AC = x2 - x1', entrance: 'stay',
       layout: 'grid', keepSegment: true, bubbleScale: 0.9,
       segment: {
-        a: { x: -5, y: 1, name: 'A', coordText: '(x1, y1)' },
-        b: { x:  5, y: 4, name: 'B', coordText: '(x2, y2)', nameDx: 40, nameDy: 8 },
-        color: '#B3261E'
+        a: { x: -5, y: 1, name: 'A', coordText: '(x1, y1)', nameDx: -46, nameDy: 8 },
+        b: { x:  5, y: 4, name: 'B', coordText: '(x2, y2)', nameDx: 40, nameDy: 8 }
       },
       legs: [
         { from: { x: -5, y: 1 }, to: { x: 5, y: 1 },
@@ -1222,9 +1211,8 @@ window.CFG = (function () {
     { id: 24, line: 'CB = y2 - y1', entrance: 'stay',
       layout: 'grid', keepSegment: true, bubbleScale: 0.9,
       segment: {
-        a: { x: -5, y: 1, name: 'A', coordText: '(x1, y1)' },
-        b: { x:  5, y: 4, name: 'B', coordText: '(x2, y2)', nameDx: 40, nameDy: 8 },
-        color: '#B3261E'
+        a: { x: -5, y: 1, name: 'A', coordText: '(x1, y1)', nameDx: -46, nameDy: 8 },
+        b: { x:  5, y: 4, name: 'B', coordText: '(x2, y2)', nameDx: 40, nameDy: 8 }
       },
       legs: [
         { from: { x: -5, y: 1 }, to: { x: 5, y: 1 },
@@ -1253,19 +1241,20 @@ window.CFG = (function () {
     { id: 28, line: 'What if both points are on the x-axis?', entrance: 'stay' },
 
     /* 29 — the x-axis case worked through: the general formula narrows
-       to |x2 - x1| as the y terms fall away. */
-    { id: 29, line: 'Both points are on the x-axis.', entrance: 'none',
+       to |x2 - x1| as the y terms fall away. She says which case it is
+       from her own bubble, standing beside the board. */
+    { id: 29, line: 'Both points are on the x-axis.', entrance: 'stay',
       layout: 'xaxis', transition: 'leaves' },
 
-    /* 30 — leaves again, and the same empty field as 25: board, banner
-       and working all left behind, Swifty flying back in alone to put
-       the next question. */
+    /* 30 — leaves again, and the same empty field as 25: board and
+       working left behind, Swifty flying back in alone to put the next
+       question. */
     { id: 30, line: 'And what if they’re on the y-axis?',
       entrance: 'fly', transition: 'leaves' },
 
     /* 31 — the same working as 27 with the axes swapped: the x terms
        are the pair that falls away this time. */
-    { id: 31, line: 'Both points are on the y-axis.', entrance: 'none',
+    { id: 31, line: 'Both points are on the y-axis.', entrance: 'stay',
       layout: 'yaxis', transition: 'leaves' }
   ];
 

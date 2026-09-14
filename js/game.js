@@ -13,7 +13,6 @@
    'charGroup', 'shadow', 'birdRig', 'birdFlip', 'birdWin', 'flySheet', 'talkSheet',
    'bubble', 'bubbleImg', 'bubbleText', 'bubbleLine', 'nextBtn',
    'gridPanel', 'gridImg', 'gridAxes', 'standSwifty',
-   'qBanner', 'qBannerImg', 'qBannerText', 'qBannerLine',
    'formulaBoard', 'leafLayer', 'fxLayer', 'sceneArt', 'startArt',
    'startBird', 'startBirdWin', 'startFly', 'startTalk', 'startShadow', 'startSky', 'nudge'
   ].forEach(function (id) { el[id] = document.getElementById(id); });
@@ -161,11 +160,12 @@
     const entry = C.SCRIPT[i] || {};
     const AX = axisOf(entry);
     if (AX) {
-      // board to one side, formula beside it, nobody in shot
-      return { stand: false, bare: true, scale: C.CHAR_SCALE, anchor: C.ANCHOR,
-               aim: C.ANCHOR, feetY: 0, feetCx: 0, inkW: 0,
-               bubbleScale: C.BUBBLE.scale,
-               panelBox: { x: AX.grid.x, y: AX.grid.y, w: AX.grid.w, h: AX.grid.h } };
+      /* Board top right, the working under it, and her in her own
+         column saying what the case is — the same rig as every other
+         screen she speaks on. */
+      return standGeom(C.BOARD.stand, {
+        panelBox: { x: AX.grid.x, y: AX.grid.y, w: AX.grid.w, h: AX.grid.h }
+      });
     }
     if (entry.layout === 'recap') {
       // the result stated on its own: board to one side, nobody in shot
@@ -326,37 +326,6 @@
 
     /* Screen 5 art sits at fixed 1:1 positions from the brief. */
     Board.place(C.GRID.box);
-
-    /* Screen 8's question banner, at its briefed 1:1 size. */
-    const Q = C.BOARD.banner;
-    el.qBanner.style.left = Q.pos.x + 'px';
-    el.qBanner.style.top = Q.pos.y + 'px';
-    el.qBanner.style.width = Q.w + 'px';
-    el.qBanner.style.height = Q.h + 'px';
-    el.qBannerImg.style.width = Q.w + 'px';
-    el.qBannerImg.style.height = Q.h + 'px';
-
-    /* The bar is drawn, so its frame and its corner leaves come from
-       config and scale with it rather than being baked into a picture. */
-    const QP = Q.paper, qs = el.qBanner.style;
-    qs.setProperty('--qr',  QP.radius + 'px');
-    qs.setProperty('--q1',  QP.e1 + 'px');
-    qs.setProperty('--q2',  QP.e2 + 'px');
-    qs.setProperty('--q3',  QP.e3 + 'px');
-    qs.setProperty('--q4',  QP.e4 + 'px');
-    qs.setProperty('--qleaf', QP.leaf + 'px');
-    qs.setProperty('--q-top', QP.innerTop);
-    qs.setProperty('--q-mid', QP.inner);
-    qs.setProperty('--q-bot', QP.innerBot);
-    qs.setProperty('--q-edge', QP.edge);
-    qs.setProperty('--q-orange', QP.mid);
-    qs.setProperty('--q-gold', QP.gold);
-    qs.setProperty('--q-hi', QP.hi);
-    el.qBannerText.style.left = Q.w * Q.text.left + 'px';
-    el.qBannerText.style.top = Q.h * Q.text.top + 'px';
-    el.qBannerText.style.width = Q.w * Q.text.width + 'px';
-    el.qBannerText.style.height = Q.h * Q.text.height + 'px';
-    el.qBannerText.style.fontSize = Q.size + 'px';
 
     /* It mounts itself and owns its own markup and styles; the game
        only decides where, when, and what range it counts over. */
@@ -703,9 +672,11 @@
         lp.setAttribute('class', 'legplate');
         lp.setAttribute('rx', 11);
 
+        /* In the leg's own colour: with the plate gone, that is what
+           says which of the two sides a measurement belongs to. */
         const lt = document.createElementNS(NS, 'text');
         lt.setAttribute('class', 'leglen');
-        lt.setAttribute('fill', G.ink);
+        lt.setAttribute('fill', LG.color);
         lt.setAttribute('font-size', LG.lenSize);
 
         [ln, dt, co, nm, lp, lt].forEach(function (n) { lg.appendChild(n); });
@@ -714,12 +685,13 @@
                              plate: lp, len: lt });
       }
 
-      /* Unit squares for the count-out demo. Made once at the widest      /* Unit squares for the count-out demo. Made once at the widest
+      /* Unit squares for the count-out demo. Made once at the widest
          span the board allows and reused, so a wrong answer never
          churns the DOM mid-animation. */
       const U = G.unitBox;
       const ug = document.createElementNS(NS, 'g');
       ug.setAttribute('class', 'units');
+      ug.style.setProperty('--uglow', U.glow);
       this.unitBoxes = [];
       for (let i = 0; i < U.max; i++) {
         const r = document.createElementNS(NS, 'rect');
@@ -970,6 +942,43 @@
 
     /* Seats one leg. `spec.mark` puts a labelled corner at its far
        end; `spec.length` writes how long it is alongside it. */
+    /* The row the x-axis owns: the line itself, and the numbers tucked
+       under it, with a little air either side. A coordinate written
+       into this band lands on one or the other, which is what happens
+       to any point sitting one square above the axis. */
+    /* A rough width for a string at a given size, used to decide where
+       a label can go. getBBox would be exact but is only good once the
+       text is laid out, and these decisions are made while placing it. */
+    textW: function (t, size) { return String(t).length * size * 0.58; },
+
+    /* The column the y-axis owns: the line, and its numbers down the
+       left of it. */
+    onYAxisCol: function (cx, w) {
+      const G = C.GRID, pad = 5;
+      const left = G.originX - G.yLabelGap - G.labelSize * 0.30 -
+                   this.textW('-6', G.labelSize) / 2 - pad;
+      const right = G.originX + G.axisWidth / 2 + pad;
+      return cx + w / 2 > left && cx - w / 2 < right;
+    },
+
+    /* Slides a label sideways until it is off the y-axis and clear of
+       the numbers beside it, whichever way is the shorter move. */
+    clearOfYAxis: function (cx, w) {
+      if (!this.onYAxisCol(cx, w)) return cx;
+      const G = C.GRID, pad = 5, air = 6;
+      const left = G.originX - G.yLabelGap - G.labelSize * 0.30 -
+                   this.textW('-6', G.labelSize) / 2 - pad - w / 2 - air;
+      const right = G.originX + G.axisWidth / 2 + pad + w / 2 + air;
+      return (cx - left) < (right - cx) ? left : right;
+    },
+
+    onXAxisRow: function (cy, h) {
+      const G = C.GRID, pad = 5;
+      const top = G.originY - G.axisWidth / 2 - pad;
+      const bot = G.originY + G.labelGap + G.labelSize * 0.42 + G.labelSize / 2 + pad;
+      return cy + h / 2 > top && cy - h / 2 < bot;
+    },
+
     placeLeg: function (i, spec) {
       const G = C.GRID, LG = G.leg, L = this.legSlots[i];
       const px = function (v) { return G.originX + v * G.stepX; };
@@ -990,7 +999,13 @@
         L.coord.setAttribute('x', x2 + LG.coordDx); L.coord.setAttribute('y', y2);
         L.coord.textContent = spec.mark.coordText ||
                               ('(' + t.x + ',\u00A0' + t.y + ')');
-        L.name.setAttribute('x', x2); L.name.setAttribute('y', y2 + LG.nameDy);
+        /* Below the corner, unless the x-axis row is there. */
+        let nx = x2, ny = y2 + LG.nameDy;
+        if (this.onXAxisRow(ny, G.segment.nameSize)) {
+          ny = y2 - LG.nameDy;
+          nx = x2 + LG.nameFlipDx;
+        }
+        L.name.setAttribute('x', nx); L.name.setAttribute('y', ny);
         L.name.textContent = spec.mark.name || '';
         L.dot.style.display = L.coord.style.display = L.name.style.display = '';
       } else {
@@ -1000,13 +1015,24 @@
       if (spec.length) {
         const n = Math.abs(t.x - f.x) + Math.abs(t.y - f.y);
         const horiz = (f.y === t.y);
-        // below a horizontal leg, out to the side of a vertical one
-        L.len.setAttribute('x', horiz ? (x1 + x2) / 2 : (x1 + LG.lenGapV));
-        L.len.setAttribute('y', horiz ? y1 + LG.lenGap : (y1 + y2) / 2);
         /* A leg can name its length instead of measuring it — the
            general case labels it x2 - x1 rather than 10 units. */
-        L.len.textContent = spec.lengthText ||
-                            (n + '\u00A0unit' + (n === 1 ? '' : 's'));
+        const txt = spec.lengthText || (n + '\u00A0unit' + (n === 1 ? '' : 's'));
+        /* Above a horizontal leg — inside the right angle, where the
+           board is empty. Beside a vertical one, pushed along it
+           towards the corner it starts from: the far end of that side
+           carries the other point's coordinates. */
+        const towardCorner = y1 > y2 ? 1 : -1;
+        let lx = horiz ? (x1 + x2) / 2 : (x1 + LG.lenGapV);
+        const ly = horiz ? y1 + LG.lenGap
+                         : (y1 + y2) / 2 + towardCorner * LG.lenBiasV;
+        /* A leg centred on the origin writes its length straight down
+           the y-axis, so it slides along its own leg towards the corner
+           until it is clear of the axis and the numbers beside it. */
+        if (horiz) lx = this.clearOfYAxis(lx, this.textW(txt, LG.lenSize));
+        L.len.setAttribute('x', lx);
+        L.len.setAttribute('y', ly);
+        L.len.textContent = txt;
         L.len.style.display = L.plate.style.display = '';
       } else {
         L.len.style.display = L.plate.style.display = 'none';
@@ -1027,7 +1053,7 @@
 
         if (spec.settled) {
           // already on the board; only its length is new
-          L.line.classList.add('draw');
+          if (!spec.noLine) L.line.classList.add('draw');
           if (spec.mark) { L.dot.classList.add('pop'); L.coord.classList.add('pop'); L.name.classList.add('pop'); }
           if (spec.length) {
             later(function () { self.showLegLength(i); SFX.tick(2); }, delay + 200);
@@ -1056,18 +1082,10 @@
       later(done, delay + 260);
     },
 
-    /* Plates the length text once it is set, so it reads over the grid. */
+    /* No plate to fit any more — the text carries its own paper halo,
+       so it reads over the ruling without a box taking up the room. */
     showLegLength: function (i) {
-      const L = this.legSlots[i];
-      L.len.classList.add('pop');
-      if (L.len.getBBox) {
-        const bb = L.len.getBBox();
-        L.plate.setAttribute('x', bb.x - 12);
-        L.plate.setAttribute('y', bb.y - 7);
-        L.plate.setAttribute('width', bb.width + 24);
-        L.plate.setAttribute('height', bb.height + 14);
-        L.plate.classList.add('on');
-      }
+      this.legSlots[i].len.classList.add('pop');
     },
 
     clearUnits: function () {
@@ -1119,13 +1137,17 @@
            above the top of the column, pushed to the squares' far edge
            so it clears the coordinate labels opposite. */
         const boxSide = (a.x >= 0) ? -1 : 1;
-        self.unitLabel.setAttribute('x', vertical
+        /* Slid clear of the y-axis if that is where it fell: a span
+           straddling the origin puts its midpoint straight on the axis,
+           and a column one square in puts it on the numbering. */
+        const txt = n + '\u00A0unit' + (n === 1 ? '' : 's');
+        self.unitLabel.setAttribute('x', self.clearOfYAxis(vertical
           ? px(a.x) + boxSide * G.stepX * 0.85
-          : (px(loX) + px(loX + n)) / 2);
+          : (px(loX) + px(loX + n)) / 2, self.textW(txt, U.labelSize)));
         self.unitLabel.setAttribute('y', vertical
           ? py(Math.max(a.y, b.y)) - U.labelUpV
           : py(a.y) + U.labelDy);
-        self.unitLabel.textContent = n + '\u00A0unit' + (n === 1 ? '' : 's');
+        self.unitLabel.textContent = txt;
         self.unitLabel.classList.add('on');
         /* Size the plate to the text once it is set. A segment can sit
            anywhere — across the y-axis, beside its numbers — so the
@@ -1178,9 +1200,20 @@
         const X = px(p.x), Y = py(p.y);
         part.dot.setAttribute('cx', X);  part.dot.setAttribute('cy', Y);
 
-        part.coord.setAttribute('x', vertical ? X + side * SG.coordDx : X);
-        part.coord.setAttribute('y', vertical ? Y + SG.vCoordDy
-                                              : Y + (spec.coordDy != null ? spec.coordDy : SG.coordDy));
+        /* Below the point, unless that writes it across the x-axis and
+           its numbering. Then it goes above, and out along the segment
+           away from the other point, where the leg measurements and the
+           far point's own labels are. A screen that sets its own offset
+           has already thought about this and is left alone. */
+        let cdx = 0, cdy = (spec.coordDy != null ? spec.coordDy : SG.coordDy);
+        let flipped = false;
+        if (!vertical && spec.coordDy == null && self.onXAxisRow(Y + cdy, SG.coordSize)) {
+          cdy = -cdy;
+          cdx = (p.x <= (p === spec.a ? spec.b : spec.a).x ? -1 : 1) * SG.coordFlipDx;
+          flipped = true;
+        }
+        part.coord.setAttribute('x', vertical ? X + side * SG.coordDx : X + cdx);
+        part.coord.setAttribute('y', vertical ? Y + SG.vCoordDy : Y + cdy);
         /* A point can carry its own label — the general case names the
            points (x1, y1) and (x2, y2) rather than their values — and
            can split it so one fragment glows on its own. */
@@ -1199,11 +1232,19 @@
         /* A point can carry its own letter offset. The default puts the
            letter straight below, which lands on top of a leg dropped
            from that same point — so those points push theirs aside. */
+        let ndy = p.nameDy != null ? p.nameDy
+                : (vertical ? SG.vNameDy : (spec.nameDy != null ? spec.nameDy : SG.nameDy));
+        if (!vertical && p.nameDy == null) {
+          if (flipped) {
+            // the coordinates have taken the space above; stack past them
+            ndy = cdy + Math.sign(cdy) * (SG.coordSize / 2 + SG.nameSize / 2 + 6);
+          } else if (self.onXAxisRow(Y + ndy, SG.nameSize)) {
+            ndy = -ndy;
+          }
+        }
         part.name.setAttribute('x', p.nameDx != null ? X + p.nameDx
                                   : (vertical ? X + side * SG.coordDx : X));
-        part.name.setAttribute('y', p.nameDy != null ? Y + p.nameDy
-                                  : (vertical ? Y + SG.vNameDy
-                                              : Y + (spec.nameDy != null ? spec.nameDy : SG.nameDy)));
+        part.name.setAttribute('y', Y + ndy);
         part.name.textContent = p.name || '';
       });
     },
@@ -1307,11 +1348,26 @@
        stops at the edge rather than running off it. */
     setMeasure: function (from, to, units) {
       const G = C.GRID;
+      /* Nothing measured is nothing drawn. A zero-length line would put
+         its cap exactly on the point it starts from, which reads as a
+         second, slightly wrong dot rather than as an empty board. */
+      if (units <= 0) { this.clearMeasure(); return; }
       const px = function (v) { return G.originX + v * G.stepX; };
       const py = function (v) { return G.originY - v * G.stepY; };
       const sx = Math.sign(to.x - from.x), sy = Math.sign(to.y - from.y);
-      const ex = Math.max(G.xFrom, Math.min(G.xTo, from.x + sx * units));
-      const ey = Math.max(G.yFrom, Math.min(G.yTo, from.y + sy * units));
+      /* It stops at the point it is measuring to. A guess longer than
+         the gap used to carry the line on past it and out into empty
+         board — six cells past, on the shortest of these questions —
+         which read as the line having come off its rails rather than as
+         the number being too big. The board still only goes so far
+         either way, so the frame clamps it too. */
+      const cap = function (v, end, dir, lo, hi) {
+        if (dir > 0) v = Math.min(v, end);
+        else if (dir < 0) v = Math.max(v, end);
+        return Math.max(lo, Math.min(hi, v));
+      };
+      const ex = cap(from.x + sx * units, to.x, sx, G.xFrom, G.xTo);
+      const ey = cap(from.y + sy * units, to.y, sy, G.yFrom, G.yTo);
       this.measLine.setAttribute('x1', px(from.x));
       this.measLine.setAttribute('y1', py(from.y));
       this.measLine.setAttribute('x2', px(ex));
@@ -1529,7 +1585,8 @@
 
   /* ---------------- screen flow ---------------- */
   const Game = {
-    index: -1, state: 'start', busy: false, geom: null, task: null, askTimer: null,
+    index: -1, state: 'start', busy: false, geom: null, task: null,
+    flight: null, landFlight: null, raised: false,
     pending: [], entranceCancel: null,
 
     /* A screen is done: arm Skip and hand over by itself after a pause.
@@ -1574,6 +1631,8 @@
       this.pending.forEach(clearTimeout);
       this.pending = [];
       if (this.entranceCancel) { this.entranceCancel(); this.entranceCancel = null; }
+      // a skip mid-flight sets her down rather than leaving her airborne
+      if (this.landFlight) this.landFlight(true);
     },
 
     begin: function () {
@@ -1615,7 +1674,18 @@
       el.nextBtn.classList.remove('ready');
 
       const entry = C.SCRIPT[i];
-      const geom = geomFor(i);
+      /* A question that follows straight on from one answered on the
+         control keeps the whole arrangement: she stays up on the panel,
+         the control stays under her, and only the board changes. Taking
+         them both away and bringing them both back — with her flying
+         down and up again in between — for what is the same question
+         about two new points read as the screen restarting. */
+      const keepsControl = entry.intro === 'measure' &&
+                           !!(entry.distance || entry.entry) &&
+                           entry.transition !== 'leaves' &&
+                           this.raised && Board.shown;
+      this.raised = keepsControl;
+      const geom = keepsControl ? controlGeom() : geomFor(i);
       this.geom = geom;
       standPose = !!geom.stand;
       /* Reseating the rig also resizes the speech bubble, and a screen
@@ -1655,9 +1725,6 @@
           Board.shown = false;
           Board.setDots(false);
         }
-        /* The banner belongs to the axis screens now; every other screen
-           asks through her bubble. */
-        if (!AX) el.qBanner.classList.add('hidden');
         if (entry.layout !== 'recap' && !AX) el.formulaBoard.classList.add('hidden');
         if (!entry.segment && !entry.keepSegment) Board.clearSegment();
         if (Opts && !entry.options) Opts.hide();
@@ -1699,8 +1766,7 @@
 
       const withControl = entry.options && entry.intro !== 'measure';
       const after = function () {
-        if (entry.line && geom.bare) self.ask(entry.line);   // banner, not bubble
-        else if (entry.line) self.speak(entry.line, withControl
+        if (entry.line) self.speak(entry.line, withControl
           ? function () { revealControl(entry); } : null);
         else if (entry.auto && i + 1 < C.SCRIPT.length) {
           self.later(function () { self.goTo(i + 1); }, 160);
@@ -1717,9 +1783,6 @@
         else self.stay(after);
       };
 
-      /* Screen 8 hides its changeover behind a curtain of leaves: the
-         swap happens while the frame is covered, so Swifty leaving and
-         the board re-seating itself are never seen. */
       /* Plot the segment, then any leg dropped from it, before asking
          about either. */
       const plotThen = function (next) {
@@ -1768,17 +1831,6 @@
           Board.clearSegment();
         }
 
-        if ((entry.layout === 'board' || AX) && !holds) {
-          /* Empty before it pops in: the banner is on screen while the
-             board draws, and the last screen's line must not sit in it. */
-          el.qBannerLine.textContent = '';
-          el.qBanner.classList.remove('hidden', 'pop-in');
-          void el.qBanner.offsetWidth;
-          el.qBanner.classList.add('pop-in');
-        } else {
-          el.qBanner.classList.add('hidden');
-        }
-
         if (Sel) {
           if ((entry.distance || entry.entry) && !holds) { Sel.reset(); Sel.show(); }
           else Sel.hide();
@@ -1823,12 +1875,15 @@
         };
 
         /* The line runs alongside the drawing rather than after it —
-           the banner is already on screen and would sit empty — but
-           the formula only starts narrowing once it has been read. */
+           the segment is what she is naming — but the formula only
+           starts narrowing once it has been read. dress() cleared the
+           frame behind the leaves, so she is put back up here. */
         const SEG_MS = 1980, LEAD = 700;
         let read = 0;
         if (entry.line) {
-          self.later(function () { self.ask(entry.line); }, LEAD);
+          self.later(function () {
+            self.stay(function () { self.speak(entry.line); });
+          }, LEAD);
           read = entry.line.length * 42 + 500;
         }
         Board.runSegment(spec, self.later.bind(self), function () {
@@ -1847,9 +1902,10 @@
          the board move aside for the banner and the slider. */
       const runMeasure = function () {
         self.state = 'entering';
-        el.qBanner.classList.add('hidden');
-        el.qBannerLine.textContent = '';
-        if (Sel) Sel.hide();
+        /* Kept: emptied for the new question rather than taken away, and
+           live from the moment the points are down, so a child who is
+           ahead of her can answer while she is still asking. */
+        if (Sel) { if (keepsControl) Sel.reset(); else Sel.hide(); }
 
         /* A screen that follows straight on from the one before keeps
            the board it inherited, and her with it: no sweep, no
@@ -1901,13 +1957,20 @@
               }, 700);
               self.flyIn(speak);
             };
-            /* A leg question draws every leg first, the one it is about
-               included: the triangle is being built up across these
-               screens, so each side goes on the board and is then
-               measured. Only a question about the segment itself keeps
-               its line back, since there the line is the answer. */
-            if (entry.legs) Board.runLegs(entry.legs, self.later.bind(self), asks);
-            else asks();
+            /* A leg question draws the other legs, but not the one it
+               is about: that side is what the player lays down with the
+               control, so drawing it first both gives the answer away
+               and leaves the far half of it sitting there in the leg's
+               own colour while the measuring line covers the near half.
+               Its corner and coordinates still go up — the question is
+               how far, not where to. */
+            if (entry.legs) {
+              const drawn = entry.legs.map(function (l, i) {
+                if (i !== (entry.task && entry.task.measureLeg)) return l;
+                return Object.assign({}, l, { noLine: true });
+              });
+              Board.runLegs(drawn, self.later.bind(self), asks);
+            } else asks();
           }, measuringLeg);
         };
 
@@ -1921,14 +1984,17 @@
         }
       };
 
-      /* 4. the controls arrive. The board does not move and there is no
-         banner: she is still standing on the rail with the question in
-         her bubble, so repeating it in a bar underneath would be the
-         same sentence twice. */
+      /* 4. the controls arrive. The board does not move: she is still
+         standing there with the question in her bubble, and the control
+         comes in under her. */
       const opens = function () {
         self.later(function () {
-          revealControl(entry);        // she rises, the control follows
-          Board.clearMeasure();
+          if (keepsControl) {
+            // nothing to bring on; it never left, and it was reset above
+          } else {
+            revealControl(entry);      // she flies up, the control follows
+            Board.clearMeasure();
+          }
           self.settle();
         }, 240);
       };
@@ -1956,9 +2022,6 @@
          rebuild — just clear the last segment and plot the next. */
       if (entry.layout === 'board' && entry.transition !== 'leaves') {
         el.gridPanel.classList.remove('hidden');
-        // she asks from her own bubble on these screens; no banner
-        el.qBannerLine.textContent = '';
-        el.qBanner.classList.add('hidden');
         Board.shown = true;
         if (!entry.keepSegment) Board.clearSegment();
         else Board.clearUnits();          // keep the drawing, drop any count-out
@@ -2145,49 +2208,17 @@
     speak: function (line, then) {
       const self = this;
       this.state = 'speaking';
-      FX.sparkles(C.ANCHOR.x, C.ANCHOR.y - 200 * C.CHAR_SCALE, 7, 170 * C.CHAR_SCALE);
+      /* Over her head wherever she is standing — the default anchor is
+         only right on the screens she has not moved from. */
+      const g = this.geom || {};
+      const aim = g.aim || { x: C.ANCHOR.x, y: C.ANCHOR.y - 200 * C.CHAR_SCALE };
+      FX.sparkles(aim.x, aim.y, 7, 170 * (g.scale || C.CHAR_SCALE));
       Bubble.open(line, function () {
         if (then) then();
         /* Longer after a right answer than after an ordinary line: the
            confetti is still coming down. */
         self.settle(self.task && self.task.done ? C.AUTO.afterCorrect : C.AUTO.afterLine);
       });
-    },
-
-    /* The banner's version of speak(): types the question into the
-       question bar, with the same chirps and music duck. */
-    ask: function (line) {
-      const self = this;
-      /* An answer can land while a line is still typing, so stop the
-         one in flight first — two intervals writing into the same
-         banner would interleave their text. */
-      if (this.askTimer) {
-        clearInterval(this.askTimer);
-        this.askTimer = null;
-        SFX.duck(false);
-      }
-      this.state = 'speaking';
-      const text = Bubble.keepPairs(line);
-      el.qBannerLine.textContent = '';
-      SFX.duck(true);
-
-      const words = text.match(/\S+\s*/g) || [];
-      let n = 0;
-      const timer = setInterval(function () {
-        if (n >= words.length) {
-          clearInterval(timer);
-          self.askTimer = null;
-          SFX.duck(false);
-          SFX.chime();
-          self.settle(self.task && self.task.done ? C.AUTO.afterCorrect : C.AUTO.afterLine);
-          return;
-        }
-        const w = words[n++];
-        el.qBannerLine.textContent = words.slice(0, n).join('');
-        SFX.chirp(/[.!?]\s*$/.test(w) ? 0.7 : 1);
-      }, C.AUTO.wordMs);
-      this.askTimer = timer;
-      this.pending.push(timer);
     },
 
     /* The Check button on the distance panel. */
@@ -2228,7 +2259,6 @@
       const t = this.task;
       if (!t || t.done) return;
       const self = this;
-      const sg = C.SCRIPT[this.index] && C.SCRIPT[this.index].segment;
 
       // only axis-aligned pairs are asked about, so one term is zero
       const pair = this.measurePair();
@@ -2245,32 +2275,40 @@
           SFX.cheer();
           SFX.confettiPop();
           FX.confetti(60);
-          self.ask(t.spec.correctLine);
+          self.speak(t.spec.correctLine);
         }, 260);
         return;
       }
 
-      /* Wrong: rather than just saying no, count the segment out in
-         unit squares so the answer is visible, then hand the slider
-         back so they can try again. */
+      /* Wrong: rather than just saying no, light the span up one unit
+         square at a time so how long a unit is, and how many of them
+         fit, is there to be seen and counted. Every distance question
+         does this — a child who has just guessed wrong is exactly the
+         one who needs to see it. */
       t.wrong++;
       SFX.wrong();
       if (Sel) Sel.markWrong();
+      // the guess they drew goes; the squares are what to look at now
+      Board.clearMeasure();
       const fb = this.feedbackFor(t);
 
-      /* No showLine means no count-out: some questions want a hint
-         rather than the whole thing worked through. */
-      if (!sg || !t.spec.showLine) {
-        this.later(function () { self.ask(fb.msg); }, 240);
+      /* The squares are laid along whatever is being measured — a leg
+         on some screens, the segment itself on others — and only a
+         span along one axis can be counted in whole squares at all. */
+      const square = pair && (pair.from.x === pair.to.x || pair.from.y === pair.to.y);
+      if (!square) {
+        this.later(function () { self.speak(fb.msg); }, 240);
         return;
       }
 
       this.state = 'showing';
       this.later(function () {
-        self.ask(t.spec.showLine);
-        Board.runUnits(sg.a, sg.b, self.later.bind(self), function () {
+        // a screen with its own line for this says that; the rest have
+        // a try-again that already points at the squares
+        self.speak(t.spec.showLine || fb.msg);
+        Board.runUnits(pair.from, pair.to, self.later.bind(self), function () {
           self.state = 'waiting';
-          self.ask(fb.msg);                       // the slider is live again
+          if (t.spec.showLine) self.speak(fb.msg);  // the control is live again
         });
       }, 260);
     },
@@ -2303,7 +2341,7 @@
           SFX.cheer();
           SFX.confettiPop();
           FX.confetti(60);
-          self.ask(t.spec.correctLine);
+          self.speak(t.spec.correctLine);
         }, 260);
         return;
       }
@@ -2312,7 +2350,7 @@
       SFX.wrong();
       if (Sel) Sel.markWrong();
       const fb = this.feedbackFor(t);
-      this.later(function () { self.ask(fb.msg); }, 240);
+      this.later(function () { self.speak(fb.msg); }, 240);
     },
 
     /* The feedback ladder: each wrong attempt gets the next message,
@@ -2342,7 +2380,7 @@
           SFX.cheer();
           SFX.confettiPop();
           FX.confetti(60);
-          self.ask(t.spec.correctLine);
+          self.speak(t.spec.correctLine);
         }, 260);
         // the chosen method, worked through where the buttons were
         if (t.spec.formula && Opts) {
@@ -2370,7 +2408,7 @@
           }, 420);
           return;
         }
-        this.later(function () { self.ask(fb.msg); }, 320);
+        this.later(function () { self.speak(fb.msg); }, 320);
       }
     },
 
@@ -2405,7 +2443,7 @@
         SFX.cheer();
         SFX.confettiPop();
         FX.confetti(60);
-        (self.geom && self.geom.bare ? self.ask : self.speak).call(self, t.spec.correctLine);
+        self.speak(t.spec.correctLine);
       }, 260);
     },
 
@@ -2426,11 +2464,11 @@
           FX.ring(at.x, at.y, 150, 'rgba(70,200,95,.9)');
           FX.sparkles(at.x, at.y, 8, 120);
           SFX.chime();
-          (self.geom && self.geom.bare ? self.ask : self.speak).call(self, t.spec.revealLine);
+          self.speak(t.spec.revealLine);
         }, 620);
       } else {
         this.later(function () {
-          (self.geom && self.geom.bare ? self.ask : self.speak).call(self, t.spec.tryAgainLine);
+          self.speak(t.spec.tryAgainLine);
         }, 260);
       }
     },
@@ -2530,15 +2568,97 @@
      travels there, which is why the move carries a transition and why
      her line has to be re-fitted afterwards (re-seating the rig resets
      the balloon to its default size). */
-  function revealControl(entry) {
-    const moving = [el.standSwifty, el.bubble, el.shadow, el.birdRig];
-    const g = standGeom(C.BOARD.standUp, {
+  /* She hops up to her raised spot on the wing rather than sliding
+     there: the fly sheet, an arc that carries her up and out over the
+     board before she settles back, and the standing artwork swapped
+     back in the moment she lands. Driven frame by frame rather than by
+     a CSS transition, because the sprite window is re-seated on every
+     frame of the sheet and a transition on it would fight that. */
+    /* The lift is what makes it a flight rather than a lift shaft: she
+     has to rise past the perch and settle back onto it. */
+  const FLIGHT_MS = 820, FLIGHT_BULGE = 230, FLIGHT_LIFT = 250;
+
+  function flyTo(p0, p1, s0, s1) {
+    if (Game.landFlight) Game.landFlight(true);
+
+    el.standSwifty.classList.add('hidden');
+    el.birdWin.classList.remove('hidden');
+    el.birdFlip.classList.remove('turn');    // she faces the way she is going
+    el.birdRig.classList.remove('fly-in', 'hop', 'pre-entrance', 'rising');
+    el.shadow.classList.add('lifted');
+    Sprite.play('fly', true);
+    Sprite.setScale(s0);
+    el.birdRig.style.left = p0.x + 'px';
+    el.birdRig.style.top = p0.y + 'px';
+
+    SFX.flap();
+    const flapper = setInterval(SFX.flap, 165);
+
+    /* A quadratic curve through a control point out to her right and
+       above the straight line, so she leaves the ground on a proper arc
+       instead of rising like a lift. */
+    const cx = (p0.x + p1.x) / 2 + FLIGHT_BULGE;
+    const cy = (p0.y + p1.y) / 2 - Math.max(FLIGHT_LIFT, Math.abs(p1.y - p0.y) * 0.9);
+    const t0 = performance.now();
+
+    const land = function (silent) {
+      cancelAnimationFrame(Game.flight);
+      clearInterval(flapper);
+      Game.flight = null;
+      Game.landFlight = null;
+      Sprite.stopAt('talk', 0);
+      Sprite.setScale(s1);
+      el.birdRig.style.left = p1.x + 'px';
+      el.birdRig.style.top = p1.y + 'px';
+      el.birdWin.classList.add('hidden');
+      el.standSwifty.classList.remove('hidden');
+      if (!silent) SFX.land();
+    };
+    Game.landFlight = land;
+
+    const step = function (now) {
+      const t = Math.min(1, (now - t0) / FLIGHT_MS);
+      // ease out: she pushes off hard and feathers into the landing
+      const e = 1 - Math.pow(1 - t, 2.2), u = 1 - e;
+      el.birdRig.style.left = (u * u * p0.x + 2 * u * e * cx + e * e * p1.x) + 'px';
+      el.birdRig.style.top  = (u * u * p0.y + 2 * u * e * cy + e * e * p1.y) + 'px';
+      Sprite.setScale(s0 + (s1 - s0) * e);
+      if (t < 1) Game.flight = requestAnimationFrame(step);
+      else land();
+    };
+    Game.flight = requestAnimationFrame(step);
+    return land;
+  }
+
+  /* Where she stands once a control is up: on its top edge, a little
+     smaller, with no ground shadow. A screen that inherits the control
+     inherits this too, so it is written once. */
+  function controlGeom() {
+    return standGeom(C.BOARD.standUp, {
       noShadow: true,        // she is standing on the control, not on grass
       panelBox: { x: C.BOARD.panel.pos.x, y: C.BOARD.panel.pos.y,
                   w: C.BOARD.panel.w, h: C.BOARD.panel.h }
     });
+  }
+
+  function revealControl(entry) {
+    const g = controlGeom();
+    /* Where she is now, before the new rig overwrites it: the flight
+       starts from her feet rather than from wherever the last screen
+       happened to leave the rig. */
+    const from = Game.geom || {};
+    const p0 = { x: parseFloat(el.birdRig.style.left) || 0,
+                 y: parseFloat(el.birdRig.style.top) || 0 };
+    const s0 = from.scale || C.CHAR_SCALE;
     Game.geom = g;
-    moving.forEach(function (n) { n.classList.add('rising'); });
+    Game.raised = true;
+
+    /* Up on the wing before the new rig is seated: applyGeom() moves
+       her standing artwork to where she is going, so it has to be off
+       screen by then or it lands there a frame early.
+       The balloon travels with her; her artwork does not — she flies. */
+    flyTo(p0, { x: g.anchor.x, y: g.anchor.y }, s0, g.scale);
+    el.bubble.classList.add('rising');
     applyGeom(g);
     /* Re-seating the rig resets the balloon to its default size, so the
        line is re-fitted — and then written back, because fitBox() blanks
@@ -2546,17 +2666,15 @@
        is typed in, where leaving it empty is the point). */
     Bubble.fitBox(Bubble.full);
     el.bubbleLine.textContent = Bubble.full;
-    setTimeout(function () {
-      moving.forEach(function (n) { n.classList.remove('rising'); });
-    }, 720);
+    setTimeout(function () { el.bubble.classList.remove('rising'); }, 720);
 
-    /* The control comes in while she is still moving, so the two read as
-       one action — her stepping aside and it taking the space. */
+    /* The control rises into the space she has just left and is settled
+       before she comes down on it: it arrives, then she lands on it. */
     setTimeout(function () {
       if (Sel) {
         if (entry.distance || entry.entry) {
           Sel.reset();
-          Sel.show();
+          Sel.show(true);        // rising, since she is coming down on it
           /* Lay the line down at the value it opens on. reset() does not
              report a change — nothing has changed yet — so without this
              the board stays bare until the first arrow press, and the
@@ -2568,7 +2686,7 @@
         } else Sel.hide();
       }
       if (Opts) {
-        if (entry.options) { Opts.reset(); Opts.show(); } else Opts.hide();
+        if (entry.options) { Opts.reset(); Opts.show(true); } else Opts.hide();
       }
     }, 150);
   }

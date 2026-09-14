@@ -14,10 +14,11 @@
 window.NumberSelector = (function () {
   'use strict';
 
-  /* The range starts at 0 so the slot to the left of 1 has a number in
-     it rather than sitting empty, but it opens on 1 — 0 is reachable,
-     it is simply not where anyone starts counting from. */
-  const MIN = 0, MAX = 8, START = 1;
+  /* It opens on 0: nothing has been measured yet, so the control says
+     nothing has been measured yet. The slot to its left stays empty and
+     the back arrow is disabled, which is the truth — there is nothing
+     below no distance at all. */
+  const MIN = 0, MAX = 8, START = 0;
 
   function mount(parent, opts) {
     opts = opts || {};
@@ -198,7 +199,13 @@ window.NumberSelector = (function () {
         left.disabled = right.disabled = check.disabled = true;
       },
 
-      show: function () { root.classList.remove('hidden'); },
+      /* `rising` is for the moment it takes the space Swifty has just
+         flown out of: it comes up from below rather than appearing, so
+         it is visibly settled by the time she lands on it. */
+      show: function (rising) {
+        root.classList.remove('hidden', 'rising');
+        if (rising) { void root.offsetWidth; root.classList.add('rising'); }
+      },
       hide: function () { root.classList.add('hidden'); },
 
       onChange: function (fn) { onChange = fn; },

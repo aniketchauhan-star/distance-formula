@@ -33,17 +33,17 @@
   justify-content: center;
   gap: 42px;
 
-  /* A warm tan rather than cream: the grass behind it is pale gold, and
-     a cream panel on it had almost no edge. The controls inside stay
-     light, so the panel reads as the tray they sit in. */
-  background: linear-gradient(180deg, #F0DCA8 0%, #E7CB8A 100%);
+  /* Near-white, like the answer panel it shares the game with: a tan
+     tray read as a wash over the grass rather than a panel sitting on
+     it, and the gold frame is what separates it from the field. */
+  background: linear-gradient(180deg, #FFFDF5 0%, #FFF8E8 100%);
   border: 5px solid #F6B818;
   border-radius: 32px;
 
   box-shadow:
-    0 10px 0 #B9670A,
-    0 16px 26px rgba(110, 60, 10, 0.26),
-    inset 0 3px 0 rgba(255, 255, 255, 0.55);
+    0 10px 0 #CF7A08,
+    0 16px 24px rgba(110, 60, 10, 0.18),
+    inset 0 3px 0 rgba(255, 255, 255, 0.9);
 
   font-family: 'Nunito', system-ui, sans-serif;
   transform-origin: top left;
@@ -316,6 +316,15 @@
 
 .nsel.hidden { display: none !important; }
 
+/* Coming up into the space she has just left. Short enough to be
+   settled before she lands on it. */
+.nsel.rising { animation: nselRise .42s cubic-bezier(.22, .68, .3, 1) both; }
+@keyframes nselRise {
+  0%   { opacity: 0; transform: scale(var(--k, 1)) translateY(90px); }
+  60%  { opacity: 1; transform: scale(var(--k, 1)) translateY(-8px); }
+  100% { opacity: 1; transform: scale(var(--k, 1)) translateY(0); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .nsel .number,
   .nsel .yes-tick { transition: none; }
@@ -326,4 +335,5 @@
   .nsel.is-moving-right .number { transform: scale(.92); opacity: .78; }
   .nsel.is-moving-left .number.active,
   .nsel.is-moving-right .number.active { transform: translateY(-6px) scale(1.06); opacity: 1; }
+  .nsel.rising { animation: none; }
 }

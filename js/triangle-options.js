@@ -121,7 +121,13 @@ window.TriangleOptions = (function () {
       setAnswer: function (k) { answerKey = k; },
       reset: function () { hideFormula(); clearStates(); locked = false; },
       lock: function () { locked = true; },
-      show: function () { root.classList.remove('hidden'); },
+      /* `rising` is for the moment it takes the space Swifty has just
+         flown out of: it comes up from below rather than appearing, so
+         it is visibly settled by the time she lands on it. */
+      show: function (rising) {
+        root.classList.remove('hidden', 'rising');
+        if (rising) { void root.offsetWidth; root.classList.add('rising'); }
+      },
       hide: function () { root.classList.add('hidden'); },
       onAnswer: function (fn) { onAnswer = fn; }
     };

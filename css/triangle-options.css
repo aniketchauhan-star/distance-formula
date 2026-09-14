@@ -190,3 +190,17 @@
   60%  { opacity: 1; transform: translateY(-4px) scale(1.02); }
   100% { opacity: 1; transform: translateY(0) scale(1); }
 }
+
+/* Coming up into the space she has just left. Short enough to be
+   settled before she lands on it. */
+.triangle-options-panel.rising {
+  animation: toRise .42s cubic-bezier(.22, .68, .3, 1) both;
+}
+@keyframes toRise {
+  0%   { opacity: 0; transform: translateY(90px); }
+  60%  { opacity: 1; transform: translateY(-8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .triangle-options-panel.rising { animation: none; }
+}
