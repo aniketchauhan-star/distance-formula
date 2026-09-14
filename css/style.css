@@ -655,10 +655,10 @@ html, body {
 /* The axis numbers pop out where they sit — no travel, no settle. The
    plotted-point labels keep labelPop, which rises them into place;
    these are simply revealed, one after the next. */
-#gridAxes .glabel.pop { animation: numPop .34s cubic-bezier(.25, 1.6, .45, 1) forwards; }
+#gridAxes .glabel.pop { animation: numPop .3s ease-out forwards; }
 @keyframes numPop {
-  0%   { opacity: 0; transform: scale(.35); }
-  60%  { opacity: 1; transform: scale(1.16); }
+  0%   { opacity: 0; transform: scale(0); }
+  55%  { opacity: 1; transform: scale(1.25); }
   100% { opacity: 1; transform: scale(1); }
 }
 
