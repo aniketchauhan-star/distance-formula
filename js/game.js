@@ -11,7 +11,8 @@
   ['viewport', 'stage', 'loader', 'loaderBar', 'loaderPct',
    'startScreen', 'playBtn', 'playImg', 'scene', 'skyLayer',
    'charGroup', 'shadow', 'birdRig', 'birdFlip', 'birdWin', 'flySheet', 'talkSheet',
-   'bubble', 'bubbleImg', 'bubbleTail', 'bubbleText', 'bubbleLine', 'nextBtn',
+   'bubble', 'bubbleShape', 'bubbleBody', 'bubbleSheen',
+   'bubbleText', 'bubbleLine', 'nextBtn',
    'gridPanel', 'gridImg', 'gridAxes', 'standSwifty',
    'formulaBoard', 'leafLayer', 'fxLayer', 'sceneArt', 'startArt',
    'startBird', 'startBirdWin', 'startFly', 'startTalk', 'startShadow', 'startSky', 'nudge'
@@ -220,6 +221,13 @@
       scale: C.CHAR_SCALE,
       anchor: C.ANCHOR,
       aim:    { x: C.ANCHOR.x + C.HEAD_TOP.dx, y: C.ANCHOR.y + C.HEAD_TOP.dy },
+      /* And where a corner-tailed balloon points instead: her cheek,
+         out at the right of her head rather than on top of it. */
+      aimSide: {
+        x: C.ANCHOR.x + REF_W * C.CHAR_SCALE * C.BUBBLE.aimSide.dx,
+        y: (C.ANCHOR.y + C.HEAD_TOP.dy) +
+           (C.FEET_DY - C.HEAD_TOP.dy) * C.BUBBLE.aimSide.dy
+      },
       feetY:  C.ANCHOR.y + C.FEET_DY,
       feetCx: C.SWIFTY.cx,
       inkW:   REF_W * C.CHAR_SCALE,
@@ -267,6 +275,13 @@
        wide, shallow one whose tail leaves the side rather than the
        bottom, because she stands above the board with nothing over her. */
     const B = g.bubble || C.BUBBLE, s = g.bubbleScale;
+    /* A shape can hang its tail off the balloon's bottom-left corner
+       instead of the middle of its underside. Then the balloon sits up
+       and to the right of whatever it points at, so she speaks from
+       beside her own face rather than from over her head — which only
+       works where nothing else wants that space. */
+    const side = B.tailSide === 'left';
+    const aim = (side && g.aimSide) || g.aim;
     const inkW = (inkWOverride != null ? inkWOverride : B.ink.w) * s;
     /* A shape can be given a shorter balloon for a line that only needs
        one row — the tail keeps its length, so the box shrinks from the
@@ -275,7 +290,7 @@
     const tailLen = B.tailLen != null ? B.tailLen : (B.tip.y - B.bodyH);
     const inkH = (bodyH + tailLen + 1) * s;
     const tipX = B.tip.x * s, tipY = (bodyH + tailLen) * s;
-    const tip = { x: g.aim.x, y: g.aim.y + B.biteIntoHead };
+    const tip = { x: aim.x, y: aim.y + B.biteIntoHead };
 
     el.bubble.style.left = (tip.x - tipX) + 'px';
     el.bubble.style.top = (tip.y - tipY) + 'px';
@@ -284,34 +299,87 @@
     // Pop the bubble out of the tail tip, where it is anchored.
     el.bubble.style.transformOrigin = tipX + 'px ' + tipY + 'px';
 
-    el.bubbleImg.style.width = inkW + 'px';
-    el.bubbleImg.style.height = bodyH * s + 'px';
-
     const bs = el.bubble.style;
-    bs.setProperty('--bodyH', bodyH * s + 'px');
-    bs.setProperty('--r',    B.radius * s + 'px');
     bs.setProperty('--e1',   B.edgeW * s + 'px');
     bs.setProperty('--fill', B.fill);
     bs.setProperty('--edge', B.edge);
     bs.setProperty('--ink',  B.ink_);
     bs.setProperty('--sheen', B.sheen);
     bs.setProperty('--bubSize', B.size * s + 'px');
+    bs.setProperty('--glow',     B.glow     || 'rgba(224, 154, 85, .34)');
+    bs.setProperty('--glowWide', B.glowWide || 'rgba(224, 154, 85, .18)');
+    bs.setProperty('--cast',     B.cast     || 'rgba(120, 62, 14, .24)');
 
-    /* The tail is one drawn shape rather than a stack of rotated
-       squares. Its artwork is a 44 x 42 box whose join line sits 8
-       units down and whose point is at the very bottom, 2 units in from
-       the left — so the drop from the join to the point is 34/42 of the
-       drawing's height, and that drop is what has to equal tailLen.
-       Sizing it from those two fractions puts the point exactly on her
-       head at any scale, and carries the top of the shape back up over
-       the balloon's border so the two read as one outline. */
-    const TAIL_DROP = 34 / 42, TAIL_ASPECT = 44 / 42, TAIL_TIPX = 2 / 44;
-    const th = tailLen * s / TAIL_DROP, tw = th * TAIL_ASPECT;
-    const ts = el.bubbleTail.style;
-    ts.width = tw + 'px';
-    ts.height = th + 'px';
-    ts.left = (B.tip.x * s - tw * TAIL_TIPX) + 'px';
-    ts.top = (bodyH * s - th * (1 - TAIL_DROP)) + 'px';
+    /* ---- the silhouette, as one path ----
+       Balloon and tail used to be two shapes laid over each other, and
+       where they met the balloon's corner was stroked on both sides:
+       its border dead-ended in mid-air and the tail's flat top jutted
+       out past the curve as a step. Overlapping them harder only moved
+       the step. Drawn as one outline the join cannot exist — the box's
+       underside simply carries on down to the point and back up.
+
+       The stroke is centred on the line, so every coordinate is inset
+       by half its width and the outer edge lands exactly on the box,
+       which is where the balloon's border sat before. */
+    const e = B.edgeW * s, hw = e / 2;
+    const bw = inkW, bh = bodyH * s, drop = tailLen * s;
+    const x0 = hw, y0 = hw, x1 = bw - hw, y1 = bh - hw;
+    const r = Math.max(0, Math.min(B.radius * s - hw,
+                                   Math.min(bw, bh) / 2 - hw));
+    /* The tail hangs off the underside, clear of the corner, and leans
+       in to its point — a horn, with both edges curved, rather than a
+       spike. Run off the corner itself it read as a spur growing out of
+       the box: the round corner is what says balloon, and the tail has
+       to leave a finished edge rather than replace one.
+
+       `tip` is the point, not the join: the join sits up and to the
+       right of it, held clear of both corner arcs so the underside it
+       leaves is straight. */
+    /* The shared bubble draws its tail in a 44 x 42 box: the join runs
+       x 4..42 on y 0, the point sits at (2, 34). So the join is 38 wide
+       against a drop of 34 — 1.118 — and the point falls 2/38 of that
+       width to the LEFT of where the join starts, which is what gives
+       the tail its hook instead of a lean. The curve below is that
+       path's own control points, restated against jx/jw/drop so it
+       holds at any size. */
+    const TAIL_W = 38 / 34, TAIL_BACK = 2 / 38;
+    const jw = Math.max(16, Math.min(drop * TAIL_W, (x1 - r) - (x0 + r)));
+    const jx = Math.max(x0 + r, Math.min(x1 - r - jw, tipX + jw * TAIL_BACK));
+    const ptX = jx - jw * TAIL_BACK, ptY = y1 + drop;
+    const d = [
+      'M' + (x0 + r) + ' ' + y0,
+      'H' + (x1 - r),
+      'A' + r + ' ' + r + ' 0 0 1 ' + x1 + ' ' + (y0 + r),
+      'V' + (y1 - r),
+      'A' + r + ' ' + r + ' 0 0 1 ' + (x1 - r) + ' ' + y1,
+      'H' + (jx + jw),
+      // down the outer edge, which falls away steeply, to the point
+      'C' + (jx + jw * (32 / 38)) + ' ' + (y1 + drop * (12 / 34)) + ' ' +
+            (jx + jw * (20 / 38)) + ' ' + (y1 + drop * (22 / 34)) + ' ' + ptX + ' ' + ptY,
+      // and back up the inner one, which stays tucked under the join
+      'C' + (jx + jw * (4 / 38)) + ' ' + (y1 + drop * (24 / 34)) + ' ' +
+            (jx + jw * (4 / 38)) + ' ' + (y1 + drop * (12 / 34)) + ' ' + jx + ' ' + y1,
+      'H' + (x0 + r),
+      'A' + r + ' ' + r + ' 0 0 1 ' + x0 + ' ' + (y1 - r),
+      'V' + (y0 + r),
+      'A' + r + ' ' + r + ' 0 0 1 ' + (x0 + r) + ' ' + y0,
+      'Z'
+    ];
+
+    el.bubbleShape.setAttribute('width', bw);
+    el.bubbleShape.setAttribute('height', inkH);
+    el.bubbleShape.setAttribute('viewBox', '0 0 ' + bw + ' ' + inkH);
+    el.bubbleBody.setAttribute('d', d.join(' '));
+
+    /* The catch-light, where the light is coming from. Sized off the
+       line's own size so it holds its proportion at any scale. */
+    const em = B.size * s;
+    const cx = e + em * 0.67, cy = e + em * 0.44;
+    el.bubbleSheen.setAttribute('cx', cx);
+    el.bubbleSheen.setAttribute('cy', cy);
+    el.bubbleSheen.setAttribute('rx', em * 0.25);
+    el.bubbleSheen.setAttribute('ry', em * 0.10);
+    el.bubbleSheen.setAttribute('transform', 'rotate(-22 ' + cx + ' ' + cy + ')');
 
     if (B.pad) {
       el.bubbleText.style.left = B.pad.x * s + 'px';
@@ -407,8 +475,11 @@
        shape asks for and nothing more — a fixed bar leaves "Correct!"
        marooned in the middle of it. */
     fitBox: function (text) {
-      const g = Game.geom, B = g && g.bubble;
-      if (!B || !B.autoWidth) return;
+      /* The same fallback seatBubble() uses: only the grid layout brings
+         its own shape, and reading g.bubble alone left every other
+         screen on a fixed bar however short its line was. */
+      const g = Game.geom, B = (g && g.bubble) || C.BUBBLE;
+      if (!g || !B.autoWidth) return;
       const A = B.autoWidth, line = el.bubbleLine, plate = el.bubbleText;
       const prevWrap = line.style.whiteSpace, prevW = plate.style.width;
       line.style.whiteSpace = 'nowrap';
@@ -419,7 +490,11 @@
       line.style.whiteSpace = prevWrap;
       plate.style.width = prevW;
       if (!measured) return;               // hidden, or no metrics yet
-      const want = Math.min(A.max, Math.max(A.min, measured + A.pad * 2));
+      /* Two pixels of slack: sized to exactly the measured width, the
+         plate and the line are the same length, and any sub-pixel
+         difference between the nowrap measurement and the real wrap
+         spills a second row into a box cut for one. */
+      const want = Math.min(A.max, Math.max(A.min, measured + A.pad * 2 + 2));
       /* And the height: a line that fits across in one row gets a
          balloon one row tall, instead of sitting in a box built for the
          longest question in the game. */
@@ -880,15 +955,6 @@
        a percent, so nothing reads as stretched, and the SVG overlay
        maps through the same viewBox — axes and numbers stay locked to
        the drawn gridlines either way. */
-    /* Restart the leaves' entrance. Called from every place the board
-       is revealed, so they blow in with it each time rather than being
-       there already. */
-    flutter: function () {
-      el.gridPanel.classList.remove('leaves-in');
-      void el.gridPanel.offsetWidth;          // restart the animation
-      el.gridPanel.classList.add('leaves-in');
-    },
-
     place: function (box) {
       const G = C.GRID, P = G.paper;
       this.box = box;
@@ -910,7 +976,6 @@
       st.setProperty('--edgeW',  P.edgeW  * sx + 'px');
       st.setProperty('--frameW', P.frameW * sx + 'px');
       st.setProperty('--hiW',   (P.frameW + P.hiW) * sx + 'px');
-      st.setProperty('--leaf',   P.leafSize * sx + 'px');
 
       /* The grid is pinned to the origin, not to the panel: a line
          every stepX across and every stepY down, so whatever size the
@@ -1011,6 +1076,23 @@
       return (cx - left) < (right - cx) ? left : right;
     },
 
+    /* Keeps a label on the cream. Every offset that places one is
+       measured from its own point, so the outermost column's labels
+       walk off the right-hand frame as soon as the cells grow — which
+       is exactly what happened when a cell went from 59px to 78px.
+       Clamping here means no cell size can push one off, whatever
+       offset asked for it. */
+    clampX: function (cx, w) {
+      const G = C.GRID, P = G.paper, air = 8;
+      const edge = P.frameW + P.hiW + air;
+      return Math.max(edge + w / 2, Math.min(G.w - edge - w / 2, cx));
+    },
+    clampY: function (cy, h) {
+      const G = C.GRID, P = G.paper, air = 8;
+      const edge = P.frameW + P.hiW + air;
+      return Math.max(edge + h / 2, Math.min(G.h - edge - h / 2, cy));
+    },
+
     onXAxisRow: function (cy, h) {
       const G = C.GRID, pad = 5;
       const top = G.originY - G.axisWidth / 2 - pad;
@@ -1035,17 +1117,21 @@
         L.dot.setAttribute('cx', x2); L.dot.setAttribute('cy', y2);
         // the corner can be drawn as a plotted point rather than a leg end
         L.dot.setAttribute('fill', spec.mark.fill || LG.color);
-        L.coord.setAttribute('x', x2 + LG.coordDx); L.coord.setAttribute('y', y2);
         L.coord.textContent = spec.mark.coordText ||
                               ('(' + t.x + ',\u00A0' + t.y + ')');
+        const mw = this.textW(L.coord.textContent, G.segment.coordSize);
+        L.coord.setAttribute('x', this.clampX(x2 + LG.coordDx, mw));
+        L.coord.setAttribute('y', this.clampY(y2, G.segment.coordSize));
         /* Below the corner, unless the x-axis row is there. */
         let nx = x2, ny = y2 + LG.nameDy;
         if (this.onXAxisRow(ny, G.segment.nameSize)) {
           ny = y2 - LG.nameDy;
           nx = x2 + LG.nameFlipDx;
         }
-        L.name.setAttribute('x', nx); L.name.setAttribute('y', ny);
         L.name.textContent = spec.mark.name || '';
+        const nw2 = this.textW(L.name.textContent || 'A', G.segment.nameSize);
+        L.name.setAttribute('x', this.clampX(nx, nw2));
+        L.name.setAttribute('y', this.clampY(ny, G.segment.nameSize));
         L.dot.style.display = L.coord.style.display = L.name.style.display = '';
       } else {
         L.dot.style.display = L.coord.style.display = L.name.style.display = 'none';
@@ -1068,9 +1154,13 @@
         /* A leg centred on the origin writes its length straight down
            the y-axis, so it slides along its own leg towards the corner
            until it is clear of the axis and the numbers beside it. */
-        if (horiz) lx = this.clearOfYAxis(lx, this.textW(txt, LG.lenSize));
-        L.len.setAttribute('x', lx);
-        L.len.setAttribute('y', ly);
+        const lw2 = this.textW(txt, LG.lenSize);
+        if (horiz) lx = this.clearOfYAxis(lx, lw2);
+        /* A vertical leg on the outermost column writes its length past
+           the frame — 78px beside x=6 is off the cream once a cell is
+           78px wide. */
+        L.len.setAttribute('x', this.clampX(lx, lw2));
+        L.len.setAttribute('y', this.clampY(ly, LG.lenSize));
         L.len.textContent = txt;
         L.len.style.display = L.plate.style.display = '';
       } else {
@@ -1153,6 +1243,16 @@
       this.clearUnits();
       this.clearMeasure();
 
+      /* The count always runs the way it is read: left to right across
+         a row, and bottom to top up a column. Which end is A and which
+         is B is about naming the points, not about which way a
+         measurement should travel — counting a column downwards had the
+         line walking away from the origin while the numbers beside it
+         climbed. */
+      if (to.x < from.x || (to.x === from.x && to.y < from.y)) {
+        const swap = from; from = to; to = swap;
+      }
+
       const dx = to.x - from.x, dy = to.y - from.y;
       const span = Math.hypot(dx, dy);
       if (!span || units <= 0) { later(done, 200); return; }
@@ -1221,8 +1321,9 @@
         lx = px(from.x) + side * G.stepX * 0.85;
         ly = py(Math.max(from.y, end.y)) - U.labelUpV;
       }
-      this.unitLabel.setAttribute('x', this.clearOfYAxis(lx, this.textW(txt, U.labelSize)));
-      this.unitLabel.setAttribute('y', ly);
+      const uw = this.textW(txt, U.labelSize);
+      this.unitLabel.setAttribute('x', this.clampX(this.clearOfYAxis(lx, uw), uw));
+      this.unitLabel.setAttribute('y', this.clampY(ly, U.labelSize));
       this.unitLabel.textContent = txt;
       this.unitLabel.classList.add('on');
     },
@@ -1274,8 +1375,12 @@
           cdx = (p.x <= (p === spec.a ? spec.b : spec.a).x ? -1 : 1) * SG.coordFlipDx;
           flipped = true;
         }
-        part.coord.setAttribute('x', vertical ? X + side * SG.coordDx : X + cdx);
-        part.coord.setAttribute('y', vertical ? Y + SG.vCoordDy : Y + cdy);
+        const cw = self.textW(part.coord.textContent ||
+                              ('(' + p.x + ', ' + p.y + ')'), SG.coordSize);
+        part.coord.setAttribute('x', self.clampX(
+          vertical ? X + side * SG.coordDx : X + cdx, cw));
+        part.coord.setAttribute('y', self.clampY(
+          vertical ? Y + SG.vCoordDy : Y + cdy, SG.coordSize));
         /* A point can carry its own label — the general case names the
            points (x1, y1) and (x2, y2) rather than their values — and
            can split it so one fragment glows on its own. */
@@ -1304,9 +1409,11 @@
             ndy = -ndy;
           }
         }
-        part.name.setAttribute('x', p.nameDx != null ? X + p.nameDx
-                                  : (vertical ? X + side * SG.coordDx : X));
-        part.name.setAttribute('y', Y + ndy);
+        const nw = self.textW(part.name.textContent || 'A', SG.nameSize);
+        part.name.setAttribute('x', self.clampX(
+          p.nameDx != null ? X + p.nameDx
+                           : (vertical ? X + side * SG.coordDx : X), nw));
+        part.name.setAttribute('y', self.clampY(Y + ndy, SG.nameSize));
         part.name.textContent = p.name || '';
       });
     },
@@ -1345,6 +1452,29 @@
         this.segResPlate.setAttribute('height', bb.height + 18);
         this.segResPlate.classList.add('on');
       }
+    },
+
+    /* Empties every label the board can write, text and all. The
+       ordinary clears only drop the classes that show a label, so its
+       words survive — invisible, but still there. That is fine between
+       screens, where the next one overwrites them, and wrong on a
+       replay: the board came back carrying the last run's coordinates
+       under a group that had simply been switched off. */
+    blankLabels: function () {
+      const self = this;
+      if (this.segParts) ['a', 'b'].forEach(function (k) {
+        const p = self.segParts[k];
+        if (p && p.coord) p.coord.textContent = '';
+        if (p && p.name)  p.name.textContent = '';
+      });
+      if (this.segRes) this.segRes.textContent = '';
+      if (this.legSlots) this.legSlots.forEach(function (L) {
+        ['coord', 'name', 'len'].forEach(function (k) {
+          if (L[k]) L[k].textContent = '';
+        });
+      });
+      if (this.unitLabel) this.unitLabel.textContent = '';
+      if (this.foundLabel) this.foundLabel.textContent = '';
     },
 
     clearSegment: function () {
@@ -1514,6 +1644,11 @@
 
     /* Reset so a replay rebuilds the same entrance. */
     reset: function () {
+      /* Text as well as classes: every screen that reveals the board
+         seats its own segment straight after, so there is nothing here
+         worth keeping, and leaving it meant a replayed board came up
+         still holding the last run's coordinates. */
+      this.blankLabels();
       this.lines.forEach(function (l) { l.classList.remove('draw'); });
       this.arrows.forEach(function (a) { a.classList.remove('pop'); });
       this.labels.forEach(function (t) { t.classList.remove('pop'); });
@@ -1541,7 +1676,6 @@
       el.gridImg.classList.remove('ruling');
       void el.gridImg.offsetWidth;
       el.gridImg.classList.add('ruling');
-      this.flutter();
       SFX.magic();
       FX.sparkles(cx, cy, 12, 380);
 
@@ -1870,7 +2004,6 @@
         if (onBoard && !holds) {
           Board.place(geom.panelBox || C.GRID.box);
           el.gridPanel.classList.remove('hidden');
-          Board.flutter();
           Board.shown = true;
           Board.setDots(!!entry.dots);
         } else {

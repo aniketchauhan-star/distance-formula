@@ -151,14 +151,42 @@ window.CFG = (function () {
      total thickness, which is what lets them meet at the mouth without
      a step — the thing that goes wrong if the tail is given a lighter
      edge than the balloon. */
+  /* Proportions taken from the shared Swiftee bubble, which sets every
+     one of them off the line's own size: padding .62em over 1em, a .62em
+     corner, 1.2 line-height, and a box that hugs whatever it is holding.
+     Its palette block is the host game's tokens — the file says so — so
+     the numbers below are its, and the colours are this field's. */
   const BUBBLE = {
-    ink: { w: 620, h: 221 },
-    tip: { x: 172, y: 220 },      // 27.7% across, on the lower left
+    ink: { w: 620, h: 172 },
+    /* The point, in the box's own pixels — .815em in from the left, so
+       the tail hangs off the straight underside just past the corner
+       arc rather than off the corner itself. */
+    tip: { x: 24, y: 172 },
+
+    /* Where a corner tail points: her head's right cheek. Measured off
+       her artwork's own alpha, over all eight talking poses — at 0.38
+       of the way from her crown to her feet (plus the bite below) her
+       outline sits between 0.353 and 0.367 of the frame's width out
+       from the belly anchor. 0.330 is therefore 5px inside the
+       narrowest of the eight and 8px inside the widest, so the point
+       touches her on every frame of the talk cycle instead of landing
+       on the outline and flickering off it as she talks. Kept as
+       fractions so it holds wherever she is drawn at. */
+    aimSide: { dx: 0.330, dy: 0.38 },
     scale: 1,
     biteIntoHead: 10,             // how far the point sinks into her crown
 
-    bodyH: 156,                   // the balloon; the 64 below it is tail
-    radius: 48,
+    /* Only a fallback: the balloon is cut to its line by fitBox(), one
+       row or two. */
+    bodyH: 120,
+    /* .62em. The shared bubble ties its corner to the type rather than
+       to the box, so a two-row balloon reads as the same object as a
+       one-row one instead of a rounder version of it. */
+    radius: 20,
+    /* Long enough to clear her crest on the way down to her cheek. The
+       shared bubble's own tail is shorter, but it hangs over a mascot
+       with room under it; this one has to reach past her head. */
+    tailLen: 52,
     tailTip: 10,                  // rounding on the point
 
     /* Cumulative insets, measured from the outside in: a dark rim, the
@@ -168,6 +196,13 @@ window.CFG = (function () {
        The rim is both darker and wider than the rest of the autumn set
        needs: the bubble floats on open sky, which is very light and
        very warm, so a thin mid-orange edge disappeared into it. */
+    /* Out of the balloon's bottom-left corner, so the box sits up and
+       to the right of her face. She is alone in the middle of an open
+       field on these screens, and a box over her head pushed her down
+       the frame to make room for itself; beside her it takes the space
+       that was empty anyway and she stays where she stands. */
+    tailSide: 'left',
+
     /* One stroke around the balloon and the same one around the tail,
        drawn as a border rather than as stacked inset rings. */
     edgeW: 5,
@@ -181,6 +216,21 @@ window.CFG = (function () {
     ink_:   '#7C3B12',            // the text
     sheen:  'rgba(255, 255, 255, .92)',   // the catch-light in the corner
     size:   32,                   // the size every line is set at
+
+    /* The box is cut to the line rather than being a fixed bar: a
+       two-word greeting in a box built for the longest question in the
+       game was the thing that read as wrong. min/max keep it from
+       becoming a tile or running off the field. */
+    autoWidth: { min: 200, max: 620, pad: 32 },
+    pad: { x: 32, y: 20 },        // .62em over 1em, off the line's size
+    lineH: 40,                    // 1.2 line-height, with room to sit in
+
+    /* Two coloured halos and one cast, the way the shared bubble is
+       lifted: the glow is what makes it read as sitting in front of the
+       field rather than printed on it. */
+    glow: 'rgba(224, 154, 85, .34)',
+    glowWide: 'rgba(224, 154, 85, .18)',
+    cast: 'rgba(120, 62, 14, .24)',
 
     leaf: 62,                     // the corner decorations
 
@@ -215,12 +265,12 @@ window.CFG = (function () {
      toe tips reach the bottom of the sprite box — the sole reads about
      14px higher. Sinking her instead puts weight on the rock. */
   const START = {
-    /* Measured off the art: the boulder at the bottom left has a level
-       crown between x 91 and x 183 at y ~901-912, and she is sized so
-       she sits on it with both wings still inside the frame — at her
-       old 400 the left one hung off the edge. */
+    /* On the grass, not on the stone. She stands in the open between
+       the two boulders — the big one falls away to her left and the
+       small one sits below her right, so both read as in front of her
+       and she is planted on the slope rather than balanced on a rock. */
     height: 380,                    // against SWIFTY.height of 240 in game
-    perch: { cx: 185, feetY: 910 },
+    perch: { cx: 470, feetY: 955 },
     flyMs: 2600,                    // a title screen can afford a long arc
     buttonDelay: 420                // beat between her settling and Play
   };
@@ -232,9 +282,9 @@ window.CFG = (function () {
     x: START.perch.cx - (REF.w * START.scale) / 2 + REF_AX * START.scale,
     y: START.perch.feetY - (REF.h - REF_AY) * START.scale
   };
-  // A contact shadow on the crown, narrower than the grass one: the
-  // level part of this boulder is only about 92px across.
-  START.shadow = { w: 150, h: 34 };
+  // A contact shadow on open ground, so it spreads the way the game's
+  // grass one does rather than being pinched to a rock's width.
+  START.shadow = { w: 186, h: 40 };
 
   /* The title screen's weather, livelier than the game's: there is
      nothing here anyone has to read, so leaves overlap instead of
@@ -412,20 +462,24 @@ window.CFG = (function () {
          question — cannot fit on one line inside the width her column
          allows, and a balloon sized for one line would shrink the type
          to 26px to cope. */
-      ink: { w: 620, h: 186 },
-      tip: { x: 150, y: 185 },
-      bodyH: 132,
-      radius: 34,
+      /* Over her head here, not beside it: she stands in her own column
+         with the board filling everything to her right, so there is no
+         room out there for a box to sit in. */
+      tailSide: null,
+      ink: { w: 620, h: 176 },
+      tip: { x: 150, y: 176 },
+      bodyH: 120,
+      radius: 20,
       leaf: 44,
       size: 32,
       // bounded so the balloon never reaches the board at x 866
-      autoWidth: { min: 250, max: 460, pad: 40 },
+      autoWidth: { min: 250, max: 460, pad: 32 },
       /* The cream around the text, and one row's height — the balloon is
          built from these rather than from fractions of a fixed box, so
          a one-line greeting gets a one-line balloon instead of sitting
          in a box sized for the longest question in the game. */
-      pad: { x: 38, y: 22 },
-      lineH: 44,
+      pad: { x: 32, y: 20 },
+      lineH: 40,
       tailLen: 44
     }),
 
@@ -439,22 +493,28 @@ window.CFG = (function () {
        centred in the grid rather than merely centred on their own
        extents. */
     originX: 608, originY: 495,
-    /* Sized so 12 cells each way across and 8 each way down exactly
-       fill the cream. Down, that leaves a 12px margin. Across, the
-       outermost column on each side is left undrawn, so the sides
-       finish on open cream rather than on a thin strip walled in by a
-       grid line — which read as a squeezed extra column.
-       The two steps are within 0.8% of each other, so cells read as
-       square. */
-    stepX: 59.083333, stepY: 59.5625,
+    /* Sized so the numbered plane fills the board. The board is 1.24:1
+       and cells have to stay square, so the two ranges cannot both be
+       the same: 6 columns each way and 5 rows each way is what a square
+       cell divides this frame into. Asking for 6 rows as well is what
+       held the cells down to 59px with a band of unnamed ruling top and
+       bottom — the same plane now draws at 78px a cell.
+
+       Both steps scale together, so their ratio is untouched and cells
+       stay square against the panel's own aspect. */
+    stepX: 77.372458, stepY: 78,
 
     /* The board is far wider than it is tall, so x reaches further
-       than y. ±9 is the limit: the line, its arrowheads and the `x`
-       label all still sit inside the drawn grid, where ±10 would push
-       the label off the board. Cells are square (61.18 x 61.43), so a
-       unit is the same length on both axes. */
+       than y — which is the whole point: a square cell divides this
+       frame into 6 columns each way and 5 rows each way, and asking
+       for 6 rows as well is what used to squeeze the cells down.
+       Cells are square (83.2 x 83.2 on the full board), so a unit is
+       the same length on both axes. */
+    /* y stops at 5 where x stops at 6. Every point the game plots fits
+       (x runs -5..6, y runs -3..5) and it is what lets a square cell
+       fill a frame that is wider than it is tall. */
     xFrom: -6, xTo: 6,
-    yFrom: -6, yTo: 6,
+    yFrom: -5, yTo: 5,
 
     ink: '#213258',                 // axes, arrowheads and numbers
     axisWidth: 7,
@@ -469,10 +529,10 @@ window.CFG = (function () {
     numLit: '#F0A310',
 
     /* How far each axis runs past its last number before the
-       arrowhead. Sized to the tighter axis: there is only one spare
-       row (61px) above +6 and below -6, against five spare columns
-       either side of x, so 40 keeps all four tips inside the drawn
-       grid and all four arms the same length. */
+       arrowhead. Sized to the tighter axis, which is y: past the
+       arrow there is only the `y` above it and then the frame, where
+       x has room to spare on both sides. The same length on all four
+       arms, so the cross reads as one shape. */
     /* Long enough that the arrowhead clears the last number: at 40 the
        head's base sat right on the 9 and the 6, because the arrow is
        34 of it. */
@@ -508,28 +568,24 @@ window.CFG = (function () {
       edgeW: 2,
       frameW: 13,
       hiW: 3,               // the pale ring just inside the frame
-      gxFrom: -10, gxTo: 10,
-      gyFrom: -8,  gyTo: 8,
-
-      /* Autumn leaves pinned to two corners, sized off the panel so
-         they hold their place at any board size: one on its own at the
-         top left, two overlapping at the bottom right, each overhanging
-         the frame. They blow in whenever the board appears. Decoration
-         only — they sit under the gameplay overlay and take no pointer
-         events. */
-      leafSize: 132         // source-space px, like everything above
+      /* Counted so the ruling still covers the whole cream now the
+         cells are 78px rather than 59: 16 columns and 14 rows reach
+         past the frame on every side, and the clip below trims them
+         back to the cream's inner corner. */
+      gxFrom: -8, gxTo: 8,
+      gyFrom: -7, gyTo: 7
     },
 
-    labelSize: 30,                  // scaled with the cell, which shrank 3%
-    labelGap: 12,                   // x numbers, tucked under their axis
+    labelSize: 36,                  // scaled with the cell
+    labelGap: 14,                   // x numbers, tucked under their axis
     /* The y numbers need more room than the x ones: they sit beside
        the axis rather than under it, and the 0 has to fit between them
        and the origin without touching either. */
-    yLabelGap: 30,
+    yLabelGap: 42,
     /* 0 keeps the x numbers' row but sits in its own column, left of
        the axis and right of where the y numbers start — the one spot
        that clears both the axis and the -1 below it. */
-    zeroGap: 22,
+    zeroGap: 20,
 
     /* Axis names. `x` sits beyond the positive x arrow; `y` sits
        beside its arrow rather than above it — there are only 21px
@@ -537,7 +593,7 @@ window.CFG = (function () {
     /* x and y sit just outside their own arrowhead, diagonally off the
        tip — the same relationship on both axes rather than floating
        away from them. */
-    axisName: { size: 38, gap: 22, rise: 26, yGap: 32, yDrop: 10 },
+    axisName: { size: 40, gap: 24, rise: 28, yGap: 34, yDrop: 10 },
 
     /* Screen 6: a marker on every gridline intersection across the
        numbered range — 13 x 13 = 169 of them. Faint light blue so
@@ -554,7 +610,7 @@ window.CFG = (function () {
       skipOnAxes: true,     // no marker where a point would sit on an axis
       // markers cover every numbered intersection on both axes
       xFrom: -6, xTo: 6,
-      yFrom: -6, yTo: 6
+      yFrom: -5, yTo: 5
     },
 
     /* A plotted segment: two named points joined by a line, each
@@ -1131,7 +1187,7 @@ window.CFG = (function () {
        Pythagoras can be applied. Both are Pythagorean triples, so the
        answer comes out whole — 3-4-5 first, then the same shape
        doubled to 6-8-10. */
-    { id: 19, line: 'What is the distance between two points?', range: { min: 0, max: 12 }, entrance: 'none',
+    { id: 19, line: 'Use the right triangle to find AB.', range: { min: 0, max: 12 }, entrance: 'none',
       layout: 'board', transition: 'leaves', intro: 'measure', entry: true,
       segment: { a: { x: -2, y: 2 },
                  b: { x:  2, y: 5, nameDx: 40, nameDy: 8 } , dash: true},

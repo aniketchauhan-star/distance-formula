@@ -239,80 +239,63 @@ html, body {
 /* Swifty's speech bubble, drawn rather than dropped in as a picture.
 
    #bubble is the box applyGeom() positions, and the tail's point is
-   what it drives onto her head. #bubbleImg is the balloon, filling the
-   box down to --bodyH; the tail hangs below it.
+   what it drives onto her head.
 
-   The tail is four squares turned 45 degrees and stacked: three
-   coloured ones under the balloon, which hides their upper halves and
-   leaves only the two lower edges showing, and the cream one over it,
-   invisible where it crosses the balloon because both are the same
-   flat cream. That gives the tail the same three bands as the balloon
-   at the same total width, so the two meet without a step. */
+   #bubbleShape draws both: the balloon and the tail hanging off it are
+   one path, so the outline runs round the pair of them as a single
+   line. seatBubble() writes it. */
 /* Lifted off the sky with a hard offset shadow and a soft one under
    it — the flat one is what makes it read as drawn rather than as a
    panel, and both follow the tail because a filter shadows the shape
    rather than the box. */
 #bubble {
   position: absolute;
-  /* One soft cast, not the hard offset the stacked-ring balloon needed:
-     a single drawn outline reads as lifted off the field on its own. */
-  filter: drop-shadow(0 9px 18px rgba(120, 62, 14, .28));
+  /* Two coloured halos and one cast, the way the shared bubble is
+     lifted off its scene. A box-shadow would trace the element's box
+     rather than the drawn outline, so these are filters: they follow
+     the silhouette, tail and all. */
+  filter:
+    drop-shadow(0 0 10px var(--glow,     rgba(224, 154, 85, .34)))
+    drop-shadow(0 0 24px var(--glowWide, rgba(224, 154, 85, .18)))
+    drop-shadow(0 9px 18px var(--cast,   rgba(120, 62, 14, .24)));
   /* the catch-light is sized in em off the line's own size, so it holds
      its proportion at any scale */
   font-size: var(--bubSize, 32px);
 }
 
-/* ---------------- the balloon ---------------- */
-#bubbleImg {
+/* It pops out of its own tail — seatBubble() puts the transform origin
+   on the point — overshoots, and settles. These two rules went missing
+   when the balloon was redrawn as one path; the keyframes never did. */
+#bubble.pop-in  { animation: bubblePop .44s cubic-bezier(.2, .9, .3, 1) both; }
+#bubble.pop-out { animation: bubbleOut .26s ease-in both; }
+
+/* ---------------- balloon and tail, one outline ----------------
+   seatBubble() writes the path: the rounded box, and where the tail
+   leaves it the outline simply carries on down to the point and back
+   up again. One fill and one stroke round the whole silhouette, so
+   the corner they share cannot step or dead-end the way it did when
+   the two were separate shapes stacked on each other. */
+#bubbleShape {
   position: absolute; left: 0; top: 0;
-  box-sizing: border-box;
-  pointer-events: none;
-  border-radius: var(--r, 34px);
-  border: var(--e1, 5px) solid var(--edge, #E09A55);
-  background: var(--fill, #FFF1E2);
-}
-
-/* the catch-light in the top-left corner */
-#bubbleImg::before {
-  content: "";
-  position: absolute;
-  left: .42em; top: .34em;
-  width: .5em; height: .2em;
-  border-radius: 999px;
-  background: var(--sheen, rgba(255, 255, 255, .92));
-  transform: rotate(-22deg);
+  overflow: visible;          /* the point's stroke sits half outside */
   pointer-events: none;
 }
-
-/* ---------------- the tail ----------------
-   Positioned and sized by seatBubble(), which works its point onto her
-   head. Filled first so it covers the balloon's border where the two
-   meet, then stroked along its two free edges only, so the outline
-   runs round balloon and tail as one line. */
-#bubbleTail {
-  position: absolute;
-  overflow: visible;
-  pointer-events: none;
-}
-#bubbleTail .tail-fill { fill: var(--fill, #FFF1E2); }
-#bubbleTail .tail-stroke {
-  fill: none;
+#bubbleBody {
+  fill: var(--fill, #FFF1E2);
   stroke: var(--edge, #E09A55);
   stroke-width: var(--e1, 5px);
-  stroke-linecap: round;
   stroke-linejoin: round;
-  /* the drawing is scaled to the tail's length, so the stroke is held
-     to the balloon's border width rather than scaling with it */
-  vector-effect: non-scaling-stroke;
 }
+/* the catch-light in the top-left corner */
+#bubbleSheen { fill: var(--sheen, rgba(255, 255, 255, .92)); }
 
 #bubbleText {
   position: absolute;
   display: flex; align-items: center; justify-content: center;
   text-align: center;
   font-family: 'Nunito', system-ui, sans-serif;
-  /* 1.3, so a line that does run to two has room between them. */
-  font-weight: 700; font-size: 32px; line-height: 1.3;
+  /* 1.2, the shared bubble's own, which is what GRID.lineH is cut to. */
+  font-weight: 700; font-size: 32px; line-height: 1.2;
   color: var(--ink, #7C3B12);
   letter-spacing: .2px;
   overflow: hidden;
@@ -379,7 +362,6 @@ html, body {
 }
 
 #gridAxes  { position: absolute; left: 0; top: 0; overflow: visible; }
-
 
 /* the board arriving out of nowhere */
 #gridPanel.magic-in { animation: magicIn .7s cubic-bezier(.25, .9, .3, 1) both; }
@@ -878,12 +860,6 @@ html, body {
 /* Solid through the middle of the sweep, which is the window the
    screen behind gets swapped in. It comes up and goes down gently, so
    the frame fills and empties rather than flashing. */
-@keyframes veilCover {
-  0%        { opacity: 0; }
-  42%, 62%  { opacity: 1; }
-  100%      { opacity: 0; }
-}
-
 /* In on the wind, a beat held still while the frame is full, then on
    out the other side — turning the whole way and drifting down, the way
    a leaf carried on a gust actually travels. */

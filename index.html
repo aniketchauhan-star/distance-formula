@@ -16,16 +16,16 @@
      them, in the board's navy and gold. The SVG scales to whatever a
      browser asks for; the PNGs are there for the ones that still want a
      bitmap, and for an iOS home screen. -->
-<link rel="icon" type="image/svg+xml" href="assets/icon.svg?v=20260915134709">
-<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png?v=20260915134709">
-<link rel="apple-touch-icon" sizes="180x180" href="assets/icon-180.png?v=20260915134709">
+<link rel="icon" type="image/svg+xml" href="assets/icon.svg?v=20260915154643">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png?v=20260915154643">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/icon-180.png?v=20260915154643">
 <meta name="theme-color" content="#213258">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=20260915134709">
-<link rel="stylesheet" href="css/number-selector.css?v=20260915134709">
-<link rel="stylesheet" href="css/triangle-options.css?v=20260915134709">
+<link rel="stylesheet" href="css/style.css?v=20260915154643">
+<link rel="stylesheet" href="css/number-selector.css?v=20260915154643">
+<link rel="stylesheet" href="css/triangle-options.css?v=20260915154643">
 </head>
 <body>
 
@@ -103,12 +103,13 @@
              sibling, not its child, so seatBubble() can place it against
              the same box it sizes everything else from. -->
         <div id="bubble" class="hidden">
-          <div id="bubbleImg"></div>
-          <!-- filled first, so it covers the balloon's border where the
-               two meet, then stroked along its two free edges only -->
-          <svg id="bubbleTail" viewBox="0 -8 44 42" aria-hidden="true">
-            <path class="tail-fill"   d="M4 -8 H42 V0 C36 12 24 22 2 34 C8 24 8 12 4 0 Z" />
-            <path class="tail-stroke" d="M42 0 C36 12 24 22 2 34 C8 24 8 12 4 0" />
+          <!-- Balloon and tail are one path, built by seatBubble(): a
+               balloon drawn separately from its tail leaves the corner
+               they share stroked on both sides and stepped where the
+               two outlines cross, and no amount of overlap hides it. -->
+          <svg id="bubbleShape" aria-hidden="true">
+            <path id="bubbleBody" d=""></path>
+            <ellipse id="bubbleSheen"></ellipse>
           </svg>
           <div id="bubbleText"><span id="bubbleLine"></span></div>
         </div>
@@ -133,12 +134,12 @@
   </div>
 </div>
 
-<script src="js/config.js?v=20260915134709"></script>
-<script src="js/audio.js?v=20260915134709"></script>
-<script src="js/voice.js?v=20260915134709"></script>
-<script src="js/fx.js?v=20260915134709"></script>
-<script src="js/number-selector.js?v=20260915134709"></script>
-<script src="js/triangle-options.js?v=20260915134709"></script>
-<script src="js/game.js?v=20260915134709"></script>
+<script src="js/config.js?v=20260915154643"></script>
+<script src="js/audio.js?v=20260915154643"></script>
+<script src="js/voice.js?v=20260915154643"></script>
+<script src="js/fx.js?v=20260915154643"></script>
+<script src="js/number-selector.js?v=20260915154643"></script>
+<script src="js/triangle-options.js?v=20260915154643"></script>
+<script src="js/game.js?v=20260915154643"></script>
 </body>
 </html>
