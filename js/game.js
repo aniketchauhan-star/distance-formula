@@ -264,8 +264,15 @@
 
     /* Speech bubble: the tail tip is driven onto the top of her head
        (sinking `biteIntoHead` px into it) so the two touch instead of
-       the bubble floating above. */
-    seatBubble(g);
+       the bubble floating above.
+
+       A balloon already on screen keeps the shape it is holding. Re-
+       seating it at the shape's default first made every screen change
+       flash the full-width box for a few frames before the line it was
+       about to say shrank it again. */
+    seatBubble(g,
+      Bubble.up ? Bubble.boxW : null,
+      Bubble.up ? Bubble.boxH : null);
   }
 
   /* Seats the speech bubble for one screen. Split out of applyGeom so a
@@ -442,6 +449,12 @@
   const Bubble = {
     typing: false, timer: null, hideTimer: null, full: '', shown: 0, onDone: null,
     voiceMs: 0,
+    /* Whether the balloon is already on screen. A line replacing another
+       must not pop the box away and back — that is the flicker between
+       every sentence — so it resizes instead, and only an arrival pops. */
+    up: false,
+    boxW: null, boxH: null,          // the shape it currently holds
+    glide: 0,                        // id of the resize in flight, if any
     spans: [],
     /* The line split into words, each keeping its trailing space, so
        joining the shown ones reproduces the text exactly. The reveal
@@ -479,7 +492,7 @@
          its own shape, and reading g.bubble alone left every other
          screen on a fixed bar however short its line was. */
       const g = Game.geom, B = (g && g.bubble) || C.BUBBLE;
-      if (!g || !B.autoWidth) return;
+      if (!g || !B.autoWidth) return 0;
       const A = B.autoWidth, line = el.bubbleLine, plate = el.bubbleText;
       const prevWrap = line.style.whiteSpace, prevW = plate.style.width;
       line.style.whiteSpace = 'nowrap';
@@ -489,7 +502,7 @@
       line.textContent = '';
       line.style.whiteSpace = prevWrap;
       plate.style.width = prevW;
-      if (!measured) return;               // hidden, or no metrics yet
+      if (!measured) return 0;             // hidden, or no metrics yet
       /* Two pixels of slack: sized to exactly the measured width, the
          plate and the line are the same length, and any sub-pixel
          difference between the nowrap measurement and the real wrap
@@ -504,7 +517,36 @@
         const rows = Math.max(1, Math.ceil(measured / Math.max(1, usable)));
         bodyH = Math.round(rows * B.lineH + B.pad.y * 2);
       }
-      seatBubble(g, want, bodyH);
+      return this.setBox(g, want, bodyH);
+    },
+
+    /* Takes the balloon to a shape. Already up, it is re-cut a frame at
+       a time between the old one and the new: the balloon is a drawn
+       path, so a CSS transition on the box would glide the element
+       while the outline inside it snapped. */
+    setBox: function (g, want, bodyH) {
+      const fromW = this.boxW, fromH = this.boxH;
+      this.boxW = want; this.boxH = bodyH;
+      this.glide++;                                  // any resize in flight is stale
+      /* `rising` carries the balloon to the raised spot on a CSS
+         transition that owns its left and top. Re-cutting the shape
+         every frame moves those too, and the two chase each other, so
+         that moment is left to seat in one go. */
+      if (!this.up || fromW == null || fromH == null ||
+          el.bubble.classList.contains('rising') ||
+          (Math.abs(fromW - want) < 1 && Math.abs(fromH - bodyH) < 1)) {
+        seatBubble(g, want, bodyH);
+        return 0;
+      }
+      const self = this, mine = this.glide, t0 = performance.now(), MS = 300;
+      (function step() {
+        if (self.glide !== mine) return;             // a newer line took over
+        const k = Math.min(1, (performance.now() - t0) / MS);
+        const e = 1 - Math.pow(1 - k, 3);            // ease out, no overshoot
+        seatBubble(g, fromW + (want - fromW) * e, fromH + (bodyH - fromH) * e);
+        if (k < 1) requestAnimationFrame(step);
+      })();
+      return MS;
     },
 
     /* A coordinate pair must never break across lines, so the space
@@ -540,6 +582,21 @@
       this.spans.forEach(function (sp) { sp.classList.add('in'); });
     },
 
+    /* fitType measured against whatever plate the LAST line left behind,
+       and fitBox then moved the plate — so the type was sized for a box
+       it never got, and a long line overran the balloon it ended up in.
+       Size the box first, fit the type to that, and if the type had to
+       come down, cut the box again to the smaller line. */
+    fit: function (text) {
+      const g = Game.geom, B = (g && g.bubble) || C.BUBBLE;
+      el.bubbleLine.style.fontSize = ((B && B.size) || C.BUBBLE.size) + 'px';
+      const ms = this.fitBox(text);
+      const was = el.bubbleLine.style.fontSize;
+      this.fitType(text);
+      if (el.bubbleLine.style.fontSize !== was) return this.fitBox(text) || ms;
+      return ms;
+    },
+
     open: function (text, done) {
       // an answer can arrive mid-sentence, so stop any line in flight
       if (this.typing) { this.typing = false; clearInterval(this.timer); SFX.duck(false); }
@@ -550,20 +607,30 @@
       // Unhide first: a display:none plate measures zero.
       clearTimeout(this.hideTimer);
       el.bubble.classList.remove('hidden', 'pop-out');
-      this.fitType(text);
-      this.fitBox(text);
+      const settled = this.fit(text);
       el.bubbleLine.textContent = '';
       /* How long she will take to say it, if there is a recording. The
          words are then paced to her voice instead of to a fixed beat,
          so the line finishes as she does. */
       this.voiceMs = (window.Voice && window.Voice.lengthOf(text)) || 0;
-      // restart the pop animation
-      el.bubble.classList.remove('pop-in');
-      void el.bubble.offsetWidth;
-      el.bubble.classList.add('pop-in');
+      /* Pop only on arrival. Replacing a line re-pops nothing: the box
+         has already resized itself to the new words. */
+      let wait;
+      if (!this.up) {
+        el.bubble.classList.remove('pop-in');
+        void el.bubble.offsetWidth;
+        el.bubble.classList.add('pop-in');
+        this.up = true;
+        /* 260 as it always was. Later than this and a question she is
+           still asking runs into the player pressing Check, which stops
+           her mid-word. */
+        wait = 260;
+      } else {
+        wait = settled ? settled - 40 : 90;
+      }
 
       const self = this;
-      setTimeout(function () { self.type(); }, 260);
+      setTimeout(function () { self.type(); }, wait);
     },
 
     type: function () {
@@ -616,6 +683,9 @@
        replaced. open() cancels it. */
     close: function () {
       if (window.Voice) window.Voice.stop();
+      this.up = false;
+      this.boxW = this.boxH = null;
+      this.glide++;                    // drop any resize still running
       if (this.typing) { this.typing = false; clearInterval(this.timer); SFX.duck(false); }
       el.bubble.classList.remove('pop-in');
       el.bubble.classList.add('pop-out');
