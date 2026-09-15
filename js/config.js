@@ -12,7 +12,7 @@ window.CFG = (function () {
 
   /* ---------- Asset paths ---------- */
   const ART = {
-    startScreen: 'assets/image 15.png',
+    startScreen: 'assets/start screen.png',
     background:  'assets/game Background .png',
     clouds:      'assets/clouds.png',
     playButton:  'assets/play button .png',
@@ -215,8 +215,12 @@ window.CFG = (function () {
      toe tips reach the bottom of the sprite box — the sole reads about
      14px higher. Sinking her instead puts weight on the rock. */
   const START = {
-    height: 400,                    // against SWIFTY.height of 240 in game
-    perch: { cx: 365, feetY: 892 },
+    /* Measured off the art: the boulder at the bottom left has a level
+       crown between x 91 and x 183 at y ~901-912, and she is sized so
+       she sits on it with both wings still inside the frame — at her
+       old 400 the left one hung off the edge. */
+    height: 380,                    // against SWIFTY.height of 240 in game
+    perch: { cx: 185, feetY: 910 },
     flyMs: 2600,                    // a title screen can afford a long arc
     buttonDelay: 420                // beat between her settling and Play
   };
@@ -228,9 +232,9 @@ window.CFG = (function () {
     x: START.perch.cx - (REF.w * START.scale) / 2 + REF_AX * START.scale,
     y: START.perch.feetY - (REF.h - REF_AY) * START.scale
   };
-  // A contact shadow on the rock's crown, narrower than the grass one:
-  // the crown is only about 90px across at the top.
-  START.shadow = { w: 196, h: 40 };
+  // A contact shadow on the crown, narrower than the grass one: the
+  // level part of this boulder is only about 92px across.
+  START.shadow = { w: 150, h: 34 };
 
   /* The title screen's weather, livelier than the game's: there is
      nothing here anyone has to read, so leaves overlap instead of
@@ -290,7 +294,10 @@ window.CFG = (function () {
        within a pixel of the old one, so cy is unchanged. At sizeScale
        the disc renders 197 x 187 and spans y 683..870 — about 40px
        clear of the type. */
-    box: { cx: 1221, cy: 776, w: 281, h: 267 },
+    /* Under the wordmark, centred on it. The lockup's plate ends at
+       y 587 and its middle is x 1336, both measured off the art, so the
+       button hangs below the title rather than beside it. */
+    box: { cx: 1336, cy: 790, w: 281, h: 267 },
     // Shrinks the briefed box about its centre — the button stays put,
     // it just gets smaller. 1 = the full 281 x 267 from the brief.
     sizeScale: 0.70

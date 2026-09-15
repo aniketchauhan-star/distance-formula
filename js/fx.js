@@ -113,15 +113,20 @@ window.FX = (function () {
   }
 
   /* Dust kicked up where Swifty touches down. */
-  function puff(x, y) {
-    for (let i = 0; i < 12; i++) {
-      const dir = i < 6 ? -1 : 1;
-      const life = rnd(520, 820);
+  /* Dust kicked out sideways from a pair of feet. `k` scales the whole
+     thing: a hop in the game throws a little, coming down out of a
+     flight onto a rock throws a lot. */
+  function puff(x, y, k) {
+    k = k || 1;
+    const n = Math.round(12 * Math.min(2, k));
+    for (let i = 0; i < n; i++) {
+      const dir = i < n / 2 ? -1 : 1;
+      const life = rnd(520, 820) * (k > 1 ? 1.25 : 1);
       spawn('fx-puff', {
         left: x + 'px', top: y + 'px',
-        width: rnd(26, 54) + 'px', height: rnd(26, 54) + 'px',
-        '--dx': dir * rnd(40, 165) + 'px',
-        '--dy': rnd(-50, -8) + 'px',
+        width: rnd(26, 54) * k + 'px', height: rnd(26, 54) * k + 'px',
+        '--dx': dir * rnd(40, 165) * k + 'px',
+        '--dy': rnd(-50, -8) * k + 'px',
         animationDuration: life + 'ms',
         animationDelay: rnd(0, 90) + 'ms'
       }, life + 120);

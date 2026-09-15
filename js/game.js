@@ -2893,6 +2893,10 @@
         calls.forEach(clearTimeout);        // a skipped flight loses its calls
         StartSprite.stopAt('talk', 0);      // wings in, standing pose
         el.startShadow.classList.add('down');
+        /* Dust off the crown as she puts her feet down. Heavier than a
+           hop in the game: she has just come out of a long glide, and
+           this is the moment the flight stops being weightless. */
+        FX.puff(S.perch.cx, S.perch.feetY - 6, 1.5);
         SFX.land();
         setTimeout(function () { SFX.birdCall(0.85); }, 260);
         /* A cold load has had no gesture yet, so the browser blocked
