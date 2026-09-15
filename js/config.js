@@ -340,14 +340,16 @@ window.CFG = (function () {
        words. Measured off each word's own fill instead — "Formula"'s
        white gives 1219, "Distance"'s yellow 1223.
 
-       The art was replaced with a larger logo, but its baseline landed
-       within a pixel of the old one, so cy is unchanged. At sizeScale
-       the disc renders 197 x 187 and spans y 683..870 — about 40px
-       clear of the type. */
+       At sizeScale the disc renders 197 x 187. It hung too low for the
+       lockup — 110px of sky under the plate put it adrift in the middle
+       of the lake — so it sits 30px higher, spanning y 667..853, which
+       lands it on the far shore and reads as part of the title rather
+       than as something floating below it. Still 80px under the plate,
+       well clear of the leaves hanging off its corners. */
     /* Under the wordmark, centred on it. The lockup's plate ends at
        y 587 and its middle is x 1336, both measured off the art, so the
        button hangs below the title rather than beside it. */
-    box: { cx: 1336, cy: 790, w: 281, h: 267 },
+    box: { cx: 1336, cy: 760, w: 281, h: 267 },
     // Shrinks the briefed box about its centre — the button stays put,
     // it just gets smaller. 1 = the full 281 x 267 from the brief.
     sizeScale: 0.70
