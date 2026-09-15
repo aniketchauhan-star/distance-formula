@@ -449,6 +449,12 @@
   const Bubble = {
     typing: false, timer: null, hideTimer: null, full: '', shown: 0, onDone: null,
     voiceMs: 0,
+    /* How much of the recording is still sounding when the last word
+       lands. The words are paced across the voice with a little left
+       over, so a caller that has to wait for her to actually stop —
+       the count-out does — has something true to wait on rather than a
+       guess that happens to fit this line's length. */
+    voiceTail: 0,
     /* Whether the balloon is already on screen. A line replacing another
        must not pop the box away and back — that is the flicker between
        every sentence — so it resizes instead, and only an arrival pops. */
@@ -663,6 +669,9 @@
       const beat = voiced
         ? Math.max(90, voiced / Math.max(1, this.words.length + 0.6))
         : C.AUTO.wordMs;
+      this.voiceTail = voiced
+        ? Math.max(0, voiced - this.words.length * beat)
+        : 0;
 
       this.timer = setInterval(function () {
         if (self.shown >= self.words.length) { self.finish(); return; }
@@ -2536,14 +2545,9 @@
          before the count had finished. */
       const narrate = t.spec.showLine;
 
-      /* The verdict waits for both the counting and the line said over
-         it, whichever runs longer. A short count used to finish first
-         and the verdict would cut her off a second into "let's count
-         the units" — two voices for the same moment, one of them
-         sliced. Nothing here starts a line while another is sounding. */
-      let counted = false, said = !narrate;
+      /* The verdict lands when the count does — and the count only
+         sets off once she has finished asking for it. */
       const verdict = function () {
-        if (!counted || !said) return;
         if (right) {
           t.done = true;
           self.state = 'waiting';
@@ -2580,10 +2584,24 @@
         }, 320);
       };
 
-      if (narrate) this.speak(narrate, function () { said = true; verdict(); });
-      Board.countOut(pair.from, pair.to, v, this.later.bind(this), function () {
-        counted = true; verdict();
+      /* Her line first, then the stroke. The two used to run together,
+         so she was still saying "let's count the units" while the line
+         was already two units along — the words described something
+         that had already happened. Now the stroke sets off as she
+         finishes, and the counting is the answer to what she just
+         said. The short beat between is her voice tailing off.
+
+         Queued through later(), so skipping the screen cancels the
+         count along with everything else it had pending. */
+      const run = function () {
+        self.state = 'showing';
+        Board.countOut(pair.from, pair.to, v, self.later.bind(self), verdict);
+      };
+      if (narrate) this.speak(narrate, function () {
+        // wait out whatever is left of her voice, then a breath
+        self.later(run, Bubble.voiceTail + 60);
       });
+      else run();
     },
 
     /* The count goes and the control comes back, ready for another go. */
