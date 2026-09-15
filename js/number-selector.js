@@ -1,12 +1,18 @@
 /* =============================================================
-   Number selector — a left arrow, three numbers with the selected
-   one in the middle, a right arrow, and Check.
+   Number selector — a left arrow, one number on a track, a right
+   arrow, and Check.
 
    Self-contained: it owns its markup and its styles, exposes the same
-   small surface the game already used for the slider it replaces
-   (mount / show / hide / reset / onChange / onCheck), and knows
-   nothing about what any answer should be — the game tells it whether
-   a guess was right, it does not work that out.
+   small surface the game already used (mount / show / hide / reset /
+   set / setRange / markCorrect / markWrong / lock / onChange /
+   onCheck), and knows nothing about what any answer should be — the
+   game tells it whether a guess was right, it does not work that out.
+
+   Only the selected value is drawn. The neighbours are gone: three
+   numbers side by side made the child read all three to find the one
+   that counted, where one number in the middle of a track says what
+   is chosen and nothing else. The markers on the track carry the
+   sense of position the neighbours used to.
 
    All of the look and all of the feedback live in CSS classes; this
    file only sets values and toggles state.
@@ -15,10 +21,13 @@ window.NumberSelector = (function () {
   'use strict';
 
   /* It opens on 0: nothing has been measured yet, so the control says
-     nothing has been measured yet. The slot to its left stays empty and
-     the back arrow is disabled, which is the truth — there is nothing
-     below no distance at all. */
+     nothing has been measured yet. The back arrow is disabled there,
+     which is the truth — there is nothing below no distance at all. */
   const MIN = 0, MAX = 8, START = 0;
+
+  const DOTS = 4;           // markers on the track, two either side
+  const OUT_MS = 90;        // the digit leaving
+  const IN_MS = 140;        // the one arriving
 
   function mount(parent, opts) {
     opts = opts || {};
@@ -30,7 +39,7 @@ window.NumberSelector = (function () {
     let onChange = null, onCheck = null;
 
     const root = document.createElement('div');
-    root.classList.add('nsel');
+    root.classList.add('number-mechanic');
     root.id = opts.id || 'numberSelector';
     if (opts.x !== undefined) root.style.left = opts.x + 'px';
     if (opts.y !== undefined) root.style.top = opts.y + 'px';
@@ -44,56 +53,65 @@ window.NumberSelector = (function () {
       return n;
     };
 
-    const row = mk('div', 'selector-row');
+    const row = mk('div', 'selector-area');
 
-    const left = mk('button', 'arrow-btn left-arrow', '◀');
+    const left = mk('button', 'arrow-button previous');
     left.type = 'button';
     left.setAttribute('aria-label', 'Previous number');
+    left.appendChild(mk('span', 'arrow-left'));
 
-    const win = mk('div', 'number-window');
-    const prev = mk('div', 'number previous');
-    const active = mk('div', 'number active');
-    const next = mk('div', 'number next');
-    /* The tile's digit is its own element so the tick can be a sibling
-       inside the tile — writing textContent on the tile itself would
-       take the tick out with it every time the number changed. */
-    const digit = mk('span', 'num-digit');
+    const track = mk('div', 'number-track');
+    const dots = [];
+    const card = mk('div', 'number-card');
+    const digit = mk('span', 'selected-number');
     const tick = mk('span', 'yes-tick', '✓');
-    active.appendChild(digit);
-    active.appendChild(tick);
-    win.appendChild(prev); win.appendChild(active); win.appendChild(next);
+    card.appendChild(digit);
+    card.appendChild(tick);
+    /* Half the markers, then the number, then the rest — so the card
+       sits in the middle of the track whatever the value is. */
+    for (let i = 0; i < DOTS; i++) {
+      const d = mk('span', 'dot');
+      dots.push(d);
+      if (i === DOTS / 2) track.appendChild(card);
+      track.appendChild(d);
+    }
 
-    const right = mk('button', 'arrow-btn right-arrow', '▶');
+    const right = mk('button', 'arrow-button next');
     right.type = 'button';
     right.setAttribute('aria-label', 'Next number');
+    right.appendChild(mk('span', 'arrow-right'));
 
-    row.appendChild(left); row.appendChild(win); row.appendChild(right);
+    row.appendChild(left); row.appendChild(track); row.appendChild(right);
 
-    const check = mk('button', 'check-btn', 'Check ✓');
+    const check = mk('button', 'check-button', 'Check');
     check.type = 'button';
     check.setAttribute('aria-label', 'Check answer');
+    check.appendChild(mk('span', 'check-icon', '✓'));
 
     root.appendChild(row);
     root.appendChild(check);
     parent.appendChild(root);
 
-    /* The selected number is announced, not just drawn: the two
-       neighbours are decoration, so a screen reader hears one value. */
-    active.setAttribute('role', 'status');
-    active.setAttribute('aria-live', 'polite');
+    /* The selected number is announced, not just drawn: the markers are
+       decoration, so a screen reader hears one value. */
+    card.setAttribute('role', 'status');
+    card.setAttribute('aria-live', 'polite');
 
-    /* Past either end there is no number to show. The slot is kept and
-       left blank rather than removed, so the selected number stays
-       exactly in the middle at either end too. */
+    /* The markers fill from the left in proportion to how far along the
+       range the value has come. They are not one-per-value — there are
+       four of them and nine values — they only say roughly where in the
+       run the child is. */
+    function paintDots() {
+      const span = Math.max(1, max - min);
+      const lit = Math.round((current - min) / span * DOTS);
+      dots.forEach(function (d, i) { d.classList.toggle('lit', i < lit); });
+    }
+
     function paint() {
-      const lo = current - 1, hi = current + 1;
-      prev.textContent = lo >= min ? String(lo) : '';
-      next.textContent = hi <= max ? String(hi) : '';
-      prev.classList.toggle('blank', lo < min);
-      next.classList.toggle('blank', hi > max);
       digit.textContent = String(current);
       left.disabled = current <= min;
       right.disabled = current >= max;
+      paintDots();
     }
 
     /* A press that shows on the button however it was triggered —
@@ -101,7 +119,7 @@ window.NumberSelector = (function () {
        keyboard too. */
     function press(btn) {
       btn.classList.add('is-pressed');
-      setTimeout(function () { btn.classList.remove('is-pressed'); }, 110);
+      setTimeout(function () { btn.classList.remove('is-pressed'); }, 120);
     }
 
     let verdict = null;
@@ -110,29 +128,33 @@ window.NumberSelector = (function () {
       root.classList.remove('is-correct', 'is-wrong');
     }
 
-    let sliding = null;
+    /* The digit leaves the way the row is travelling and the next one
+       arrives from the other side. Two steps, not one: the value is
+       only written into the card once the old one is out of the way,
+       so the two are never on screen together. */
+    let swap = null;
+    function show(dir) {
+      clearTimeout(swap);
+      digit.classList.remove('slide-left', 'slide-right', 'enter-left', 'enter-right');
+      if (!dir) { paint(); return; }
+      void digit.offsetWidth;
+      digit.classList.add(dir > 0 ? 'slide-left' : 'slide-right');
+      swap = setTimeout(function () {
+        digit.classList.remove('slide-left', 'slide-right');
+        paint();
+        void digit.offsetWidth;
+        digit.classList.add(dir > 0 ? 'enter-right' : 'enter-left');
+      }, OUT_MS);
+    }
+
     function set(v, tell) {
       v = Math.min(max, Math.max(min, Math.round(v)));
       if (v === current) return;
-      const dir = v > current ? 'right' : 'left';
+      const dir = v > current ? 1 : -1;
       current = v;
 
       clearVerdict();          // a new guess clears the verdict on the last
-
-      /* Lean the way it is going, then let it settle: the class comes
-         off a frame later so the transition plays back to rest, and the
-         tile that lands overshoots a little on the way. */
-      clearTimeout(sliding);
-      root.classList.remove('is-moving-left', 'is-moving-right');
-      active.classList.remove('is-landing');
-      void root.offsetWidth;
-      root.classList.add('is-moving-' + dir);
-      paint();
-      sliding = setTimeout(function () {
-        root.classList.remove('is-moving-left', 'is-moving-right');
-        void active.offsetWidth;
-        active.classList.add('is-landing');
-      }, 30);
+      show(dir);
 
       if (window.Audio8 && window.Audio8.blip) window.Audio8.blip();
       if (tell !== false && onChange) onChange(current);
@@ -169,10 +191,11 @@ window.NumberSelector = (function () {
       },
 
       reset: function () {
+        clearTimeout(swap);
+        digit.classList.remove('slide-left', 'slide-right', 'enter-left', 'enter-right');
         current = startAt;
         clearVerdict();
         root.classList.remove('locked');
-        active.classList.remove('is-landing');
         left.disabled = right.disabled = check.disabled = false;
         paint();
       },
@@ -180,15 +203,15 @@ window.NumberSelector = (function () {
       /* The game decides what is right; these only show it. */
       markCorrect: function () {
         clearVerdict();
-        void active.offsetWidth;
+        void card.offsetWidth;
         root.classList.add('is-correct');
       },
       markWrong: function () {
         clearVerdict();
-        void active.offsetWidth;
+        void card.offsetWidth;
         root.classList.add('is-wrong');
-        // back to the ordinary selected state once the shake is done
-        verdict = setTimeout(function () { root.classList.remove('is-wrong'); }, 320);
+        // back to the ordinary golden card once the shake is done
+        verdict = setTimeout(function () { root.classList.remove('is-wrong'); }, 300);
       },
 
       /* Once the answer is right there is nothing left to choose, so

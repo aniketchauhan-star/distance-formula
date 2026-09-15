@@ -838,7 +838,15 @@ window.CFG = (function () {
        built at its own natural 760 x 430 and scaled to fit her column,
        so its proportions stay the ones it was designed at rather than
        whatever happened to fit. */
-    selector: { pos: { x: 34, y: 680 }, w: 760, h: 430, scale: 0.70 },
+    selector: {
+      /* The mechanic's own natural size — one row of arrow, track and
+         arrow over the Check button. Scaled so the panel keeps the
+         width it had in her column: she lands on its top edge at y 688
+         and the board still starts 34px clear of its right. */
+      pos: { x: 34, y: 680 },
+      w: 640, h: 320,
+      scale: 0.831
+    },
 
     /* The triangle-type answer panel takes the slider's place, centred
        on the same footprint so the left column stays put. */
