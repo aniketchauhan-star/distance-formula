@@ -478,27 +478,11 @@ html, body {
 }
 #gridAxes .leglen.pop { animation: labelPop .56s cubic-bezier(.22, .68, .3, 1) both; }
 
-/* unit squares counting out a segment's length */
+/* The count's total. There are no squares behind it any more — the
+   line walking out a unit at a time is the count, and a block of
+   filled squares over the same span buried the coordinates and the
+   ruling it was meant to be measured against. */
 #gridAxes .units { pointer-events: none; }
-#gridAxes .ubox {
-  opacity: 0;
-  /* so the hint fades away when it is taken down rather than vanishing */
-  transition: opacity .3s ease;
-  transform-box: fill-box; transform-origin: center;
-}
-/* Each square simply arrives lit: a fade up to its colour with a warm
-   glow around it, no bounce and no flash. They are there to be counted,
-   and something that jumps about while a child is counting it is
-   working against the thing it is for. */
-#gridAxes .ubox.on {
-  animation: uboxIn .34s ease-out both;
-  filter: drop-shadow(0 0 9px var(--uglow, rgba(226, 146, 10, .7)));
-}
-/* No plate behind the total any more — it sits on open paper above the
-   line. The element is left in place so nothing has to be rebuilt; it
-   simply draws nothing. */
-#gridAxes .uplate { display: none; }
-#gridAxes .uplate.on { animation: labelPop .58s cubic-bezier(.22, .68, .3, 1) both; }
 #gridAxes .ulabel {
   opacity: 0;
   transition: opacity .3s ease;
@@ -937,12 +921,6 @@ html, body {
   0%   { fill: #E8574A; opacity: 1;   transform: scale(1.9); }
   35%  { fill: #E8574A; opacity: 1;   transform: scale(1.25); }
   100% { fill: #6FC0E8; opacity: .40; transform: scale(1); }
-}
-/* each square lands with a bright flash, then settles to its fill,
-   so a child can follow the count square by square */
-@keyframes uboxIn {
-  0%   { opacity: 0; }
-  100% { opacity: 1; }
 }
 @keyframes segDotIn {
   0%   { opacity: 0; transform: translateY(20px) scale(.2); }

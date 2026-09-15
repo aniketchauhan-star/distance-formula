@@ -657,15 +657,9 @@ window.CFG = (function () {
        gets the distance wrong. Filled strongly enough to be obvious
        against the cream board, with a brighter flash as each lands. */
     unitBox: {
-      /* A warm highlight rather than the measuring line's blue: these
-         come up when a guess was wrong, and they are the thing to look
-         at now — reading them as more of the line they just drew is
-         exactly the wrong idea. */
-      fill: '#FFD34D',
-      stroke: '#D9840A',
-      strokeW: 3,
-      glow: 'rgba(226, 146, 10, .7)',
-      stepMs: 300,           // pause between squares, so they can be counted
+      /* One beat per unit as the line walks out. Slow enough to count
+         along with, quick enough that twelve of them is not a wait. */
+      stepMs: 240,
       /* How long the finished count stays up before the board is handed
          back. It is a hint, not a caption: it says how long a unit is
          and how many fit, and then gets out of the way so the next try
@@ -685,7 +679,9 @@ window.CFG = (function () {
          span sit just above the point and off to one side — the total
          used to be written straight across them. */
       labelUpV: 86,
-      max: 18                // widest span the board allows (-9 to 9)
+      /* A diagonal has no squares to sit over, so its total goes out to
+         the side of the line, clear of the two legs opposite. */
+      diagGap: 64
     },
 
     /* The line the player lays down with the slider. It grows out of

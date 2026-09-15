@@ -692,30 +692,13 @@
                              plate: lp, len: lt });
       }
 
-      /* Unit squares for the count-out demo. Made once at the widest
-         span the board allows and reused, so a wrong answer never
-         churns the DOM mid-animation. */
+      /* The count's total. There used to be a filled square per unit
+         under it as well; the line walking out a unit at a time already
+         says how many there are, and the squares only buried the
+         coordinates and the ruling under a block of colour. */
       const U = G.unitBox;
       const ug = document.createElementNS(NS, 'g');
       ug.setAttribute('class', 'units');
-      ug.style.setProperty('--uglow', U.glow);
-      this.unitBoxes = [];
-      for (let i = 0; i < U.max; i++) {
-        const r = document.createElementNS(NS, 'rect');
-        r.setAttribute('class', 'ubox');
-        r.setAttribute('fill', U.fill);
-        r.setAttribute('stroke', U.stroke);
-        r.setAttribute('stroke-width', U.strokeW);
-        r.setAttribute('width', G.stepX);
-        r.setAttribute('height', G.stepY);
-        ug.appendChild(r);
-        this.unitBoxes.push(r);
-      }
-      const up = document.createElementNS(NS, 'rect');
-      up.setAttribute('class', 'uplate');
-      up.setAttribute('rx', 12);
-      ug.appendChild(up);
-      this.unitPlate = up;
 
       const ul = document.createElementNS(NS, 'text');
       ul.setAttribute('class', 'ulabel');
@@ -1096,82 +1079,105 @@
     },
 
     clearUnits: function () {
-      if (!this.unitBoxes) return;
-      this.unitBoxes.forEach(function (r) { r.classList.remove('on'); });
-      this.unitLabel.classList.remove('on');
-      if (this.unitPlate) this.unitPlate.classList.remove('on');
+      if (this.unitLabel) this.unitLabel.classList.remove('on');
     },
 
     /* Counts the segment out in unit squares, one at a time, then
        writes the total above it. Only used when a child answers
        wrongly — seeing the units is the whole point of the exercise. */
-    runUnits: function (a, b, later, done) {
-      const G = C.GRID, U = G.unitBox;
-      const px = function (v) { return G.originX + v * G.stepX; };
-      const py = function (v) { return G.originY - v * G.stepY; };
-      const vertical = (a.x === b.x);
-      const n = vertical ? Math.abs(b.y - a.y) : Math.abs(b.x - a.x);
-      const loX = Math.min(a.x, b.x), loY = Math.min(a.y, b.y);
+    /* The answer being made, one unit at a time.
+
+       The child dials a number and presses Check; this counts that
+       number out for them. The line grows a unit of length per beat,
+       each unit it covers lights the square underneath it, and the
+       total lands at the end. Nothing is drawn while the number is
+       being chosen — the point of pressing Check is that this is when
+       you find out, and a line that had already crept out to the
+       answer would have given it away before the press.
+
+       It is their number that gets counted, not the right one, so a
+       guess that is too long walks the line straight past the point.
+       That overshoot is the feedback: you can see the extra unit. */
+    countOut: function (from, to, units, later, done) {
+      const G = C.GRID, U = G.unitBox, P = G.paper;
       const self = this;
-
       this.clearUnits();
-      /* One unit square per unit of length, laid along the segment and
-         offset one unit to its side: hanging beneath a horizontal
-         line, stacked beside a vertical one. */
-      for (let i = 0; i < this.unitBoxes.length; i++) {
-        const r = this.unitBoxes[i];
-        if (i < n) {
-          // vertical: stack them on the origin side of the line
-          r.setAttribute('x', vertical ? (a.x >= 0 ? px(a.x - 1) : px(a.x)) : px(loX + i));
-          r.setAttribute('y', vertical ? py(loY + i + 1) : py(a.y));
-          r.style.display = '';
-        } else {
-          r.style.display = 'none';
-        }
-      }
+      this.clearMeasure();
 
-      for (let i = 0; i < n; i++) {
-        (function (idx) {
+      const dx = to.x - from.x, dy = to.y - from.y;
+      const span = Math.hypot(dx, dy);
+      if (!span || units <= 0) { later(done, 200); return; }
+      const ux = dx / span, uy = dy / span;
+
+      /* However far past the point they go, the line stops at the edge
+         of the ruled paper rather than leaving it. Solved along the
+         line rather than per axis: clamping x and y separately would
+         bend a diagonal off its own segment. */
+      let reach = Infinity;
+      if (ux > 0) reach = Math.min(reach, (P.gxTo - from.x) / ux);
+      if (ux < 0) reach = Math.min(reach, (P.gxFrom - from.x) / ux);
+      if (uy > 0) reach = Math.min(reach, (P.gyTo - from.y) / uy);
+      if (uy < 0) reach = Math.min(reach, (P.gyFrom - from.y) / uy);
+      const steps = Math.max(1, Math.min(units, Math.floor(reach + 1e-9)));
+
+      for (let n = 1; n <= steps; n++) {
+        (function (k) {
           later(function () {
-            self.unitBoxes[idx].classList.add('on');
-            SFX.tick(idx);
-          }, idx * U.stepMs);
-        })(i);
+            self.drawMeasure(from, from.x + ux * k, from.y + uy * k);
+            SFX.tick(k);
+          }, (k - 1) * U.stepMs);
+        })(n);
       }
 
       later(function () {
-        /* Horizontal: centred in the band under the line. Vertical:
-           above the top of the column, pushed to the squares' far edge
-           so it clears the coordinate labels opposite. */
-        const boxSide = (a.x >= 0) ? -1 : 1;
-        /* Slid clear of the y-axis if that is where it fell: a span
-           straddling the origin puts its midpoint straight on the axis,
-           and a column one square in puts it on the numbering. */
-        const txt = n + '\u00A0unit' + (n === 1 ? '' : 's');
-        self.unitLabel.setAttribute('x', self.clearOfYAxis(vertical
-          ? px(a.x) + boxSide * G.stepX * 0.85
-          : (px(loX) + px(loX + n)) / 2, self.textW(txt, U.labelSize)));
-        self.unitLabel.setAttribute('y', vertical
-          ? py(Math.max(a.y, b.y)) - U.labelUpV
-          : py(a.y) + U.labelDy);
-        self.unitLabel.textContent = txt;
-        self.unitLabel.classList.add('on');
-        /* Size the plate to the text once it is set. A segment can sit
-           anywhere — across the y-axis, beside its numbers — so the
-           total needs its own ground rather than a halo alone. */
-        if (self.unitLabel.getBBox) {
-          const bb = self.unitLabel.getBBox();
-          self.unitPlate.setAttribute('x', bb.x - 14);
-          self.unitPlate.setAttribute('y', bb.y - 8);
-          self.unitPlate.setAttribute('width', bb.width + 28);
-          self.unitPlate.setAttribute('height', bb.height + 16);
-          self.unitPlate.classList.add('on');
-        }
+        self.showUnitTotal(from, ux, uy, steps, units);
         SFX.chime();
-      }, n * U.stepMs + 220);
-
-      later(done, n * U.stepMs + 900);
+        done();
+      }, steps * U.stepMs + 140);
     },
+
+    /* "N units", where N is the number they chose. Above a horizontal
+       count, above the top of a vertical column, and out to the free
+       side of a diagonal — never on an axis. */
+    showUnitTotal: function (from, ux, uy, steps, units) {
+      const G = C.GRID, U = G.unitBox;
+      const px = function (v) { return G.originX + v * G.stepX; };
+      const py = function (v) { return G.originY - v * G.stepY; };
+      const txt = units + '\u00A0unit' + (units === 1 ? '' : 's');
+      const end = { x: from.x + ux * steps, y: from.y + uy * steps };
+      let lx, ly;
+      if (ux && uy) {            // a diagonal
+        /* Beside the middle of the line, on the side away from the
+           right-angled corner — the other side is where its two legs
+           and their own labels are. */
+        const sx = px(from.x), sy = py(from.y), ex = px(end.x), ey = py(end.y);
+        const len = Math.hypot(ex - sx, ey - sy) || 1;
+        const nx = -(ey - sy) / len, ny = (ex - sx) / len;
+        const mx = (sx + ex) / 2, my = (sy + ey) / 2;
+        const corner = { x: px(end.x), y: py(from.y) };
+        const away = ((corner.x - mx) * nx + (corner.y - my) * ny) > 0 ? -1 : 1;
+        let gap = U.diagGap;
+        /* A segment whose middle falls on the x-axis puts its total in
+           the row of numbers under it at the ordinary offset; pushed
+           twice as far along the same perpendicular it clears them
+           without crossing to the legs' side. */
+        if (this.onXAxisRow(my + ny * away * gap, U.labelSize)) gap *= 2;
+        lx = mx + nx * away * gap;
+        ly = my + ny * away * gap;
+      } else if (ux) {           // along a row
+        lx = (px(from.x) + px(end.x)) / 2;
+        ly = py(from.y) + U.labelDy;
+      } else {                   // down a column
+        const side = (from.x >= 0) ? -1 : 1;
+        lx = px(from.x) + side * G.stepX * 0.85;
+        ly = py(Math.max(from.y, end.y)) - U.labelUpV;
+      }
+      this.unitLabel.setAttribute('x', this.clearOfYAxis(lx, this.textW(txt, U.labelSize)));
+      this.unitLabel.setAttribute('y', ly);
+      this.unitLabel.textContent = txt;
+      this.unitLabel.classList.add('on');
+    },
+
 
     /* Seats a segment's two points, its line and its four labels. */
     placeSegment: function (spec) {
@@ -1350,32 +1356,12 @@
       } else later(done, 2560);
     },
 
-    /* `units` squares out from the point the question starts from,
-       towards the other one. Clamped to the board so a long guess
-       stops at the edge rather than running off it. */
-    setMeasure: function (from, to, units) {
+    /* The line itself, from a point to a point. Everything that lays it
+       down goes through here so there is one place it is drawn. */
+    drawMeasure: function (from, ex, ey) {
       const G = C.GRID;
-      /* Nothing measured is nothing drawn. A zero-length line would put
-         its cap exactly on the point it starts from, which reads as a
-         second, slightly wrong dot rather than as an empty board. */
-      if (units <= 0) { this.clearMeasure(); return; }
       const px = function (v) { return G.originX + v * G.stepX; };
       const py = function (v) { return G.originY - v * G.stepY; };
-      const dx = to.x - from.x, dy = to.y - from.y;
-      const span = Math.hypot(dx, dy);
-      if (!span) { this.clearMeasure(); return; }
-      /* A unit of this ruler is a unit of length along the pair, not a
-         square across the grid. On a pair sharing a row or a column the
-         two are the same thing; on a diagonal only the first means
-         anything — stepping one square right and one square up per unit
-         would run the line clean off the segment it is measuring.
-
-         And it stops at the point it is measuring to: a guess longer
-         than the gap used to carry the line on past it and out into
-         empty board, which read as the line having come off its rails
-         rather than as the number being too big. */
-      const t = Math.min(units, span) / span;
-      const ex = from.x + dx * t, ey = from.y + dy * t;
       this.measLine.setAttribute('x1', px(from.x));
       this.measLine.setAttribute('y1', py(from.y));
       this.measLine.setAttribute('x2', px(ex));
@@ -1600,7 +1586,7 @@
   /* ---------------- screen flow ---------------- */
   const Game = {
     index: -1, state: 'start', busy: false, geom: null, task: null,
-    flight: null, landFlight: null, raised: false, hintOn: false,
+    flight: null, landFlight: null, raised: false,
     pending: [], entranceCancel: null,
 
     /* A screen is done: arm Skip and hand over by itself after a pause.
@@ -1764,9 +1750,10 @@
           if (entry.task.kind === 'distance') self.checkDistance(v);
           else self.checkEntry(v);
         });
-        /* Changing it lays the measuring line down as it goes, so the
-           control reads as a ruler rather than a number picker. */
-        Sel.onChange(numeric ? function (v) { self.showMeasure(v); } : null);
+        /* Nothing is drawn while the number is being chosen. Pressing
+           Check is the moment you find out, and a line creeping out to
+           the answer beforehand gave it away before the press. */
+        Sel.onChange(null);
       }
       // a choice task is answered on the options panel
       if (Opts) {
@@ -2263,87 +2250,68 @@
       return backwards ? { from: to, to: from } : { from: from, to: to };
     },
 
-    /* The slider moved: lay the line down that far. */
-    showMeasure: function (v) {
-      const t = this.task;
-      if (!t || t.done) return;
+    /* Both numeric questions answer the same way now: the control
+       closes, their number is counted out on the board, and only then
+       does the verdict land. Split out because the two used to say the
+       same thing twice with slightly different timing. */
+    revealAnswer: function (v, right, correctLine) {
+      const t = this.task, self = this;
       const pair = this.measurePair();
       if (!pair) return;
-      this.dropHint();          // they are drawing again; the hint is done
-      Board.setMeasure(pair.from, pair.to, v);
+      this.state = 'showing';
+      if (Sel) Sel.lock();          // nothing to fiddle while it counts
+
+      Board.countOut(pair.from, pair.to, v, this.later.bind(this), function () {
+        if (right) {
+          t.done = true;
+          self.state = 'waiting';
+          SFX.correct();
+          if (Sel) Sel.markCorrect();
+          Board.litMeasure();       // their line reached, and stays lit
+          self.later(function () {
+            SFX.cheer();
+            SFX.confettiPop();
+            FX.confetti(60);
+            self.speak(correctLine);
+          }, 260);
+          return;
+        }
+        /* Wrong: the count they asked for is on the board, so the miss
+           is there to be seen — short of the point, or a unit past it.
+           She says so, it is left up to be read, and then the board is
+           handed back empty. */
+        t.wrong++;
+        SFX.wrong();
+        if (Sel) Sel.markWrong();
+        self.state = 'waiting';
+        // the ladder is read after the count, not before: feedbackFor
+        // indexes on how many have been got wrong, this one included
+        const msg = self.feedbackFor(t).msg;
+        self.later(function () {
+          self.speak(msg, function () {
+            self.later(function () { self.clearWorking(); }, C.GRID.unitBox.holdMs);
+          });
+        }, 320);
+      });
+    },
+
+    /* The count goes and the control comes back, ready for another go. */
+    clearWorking: function () {
+      Board.clearUnits();
+      Board.clearMeasure();
+      if (Sel && !(this.task && this.task.done)) Sel.reset();
     },
 
     checkDistance: function (v) {
       const t = this.task;
       if (!t || t.done) return;
-      const self = this;
 
       // only axis-aligned pairs are asked about, so one term is zero
       const pair = this.measurePair();
       const answer = t.spec.answer != null ? t.spec.answer
         : (pair ? Math.abs(pair.to.x - pair.from.x) + Math.abs(pair.to.y - pair.from.y) : null);
 
-      if (v === answer) {
-        t.done = true;
-        this.state = 'waiting';
-        SFX.correct();
-        if (Sel) { Sel.markCorrect(); Sel.lock(); }
-        Board.litMeasure();        // their line reached, and stays lit
-        this.later(function () {
-          SFX.cheer();
-          SFX.confettiPop();
-          FX.confetti(60);
-          self.speak(t.spec.correctLine);
-        }, 260);
-        return;
-      }
-
-      /* Wrong: rather than just saying no, light the span up one unit
-         square at a time so how long a unit is, and how many of them
-         fit, is there to be seen and counted. Every distance question
-         does this — a child who has just guessed wrong is exactly the
-         one who needs to see it. */
-      t.wrong++;
-      SFX.wrong();
-      if (Sel) Sel.markWrong();
-      // the guess they drew goes; the squares are what to look at now
-      Board.clearMeasure();
-      const fb = this.feedbackFor(t);
-
-      /* The squares are laid along whatever is being measured — a leg
-         on some screens, the segment itself on others — and only a
-         span along one axis can be counted in whole squares at all. */
-      const square = pair && (pair.from.x === pair.to.x || pair.from.y === pair.to.y);
-      if (!square) {
-        this.later(function () { self.speak(fb.msg); }, 240);
-        return;
-      }
-
-      this.state = 'showing';
-      this.hintOn = false;
-      this.later(function () {
-        // a screen with its own line for this says that; the rest have
-        // a try-again that already points at the squares
-        self.speak(t.spec.showLine || fb.msg);
-        Board.runUnits(pair.from, pair.to, self.later.bind(self), function () {
-          self.state = 'waiting';
-          self.hintOn = true;
-          const drop = function () { self.dropHint(); };
-          const hold = C.GRID.unitBox.holdMs;
-          // read it, then take it away and let them go again
-          if (t.spec.showLine) self.speak(fb.msg, function () { self.later(drop, hold); });
-          else self.later(drop, hold);
-        });
-      }, 260);
-    },
-
-    /* The count-out has been read: clear it so the next attempt starts
-       on a clean board. Also called the moment they start drawing
-       again, since by then it has plainly been read. */
-    dropHint: function () {
-      if (!this.hintOn) return;
-      this.hintOn = false;
-      Board.clearUnits();
+      this.revealAnswer(v, v === answer, t.spec.correctLine);
     },
 
     /* A typed answer. The right answer is worked out from the board
@@ -2353,7 +2321,6 @@
     checkEntry: function (v) {
       const t = this.task;
       if (!t || t.done) return;
-      const self = this;
       const entry = C.SCRIPT[this.index] || {};
 
       let answer = t.spec.answer;
@@ -2364,27 +2331,7 @@
         if (Math.abs(d - Math.round(d)) < 1e-9) answer = Math.round(d);
       }
 
-      if (v === answer) {
-        t.done = true;
-        this.state = 'waiting';
-        SFX.correct();
-        if (Sel) { Sel.markCorrect(); Sel.lock(); }
-        Board.litMeasure();
-        this.later(function () {
-          SFX.cheer();
-          SFX.confettiPop();
-          FX.confetti(60);
-          self.speak(t.spec.correctLine);
-        }, 260);
-        return;
-      }
-
-      t.wrong++;
-      SFX.wrong();
-      if (Sel) Sel.markWrong();
-      Board.clearMeasure();     // the guess they drew goes, as elsewhere
-      const fb = this.feedbackFor(t);
-      this.later(function () { self.speak(fb.msg); }, 240);
+      this.revealAnswer(v, v === answer, t.spec.correctLine);
     },
 
     /* The feedback ladder: each wrong attempt gets the next message,
@@ -2709,14 +2656,7 @@
         if (entry.distance || entry.entry) {
           Sel.reset();
           Sel.show(true);        // rising, since she is coming down on it
-          /* Lay the line down at the value it opens on. reset() does not
-             report a change — nothing has changed yet — so without this
-             the board stays bare until the first arrow press, and the
-             control does not read as a ruler until you have already
-             moved it. */
-          if (entry.task && (entry.task.kind === 'distance' || entry.task.kind === 'entry')) {
-            Game.showMeasure(Sel.value);
-          }
+
         } else Sel.hide();
       }
       if (Opts) {
