@@ -20,7 +20,7 @@ window.CFG = (function () {
     swiftyTalk:  'assets/swifty talk.png',
     swiftyStand: 'assets/normal stand swifty.png',
     leaf:        'assets/leaf.png',
-    handNudge:   'hand nudge.png'
+    handNudge:   'assets/hand nudge.png'
   };
   const MUSIC = 'sfx/bg music.mp3';
 

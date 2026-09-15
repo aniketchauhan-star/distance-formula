@@ -373,6 +373,7 @@
   /* ---------------- speech bubble ---------------- */
   const Bubble = {
     typing: false, timer: null, hideTimer: null, full: '', shown: 0, onDone: null,
+    voiceMs: 0,
     spans: [],
     /* The line split into words, each keeping its trailing space, so
        joining the shown ones reproduces the text exactly. The reveal
@@ -467,6 +468,7 @@
     open: function (text, done) {
       // an answer can arrive mid-sentence, so stop any line in flight
       if (this.typing) { this.typing = false; clearInterval(this.timer); SFX.duck(false); }
+      if (window.Voice) window.Voice.stop();
       text = this.keepPairs(text);
       this.full = text; this.shown = 0; this.onDone = done;
       this.words = text.match(/\S+\s*/g) || [];
@@ -476,6 +478,10 @@
       this.fitType(text);
       this.fitBox(text);
       el.bubbleLine.textContent = '';
+      /* How long she will take to say it, if there is a recording. The
+         words are then paced to her voice instead of to a fixed beat,
+         so the line finishes as she does. */
+      this.voiceMs = (window.Voice && window.Voice.lengthOf(text)) || 0;
       // restart the pop animation
       el.bubble.classList.remove('pop-in');
       void el.bubble.offsetWidth;
@@ -492,19 +498,27 @@
       if (!standPose) Sprite.play('talk', true);   // beak moves while she speaks
 
       this.lay(this.full);
+      const voiced = window.Voice ? window.Voice.say(this.full) : 0;
+      /* Spread the words across the recording so the last one lands as
+         she stops speaking. Without one, the old fixed beat stands. */
+      const beat = voiced
+        ? Math.max(90, voiced / Math.max(1, this.words.length + 0.6))
+        : C.AUTO.wordMs;
+
       this.timer = setInterval(function () {
         if (self.shown >= self.words.length) { self.finish(); return; }
         const w = self.words[self.shown];
         const sp = self.spans[self.shown++];
         if (sp) sp.classList.add('in');
-        // one note per word, dropping at the end of a sentence
-        SFX.chirp(/[.!?]\s*$/.test(w) ? 0.7 : 1);
-      }, C.AUTO.wordMs);
+        // her own voice where there is one; the little notes where not
+        if (!voiced) SFX.chirp(/[.!?]\s*$/.test(w) ? 0.7 : 1);
+      }, beat);
     },
 
     /* Tapping mid-line reveals the rest immediately. */
     skip: function () {
       if (!this.typing) return false;
+      if (window.Voice) window.Voice.stop();
       this.shown = this.words.length;
       this.spans.forEach(function (sp) { sp.classList.add('in'); });
       this.finish();
@@ -526,6 +540,7 @@
        would otherwise be hidden by the timer set for the box it
        replaced. open() cancels it. */
     close: function () {
+      if (window.Voice) window.Voice.stop();
       if (this.typing) { this.typing = false; clearInterval(this.timer); SFX.duck(false); }
       el.bubble.classList.remove('pop-in');
       el.bubble.classList.add('pop-out');
@@ -2295,17 +2310,34 @@
       this.state = 'showing';
       if (Sel) Sel.lock();          // nothing to fiddle while it counts
 
-      Board.countOut(pair.from, pair.to, v, this.later.bind(this), function () {
+      /* The screens where counting is still new say so while it runs.
+         Said on every answer, never only on a wrong one — a line that
+         turned up only when you were wrong would give the game away
+         before the count had finished. */
+      const narrate = t.spec.showLine;
+
+      /* The verdict waits for both the counting and the line said over
+         it, whichever runs longer. A short count used to finish first
+         and the verdict would cut her off a second into "let's count
+         the units" — two voices for the same moment, one of them
+         sliced. Nothing here starts a line while another is sounding. */
+      let counted = false, said = !narrate;
+      const verdict = function () {
+        if (!counted || !said) return;
         if (right) {
           t.done = true;
           self.state = 'waiting';
           SFX.correct();
           if (Sel) Sel.markCorrect();
           Board.litMeasure();       // their line reached, and stays lit
+          /* Out of the far point — the end of the line they just drew,
+             which is the thing that was got right and where they are
+             already looking. */
+          const at = Board.stagePos(pair.to.x, pair.to.y);
           self.later(function () {
             SFX.cheer();
             SFX.confettiPop();
-            FX.confetti(60);
+            FX.pop(at.x, at.y, 18);
             self.speak(correctLine);
           }, 260);
           return;
@@ -2326,6 +2358,11 @@
             self.later(function () { self.clearWorking(); }, C.GRID.unitBox.holdMs);
           });
         }, 320);
+      };
+
+      if (narrate) this.speak(narrate, function () { said = true; verdict(); });
+      Board.countOut(pair.from, pair.to, v, this.later.bind(this), function () {
+        counted = true; verdict();
       });
     },
 
@@ -2391,10 +2428,11 @@
         this.state = 'waiting';
         if (Opts) Opts.lock();
         SFX.correct();
+        const at = this.optionSpot(t.spec.answer);
         this.later(function () {
           SFX.cheer();
           SFX.confettiPop();
-          FX.confetti(60);
+          FX.pop(at.x, at.y, 16);
           self.speak(t.spec.correctLine);
         }, 260);
         // the chosen method, worked through where the buttons were
@@ -2457,9 +2495,26 @@
       this.later(function () {
         SFX.cheer();
         SFX.confettiPop();
-        FX.confetti(60);
+        FX.pop(at.x, at.y, 18);
         self.speak(t.spec.correctLine);
       }, 260);
+    },
+
+    /* The middle of one of the answer buttons, worked out from the
+       panel's own geometry rather than measured off the page: the
+       buttons are a fixed stack, and this has to be right whether or
+       not the browser has laid them out yet. */
+    optionSpot: function (key) {
+      const O = C.BOARD.options, k = O.scale;
+      const entry = C.SCRIPT[this.index] || {};
+      const list = entry.options || [];
+      let n = 0;
+      for (let i = 0; i < list.length; i++) if (list[i].key === key) n = i;
+      const BORDER = 9, PAD_TOP = 28, BTN = 108, GAP = 24;
+      return {
+        x: O.pos.x + (O.w / 2) * k,
+        y: O.pos.y + (BORDER + PAD_TOP + n * (BTN + GAP) + BTN / 2) * k
+      };
     },
 
     answerWrong: function (node) {
@@ -2548,6 +2603,7 @@
   /* ---------------- preload ---------------- */
   function preload(done) {
     const list = Object.keys(C.ART).map(function (k) { return C.ART[k]; });
+    if (window.Voice) window.Voice.preload();
     // Bubble text is sized by measurement, so the real face has to be
     // in before anything gets measured.
     let fontsReady = false;
@@ -2573,7 +2629,13 @@
     list.forEach(function (src) {
       const im = new Image();
       im.onload = bump;
-      im.onerror = bump;   // never let one bad path stall the game
+      im.onerror = function () {
+        /* Never let one bad path stall the game — but say so. A silent
+           404 is how the hand went missing: the loader reached 100%,
+           nothing threw, and the picture simply never drew. */
+        if (window.console) console.warn('missing asset: ' + src);
+        bump();
+      };
       im.src = src;
     });
   }
@@ -2750,6 +2812,11 @@
         // the fingertip, not the corner, is what lands on the point
         st.left = (at.x - N.tip.x * k) + 'px';
         st.top  = (at.y - N.tip.y * k) + 'px';
+        /* Pivot on the fingertip, not on the middle of the picture: the
+           tap should press the point it is pointing at, and a scale
+           about the centre swings the finger off it. */
+        st.setProperty('--tipx', (N.tip.x * k) + 'px');
+        st.setProperty('--tipy', (N.tip.y * k) + 'px');
         el.nudge.classList.remove('hidden');
         void el.nudge.offsetWidth;
         el.nudge.classList.add('tapping');

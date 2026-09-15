@@ -1,5 +1,5 @@
 /* =============================================================
-   Kid-friendly effects: sparkles, confetti, star bursts, dust
+   Kid-friendly effects: sparkles, paper bursts, star bursts, dust
    puffs and drifting motes. All DOM based so they inherit the
    stage's scale transform for free.
    ============================================================= */
@@ -60,28 +60,38 @@ window.FX = (function () {
     }, 720);
   }
 
-  /* Confetti raining across the whole stage. */
-  /* Confetti over the whole frame, falling from above. The delays are
-     kept short so the pieces arrive as one burst rather than trickling
-     down — a long spread reads as weather, not as a celebration. */
-  function confetti(count) {
-    count = count || 46;
+  /* A small burst of paper out of one spot.
+
+     It replaces a screen-wide shower. Rain from the ceiling celebrates
+     the room; this celebrates the thing that was got right, because it
+     comes out of it — the child's eye is already on that point, and the
+     reward arrives where they are looking rather than everywhere else.
+
+     Each piece is thrown outward on its own angle, biased upward so the
+     burst opens like a popper, then carried past its peak and down. */
+  function pop(x, y, count) {
+    count = count || 16;
     for (let i = 0; i < count; i++) {
-      const w = rnd(10, 20), h = rnd(14, 26);
-      const life = rnd(2000, 3200);
-      spawn('fx-confetti', {
-        left: rnd(-40, 1960) + 'px', top: rnd(-300, -60) + 'px',
-        width: w + 'px', height: h + 'px',
+      /* Spread around the upward half, with enough slop that the ring
+         does not read as a clock face. */
+      const a = -Math.PI * 0.5 + rnd(-1.15, 1.15);
+      const dist = rnd(58, 128);
+      const life = rnd(850, 1250);
+      const w = rnd(6, 12);
+      spawn('fx-pop', {
+        left: x + 'px', top: y + 'px',
+        width: w + 'px', height: rnd(8, 15) + 'px',
         background: pick(CANDY),
-        borderRadius: Math.random() < 0.4 ? '50%' : '3px',
-        '--dx': rnd(-170, 170) + 'px',
-        '--fall': rnd(1240, 1500) + 'px',
-        '--spin': rnd(-900, 900) + 'deg',
+        borderRadius: Math.random() < 0.4 ? '50%' : '2px',
+        '--ox': Math.cos(a) * dist + 'px',
+        '--oy': Math.sin(a) * dist + 'px',
+        // where it ends up once gravity has had it
+        '--fx': Math.cos(a) * dist * 1.25 + 'px',
+        '--fy': (Math.sin(a) * dist * 0.45 + rnd(70, 135)) + 'px',
+        '--spin': rnd(-520, 520) + 'deg',
         animationDuration: life + 'ms',
-        /* Most of the burst lands together; a few stragglers follow so
-           the tail of it does not stop dead. */
-        animationDelay: (Math.random() < 0.8 ? rnd(0, 170) : rnd(170, 520)) + 'ms'
-      }, life + 800);
+        animationDelay: rnd(0, 90) + 'ms'
+      }, life + 260);
     }
   }
 
@@ -446,6 +456,6 @@ window.FX = (function () {
 
   function clear() { if (layer) layer.innerHTML = ''; }
 
-  return { init, starBurst, ring, confetti, sparkles, puff, motes, clouds,
+  return { init, starBurst, ring, pop, sparkles, puff, motes, clouds,
            leafDrift, wind, leaves, clear };
 })();

@@ -257,8 +257,8 @@ html, body {
   /* One soft cast, not the hard offset the stacked-ring balloon needed:
      a single drawn outline reads as lifted off the field on its own. */
   filter: drop-shadow(0 9px 18px rgba(120, 62, 14, .28));
-  /* the marks and the catch-light are sized in em off the line's own
-     size, so they hold their proportion at any scale */
+  /* the catch-light is sized in em off the line's own size, so it holds
+     its proportion at any scale */
   font-size: var(--bubSize, 32px);
 }
 
@@ -283,27 +283,6 @@ html, body {
   transform: rotate(-22deg);
   pointer-events: none;
 }
-
-/* ---------------- two short strokes each side ---------------- */
-.bub-mark {
-  position: absolute;
-  /* level with the middle of the balloon, not of the whole box: the
-     tail's drop is part of the box's height and would push these down */
-  top: calc(var(--bodyH, 132px) / 2);
-  width: .62em; height: .93em;
-  transform: translateY(-50%);
-  fill: none;
-  stroke: var(--edge, #E09A55);
-  /* view-box units: the svg is .62em wide for a 40-unit box, so this
-     lands a shade heavier than the balloon's own border, which is the
-     weight these have against it in the artwork. */
-  stroke-width: 11;
-  stroke-linecap: round;
-  overflow: visible;
-  pointer-events: none;
-}
-.mark-left  { right: calc(100% + .42em); }
-.mark-right { left:  calc(100% + .42em); }
 
 /* ---------------- the tail ----------------
    Positioned and sized by seatBubble(), which works its point onto her
@@ -862,7 +841,9 @@ html, body {
   border: 8px solid; border-radius: 50%;
   animation: ringOut .7s cubic-bezier(.2, .8, .3, 1) both;
 }
-.fx-confetti { animation-name: confettiFall; animation-timing-function: cubic-bezier(.3, .5, .6, 1); animation-fill-mode: both; }
+/* Thrown out of a point and then dropped: the ease-out carries it to
+   its peak quickly and the fall is what is left. */
+.fx-pop { animation-name: popBurst; animation-timing-function: cubic-bezier(.18, .74, .42, 1); animation-fill-mode: both; }
 .fx-twinkle {
   clip-path: polygon(50% 0%, 60% 40%, 100% 50%, 60% 60%, 50% 100%, 40% 60%, 0% 50%, 40% 40%);
   animation-name: twinkle; animation-timing-function: ease-out; animation-fill-mode: both;
@@ -1084,11 +1065,15 @@ html, body {
   0%   { opacity: .95; transform: translate(-50%, -50%) scale(.25); }
   100% { opacity: 0;   transform: translate(-50%, -50%) scale(2.4); }
 }
-@keyframes confettiFall {
-  0%   { opacity: 0; transform: translate(-50%, -50%) rotate(0deg); }
-  10%  { opacity: 1; }
-  85%  { opacity: 1; }
-  100% { opacity: 0; transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--fall))) rotate(var(--spin)); }
+@keyframes popBurst {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(.3) rotate(0deg); }
+  12%  { opacity: 1; }
+  40%  { opacity: 1;
+         transform: translate(calc(-50% + var(--ox)), calc(-50% + var(--oy)))
+                    scale(1) rotate(calc(var(--spin) * .45)); }
+  100% { opacity: 0;
+         transform: translate(calc(-50% + var(--fx)), calc(-50% + var(--fy)))
+                    scale(.9) rotate(var(--spin)); }
 }
 @keyframes twinkle {
   0%   { opacity: 0; transform: translate(-50%, -50%) scale(0) rotate(0deg); }
