@@ -538,14 +538,24 @@
         seatBubble(g, want, bodyH);
         return 0;
       }
+      /* Seat the shape it is going to first, so anything measuring the
+         plate this tick — fitType, which decides the type size — sees
+         the box the line will actually get rather than the one it is
+         still leaving. The first glide frame runs before the next
+         paint, so this never reaches the screen. */
+      seatBubble(g, want, bodyH);
       const self = this, mine = this.glide, t0 = performance.now(), MS = 300;
-      (function step() {
+      const step = function () {
         if (self.glide !== mine) return;             // a newer line took over
         const k = Math.min(1, (performance.now() - t0) / MS);
         const e = 1 - Math.pow(1 - k, 3);            // ease out, no overshoot
         seatBubble(g, fromW + (want - fromW) * e, fromH + (bodyH - fromH) * e);
         if (k < 1) requestAnimationFrame(step);
-      })();
+      };
+      /* Scheduled, not called: running the first frame here would put
+         the old shape straight back over the target seated above, and
+         the type would then be fitted to the box it is leaving. */
+      requestAnimationFrame(step);
       return MS;
     },
 
@@ -590,10 +600,17 @@
     fit: function (text) {
       const g = Game.geom, B = (g && g.bubble) || C.BUBBLE;
       el.bubbleLine.style.fontSize = ((B && B.size) || C.BUBBLE.size) + 'px';
-      const ms = this.fitBox(text);
-      const was = el.bubbleLine.style.fontSize;
-      this.fitType(text);
-      if (el.bubbleLine.style.fontSize !== was) return this.fitBox(text) || ms;
+      let ms = this.fitBox(text);
+      /* Settle: a line that will not fit even the biggest box comes
+         down a step, which buys a smaller box, which may let it come
+         back up. Two passes is enough to land — the size only ever
+         falls, so it cannot cycle. */
+      for (let pass = 0; pass < 2; pass++) {
+        const was = el.bubbleLine.style.fontSize;
+        this.fitType(text);
+        if (el.bubbleLine.style.fontSize === was) break;
+        ms = this.fitBox(text) || ms;
+      }
       return ms;
     },
 
