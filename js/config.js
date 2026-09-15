@@ -570,12 +570,20 @@ window.CFG = (function () {
       edgeW: 2,
       frameW: 13,
       hiW: 3,               // the pale ring just inside the frame
-      /* Counted so the ruling still covers the whole cream now the
-         cells are 78px rather than 59: 16 columns and 14 rows reach
-         past the frame on every side, and the clip below trims them
-         back to the cream's inner corner. */
-      gxFrom: -8, gxTo: 8,
-      gyFrom: -7, gyTo: 7
+      /* Whole cells only. Running the ruling past the frame and
+         trimming it to the cream left a sliver of a cell down every
+         side and a curved scrap in each rounded corner — the grid read
+         as cut out rather than drawn on. These are the most cells that
+         fit inside the cream while still landing on whole coordinates,
+         so every square on the board is a square.
+
+         The cream is 1184 x 958 and a cell is 77.4 x 78, so it holds
+         15.3 across and 12.3 down: the leftover is 50px a side and
+         11px top and bottom. That is arithmetic, not a choice — square
+         cells on a board wider than it is tall cannot come out even on
+         both axes. */
+      gxFrom: -7, gxTo: 7,
+      gyFrom: -6, gyTo: 6
     },
 
     labelSize: 36,                  // scaled with the cell

@@ -1090,19 +1090,29 @@
       gs.setProperty('--lw', lw + 'px');
       gs.setProperty('--gridline', P.line);
 
-      /* Keep the lines off the frame. Clipped rather than shrunk: the
-         gradient's phase is measured from this element's own origin, so
-         moving or resizing it slides every line off its coordinate,
-         while a clip leaves them exactly where they fall. The radius
-         follows the cream's inner corner. */
+      /* Keep the lines off the frame, if they reach it at all. Clipped
+         rather than shrunk: the gradient's phase is measured from this
+         element's own origin, so moving or resizing it slides every
+         line off its coordinate, while a clip leaves them exactly
+         where they fall.
+
+         The ruling is now cut to whole cells inside the cream, so
+         normally there is nothing to trim — and the clip has to go
+         away entirely when that is so. Left on, its rounded corner was
+         still being applied to the ruling's OWN corners: a 26px radius
+         on an 83px cell, which took the corner out of the outermost
+         square and left the two boundary lines stopping short of each
+         other instead of meeting. */
       const inset = (P.frameW + P.hiW) * sx;
       const gw = (P.gxTo - P.gxFrom) * cw + lw, gh = (P.gyTo - P.gyFrom) * ch + lw;
       const cl = Math.max(0, inset - (left - lw / 2));
       const ct = Math.max(0, inset - (top  - lw / 2));
       const cr = Math.max(0, (left - lw / 2 + gw) - (box.w - inset));
       const cb = Math.max(0, (top  - lw / 2 + gh) - (box.h - inset));
-      gs.clipPath = 'inset(' + ct + 'px ' + cr + 'px ' + cb + 'px ' + cl +
-                    'px round ' + Math.max(0, P.radius * sx - inset) + 'px)';
+      gs.clipPath = (cl || ct || cr || cb)
+        ? 'inset(' + ct + 'px ' + cr + 'px ' + cb + 'px ' + cl +
+          'px round ' + Math.max(0, P.radius * sx - inset) + 'px)'
+        : 'none';
 
       el.gridAxes.setAttribute('viewBox', '0 0 ' + G.w + ' ' + G.h);
       el.gridAxes.setAttribute('preserveAspectRatio', 'none');
