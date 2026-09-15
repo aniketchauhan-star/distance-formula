@@ -11,7 +11,7 @@
   ['viewport', 'stage', 'loader', 'loaderBar', 'loaderPct',
    'startScreen', 'playBtn', 'playImg', 'scene', 'skyLayer',
    'charGroup', 'shadow', 'birdRig', 'birdFlip', 'birdWin', 'flySheet', 'talkSheet',
-   'bubble', 'bubbleImg', 'bubbleText', 'bubbleLine', 'nextBtn',
+   'bubble', 'bubbleImg', 'bubbleTail', 'bubbleText', 'bubbleLine', 'nextBtn',
    'gridPanel', 'gridImg', 'gridAxes', 'standSwifty',
    'formulaBoard', 'leafLayer', 'fxLayer', 'sceneArt', 'startArt',
    'startBird', 'startBirdWin', 'startFly', 'startTalk', 'startShadow', 'startSky', 'nudge'
@@ -267,7 +267,6 @@
        wide, shallow one whose tail leaves the side rather than the
        bottom, because she stands above the board with nothing over her. */
     const B = g.bubble || C.BUBBLE, s = g.bubbleScale;
-    const side = B.tailSide === 'left';
     const inkW = (inkWOverride != null ? inkWOverride : B.ink.w) * s;
     /* A shape can be given a shorter balloon for a line that only needs
        one row — the tail keeps its length, so the box shrinks from the
@@ -278,7 +277,6 @@
     const tipX = B.tip.x * s, tipY = (bodyH + tailLen) * s;
     const tip = { x: g.aim.x, y: g.aim.y + B.biteIntoHead };
 
-    el.bubble.classList.toggle('tail-left', side);
     el.bubble.style.left = (tip.x - tipX) + 'px';
     el.bubble.style.top = (tip.y - tipY) + 'px';
     el.bubble.style.width = inkW + 'px';
@@ -291,22 +289,29 @@
 
     const bs = el.bubble.style;
     bs.setProperty('--bodyH', bodyH * s + 'px');
-    /* A square turned 45 degrees drops its corner 1/root-2 of a side
-       past its centre, so this side puts the point exactly on the tip
-       when the square is centred on the balloon's edge. */
-    bs.setProperty('--tailSq', tailLen * s * Math.SQRT2 + 'px');
-    bs.setProperty('--tailX', (side ? 0 : B.tip.x * s) + 'px');
-    bs.setProperty('--tailY', (side ? bodyH * s / 2 : bodyH * s) + 'px');
-    bs.setProperty('--tailTip', B.tailTip * s + 'px');
-    bs.setProperty('--r',      B.radius * s + 'px');
-    bs.setProperty('--e1',     B.edgeW * s + 'px');
-    bs.setProperty('--e2',     B.midW  * s + 'px');
-    bs.setProperty('--e3',     B.goldW * s + 'px');
-    bs.setProperty('--fill',   B.fill);
-    bs.setProperty('--edge',   B.edge);
-    bs.setProperty('--mid',    B.mid);
-    bs.setProperty('--gold',   B.gold);
-    bs.setProperty('--leaf',   B.leaf * s + 'px');
+    bs.setProperty('--r',    B.radius * s + 'px');
+    bs.setProperty('--e1',   B.edgeW * s + 'px');
+    bs.setProperty('--fill', B.fill);
+    bs.setProperty('--edge', B.edge);
+    bs.setProperty('--ink',  B.ink_);
+    bs.setProperty('--sheen', B.sheen);
+    bs.setProperty('--bubSize', B.size * s + 'px');
+
+    /* The tail is one drawn shape rather than a stack of rotated
+       squares. Its artwork is a 44 x 42 box whose join line sits 8
+       units down and whose point is at the very bottom, 2 units in from
+       the left — so the drop from the join to the point is 34/42 of the
+       drawing's height, and that drop is what has to equal tailLen.
+       Sizing it from those two fractions puts the point exactly on her
+       head at any scale, and carries the top of the shape back up over
+       the balloon's border so the two read as one outline. */
+    const TAIL_DROP = 34 / 42, TAIL_ASPECT = 44 / 42, TAIL_TIPX = 2 / 44;
+    const th = tailLen * s / TAIL_DROP, tw = th * TAIL_ASPECT;
+    const ts = el.bubbleTail.style;
+    ts.width = tw + 'px';
+    ts.height = th + 'px';
+    ts.left = (B.tip.x * s - tw * TAIL_TIPX) + 'px';
+    ts.top = (bodyH * s - th * (1 - TAIL_DROP)) + 'px';
 
     if (B.pad) {
       el.bubbleText.style.left = B.pad.x * s + 'px';
@@ -368,6 +373,7 @@
   /* ---------------- speech bubble ---------------- */
   const Bubble = {
     typing: false, timer: null, hideTimer: null, full: '', shown: 0, onDone: null,
+    spans: [],
     /* The line split into words, each keeping its trailing space, so
        joining the shown ones reproduces the text exactly. The reveal
        steps a word at a time rather than a letter at a time — at this
@@ -432,6 +438,32 @@
       return text.replace(/\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\)/g, '($1,\u00A0$2)');
     },
 
+    /* The line laid out in full, a span per word, every one hidden. The
+       box is therefore the right size before the first word lands, and
+       each word fades up exactly where it will sit rather than shoving
+       the centred line along as it grows. */
+    lay: function (text) {
+      const line = el.bubbleLine;
+      line.textContent = '';
+      this.spans = [];
+      const self = this;
+      (text.match(/\S+\s*/g) || (text ? [text] : [])).forEach(function (w) {
+        const sp = document.createElement('span');
+        sp.className = 'wd';
+        sp.textContent = w;
+        line.appendChild(sp);
+        self.spans.push(sp);
+      });
+      return this.spans;
+    },
+
+    /* The whole line, already arrived. Used where a line has to survive
+       something that re-seats the box under it. */
+    showAll: function (text) {
+      this.lay(text == null ? this.full : text);
+      this.spans.forEach(function (sp) { sp.classList.add('in'); });
+    },
+
     open: function (text, done) {
       // an answer can arrive mid-sentence, so stop any line in flight
       if (this.typing) { this.typing = false; clearInterval(this.timer); SFX.duck(false); }
@@ -459,10 +491,12 @@
       SFX.duck(true);                 // dip the music under her voice
       if (!standPose) Sprite.play('talk', true);   // beak moves while she speaks
 
+      this.lay(this.full);
       this.timer = setInterval(function () {
         if (self.shown >= self.words.length) { self.finish(); return; }
-        const w = self.words[self.shown++];
-        el.bubbleLine.textContent = self.words.slice(0, self.shown).join('');
+        const w = self.words[self.shown];
+        const sp = self.spans[self.shown++];
+        if (sp) sp.classList.add('in');
         // one note per word, dropping at the end of a sentence
         SFX.chirp(/[.!?]\s*$/.test(w) ? 0.7 : 1);
       }, C.AUTO.wordMs);
@@ -472,7 +506,7 @@
     skip: function () {
       if (!this.typing) return false;
       this.shown = this.words.length;
-      el.bubbleLine.textContent = this.full;
+      this.spans.forEach(function (sp) { sp.classList.add('in'); });
       this.finish();
       return true;
     },
@@ -2646,7 +2680,7 @@
        the line after measuring it (it normally runs just before the text
        is typed in, where leaving it empty is the point). */
     Bubble.fitBox(Bubble.full);
-    el.bubbleLine.textContent = Bubble.full;
+    Bubble.showAll();
     setTimeout(function () { el.bubble.classList.remove('rising'); }, 720);
 
     /* The control rises into the space she has just left and is settled

@@ -168,22 +168,18 @@ window.CFG = (function () {
        The rim is both darker and wider than the rest of the autumn set
        needs: the bubble floats on open sky, which is very light and
        very warm, so a thin mid-orange edge disappeared into it. */
-    /* One stroke, and a heavy one: comic lettering sits inside drawn
-       ink, not a hairline. The three cumulative insets are kept as the
-       mechanism — the balloon and the tail are both built from them —
-       but set to the same width and colour, so what is drawn is a
-       single line rather than three bands. */
-    edgeW: 8, midW: 8, goldW: 8,
+    /* One stroke around the balloon and the same one around the tail,
+       drawn as a border rather than as stacked inset rings. */
+    edgeW: 5,
 
-    /* Near-white rather than cream: the sky behind her runs from peach
-       to gold, and a cream balloon on it had almost nothing to separate
-       the two. The ink is a deep brown from the same autumn family
-       rather than black, so it reads as drawn and not as a border. */
-    fill:   '#FFFDF7',
-    edge:   '#6E3A07',
-    mid:    '#6E3A07',
-    gold:   '#6E3A07',
-    ink_:   '#173A72',            // the text
+    /* The field's own colours, two steps apart so the box still reads
+       as a thing in front of the scene: a pale warm peach taken off the
+       light in the sky, an amber edge out of the tree and the grass,
+       and a deep warm brown for the letters. */
+    fill:   '#FFF1E2',
+    edge:   '#E09A55',
+    ink_:   '#7C3B12',            // the text
+    sheen:  'rgba(255, 255, 255, .92)',   // the catch-light in the corner
     size:   32,                   // the size every line is set at
 
     leaf: 62,                     // the corner decorations
@@ -426,30 +422,6 @@ window.CFG = (function () {
       tailLen: 44
     }),
 
-    bubble: Object.assign({}, BUBBLE, {
-      /* Standing on the panel's top rail puts her head near the top of
-         the frame, so nothing can sit above it — a downward tail would
-         force the balloon over her and push the panel down about 300px,
-         leaving the grid smaller than it started. The tail points left
-         instead, out of the balloon's side, so she and her line share
-         one shallow band. */
-      tailSide: 'left',
-      biteIntoHead: 0,
-      ink: { w: 760, h: 112 },      // w is a starting size; see autoWidth
-      tip: { x: 0, y: 56 },         // mid-height on the balloon's left edge
-      tailLen: 30,
-      bodyH: 112,
-      radius: 34,
-      leaf: 44,
-      /* Sized to the line rather than fixed: most of what she says here
-         is short, and a bar of empty cream either side of "Correct!"
-         reads as a mistake. */
-      /* max is bounded by the distance screens: she stands at the board's
-         left end there, and the slider starts at x 1285. */
-      autoWidth: { min: 330, max: 800, pad: 46 },
-      size: 32,
-      text: { left: 0.06, top: 0.1964, width: 0.88, height: 0.607 }
-    }),
 
     /* Axis geometry in panel-local pixels, measured off the drawn
        grid. The artwork is 22 x 14 cells at ~61px: 23 vertical lines

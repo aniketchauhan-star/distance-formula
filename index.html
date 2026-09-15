@@ -14,9 +14,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=20260915105305">
-<link rel="stylesheet" href="css/number-selector.css?v=20260915105305">
-<link rel="stylesheet" href="css/triangle-options.css?v=20260915105305">
+<link rel="stylesheet" href="css/style.css?v=20260915113849">
+<link rel="stylesheet" href="css/number-selector.css?v=20260915113849">
+<link rel="stylesheet" href="css/triangle-options.css?v=20260915113849">
 </head>
 <body>
 
@@ -89,11 +89,25 @@
         <!-- screen 5 resting pose, swapped in when she lands -->
         <img id="standSwifty" class="hidden" src="" alt="Swifty">
 
+        <!-- The balloon, its catch-light, the two little strokes either
+             side of it, and the tail that hangs off its bottom corner
+             onto her head. The marks and the tail are the balloon's
+             siblings, not its children, so seatBubble() can place them
+             against the same box it sizes everything else from. -->
         <div id="bubble" class="hidden">
-          <i class="bt bt-edge"></i>
-          <i class="bt bt-mid"></i>
-          <i class="bt bt-gold"></i>
           <div id="bubbleImg"></div>
+          <svg class="bub-mark mark-left" viewBox="0 0 40 60" aria-hidden="true">
+            <path d="M8 12 L30 24" /><path d="M8 48 L30 36" />
+          </svg>
+          <svg class="bub-mark mark-right" viewBox="0 0 40 60" aria-hidden="true">
+            <path d="M32 12 L10 24" /><path d="M32 48 L10 36" />
+          </svg>
+          <!-- filled first, so it covers the balloon's border where the
+               two meet, then stroked along its two free edges only -->
+          <svg id="bubbleTail" viewBox="0 -8 44 42" aria-hidden="true">
+            <path class="tail-fill"   d="M4 -8 H42 V0 C36 12 24 22 2 34 C8 24 8 12 4 0 Z" />
+            <path class="tail-stroke" d="M42 0 C36 12 24 22 2 34 C8 24 8 12 4 0" />
+          </svg>
           <div id="bubbleText"><span id="bubbleLine"></span></div>
         </div>
       </div>
@@ -117,11 +131,11 @@
   </div>
 </div>
 
-<script src="js/config.js?v=20260915105305"></script>
-<script src="js/audio.js?v=20260915105305"></script>
-<script src="js/fx.js?v=20260915105305"></script>
-<script src="js/number-selector.js?v=20260915105305"></script>
-<script src="js/triangle-options.js?v=20260915105305"></script>
-<script src="js/game.js?v=20260915105305"></script>
+<script src="js/config.js?v=20260915113849"></script>
+<script src="js/audio.js?v=20260915113849"></script>
+<script src="js/fx.js?v=20260915113849"></script>
+<script src="js/number-selector.js?v=20260915113849"></script>
+<script src="js/triangle-options.js?v=20260915113849"></script>
+<script src="js/game.js?v=20260915113849"></script>
 </body>
 </html>

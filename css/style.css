@@ -254,76 +254,78 @@ html, body {
    rather than the box. */
 #bubble {
   position: absolute;
-  filter:
-    drop-shadow(5px 7px 0 rgba(110, 58, 8, .20))
-    drop-shadow(0 10px 16px rgba(90, 50, 10, .26));
+  /* One soft cast, not the hard offset the stacked-ring balloon needed:
+     a single drawn outline reads as lifted off the field on its own. */
+  filter: drop-shadow(0 9px 18px rgba(120, 62, 14, .28));
+  /* the marks and the catch-light are sized in em off the line's own
+     size, so they hold their proportion at any scale */
+  font-size: var(--bubSize, 32px);
 }
 
+/* ---------------- the balloon ---------------- */
 #bubbleImg {
   position: absolute; left: 0; top: 0;
+  box-sizing: border-box;
   pointer-events: none;
-  border-radius: var(--r, 48px);
-  /* flat, so the tail's cream matches it exactly where they join */
-  background: var(--fill, #FFF8E8);
-  box-shadow:
-    inset 0 0 0 var(--e1, 2px)  var(--edge, #C95B08),
-    inset 0 0 0 var(--e2, 9px)  var(--mid,  #F28A0A),
-    inset 0 0 0 var(--e3, 12px) var(--gold, #FFC433),
-    0 8px 16px rgba(120, 60, 10, .16);
+  border-radius: var(--r, 34px);
+  border: var(--e1, 5px) solid var(--edge, #E09A55);
+  background: var(--fill, #FFF1E2);
 }
 
-/* the stacked squares — each inset from the last by one band */
-#bubble .bt, #bubbleImg::after {
+/* the catch-light in the top-left corner */
+#bubbleImg::before {
   content: "";
   position: absolute;
-  left: var(--tailX);
-  top:  var(--tailY);
-  width:  var(--tailSq, 90px);
-  height: var(--tailSq, 90px);
-  margin-left: calc(var(--tailSq, 90px) / -2);
-  margin-top:  calc(var(--tailSq, 90px) / -2);
-  border-bottom-right-radius: var(--tailTip, 10px);
-  transform: rotate(45deg);
-  transform-origin: center;
+  left: .42em; top: .34em;
+  width: .5em; height: .2em;
+  border-radius: 999px;
+  background: var(--sheen, rgba(255, 255, 255, .92));
+  transform: rotate(-22deg);
   pointer-events: none;
 }
-#bubble .bt-edge { background: var(--edge, #C95B08); }
-#bubble .bt-mid {
-  background: var(--mid, #F28A0A);
-  width:  calc(var(--tailSq) - var(--e1) * 2);
-  height: calc(var(--tailSq) - var(--e1) * 2);
-  margin-left: calc((var(--tailSq) - var(--e1) * 2) / -2);
-  margin-top:  calc((var(--tailSq) - var(--e1) * 2) / -2);
-}
-#bubble .bt-gold {
-  background: var(--gold, #FFC433);
-  width:  calc(var(--tailSq) - var(--e2) * 2);
-  height: calc(var(--tailSq) - var(--e2) * 2);
-  margin-left: calc((var(--tailSq) - var(--e2) * 2) / -2);
-  margin-top:  calc((var(--tailSq) - var(--e2) * 2) / -2);
-}
-/* the interior, over the balloon so the mouth is open */
-#bubbleImg::after {
-  background: var(--fill, #FFF8E8);
-  width:  calc(var(--tailSq) - var(--e3) * 2);
-  height: calc(var(--tailSq) - var(--e3) * 2);
-  margin-left: calc((var(--tailSq) - var(--e3) * 2) / -2);
-  margin-top:  calc((var(--tailSq) - var(--e3) * 2) / -2);
-  /* positioned against the balloon, which sits at the box's origin */
-  top: 100%;
-}
 
-/* A tail leaving the balloon's left side instead of its bottom, for
-   the screens where she stands above the board with nothing over her.
-   The same stacked squares; only which corner is rounded and where the
-   cream one sits have to change, since a 45-degree square already has
-   a corner pointing left. */
-#bubble.tail-left .bt,
-#bubble.tail-left #bubbleImg::after {
-  border-bottom-right-radius: 0;
-  border-bottom-left-radius: var(--tailTip, 10px);
+/* ---------------- two short strokes each side ---------------- */
+.bub-mark {
+  position: absolute;
+  /* level with the middle of the balloon, not of the whole box: the
+     tail's drop is part of the box's height and would push these down */
+  top: calc(var(--bodyH, 132px) / 2);
+  width: .62em; height: .93em;
+  transform: translateY(-50%);
+  fill: none;
+  stroke: var(--edge, #E09A55);
+  /* view-box units: the svg is .62em wide for a 40-unit box, so this
+     lands a shade heavier than the balloon's own border, which is the
+     weight these have against it in the artwork. */
+  stroke-width: 11;
+  stroke-linecap: round;
+  overflow: visible;
+  pointer-events: none;
 }
-#bubble.tail-left #bubbleImg::after { top: 50%; }
+.mark-left  { right: calc(100% + .42em); }
+.mark-right { left:  calc(100% + .42em); }
+
+/* ---------------- the tail ----------------
+   Positioned and sized by seatBubble(), which works its point onto her
+   head. Filled first so it covers the balloon's border where the two
+   meet, then stroked along its two free edges only, so the outline
+   runs round balloon and tail as one line. */
+#bubbleTail {
+  position: absolute;
+  overflow: visible;
+  pointer-events: none;
+}
+#bubbleTail .tail-fill { fill: var(--fill, #FFF1E2); }
+#bubbleTail .tail-stroke {
+  fill: none;
+  stroke: var(--edge, #E09A55);
+  stroke-width: var(--e1, 5px);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  /* the drawing is scaled to the tail's length, so the stroke is held
+     to the balloon's border width rather than scaling with it */
+  vector-effect: non-scaling-stroke;
+}
 
 #bubbleText {
   position: absolute;
@@ -331,14 +333,27 @@ html, body {
   text-align: center;
   font-family: 'Nunito', system-ui, sans-serif;
   /* 1.3, so a line that does run to two has room between them. */
-  font-weight: 600; font-size: 32px; line-height: 1.3;
-  color: #123A72;
+  font-weight: 700; font-size: 32px; line-height: 1.3;
+  color: var(--ink, #7C3B12);
   letter-spacing: .2px;
   overflow: hidden;
 }
 /* Balanced rather than greedy: most lines here wrap to two, and greedy
    wrapping leaves a widow — "Let's start with something / familiar." */
 #bubbleLine { display: block; width: 100%; text-wrap: balance; }
+
+/* Each word fades up and sharpens where it already sits, rather than
+   being typed in: at this reading age a word arriving whole is read as
+   a word, and the blur makes the arrival soft instead of a hard flick. */
+.wd { opacity: 0; }
+.wd.in { animation: wdIn .46s cubic-bezier(.2, .7, .3, 1) both; }
+@keyframes wdIn {
+  from { opacity: 0; filter: blur(4px); }
+  to   { opacity: 1; filter: blur(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wd.in { animation-duration: .08s; }
+}
 
 /* Her balloon follows her up to the raised spot instead of being
    redrawn there — she flies the distance herself, so only the box she
