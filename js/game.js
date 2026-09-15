@@ -2764,9 +2764,19 @@
     },
 
     /* Tapping the scene: first tap finishes the line, second moves on. */
+    /* A tap on the field: finish the line she is saying, or move on.
+       settle() puts every screen into `waiting`, including one whose
+       question is still open — it only holds back the automatic hand-
+       over — so a tap anywhere on the grass used to carry the player
+       straight past the thing they had just been asked. The question
+       belongs to them until they answer it; tapping the field is not an
+       answer. Next still goes through, because that button is the
+       deliberate way out and says so. */
     advance: function () {
       if (this.state === 'speaking') { Bubble.skip(); return; }
       if (this.state !== 'waiting') return;
+      const entry = C.SCRIPT[this.index] || {};
+      if (entry.task && !(this.task && this.task.done)) return;
       this.skipScreen();
     },
 
