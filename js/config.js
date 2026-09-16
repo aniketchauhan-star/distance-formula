@@ -1167,7 +1167,8 @@ window.CFG = (function () {
        point she is about to make. */
     { id: 20, line: 'This one’s different.', entrance: 'fly',
       layout: 'grid', transition: 'leaves',
-      segment: { a: { x: 2, y: 1 }, b: { x: 6, y: 4, nameDx: 40, nameDy: 8 } } },
+      segment: { a: { x: 2, y: 1, name: 'A', nameDx: -46, nameDy: 8 },
+                 b: { x: 6, y: 4, name: 'B', nameDx: 40, nameDy: 8 } } },
 
     // 13 — same board and same segment, she just carries on talking
     { id: 21, line: 'Can the grid help?', entrance: 'stay',
@@ -1177,10 +1178,11 @@ window.CFG = (function () {
        The diagonal is redrawn and a corner C is dropped from it, so
        the horizontal step A-C can be measured on its own. The answer
        is that leg, not the diagonal, so the task measures from it. */
-    { id: 22, line: 'What is the distance between two points?', entrance: 'none',
+    { id: 22, line: 'How far apart are A and C?', entrance: 'none',
       layout: 'board', transition: 'leaves', distance: true, intro: 'measure',
-      segment: { a: { x: 2, y: 1 }, b: { x: 6, y: 4, nameDx: 40, nameDy: 8 } },
-      legs: [ { from: { x: 2, y: 1 }, to: { x: 6, y: 1 }, mark: {} } ],
+      segment: { a: { x: 2, y: 1, name: 'A', nameDx: -46, nameDy: 8 },
+                 b: { x: 6, y: 4, name: 'B', nameDx: 40, nameDy: 8 } },
+      legs: [ { from: { x: 2, y: 1 }, to: { x: 6, y: 1 }, mark: { name: 'C' } } ],
       task: {
         kind: 'distance',
         measureLeg: 0,        // A to C, not A to B
@@ -1191,11 +1193,12 @@ window.CFG = (function () {
     /* 15 — the board is kept exactly as it was. The first leg is
        already drawn, so it only gains its length, and the second leg
        rises from the corner to B. */
-    { id: 23, line: 'What is the distance between two points?', entrance: 'none',
+    { id: 23, line: 'How far apart are C and B?', entrance: 'none',
       layout: 'board', distance: true, intro: 'measure', keepSegment: true,
-      segment: { a: { x: 2, y: 1 }, b: { x: 6, y: 4, nameDx: 40, nameDy: 8 } },
+      segment: { a: { x: 2, y: 1, name: 'A', nameDx: -46, nameDy: 8 },
+                 b: { x: 6, y: 4, name: 'B', nameDx: 40, nameDy: 8 } },
       legs: [
-        { from: { x: 2, y: 1 }, to: { x: 6, y: 1 }, mark: {},
+        { from: { x: 2, y: 1 }, to: { x: 6, y: 1 }, mark: { name: 'C' },
           settled: true, length: true },
         { from: { x: 6, y: 1 }, to: { x: 6, y: 4 } }
       ],
@@ -1210,9 +1213,10 @@ window.CFG = (function () {
        slider: she is just naming what they have built. */
     { id: 24, line: 'Look! We made a triangle.', entrance: 'stay',
       layout: 'board', transition: 'leaves',
-      segment: { a: { x: 2, y: 1 }, b: { x: 6, y: 4, nameDx: 40, nameDy: 8 } },
+      segment: { a: { x: 2, y: 1, name: 'A', nameDx: -46, nameDy: 8 },
+                 b: { x: 6, y: 4, name: 'B', nameDx: 40, nameDy: 8 } },
       legs: [
-        { from: { x: 2, y: 1 }, to: { x: 6, y: 1 }, mark: {}, length: true },
+        { from: { x: 2, y: 1 }, to: { x: 6, y: 1 }, mark: { name: 'C' }, length: true },
         { from: { x: 6, y: 1 }, to: { x: 6, y: 4 }, length: true }
       ] },
 
@@ -1267,10 +1271,10 @@ window.CFG = (function () {
        doubled to 6-8-10. */
     { id: 27, line: 'Use the right triangle to find AB.', range: { min: 0, max: 12 }, entrance: 'none',
       layout: 'board', transition: 'leaves', intro: 'measure', entry: true,
-      segment: { a: { x: -2, y: 2 },
-                 b: { x:  2, y: 5, nameDx: 40, nameDy: 8 } , dash: true},
+      segment: { a: { x: -2, y: 2, name: 'A', nameDx: -46, nameDy: 8 },
+                 b: { x:  2, y: 5, name: 'B', nameDx: 40, nameDy: 8 } , dash: true},
       legs: [
-        { from: { x: -2, y: 2 }, to: { x: 2, y: 2 }, mark: {} },
+        { from: { x: -2, y: 2 }, to: { x: 2, y: 2 }, mark: { name: 'C' } },
         { from: { x:  2, y: 2 }, to: { x: 2, y: 5 } }
       ],
       task: { kind: 'entry', pair: 'AB', answer: 5,
@@ -1281,10 +1285,10 @@ window.CFG = (function () {
 
     { id: 28, line: 'What is the distance between two points?', range: { min: 0, max: 12 }, entrance: 'none',
       layout: 'board', transition: 'leaves', intro: 'measure', entry: true,
-      segment: { a: { x: -3, y:  3 },
-                 b: { x:  5, y: -3, nameDx: 40, nameDy: 8 } , dash: true},
+      segment: { a: { x: -3, y:  3, name: 'A', nameDx: -46, nameDy: 8 },
+                 b: { x:  5, y: -3, name: 'B', nameDx: 40, nameDy: 8 } , dash: true},
       legs: [
-        { from: { x: -3, y: 3 }, to: { x: 5, y:  3 }, mark: {} },
+        { from: { x: -3, y: 3 }, to: { x: 5, y:  3 }, mark: { name: 'C' } },
         { from: { x:  5, y: 3 }, to: { x: 5, y: -3 } }
       ],
       task: { kind: 'entry', pair: 'AB', answer: 10,
