@@ -54,12 +54,14 @@
   font-size: 36px;
   font-weight: 400;
   letter-spacing: -0.4px;
-  color: #102D70;
-  /* One soft shadow under the ink, not an outline around it. A ring of
-     white offsets thickens every stroke by a pixel on all four sides,
-     which closes up the counters at this size and is what made the
-     labels read as blurred rather than as lifted. */
-  text-shadow: 0 2px 4px rgba(10, 32, 78, .28);
+  color: #FFFFFF;
+  /* White needs the face under it darkened where the letters fall, or
+     it flattens out — these colours are bright enough that white on
+     them measures worse than the navy it replaces. One soft shadow
+     does that, not the ring of hard offsets that closed up the
+     counters and made the labels read as blurred. */
+  text-shadow: 0 2px 5px rgba(8, 24, 60, .55),
+               0 1px 1px rgba(8, 24, 60, .40);
 
   transition: transform 140ms ease, filter 140ms ease,
               box-shadow 140ms ease, border-color 160ms ease;

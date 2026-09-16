@@ -422,6 +422,25 @@ html, body {
 }
 #gridAxes .legdot.pop { animation: segDotIn .54s cubic-bezier(.22, .68, .3, 1) both; }
 #gridAxes .legline { fill: none; }
+/* The dotted guide. The solid line's draw wipes with stroke-dasharray,
+   so a line that wants real dots cannot be drawn that way and comes in
+   on its own.
+
+   The drawn state is a plain declaration, not the tail of an animation
+   held by `forwards`: a resting state that only exists inside a
+   keyframe is invisible the moment anything stops that keyframe
+   running, and an invisible guide is worse than an unanimated one. The
+   animation only introduces it. */
+#gridAxes .legdash-g { opacity: 0; }
+#gridAxes .legdash-g.draw {
+  opacity: 1;
+  animation: legDashIn .46s ease-out;
+}
+@keyframes legDashIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+#gridAxes .legdash { fill: none; }
 #gridAxes .legline.draw { animation: drawOut .6s cubic-bezier(.3, .85, .35, 1) forwards; }
 #gridAxes .legcoord, #gridAxes .legname {
   opacity: 0;
@@ -537,6 +556,49 @@ html, body {
 #gridAxes .hush { opacity: .28; }
 #gridAxes .spot { filter: drop-shadow(0 0 7px rgba(255, 196, 74, .95)); }
 #gridAxes .spotbeat { animation: partBeat .5s ease; }
+/* The shape being named. Two lights, not one: a side swells and dies as
+   she names it, then all three come up together and are held there for
+   a beat before they go — the difference between three lines flashing
+   and a triangle being pointed at.
+
+   Two shadows on each, a tight bright one for the edge and a wide soft
+   one for the air around it, so the glow reads over the cream without
+   the line itself looking thicker. Warm on all three, whatever colour
+   they happen to be drawn in. */
+/* Each side blooms in its own colour — currentColor, which placeLeg and
+   placeSegment set alongside the stroke. One warm glow for all three
+   read beautifully on the navy diagonal and disappeared against the
+   orange and the green, because a glow only shows where it differs from
+   what is under it. A line's own colour always differs from the cream.
+
+   Three stacked shadows: tight, mid and wide, so it blooms outward
+   rather than sitting as a ring. The brightness lift is what makes the
+   line itself look lit rather than merely surrounded. */
+#gridAxes .tripulse { animation: triPulse .7s ease-in-out; }
+@keyframes triPulse {
+  0%   { filter: none; }
+  42%  { stroke-width: 12px;
+         filter: brightness(1.22) saturate(1.2)
+                 drop-shadow(0 0 4px currentColor)
+                 drop-shadow(0 0 12px currentColor); }
+  100% { filter: none; }
+}
+#gridAxes .trihold { animation: triHold 1.25s ease-in-out; }
+@keyframes triHold {
+  0%   { filter: none; }
+  20%  { stroke-width: 13px;
+         filter: brightness(1.26) saturate(1.25)
+                 drop-shadow(0 0 5px currentColor)
+                 drop-shadow(0 0 15px currentColor); }
+  64%  { stroke-width: 13px;
+         filter: brightness(1.26) saturate(1.25)
+                 drop-shadow(0 0 5px currentColor)
+                 drop-shadow(0 0 15px currentColor); }
+  100% { filter: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #gridAxes .tripulse, #gridAxes .trihold { animation: none; }
+}
 @keyframes partBeat {
   0%   { opacity: 1; }
   45%  { opacity: .45; }
@@ -1015,12 +1077,18 @@ html, body {
    than the line keeps the transform-origin fixed at A, and
    non-scaling-stroke holds the dots at a constant size while it grows
    — without it they would swell from nothing along with the line. */
+/* Same rule as the leg's guide: the drawn state is a declaration of its
+   own, and the keyframes only introduce it. A scale(0) resting state
+   held visible solely by `forwards` leaves nothing on the board at all
+   if the animation is ever skipped. */
 #gridAxes .segdash-g {
   transform-box: view-box;
-  transform: scale(0);
   opacity: 0;
 }
-#gridAxes .segdash-g.draw { animation: dashGrow .9s cubic-bezier(.42, 0, .9, .62) forwards; }
+#gridAxes .segdash-g.draw {
+  opacity: 1;
+  animation: dashGrow .9s cubic-bezier(.42, 0, .9, .62);
+}
 @keyframes dashGrow {
   from { transform: scale(0); opacity: 1; }
   to   { transform: scale(1); opacity: 1; }

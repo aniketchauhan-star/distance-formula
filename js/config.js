@@ -658,8 +658,8 @@ window.CFG = (function () {
          reads downward — dot, then what it is called, then where it is
          — and it keeps the numbers clear of a guide line drawn along
          the segment. */
-      coordDy: 54,        // horizontal: coordinates below
-      nameDy: -38,        // horizontal: letter above
+      coordDy: 54,        // only where a screen asks for it outright
+      nameDy: -38,        // a row or a diagonal: letter above the point
       /* A point one square above the x-axis writes its coordinates
          straight across the axis and the numbering under it, so those
          go above the point instead — and out along the segment, away
@@ -670,10 +670,14 @@ window.CFG = (function () {
          the two points' labels stay apart even 2 units in. */
       coordDx: 84,
       vCoordDy: -26,
-      /* How far a column's coordinates sit clear of their own point,
-         one above the top and one below the bottom. Wide enough that
-         the text clears the plotted dot and its ring. */
-      vCoordOut: 46,
+      /* How much clear air there is between the edge of a plotted point
+         and the near edge of its coordinates — the one number for it,
+         whichever way the label is pushed. Two separate offsets used to
+         say this, one measured to the text's edge and one to its
+         middle, and they had drifted to 12px one way and 19px the
+         other. Close enough to read as belonging to the point, never
+         close enough to touch it. */
+      coordGap: 8,
       vNameDy: 32
     },
 
@@ -691,6 +695,18 @@ window.CFG = (function () {
          which slot it lands in. */
       hColor: '#E07B12',
       vColor: '#2F8F6F',
+      /* A side about to be measured is laid down dotted, not solid: the
+         count draws a solid stroke along it, and two solid lines on the
+         same span read as one thick line rather than as a measurement
+         being taken of something.
+
+         Round caps extend every dash by half the stroke width at each
+         end, so the dash and gap written here are not what is drawn: at
+         7px wide, "2 14" comes out as a 9px dot with a 7px gap, which
+         is a chain, not a dotted line. These render as an 8px dot with
+         15px of air — 1+7 long, 22-7 apart. */
+      dashWidth: 7,
+      dashArray: '1 22',
       width: 7,
       dotR: 8,            // the corner, a shade under a plotted point
       coordDx: 84,        // coordinates to the right of the corner
@@ -939,10 +955,15 @@ window.CFG = (function () {
     formula: { x: 30, y: 132, w: 660 },
 
     /* Both points sit on the axis, so their labels stack above it —
-       below is where the axis numbering already lives. */
-    a: { x: -4, y: 0, name: 'A',
+       below is where the axis numbering already lives.
+
+       No letters on these two. A letter is there to tell one point from
+       another when a third has joined them and the sides need naming;
+       with only two on the board there is nothing to tell apart, and
+       the coordinates already say which is which. */
+    a: { x: -4, y: 0,
          coordParts: [{ t: '(x1, ' }, { t: '0', glow: true }, { t: ')' }] },
-    b: { x:  4, y: 0, name: 'B',
+    b: { x:  4, y: 0,
          coordParts: [{ t: '(x2, ' }, { t: '0', glow: true }, { t: ')' }] },
     coordDy: -88,
     nameDy: -40,
@@ -972,9 +993,9 @@ window.CFG = (function () {
     grid: XAXIS.grid,
     formula: XAXIS.formula,
 
-    a: { x: 0, y: -4, name: 'A',
+    a: { x: 0, y: -4,
          coordParts: [{ t: '(' }, { t: '0', glow: true }, { t: ', y1)' }] },
-    b: { x: 0, y:  4, name: 'B',
+    b: { x: 0, y:  4,
          coordParts: [{ t: '(' }, { t: '0', glow: true }, { t: ', y2)' }] },
 
     /* This segment is centred on the origin too, so the answer moves
@@ -1099,10 +1120,10 @@ window.CFG = (function () {
     { id: 9, line: 'Did you notice?',
       entrance: 'stay', layout: 'board',
       segment: {
-        a: { x: 2, y: 1, name: 'A', nameDx: -40, nameDy: 34,
+        a: { x: 2, y: 1,
              coordParts: [{ t: '(' }, { t: '2', glow: 'x' }, { t: ',\u00A0' },
                           { t: '1', glow: 'y' }, { t: ')' }] },
-        b: { x: 6, y: 1, name: 'B', nameDx: 40, nameDy: 34,
+        b: { x: 6, y: 1,
              coordParts: [{ t: '(' }, { t: '6', glow: 'x' }, { t: ',\u00A0' },
                           { t: '1', glow: 'y' }, { t: ')' }] },
         result: { text: '4\u00A0units', dy: -26 }
@@ -1145,10 +1166,10 @@ window.CFG = (function () {
     { id: 15, line: 'Did you notice?',
       entrance: 'stay', layout: 'board',
       segment: {
-        a: { x: 1, y: -3, name: 'A',
+        a: { x: 1, y: -3,
              coordParts: [{ t: '(' }, { t: '1', glow: 'x' }, { t: ',\u00A0' },
                           { t: '-3', glow: 'y' }, { t: ')' }] },
-        b: { x: 1, y: 2, name: 'B',
+        b: { x: 1, y: 2,
              coordParts: [{ t: '(' }, { t: '1', glow: 'x' }, { t: ',\u00A0' },
                           { t: '2', glow: 'y' }, { t: ')' }] },
         /* Beside the line, and lifted well off its middle: this pair
@@ -1185,8 +1206,8 @@ window.CFG = (function () {
        point she is about to make. */
     { id: 20, line: 'This one’s different.', entrance: 'fly',
       layout: 'grid', transition: 'leaves',
-      segment: { a: { x: 2, y: 1, name: 'A', nameDx: -46, nameDy: 8 },
-                 b: { x: 6, y: 4, name: 'B', nameDx: 40, nameDy: 8 } } },
+      segment: { a: { x: 2, y: 1 },
+                 b: { x: 6, y: 4 } } },
 
     // 13 — same board and same segment, she just carries on talking
     { id: 21, line: 'Can the grid help?', entrance: 'stay',
@@ -1201,8 +1222,8 @@ window.CFG = (function () {
        to C is new and only the leg is drawn. */
     { id: 22, line: 'How far apart are A and C?', entrance: 'none',
       layout: 'board', distance: true, intro: 'measure', keepSegment: true,
-      segment: { a: { x: 2, y: 1, name: 'A', nameDx: -46, nameDy: 8 },
-                 b: { x: 6, y: 4, name: 'B', nameDx: 40, nameDy: 8 } },
+      segment: { a: { x: 2, y: 1, name: 'A' },
+                 b: { x: 6, y: 4, name: 'B' } },
       legs: [ { from: { x: 2, y: 1 }, to: { x: 6, y: 1 }, mark: { name: 'C' } } ],
       task: {
         kind: 'distance',
@@ -1216,8 +1237,8 @@ window.CFG = (function () {
        rises from the corner to B. */
     { id: 23, line: 'How far apart are C and B?', entrance: 'none',
       layout: 'board', distance: true, intro: 'measure', keepSegment: true,
-      segment: { a: { x: 2, y: 1, name: 'A', nameDx: -46, nameDy: 8 },
-                 b: { x: 6, y: 4, name: 'B', nameDx: 40, nameDy: 8 } },
+      segment: { a: { x: 2, y: 1, name: 'A' },
+                 b: { x: 6, y: 4, name: 'B' } },
       legs: [
         { from: { x: 2, y: 1 }, to: { x: 6, y: 1 }, mark: { name: 'C' },
           settled: true, length: true },
@@ -1236,8 +1257,13 @@ window.CFG = (function () {
        measured, not a new drawing. */
     { id: 24, line: 'Look! We made a triangle.', entrance: 'stay',
       layout: 'board', keepSegment: true,
-      segment: { a: { x: 2, y: 1, name: 'A', nameDx: -46, nameDy: 8 },
-                 b: { x: 6, y: 4, name: 'B', nameDx: 40, nameDy: 8 } },
+      /* The three sides light in turn, then together. That runs on past
+         her line, and the ordinary pause after one took the screen away
+         with the last flash still going. */
+      pulse: 'triangle',
+      hold: 3400,
+      segment: { a: { x: 2, y: 1, name: 'A' },
+                 b: { x: 6, y: 4, name: 'B' } },
       legs: [
         { from: { x: 2, y: 1 }, to: { x: 6, y: 1 }, mark: { name: 'C' }, length: true },
         { from: { x: 6, y: 1 }, to: { x: 6, y: 4 }, length: true }
@@ -1248,6 +1274,10 @@ window.CFG = (function () {
        right-angled triangle. */
     { id: 25, line: 'What kind of triangle is it?', entrance: 'stay',
       layout: 'board', keepSegment: true,
+      /* The same three sides light as she asks — she is asking about
+         the shape, so the shape says which lines she means. No hold
+         needed here: an open question keeps the screen anyway. */
+      pulse: 'triangle',
       options: [
         { key: 'scalene',      cls: 'scalene',      label: 'Scalene Triangle' },
         { key: 'isosceles',    cls: 'isosceles',    label: 'Isosceles Triangle' },
@@ -1267,6 +1297,11 @@ window.CFG = (function () {
        side. Same panel, different three answers. */
     { id: 26, line: 'We know two sides. How can we find the third?',
       entrance: 'stay', layout: 'board', keepSegment: true,
+      /* The third side is the one she is asking about, so it lights
+         while she asks — and the answers stay off until she has, or
+         they are being read instead of the board. */
+      pulse: 'ab',
+      askFirst: true,
       options: [
         { key: 'area',       label: 'Area' },
         { key: 'perimeter',  label: 'Perimeter' },
@@ -1308,8 +1343,8 @@ window.CFG = (function () {
        doubled to 6-8-10. */
     { id: 27, line: 'Use the right triangle to find AB.', range: { min: 0, max: 12 }, entrance: 'none',
       layout: 'board', transition: 'leaves', intro: 'measure', entry: true,
-      segment: { a: { x: -2, y: 2, name: 'A', nameDx: -46, nameDy: 8 },
-                 b: { x:  2, y: 5, name: 'B', nameDx: 40, nameDy: 8 } , dash: true},
+      segment: { a: { x: -2, y: 2, name: 'A' },
+                 b: { x:  2, y: 5, name: 'B' } , dash: true},
       legs: [
         { from: { x: -2, y: 2 }, to: { x: 2, y: 2 }, mark: { name: 'C' } },
         { from: { x:  2, y: 2 }, to: { x: 2, y: 5 } }
@@ -1330,8 +1365,8 @@ window.CFG = (function () {
 
     { id: 28, line: 'What is the distance between two points?', range: { min: 0, max: 12 }, entrance: 'none',
       layout: 'board', transition: 'leaves', intro: 'measure', entry: true,
-      segment: { a: { x: -3, y:  3, name: 'A', nameDx: -46, nameDy: 8 },
-                 b: { x:  5, y: -3, name: 'B', nameDx: 40, nameDy: 8 } , dash: true},
+      segment: { a: { x: -3, y:  3, name: 'A' },
+                 b: { x:  5, y: -3, name: 'B' } , dash: true},
       legs: [
         { from: { x: -3, y: 3 }, to: { x: 5, y:  3 }, mark: { name: 'C' } },
         { from: { x:  5, y: 3 }, to: { x: 5, y: -3 } }
@@ -1351,8 +1386,8 @@ window.CFG = (function () {
     { id: 29, line: 'The same idea works for any two points.', entrance: 'fly',
       layout: 'grid', transition: 'leaves',
       segment: {
-        a: { x: -5, y: 1, name: 'A', coordText: '(x1, y1)', nameDx: -46, nameDy: 8 },
-        b: { x:  5, y: 4, name: 'B', coordText: '(x2, y2)', nameDx: 40, nameDy: 8 }
+        a: { x: -5, y: 1, coordText: '(x1, y1)' },
+        b: { x:  5, y: 4, coordText: '(x2, y2)' }
       } },
 
     /* 22 — the same general segment, with the corner dropped and both
@@ -1361,8 +1396,8 @@ window.CFG = (function () {
     { id: 30, line: null, entrance: 'stay',
       layout: 'grid', keepSegment: true,
       segment: {
-        a: { x: -5, y: 1, name: 'A', coordText: '(x1, y1)', nameDx: -46, nameDy: 8 },
-        b: { x:  5, y: 4, name: 'B', coordText: '(x2, y2)', nameDx: 40, nameDy: 8 }
+        a: { x: -5, y: 1, name: 'A', coordText: '(x1, y1)' },
+        b: { x:  5, y: 4, name: 'B', coordText: '(x2, y2)' }
       },
       legs: [
         { from: { x: -5, y: 1 }, to: { x: 5, y: 1 },
@@ -1376,8 +1411,8 @@ window.CFG = (function () {
     { id: 31, line: 'AC = x2 - x1', entrance: 'stay',
       layout: 'grid', keepSegment: true,
       segment: {
-        a: { x: -5, y: 1, name: 'A', coordText: '(x1, y1)', nameDx: -46, nameDy: 8 },
-        b: { x:  5, y: 4, name: 'B', coordText: '(x2, y2)', nameDx: 40, nameDy: 8 }
+        a: { x: -5, y: 1, name: 'A', coordText: '(x1, y1)' },
+        b: { x:  5, y: 4, name: 'B', coordText: '(x2, y2)' }
       },
       legs: [
         { from: { x: -5, y: 1 }, to: { x: 5, y: 1 },
@@ -1391,8 +1426,8 @@ window.CFG = (function () {
     { id: 32, line: 'CB = y2 - y1', entrance: 'stay',
       layout: 'grid', keepSegment: true,
       segment: {
-        a: { x: -5, y: 1, name: 'A', coordText: '(x1, y1)', nameDx: -46, nameDy: 8 },
-        b: { x:  5, y: 4, name: 'B', coordText: '(x2, y2)', nameDx: 40, nameDy: 8 }
+        a: { x: -5, y: 1, name: 'A', coordText: '(x1, y1)' },
+        b: { x:  5, y: 4, name: 'B', coordText: '(x2, y2)' }
       },
       legs: [
         { from: { x: -5, y: 1 }, to: { x: 5, y: 1 },
