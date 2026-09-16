@@ -1289,10 +1289,11 @@ window.CFG = (function () {
        measured, not a new drawing. */
     { id: 24, line: 'Look! We made a triangle.', entrance: 'stay',
       layout: 'board', keepSegment: true,
-      /* The three sides light in turn, then together. That runs on past
-         her line, and the ordinary pause after one took the screen away
-         with the last flash still going. */
-      pulse: 'triangle',
+      /* No highlight here. This screen and the one after it show the
+         same triangle on the same board, so lighting it on both made
+         one moment look like it was happening twice. It belongs to the
+         question — move `pulse: 'triangle'` up here and off screen 25
+         to have it land on "Look! We made a triangle." instead. */
       hold: 3400,
       segment: { a: { x: 2, y: 1, name: 'A' },
                  b: { x: 6, y: 4, name: 'B' } },

@@ -597,6 +597,18 @@
       this.spans.forEach(function (sp) { sp.classList.add('in'); });
     },
 
+    /* The same line put back, already out.
+
+       lay() empties the box and builds a fresh span per word, and every
+       fresh word arrives with its own little fade — so re-showing a line
+       she has already finished saying played that arrival a second time,
+       word by word, and read as the question being asked twice. This
+       marks them settled instead: same words, same box, no arrival. */
+    restore: function (text) {
+      this.lay(text == null ? this.full : text);
+      this.spans.forEach(function (sp) { sp.classList.add('in', 'shown'); });
+    },
+
     /* fitType measured against whatever plate the LAST line left behind,
        and fitBox then moved the plate — so the type was sized for a box
        it never got, and a long line overran the balloon it ended up in.
@@ -921,11 +933,34 @@
         lt.setAttribute('fill', LG.color);
         lt.setAttribute('font-size', LG.lenSize);
 
+        ln.id = i === 0 ? 'lineAC' : 'lineCB';     // first leg, then second
+        ln.style.setProperty('--base-stroke-width', LG.width + 'px');
+        ln.style.setProperty('--pulse-stroke-width', (LG.width + 4) + 'px');
         [dg, ln, dt, co, nm, lp, lt].forEach(function (n) { lg.appendChild(n); });
         svg.appendChild(lg);
         this.legSlots.push({ g: lg, line: ln, dot: dt, coord: co, name: nm,
                              plate: lp, len: lt, dash: dl, dashG: dg });
       }
+
+      /* Three spare lines that do nothing but pulse, laid over the real
+         ones. The real lines carry stroke-width as a presentation
+         attribute written by the drawing code, and a highlight that
+         fights that is a highlight that loses — so nothing here touches
+         them. These are appended last, which puts them above everything
+         else in the SVG, and they take their ends and their colour from
+         whatever they are covering. */
+      const pulseG = document.createElementNS(NS, 'g');
+      pulseG.setAttribute('class', 'tri-pulse-overlay');
+      pulseG.setAttribute('pointer-events', 'none');
+      this.pulseLines = [0, 1, 2].map(function () {
+        const l = document.createElementNS(NS, 'line');
+        l.setAttribute('class', 'triangle-pulse-line');
+        l.setAttribute('fill', 'none');
+        l.setAttribute('stroke-linecap', 'round');
+        pulseG.appendChild(l);
+        return l;
+      });
+      this.pulseOverlay = pulseG;
 
       /* The count's total. There used to be a filled square per unit
          under it as well; the line walking out a unit at a time already
@@ -933,6 +968,7 @@
          coordinates and the ruling under a block of colour. */
       const U = G.unitBox;
       const ug = document.createElementNS(NS, 'g');
+      // (the overlay is appended at the very end of build, below)
       ug.setAttribute('class', 'units');
 
       /* The squares that got taken away were one per unit, bordered,
@@ -987,6 +1023,12 @@
       segLine.setAttribute('stroke', SG.lineColor);
       segLine.setAttribute('stroke-width', SG.lineWidth);
       segLine.setAttribute('stroke-linecap', 'round');
+      segLine.id = 'lineAB';          // the line between the two points
+      /* Its own widths, for the highlight to grow between. Read off the
+         line rather than restated in CSS, because a leg and the segment
+         are not drawn at the same weight. */
+      segLine.style.setProperty('--base-stroke-width', SG.lineWidth + 'px');
+      segLine.style.setProperty('--pulse-stroke-width', (SG.lineWidth + 4) + 'px');
       seg.appendChild(segLine);
       this.segLine = segLine;
 
@@ -1065,6 +1107,8 @@
       });
 
       this.dotGroup = g;
+      // last of all, so the pulse overlay sits above every other part
+      svg.appendChild(pulseG);
     },
 
     /* The board is seated in different boxes on different screens, so
@@ -1167,10 +1211,10 @@
       if (!this.legSlots) return;
       this.legSlots.forEach(function (L) {
         L.g.classList.remove('on');
-        L.line.classList.remove('draw', 'tripulse', 'trihold');
-        if (L.dashG) L.dashG.classList.remove('draw', 'tripulse', 'trihold');
+        L.line.classList.remove('draw');
+        if (L.dashG) L.dashG.classList.remove('draw');
         ['dot', 'coord', 'name', 'plate', 'len'].forEach(function (k) {
-          L[k].classList.remove('pop', 'on');
+          L[k].classList.remove('pop', 'on', 'triangle-point');
         });
       });
     },
@@ -1385,7 +1429,7 @@
        line. The class is dropped and put back a frame later rather than
        forced through a reflow, which is the one way that works the same
        in a browser and in a test harness. */
-    pulseSides: function (later, delay, keys) {
+    pulseSides: function (later, delay, keys, runMs) {
       if (!this.segLine || !this.legSlots) return 0;
       const pick = function (L) {
         if (!L) return null;
@@ -1399,23 +1443,61 @@
         .filter(Boolean);
       if (!sides.length) return 0;
 
-      const STEP = 300, start = delay || 0;
-      const beat = function (n, at, cls, i) {
-        later(function () { n.classList.remove('tripulse', 'trihold'); }, at);
-        later(function () {
-          n.classList.add(cls);
-          if (i != null) SFX.tick(2 + i);
-        }, at + 40);
-      };
-      sides.forEach(function (n, i) { beat(n, start + i * STEP, 'tripulse', i); });
-      /* Then the whole shape at once, held rather than flashed — this
-         is the moment the three sides stop being three sides. */
-      const together = start + sides.length * STEP + 220;
-      sides.forEach(function (n) { beat(n, together, 'trihold'); });
+      /* The corners, and the groups they and their sides live in. The
+         geometry is spread across three groups — a group per leg and
+         one for the segment — so rather than move it into a new one and
+         break everything that addresses those, all three take the same
+         float, with the same duration and no delay. Identical animation
+         on every piece is what keeps the shape connected; one group
+         floating on its own would pull it apart. */
+      const whole = !keys || keys.length === 3;
+      const dots = whole
+        ? [this.segParts && this.segParts.a.dot,
+           this.segParts && this.segParts.b.dot,
+           this.legSlots[0] && this.legSlots[0].dot].filter(Boolean)
+        : [];
+
+      /* Marked, then switched on from one place. `triangle-side` says
+         which lines are in the highlight; the class on the board turns
+         it on. Both go on in the same tick and one animation drives all
+         of them, so there is no way for the three to drift apart or for
+         a line to be caught between states — which is what the old
+         per-line beats did, each taken off and put back a frame later.
+         Nothing here is removed and re-added while it is running. */
+      const start = delay || 0, run = runMs || 1600;
+      /* The overlay copies whatever it is covering — the same two ends
+         and the same colour — so it can never drift out of line with
+         the real thing, and nothing has to know where the points are. */
+      const srcOf = { h: this.legSlots[0] && this.legSlots[0].line,
+                      v: this.legSlots[1] && this.legSlots[1].line,
+                      ab: this.segLine };
+      const srcs = (keys || ['h', 'v', 'ab']).map(function (k) { return srcOf[k]; })
+        .filter(Boolean);
+      const overlay = this.pulseLines || [];
+      const self2 = this;
+
       later(function () {
-        sides.forEach(function (n) { n.classList.remove('tripulse', 'trihold'); });
-      }, together + 1300);
-      return together + 1300;
+        overlay.forEach(function (l, i) {
+          const src = srcs[i];
+          if (!src) { l.classList.remove('on'); return; }
+          ['x1', 'y1', 'x2', 'y2'].forEach(function (a) {
+            l.setAttribute(a, src.getAttribute(a));
+          });
+          const col = src.getAttribute('stroke');
+          l.setAttribute('stroke', col);
+          l.style.color = col;                 // what the glow is drawn in
+          l.classList.add('on');
+        });
+        dots.forEach(function (n) { n.classList.add('triangle-point'); });
+        el.gridAxes.classList.add('triangle-question-active');
+        SFX.tick(3);
+      }, start);
+      later(function () {
+        el.gridAxes.classList.remove('triangle-question-active');
+        overlay.forEach(function (l) { l.classList.remove('on'); });
+        dots.forEach(function (n) { n.classList.remove('triangle-point'); });
+      }, start + run);
+      return start + run;
     },
 
     /* Which side of the triangle the working is talking about: that one
@@ -1922,7 +2004,12 @@
       if (this.segRes) this.segRes.classList.remove('pop');
       if (this.segLine) this.segLine.classList.remove('lit');
       this.segGroup.classList.remove('on');
-      this.segLine.classList.remove('draw', 'tripulse', 'trihold');
+      const parts = this.segParts;
+      if (parts) ['a', 'b'].forEach(function (k) {
+        parts[k].dot.classList.remove('triangle-point');
+      });
+      (this.pulseLines || []).forEach(function (l) { l.classList.remove('on'); });
+      this.segLine.classList.remove('draw');
       /* The dashed guide has to be reset too, or once one screen draws
          it every screen after inherits it — already complete, so it
          never reads as arriving at the end of the plot. */
@@ -2557,7 +2644,12 @@
              out under the rest of what she says. */
           const voiced = (window.Voice && window.Voice.lengthOf(entry.line)) || 1800;
           const keys = entry.pulse === 'triangle' ? null : [entry.pulse];
-          Board.pulseSides(self.later.bind(self), entry.line ? voiced * 0.3 : 300, keys);
+          /* A beat into her line, and running until a moment after she
+             stops — the light is what she is talking about, so it lasts
+             as long as the talking does. */
+          const start = entry.line ? voiced * 0.18 : 200;
+          Board.pulseSides(self.later.bind(self), start, keys,
+                           Math.max(1200, voiced - start + 700));
         }
         const h = entry.highlight;
         /* The beats that do the pointing inherit the board rather than
@@ -3850,7 +3942,9 @@
        the line after measuring it (it normally runs just before the text
        is typed in, where leaving it empty is the point). */
     Bubble.fitBox(Bubble.full);
-    Bubble.showAll();
+    /* She is carrying a line she has already said — put it back as it
+       was, rather than letting it arrive again. */
+    Bubble.restore(Bubble.full);
     setTimeout(function () { el.bubble.classList.remove('rising'); }, 720);
 
     /* The control rises into the space she has just left and is settled

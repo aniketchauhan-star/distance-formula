@@ -309,6 +309,11 @@ html, body {
    a word, and the blur makes the arrival soft instead of a hard flick. */
 .wd { opacity: 0; }
 .wd.in { animation: wdIn .46s cubic-bezier(.2, .7, .3, 1) both; }
+/* A word that is already out — the box has been re-measured, or she has
+   carried the line somewhere — stays out. Without this, putting a line
+   back replays its arrival and the whole thing reads as being said
+   again. */
+.wd.shown { opacity: 1; filter: none; animation: none; }
 @keyframes wdIn {
   from { opacity: 0; filter: blur(4px); }
   to   { opacity: 1; filter: blur(0); }
@@ -1127,7 +1132,6 @@ html, body {
   .loader-title, #playBtn.idle { animation: none !important; }
 }
 
-
 /* =============================================================
    Highlights, last in the file on purpose.
 
@@ -1140,46 +1144,69 @@ html, body {
    the block sits last so source order settles the tie.
    ============================================================= */
 #gridAxes .spotbeat.spotbeat { animation: partBeat .5s ease; }
-/* The shape being named. Two lights, not one: a side swells and dies as
-   she names it, then all three come up together and are held there for
-   a beat before they go — the difference between three lines flashing
-   and a triangle being pointed at.
 
-   Two shadows on each, a tight bright one for the edge and a wide soft
-   one for the air around it, so the glow reads over the cream without
-   the line itself looking thicker. Warm on all three, whatever colour
-   they happen to be drawn in. */
-/* Each side blooms in its own colour — currentColor, which placeLeg and
-   placeSegment set alongside the stroke. One warm glow for all three
-   read beautifully on the navy diagonal and disappeared against the
-   orange and the green, because a glow only shows where it differs from
-   what is under it. A line's own colour always differs from the cream.
+/* The triangle pulsing, done with an overlay rather than by arguing
+   with the lines themselves.
 
-   Three stacked shadows: tight, mid and wide, so it blooms outward
-   rather than sitting as a ring. The brightness lift is what makes the
-   line itself look lit rather than merely surrounded. */
-#gridAxes .tripulse.tripulse { animation: triPulse .7s ease-in-out; }
-@keyframes triPulse {
-  0%   { filter: none; }
-  42%  { stroke-width: 12px;
-         filter: brightness(1.22) saturate(1.2)
-                 drop-shadow(0 0 4px currentColor)
-                 drop-shadow(0 0 12px currentColor); }
-  100% { filter: none; }
+   The real lines carry stroke-width as a presentation attribute written
+   by the drawing code, so a keyframe that tries to animate it is
+   competing with something that is rewritten every time a screen draws.
+   These three spares sit above everything, copy the ends and the colour
+   of whatever they cover, and exist only to grow and fade. The real
+   geometry is never touched, so it cannot flicker or go missing.
+
+   (Note for anyone editing: `!important` inside @keyframes is ignored
+   by the spec, so it is no help here. Nothing else styles this class —
+   that is what makes it safe.) */
+#gridAxes .triangle-pulse-line {
+  opacity: 0;
+  fill: none;
+  pointer-events: none;
 }
-#gridAxes .trihold.trihold { animation: triHold 1.25s ease-in-out; }
-@keyframes triHold {
-  0%   { filter: none; }
-  20%  { stroke-width: 13px;
-         filter: brightness(1.26) saturate(1.25)
-                 drop-shadow(0 0 5px currentColor)
-                 drop-shadow(0 0 15px currentColor); }
-  64%  { stroke-width: 13px;
-         filter: brightness(1.26) saturate(1.25)
-                 drop-shadow(0 0 5px currentColor)
-                 drop-shadow(0 0 15px currentColor); }
-  100% { filter: none; }
+#gridAxes.triangle-question-active .triangle-pulse-line.on {
+  animation: realStrokePulse 900ms ease-in-out infinite;
 }
+@keyframes realStrokePulse {
+  0%, 100% {
+    stroke-width: 6px;
+    opacity: .30;
+    filter: drop-shadow(0 0 2px currentColor)
+            drop-shadow(0 0 4px currentColor);
+  }
+  50% {
+    stroke-width: 14px;
+    opacity: .75;
+    filter: drop-shadow(0 0 5px currentColor)
+            drop-shadow(0 0 12px currentColor);
+  }
+}
+
+/* and the three corners, on the same clock */
+#gridAxes.triangle-question-active .triangle-point {
+  animation: trianglePointPulse 900ms ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@keyframes trianglePointPulse {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 2px rgba(70, 140, 255, .40))
+            drop-shadow(0 0 0 rgba(70, 140, 255, 0));
+  }
+  50% {
+    transform: scale(1.28);
+    filter: drop-shadow(0 0 4px rgba(255, 255, 255, 1))
+            drop-shadow(0 0 9px rgba(70, 140, 255, .80));
+  }
+}
+
+/* Only one animation may drive a corner while this runs — a freshly
+   plotted dot has a pop of its own that would otherwise compete. */
+#gridAxes.triangle-question-active .segline.lit { animation: none; }
+
 @media (prefers-reduced-motion: reduce) {
-  #gridAxes .tripulse.tripulse, #gridAxes .trihold.trihold { animation: none; }
+  #gridAxes.triangle-question-active .triangle-pulse-line.on,
+  #gridAxes.triangle-question-active .triangle-point { animation: none; }
+}
+
 }
