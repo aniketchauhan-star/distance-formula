@@ -588,14 +588,20 @@ window.CFG = (function () {
 
     labelSize: 36,                  // scaled with the cell
     labelGap: 14,                   // x numbers, tucked under their axis
-    /* The y numbers need more room than the x ones: they sit beside
-       the axis rather than under it, and the 0 has to fit between them
-       and the origin without touching either. */
-    yLabelGap: 42,
-    /* 0 keeps the x numbers' row but sits in its own column, left of
-       the axis and right of where the y numbers start — the one spot
-       that clears both the axis and the -1 below it. */
-    zeroGap: 20,
+    /* The y numbers sit beside their axis the way the x ones sit under
+       theirs: tucked close to it, with the rest of the cell left open
+       on the far side. They used to be pushed right out to the x=-1
+       gridline — 8px off it and 33px off the axis they belong to — so
+       they read as hanging in the cell rather than labelling the line.
+       This is the x row's own proportion, about a quarter of the spare
+       room on the axis side and three quarters beyond. */
+    yLabelGap: 20,
+    /* 0 keeps the x numbers' row and shares the y numbers' column, so
+       the left-hand numbers read as one column with the 0 at its
+       corner. It is the only one of them in that row, so the -1 to its
+       left and the -1 below it are what it has to clear, not the
+       column it sits in. */
+    zeroGap: 30,
 
     /* Axis names. `x` sits beyond the positive x arrow; `y` sits
        beside its arrow rather than above it — there are only 21px
