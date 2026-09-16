@@ -2648,8 +2648,13 @@
              stops — the light is what she is talking about, so it lasts
              as long as the talking does. */
           const start = entry.line ? voiced * 0.18 : 200;
-          Board.pulseSides(self.later.bind(self), start, keys,
-                           Math.max(1200, voiced - start + 700));
+          const run = Math.max(1200, voiced - start + 700);
+          /* How much of the highlight is still to come once she has
+             stopped talking. A control that arrives inside it is a panel
+             of answers landing on top of the thing being pointed at, so
+             whatever brings one in waits this out first. */
+          self.pulseTail = Math.max(0, (start + run) - voiced) + 260;
+          Board.pulseSides(self.later.bind(self), start, keys, run);
         }
         const h = entry.highlight;
         /* The beats that do the pointing inherit the board rather than
@@ -2667,9 +2672,15 @@
       };
 
       const after = function () {
+        self.pulseTail = 0;
         spotlight();
-        if (entry.line) self.speak(entry.line, withControl && !keepsControl
-          ? function () { revealControl(entry); } : null);
+        const bring = withControl && !keepsControl
+          ? function () { revealControl(entry); } : null;
+        /* She asks, the shape lights, the light goes — and only then do
+           the answers rise and she comes down on them. */
+        const gated = (bring && self.pulseTail)
+          ? function () { self.later(bring, self.pulseTail); } : bring;
+        if (entry.line) self.speak(entry.line, gated);
         else if (entry.auto && i + 1 < C.SCRIPT.length) {
           self.later(function () { self.goTo(i + 1); }, 160);
         } else {
