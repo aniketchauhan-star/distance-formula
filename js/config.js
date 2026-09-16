@@ -1178,8 +1178,11 @@ window.CFG = (function () {
        The diagonal is redrawn and a corner C is dropped from it, so
        the horizontal step A-C can be measured on its own. The answer
        is that leg, not the diagonal, so the task measures from it. */
+    /* Same grid, same points. No sweep and no replot: A and B are
+       already on the board the child is reading, so only the leg down
+       to C is new and only the leg is drawn. */
     { id: 22, line: 'How far apart are A and C?', entrance: 'none',
-      layout: 'board', transition: 'leaves', distance: true, intro: 'measure',
+      layout: 'board', distance: true, intro: 'measure', keepSegment: true,
       segment: { a: { x: 2, y: 1, name: 'A', nameDx: -46, nameDy: 8 },
                  b: { x: 6, y: 4, name: 'B', nameDx: 40, nameDy: 8 } },
       legs: [ { from: { x: 2, y: 1 }, to: { x: 6, y: 1 }, mark: { name: 'C' } } ],
@@ -1211,8 +1214,10 @@ window.CFG = (function () {
     /* 16 — leaves, then the whole shape redrawn as one closed red
        triangle with both legs measured. Nothing to answer here, so no
        slider: she is just naming what they have built. */
+    /* Still the same grid: the triangle is the two legs they have just
+       measured, not a new drawing. */
     { id: 24, line: 'Look! We made a triangle.', entrance: 'stay',
-      layout: 'board', transition: 'leaves',
+      layout: 'board', keepSegment: true,
       segment: { a: { x: 2, y: 1, name: 'A', nameDx: -46, nameDy: 8 },
                  b: { x: 6, y: 4, name: 'B', nameDx: 40, nameDy: 8 } },
       legs: [

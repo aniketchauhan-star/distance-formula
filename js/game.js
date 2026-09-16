@@ -1495,6 +1495,14 @@
     /* Seats a segment's two points, its line and its four labels. */
     placeSegment: function (spec) {
       const G = C.GRID, SG = G.segment;
+      /* A length written on the last pair does not belong to this one.
+         Screens that keep their segment never come through here, so a
+         measurement stays up across the beats that talk about it and
+         goes the moment the points change. */
+      if (this.segRes) {
+        this.segRes.classList.remove('pop');
+        this.segRes.textContent = '';
+      }
       const NS2 = 'http://www.w3.org/2000/svg';
       const a = spec.a, b = spec.b;
       // a screen can recolour the segment — red once it closes a triangle
@@ -2336,8 +2344,15 @@
           el.birdWin.classList.add('hidden');
           Board.shown = false;
         }
+        /* Points that have not changed stay exactly where they are.
+           Taking them away and plotting them again — dots, then
+           coordinates, then letters — makes a screen that is carrying
+           straight on from the last one look like a new one, and the
+           child watches the board they were already reading be rebuilt
+           in front of them. Only what is new gets drawn. */
+        const holds = !!entry.keepSegment && Board.shown;
         Board.setDots(false);
-        Board.clearSegment();
+        if (holds) Board.clearUnits(); else Board.clearSegment();
 
         const plot = function () {
           Board.shown = true;
@@ -2346,7 +2361,11 @@
              then the dashed guide along the span being asked about.
              The solid line is still held back — that is the answer. */
           const measuringLeg = entry.task && entry.task.measureLeg != null;
-          Board.runPoints(entry.segment, self.later.bind(self), function () {
+          const laid = function (done) {
+            if (holds) { done(); return; }       // already on the board
+            Board.runPoints(entry.segment, self.later.bind(self), done, measuringLeg);
+          };
+          laid(function () {
             const asks = function () {
               /* She puts the question and stays, line and all — the
                  control arrives below her rather than in her place, so
@@ -2388,7 +2407,7 @@
               });
               Board.runLegs(drawn, self.later.bind(self), asks);
             } else asks();
-          }, measuringLeg);
+          });
         };
 
         if (inherited) {
