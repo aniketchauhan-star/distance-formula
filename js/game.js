@@ -1404,7 +1404,7 @@
        count, above the top of a vertical column, and out to the free
        side of a diagonal — never on an axis. */
     showUnitTotal: function (from, ux, uy, steps, units) {
-      const G = C.GRID, U = G.unitBox;
+      const G = C.GRID, U = G.unitBox, P = G.paper;
       const px = function (v) { return G.originX + v * G.stepX; };
       const py = function (v) { return G.originY - v * G.stepY; };
       const txt = units + '\u00A0unit' + (units === 1 ? '' : 's');
@@ -1432,9 +1432,30 @@
         lx = (px(from.x) + px(end.x)) / 2;
         ly = py(from.y) + U.labelDy;
       } else {                   // down a column
-        const side = (from.x >= 0) ? -1 : 1;
-        lx = px(from.x) + side * G.stepX * 0.85;
-        ly = py(Math.max(from.y, end.y)) - U.labelUpV;
+        /* Beside the middle of the span, not stranded above the top of
+           it. A vertical answer written level with the highest point
+           reads as belonging to that point rather than to the distance
+           between the two.
+
+           Which side is decided by what fits, not by a rule: cleared by
+           its own half-width so it never crosses the line, on the far
+           side from the y-axis where there is room, and on the near
+           side where there is not — a column out at x=6 has nothing to
+           its right. */
+        const uw0 = this.textW(txt, U.labelSize);
+        const gap = uw0 / 2 + G.stepX * 0.34;
+        const edge = (P.frameW + P.hiW) + 10;
+        const fits = function (c) { return (c - uw0 / 2) >= edge && (c + uw0 / 2) <= G.w - edge; };
+        const out = from.x >= 0 ? 1 : -1;
+        const away = px(from.x) + out * gap, back = px(from.x) - out * gap;
+        lx = fits(away) ? away : back;
+        ly = (py(from.y) + py(end.y)) / 2;
+        /* A column that straddles the x-axis has its middle in the row
+           the axis numbers live in — (1,-3) to (1,2) is centred on
+           y=-0.5. Step it clear, a cell at a time; it stays beside the
+           line either way. */
+        let guard = 0;
+        while (this.onXAxisRow(ly, U.labelSize) && guard++ < 3) ly -= G.stepY;
       }
       const uw = this.textW(txt, U.labelSize);
       this.unitLabel.setAttribute('x', this.clampX(this.clearOfYAxis(lx, uw), uw));
@@ -1519,10 +1540,21 @@
         }
         const cw = self.textW(part.coord.textContent ||
                               ('(' + p.x + ', ' + p.y + ')'), SG.coordSize);
+        /* On a column the two points sit one above the other, so their
+           coordinates go above the upper one and below the lower one
+           rather than both out to the same side — stacked beside the
+           line they crowded each other and left the middle, where the
+           answer belongs, taken. */
+        const upper = vertical &&
+          p.y >= (p === spec.a ? spec.b : spec.a).y;
+        /* Centred over its own point — except where that point sits on
+           the y-axis, as the axis cases' do: then the label would be
+           written straight down the axis line, so it slides off it. */
         part.coord.setAttribute('x', self.clampX(
-          vertical ? X + side * SG.coordDx : X + cdx, cw));
+          vertical ? self.clearOfYAxis(X, cw) : X + cdx, cw));
         part.coord.setAttribute('y', self.clampY(
-          vertical ? Y + SG.vCoordDy : Y + cdy, SG.coordSize));
+          vertical ? Y + (upper ? -SG.vCoordOut : SG.vCoordOut)
+                   : Y + cdy, SG.coordSize));
         /* A point can carry its own label — the general case names the
            points (x1, y1) and (x2, y2) rather than their values — and
            can split it so one fragment glows on its own. */
@@ -1559,10 +1591,17 @@
           }
         }
         const nw = self.textW(part.name.textContent || 'A', SG.nameSize);
+        /* On a column the coordinate has taken the space over or under
+           the point, so the letter goes beside it — and on the side the
+           coordinate did not end up on, which is what keeps the two
+           apart where the coordinate had to slide off the y-axis. */
+        const cx0 = parseFloat(part.coord.getAttribute('x'));
+        const other = (cx0 >= X ? -1 : 1) * SG.coordDx;
         part.name.setAttribute('x', self.clampX(
           p.nameDx != null ? X + p.nameDx
-                           : (vertical ? X + side * SG.coordDx : X), nw));
-        part.name.setAttribute('y', self.clampY(Y + ndy, SG.nameSize));
+                           : (vertical ? X + other : X), nw));
+        part.name.setAttribute('y', self.clampY(
+          vertical && p.nameDy == null ? Y : Y + ndy, SG.nameSize));
         part.name.textContent = p.name || '';
       });
     },

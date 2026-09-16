@@ -670,6 +670,10 @@ window.CFG = (function () {
          the two points' labels stay apart even 2 units in. */
       coordDx: 84,
       vCoordDy: -26,
+      /* How far a column's coordinates sit clear of their own point,
+         one above the top and one below the bottom. Wide enough that
+         the text clears the plotted dot and its ring. */
+      vCoordOut: 46,
       vNameDy: 32
     },
 
