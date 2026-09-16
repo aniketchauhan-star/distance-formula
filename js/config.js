@@ -934,13 +934,24 @@ window.CFG = (function () {
      SCREEN 24 — the result, stated
      Board on the left, the formula beside it, nobody on screen.
      ------------------------------------------------------------- */
+  /* One arrangement for every screen that states a formula beside the
+     board, so none of them reads as a different kind of screen: the
+     working on the left, where every other panel in the game lives, and
+     the board big on the right. The ratio is held or the cells stop
+     being square. */
+  const STUDY = {
+    grid: { x: 790, y: 96, w: 1100, h: 888 },
+    fx: 34, fw: 720
+  };
+
   const RECAP = {
-    grid: { x: 46, y: 142, w: 1063, h: 858 },
-    formula: { x: 1246, y: 372, w: 630 },
-    /* How far apart the three lines arrive. At 300 they read as one
-       block landing at once; each of these has to be read before the
-       next means anything, so they are given the time to be. */
-    step: 900,
+    grid: STUDY.grid,
+    // nobody in shot here, so the working takes the middle of its column
+    formula: { x: STUDY.fx, y: 415, w: STUDY.fw },
+    /* How far apart the three lines arrive. Each is written on rather
+       than dropped in, so this has to clear the writing itself or two
+       lines are being drawn at once. */
+    step: 1500,
     /* Plain "x2" rather than a subscript glyph — that one is still a
        character the font has to carry. The root is written \u221A(...)
        here, and those brackets are read as saying how far it reaches:
@@ -968,8 +979,9 @@ window.CFG = (function () {
        y 589, so the working takes the empty half above her. The board
        gives up 40px of width to make the room; its ratio is held, or
        the cells stop being square. */
-    grid: { x: 720, y: 16, w: 980, h: 792 },
-    formula: { x: 30, y: 132, w: 660 },
+    grid: STUDY.grid,
+    // she stands at the foot of this column, so the working takes the top
+    formula: { x: STUDY.fx, y: 132, w: STUDY.fw },
 
     /* Both points sit on the axis, so their labels stack above it —
        below is where the axis numbering already lives.
@@ -1500,9 +1512,11 @@ window.CFG = (function () {
       layout: 'recap', transition: 'leaves', keepSegment: true,
       /* The formula the whole lesson has been building to. Nothing is
          said over it, and the ordinary silent beat is 900ms — which
-         took it away before the last line had been read. Next is armed
-         throughout, so this is a chance to look, not a wait. */
-      hold: 5200 },
+         took it away before the last line had been read. Three lines
+         written on at 1500 apart finish around 5.6s in, and this leaves
+         four clear seconds after that. Next is armed throughout, so it
+         is a chance to look, not a wait. */
+      hold: 6600 },
 
     /* 27-28 — leaves, then back to the opening arrangement: no board,
        no panels, Swifty alone in the field. */

@@ -683,11 +683,11 @@ html, body {
   padding: .08em .24em 0 .03em;
 }
 
-#formulaBoard .fb-lead   { font-size: 36px; letter-spacing: .3px; }
+#formulaBoard .fb-lead   { font-size: 34px; letter-spacing: .3px; }
 /* The axis screens' working, which now sits in her column rather than
    in the width it had under the board. The longest line it carries is
    "d = √((x2 - x1)² + (y2 - y1)²)". */
-#formulaBoard .fb-step   { font-size: 30px; letter-spacing: .3px; }
+#formulaBoard .fb-step   { font-size: 34px; letter-spacing: .3px; }
 /* the substituted term, arriving lit */
 #formulaBoard .fb-step .glow {
   color: #C4620A;
@@ -703,21 +703,32 @@ html, body {
   0%   { opacity: 1; letter-spacing: .3px; }
   100% { opacity: 0; letter-spacing: -.4em; }
 }
+/* The longest line the game writes is this one, and it has to sit
+   inside the column beside a board that is still big. */
 #formulaBoard .fb-result {
-  font-size: 38px;
+  font-size: 32px;
   padding: 16px 12px;
   border-radius: 18px;
   background: #F1F4FA;
   border: 3px solid #DCE4F2;
 }
+/* Written on rather than dropped in: each line is uncovered from its
+   left edge to its right, at the pace of a hand moving across the page.
+
+   No `opacity: 0` underneath it — the line's resting state is simply
+   visible, and the keyframes only withhold it. A line whose animation
+   never runs is then unwritten-looking rather than absent, which is the
+   failure worth having. `both` holds the first frame through the delay,
+   so the lines still wait their turn. */
 #formulaBoard .fb-inner > * {
-  opacity: 0;
-  animation: formulaIn .52s cubic-bezier(.22, .68, .3, 1) both;
+  animation: writeOn 1.25s cubic-bezier(.34, .06, .2, 1) both;
 }
-@keyframes formulaIn {
-  0%   { opacity: 0; transform: translateY(18px) scale(.94); }
-  60%  { opacity: 1; transform: translateY(-4px) scale(1.02); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
+@keyframes writeOn {
+  0%   { clip-path: inset(0 100% 0 0); }
+  100% { clip-path: inset(0 -8% 0 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #formulaBoard .fb-inner > * { animation: none; }
 }
 
 /* the leaf curtain that hides the changeover */
