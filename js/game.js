@@ -2121,6 +2121,19 @@
     },
 
     /* panel -> x axis -> y axis -> arrowheads -> numbers */
+    /* The axis, its arrowheads and every number, all the way on.
+       Board.run sweeps them in one at a time through the same queue a
+       tap on Skip empties, and the y-axis goes last — so a build cut
+       short left a board with no arrowheads and only half its numbers,
+       and it stayed that way, because a board already up is never
+       rebuilt. Anything the sweep did not reach is put in place here. */
+    settleFurniture: function () {
+      if (!this.built) return;
+      (this.lines || []).forEach(function (l) { l.classList.add('draw'); });
+      (this.arrows || []).forEach(function (a) { a.classList.add('pop'); });
+      (this.labels || []).forEach(function (t) { t.classList.add('pop'); });
+    },
+
     run: function (later, done) {
       const self = this;
       const G = C.GRID;
@@ -2416,6 +2429,9 @@
       this.index = i;
       this.state = 'entering';
       el.nextBtn.classList.remove('ready');
+      /* Whatever the last screen's board sweep did not get to, finish
+         now — before this screen draws anything of its own on it. */
+      if (Board.shown) Board.settleFurniture();
 
       const entry = C.SCRIPT[i];
       /* A question that follows straight on from one answered on the
@@ -2612,6 +2628,13 @@
            too — only the count-out squares go. */
         if (entry.keepSegment) Board.clearUnits();
         else Board.clearSegment();
+        /* The player's own measuring line is left lit when they get it
+           right — on the screen they drew it, where it is the answer.
+           It must not travel: it is 9px of light blue lying exactly
+           along a 7px leg, drawn after it, so every screen after the
+           counting showed that leg in the measure's colour instead of
+           its own, and anything done to the leg happened underneath. */
+        if (!entry.distance && !entry.entry) Board.clearMeasure();
 
         /* Only a board screen brings the board through the sweep; the
            field screens leave it behind entirely. */
@@ -2852,6 +2875,7 @@
         Board.shown = true;
         if (!entry.keepSegment) Board.clearSegment();
         else Board.clearUnits();          // keep the drawing, drop any count-out
+        if (!entry.distance && !entry.entry) Board.clearMeasure();
         /* A control that revealControl is going to bring in must not be
            up already: it rises into the space under her once she has
            asked the question, not before she has opened her mouth. */

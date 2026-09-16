@@ -377,10 +377,19 @@ html, body {
   stroke-linecap: round; fill: none;
   stroke-dashoffset: var(--len);
 }
-#gridAxes .axis.draw { animation: drawOut var(--axisDraw, .9s) cubic-bezier(.3, .85, .35, 1) forwards; }
+/* Drawn is a state, not the tail of an animation. Held only by
+   `forwards`, an axis whose sweep never ran stayed at full dash offset
+   — invisible — and one whose arrowheads and numbers never popped kept
+   them at opacity 0 for the rest of the game, because nothing rebuilds
+   a board that is already up. The keyframes introduce these; they do
+   not define them. */
+#gridAxes .axis.draw {
+  stroke-dashoffset: 0;
+  animation: drawOut var(--axisDraw, .9s) cubic-bezier(.3, .85, .35, 1);
+}
 
 #gridAxes .arrow { opacity: 0; transform-box: fill-box; transform-origin: center; }
-#gridAxes .arrow.pop { animation: arrowPop .34s cubic-bezier(.3, 1.7, .5, 1) forwards; }
+#gridAxes .arrow.pop { opacity: 1; animation: arrowPop .34s cubic-bezier(.3, 1.7, .5, 1); }
 
 /* Screen 6: intersection markers. Hidden until that screen, then
    they pop in and settle into a slow, mild breath. */
@@ -666,7 +675,7 @@ html, body {
    quietly — if a browser mishandles transforms on an SVG <text>, the
    number still visibly lights and fades in. The plotted-point labels
    keep labelPop, which rises them into place. */
-#gridAxes .glabel.pop { animation: numPop .52s cubic-bezier(.3, .85, .35, 1) forwards; }
+#gridAxes .glabel.pop { opacity: 1; animation: numPop .52s cubic-bezier(.3, .85, .35, 1); }
 @keyframes numPop {
   0%   { opacity: 0; transform: scale(.25); fill: var(--numLit, #F0A310); }
   55%  { opacity: 1; transform: scale(1.14); fill: var(--numLit, #F0A310); }
