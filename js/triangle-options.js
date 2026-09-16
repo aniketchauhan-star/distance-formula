@@ -81,10 +81,15 @@ window.TriangleOptions = (function () {
       btn.classList.add('selected');
       const right = (answerKey != null) && (key === answerKey);
 
-      // verdicts are transient: they play, then leave the button be
+      /* The border carries the verdict. Green is left showing — the
+         screen goes on to work this answer through, and the child
+         should still be able to see which one they picked; clearStates
+         takes it off at the next question. Red clears itself, because
+         the panel stays live for another go. */
       btn.classList.add(right ? 'correct' : 'incorrect');
-      setTimeout(function () { btn.classList.remove('correct', 'incorrect'); }, 700);
-      if (!right) setTimeout(function () { btn.classList.remove('selected'); }, 700);
+      if (!right) setTimeout(function () {
+        btn.classList.remove('incorrect', 'selected');
+      }, 700);
 
       if (onAnswer) onAnswer(key, right);
     }

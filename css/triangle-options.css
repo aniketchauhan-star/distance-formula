@@ -55,12 +55,14 @@
   font-weight: 400;
   letter-spacing: -0.4px;
   color: #102D70;
-  text-shadow: -1px -1px 0 rgba(255, 255, 255, .85),
-                1px -1px 0 rgba(255, 255, 255, .85),
-               -1px  1px 0 rgba(255, 255, 255, .85),
-                1px  1px 0 rgba(255, 255, 255, .85);
+  /* One soft shadow under the ink, not an outline around it. A ring of
+     white offsets thickens every stroke by a pixel on all four sides,
+     which closes up the counters at this size and is what made the
+     labels read as blurred rather than as lifted. */
+  text-shadow: 0 2px 4px rgba(10, 32, 78, .28);
 
-  transition: transform 140ms ease, filter 140ms ease, box-shadow 140ms ease;
+  transition: transform 140ms ease, filter 140ms ease,
+              box-shadow 140ms ease, border-color 160ms ease;
 }
 
 /* the gentle highlight across the upper half */
@@ -118,23 +120,41 @@
               0 10px 15px rgba(0, 0, 0, .16);
 }
 
-/* transient verdicts — never left showing */
+/* ---------------- verdicts ----------------
+   The border is what carries the judgement, over whichever of the three
+   colours the slot happens to be. Green stays up: it is the answer the
+   screen goes on to work through, and the child should still be able to
+   see which one they picked while it does. Red takes itself off after
+   the shake, because there is another go coming.
+
+   The keyframes move the button and nothing else. `both` holds the last
+   frame of whatever an animation touches, so a keyframe that set the
+   shadow would freeze it there and the rules below would never show. */
 .triangle-option.correct {
-  animation: toCorrect .5s ease both;
+  border-color: #17A64A;
+  box-shadow: 0 0 0 5px rgba(23, 166, 74, .34),
+              0 7px 0 #0F7C36,
+              0 12px 18px rgba(14, 110, 50, .22),
+              inset 0 3px 0 rgba(255, 255, 255, .5);
+  animation: toCorrect .5s cubic-bezier(.2, .8, .25, 1) both;
 }
 .triangle-option.incorrect {
+  border-color: #E23A3A;
+  box-shadow: 0 0 0 5px rgba(226, 58, 58, .32),
+              0 7px 0 #B02A2A,
+              0 12px 18px rgba(150, 30, 30, .20),
+              inset 0 3px 0 rgba(255, 255, 255, .45);
   animation: toIncorrect .45s ease both;
 }
 @keyframes toCorrect {
-  0%   { box-shadow: inset 0 0 0 0 rgba(255, 255, 255, .95); }
-  40%  { box-shadow: inset 0 0 0 6px rgba(255, 255, 255, .95),
-                     0 0 0 6px rgba(24, 184, 74, .55); transform: translateY(-3px); }
-  100% { box-shadow: inset 0 0 0 4px rgba(255, 255, 255, .95); transform: translateY(0); }
+  0%   { transform: translateY(0) scale(1); }
+  45%  { transform: translateY(-4px) scale(1.025); }
+  100% { transform: translateY(0) scale(1); }
 }
 @keyframes toIncorrect {
-  0%, 100% { transform: translateX(0); box-shadow: 0 0 0 0 rgba(216, 45, 45, 0); }
-  15%      { transform: translateX(-9px); box-shadow: 0 0 0 5px rgba(216, 45, 45, .55); }
-  40%      { transform: translateX(8px);  box-shadow: 0 0 0 5px rgba(216, 45, 45, .55); }
+  0%, 100% { transform: translateX(0); }
+  15%      { transform: translateX(-9px); }
+  40%      { transform: translateX(8px); }
   65%      { transform: translateX(-5px); }
   85%      { transform: translateX(3px); }
 }
