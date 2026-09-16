@@ -2778,7 +2778,9 @@
           self.state = 'waiting';
           SFX.correct();
           if (Sel) Sel.markCorrect();
-          Board.litMeasure();       // their line reached, and stays lit
+          // nothing was walked out on the Pythagoras screens, so there
+          // is no line from A to B to leave lit
+          if (!t.spec.noCount) Board.litMeasure();
           /* Out of the far point — the end of the line they just drew,
              which is the thing that was got right and where they are
              already looking. */
@@ -2806,6 +2808,21 @@
            between the points are laid out to be counted. The question
            stays theirs — the band is the help, not the answer. */
         const fb = self.feedbackFor(t);
+
+        /* Both hints spent. The answer is not asked for a fourth time,
+           it is shown: the two sides measured on the board and then AB,
+           which is the working itself rather than a sentence about it.
+           The question is over, so nothing is cleared away after. */
+        if (fb.exhausted && t.spec.showWorking) {
+          t.done = true;
+          if (Sel) Sel.lock();
+          self.later(function () {
+            const ms = self.showWorking(C.SCRIPT[self.index] || {});
+            self.later(function () { self.settle(C.AUTO.afterReveal); }, ms);
+          }, 420);
+          return;
+        }
+
         const helping = fb.exhausted && !!t.spec.countLine;
         const msg = helping ? t.spec.countLine : fb.msg;
         if (helping) self.later(function () {
@@ -2836,6 +2853,10 @@
          count along with everything else it had pending. */
       const run = function () {
         self.state = 'showing';
+        /* A diagonal is the one length that cannot be counted off the
+           grid, which is exactly what these screens are teaching. No
+           line is walked out along AB; the verdict lands on its own. */
+        if (t.spec.noCount) { verdict(); return; }
         Board.countOut(pair.from, pair.to, v, self.later.bind(self), verdict);
       };
       if (narrate) this.speak(narrate, function () {
@@ -2843,6 +2864,54 @@
         self.later(run, Bubble.voiceTail + 60);
       });
       else run();
+    },
+
+    /* The worked solution, shown rather than told: each side measured
+       in turn, then AB written along the line between the two points.
+       Every number is read off the legs themselves, so a screen that
+       moves its points cannot leave a stale one behind. Returns how
+       long it all takes, so the caller can wait it out. */
+    showWorking: function (entry) {
+      const self = this, legs = entry.legs || [], seg = entry.segment;
+      const G = C.GRID, SG = G.segment;
+      let delay = 0;
+      legs.forEach(function (spec, i) {
+        self.later(function () {
+          // placeLeg works the length out from the leg's own two ends
+          Board.placeLeg(i, Object.assign({}, spec, { length: true }));
+          Board.showLegLength(i);
+          SFX.tick(2 + i);
+        }, delay);
+        delay += 640;
+      });
+      if (!seg) return delay;
+
+      /* AB goes on the far side of the hypotenuse from the right angle,
+         so it can never land on a leg or on C — then steps out along
+         that same line until it is clear of the x-axis numbers, which
+         is where the second screen's midpoint otherwise falls. */
+      const corner = legs[0] && legs[0].to;
+      const mx = (seg.a.x + seg.b.x) / 2, my = (seg.a.y + seg.b.y) / 2;
+      let dx = 0, dy = -26;
+      if (corner) {
+        const vx = mx - corner.x, vy = my - corner.y;
+        const L = Math.hypot(vx, vy) || 1;
+        const ux = vx / L, uy = vy / L;
+        dx = ux * 76;
+        dy = -uy * 76;                 // grid y counts up, screen y counts down
+        const midY = G.originY - my * G.stepY;
+        let guard = 0;
+        while (Board.onXAxisRow(midY + dy, SG.coordSize) && guard++ < 10) {
+          dx += ux * 20;
+          dy += -uy * 20;
+        }
+      }
+      const txt = 'AB\u00A0=\u00A0' + this.task.spec.answer + '\u00A0units';
+      this.later(function () {
+        Board.showSegResult(seg, txt, dy, dx);
+        SFX.sparkle();
+      }, delay + 160);
+      return delay + 900;
     },
 
     /* The count goes and the control comes back, ready for another go. */

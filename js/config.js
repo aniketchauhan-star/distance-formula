@@ -1287,10 +1287,18 @@ window.CFG = (function () {
         { from: { x:  2, y: 2 }, to: { x: 2, y: 5 } }
       ],
       task: { kind: 'entry', pair: 'AB', answer: 5,
+              correctLine: 'That\u2019s right!',
+              /* The one length on this board that cannot be counted off
+                 the grid — which is the whole lesson — so nothing is
+                 walked out along AB. */
+              noCount: true,
               feedback: [
-                'Not quite. Count the two sides, then use Pythagoras.',
-                'The sides are 4 and 3. What is \u221a(4\u00b2 + 3\u00b2)?'
-              ] } },
+                'Not quite. Check your working and try again.',
+                'Use the right triangle to find AB.'
+              ],
+              /* Still wrong after both: it is shown rather than asked a
+                 fourth time — each side measured on the board, then AB. */
+              showWorking: true } },
 
     { id: 28, line: 'What is the distance between two points?', range: { min: 0, max: 12 }, entrance: 'none',
       layout: 'board', transition: 'leaves', intro: 'measure', entry: true,
@@ -1301,10 +1309,14 @@ window.CFG = (function () {
         { from: { x:  5, y: 3 }, to: { x: 5, y: -3 } }
       ],
       task: { kind: 'entry', pair: 'AB', answer: 10,
+              correctLine: 'That\u2019s right!',
+              noCount: true,
+              // the same ladder as the screen before it
               feedback: [
-                'Not quite. Count the two sides, then use Pythagoras.',
-                'The sides are 8 and 6. What is \u221a(8\u00b2 + 6\u00b2)?'
-              ] } },
+                'Not quite. Check your working and try again.',
+                'Use the right triangle to find AB.'
+              ],
+              showWorking: true } },
 
     /* 21 — leaves, back to the field layout, and the same idea stated
        in general: the points are named rather than numbered. */
