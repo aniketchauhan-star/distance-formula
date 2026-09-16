@@ -95,24 +95,78 @@ window.TriangleOptions = (function () {
     }
 
     /* Once the method is chosen the buttons give way to the working,
-       in the same panel and the same place. */
-    let formula = null;
-    function showFormula(lines) {
+       in the same panel and the same place.
+
+       A line can be a plain string, or parts — and a part that names a
+       length carries the side of the triangle it belongs to. Those are
+       lit one at a time rather than all at once, and each one tells the
+       host which side it just named, so the board can light the same
+       thing at the same moment. That is the whole point of the sequence:
+       the words and the drawing say one thing together. */
+    const LINE_MS = 420;      // a line arriving
+    const BEAT_MS = 620;      // one named part after the last
+
+    let formula = null, beats = [];
+    function clearBeats() {
+      beats.forEach(clearTimeout);
+      beats = [];
+    }
+
+    /* How long the whole thing runs, without running it — the host has
+       to hold the screen open for exactly that. */
+    function formulaMs(lines) {
+      let ms = 0;
+      (lines || []).forEach(function (l) {
+        ms += LINE_MS;
+        (l.parts || []).forEach(function (f) { if (f.lit) ms += BEAT_MS; });
+      });
+      return ms;
+    }
+
+    function showFormula(lines, onBeat) {
       buttons.forEach(function (b) { b.classList.add('hidden'); });
+      clearBeats();
       if (formula) root.removeChild(formula);
       formula = document.createElement('div');
       formula.classList.add('formula-view');
-      (lines || []).forEach(function (l, i) {
+
+      let at = 0;
+      (lines || []).forEach(function (l) {
         const d = document.createElement('div');
         d.classList.add('formula-' + (l.kind || 'step'));
-        d.textContent = l.text;
-        d.style.animationDelay = (i * 260) + 'ms';
+        d.style.animationDelay = at + 'ms';
+        if (l.parts) {
+          l.parts.forEach(function (f) {
+            const sp = document.createElement('span');
+            sp.textContent = f.t;
+            // held back at low contrast until its moment, never reflowing
+            if (f.lit) sp.classList.add('lit-' + f.lit, 'wait');
+            d.appendChild(sp);
+          });
+        } else {
+          d.textContent = l.text;
+        }
         formula.appendChild(d);
+        at += LINE_MS;
+
+        (l.parts || []).forEach(function (f, k) {
+          if (!f.lit) return;
+          const sp = d.children[k], which = f.lit;
+          beats.push(setTimeout(function () {
+            sp.classList.remove('wait');
+            sp.classList.add('now');
+            if (onBeat) onBeat(which);
+          }, at));
+          at += BEAT_MS;
+        });
       });
+
       root.appendChild(formula);
+      return at;
     }
 
     function hideFormula() {
+      clearBeats();
       if (formula) { root.removeChild(formula); formula = null; }
       buttons.forEach(function (b) { b.classList.remove('hidden'); });
     }
@@ -122,6 +176,7 @@ window.TriangleOptions = (function () {
     return {
       el: root,
       showFormula: showFormula,
+      formulaMs: formulaMs,
       hideFormula: hideFormula,
       setChoices: function (list) { build(list); },
       setAnswer: function (k) { answerKey = k; },

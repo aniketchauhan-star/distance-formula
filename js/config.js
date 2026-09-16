@@ -685,6 +685,12 @@ window.CFG = (function () {
          green "found" markers and the navy hypotenuse, and it is the
          one colour in the game that means something is wrong. */
       color: '#2F8F6F',
+      /* One colour per side, so a length and the line it measures are
+         plainly the same thing — and so the working can say "4\u00B2" in
+         the horizontal's colour. Set by which way the leg runs, not by
+         which slot it lands in. */
+      hColor: '#E07B12',
+      vColor: '#2F8F6F',
       width: 7,
       dotR: 8,            // the corner, a shade under a plotted point
       coordDx: 84,        // coordinates to the right of the corner
@@ -1276,11 +1282,21 @@ window.CFG = (function () {
         feedback: ['Try again!'],
         voiceOnly: true,
         /* Shown on a correct answer, or after the hints are spent. */
+        /* The working, tagged to the board. Every part that names a
+           length carries the side it belongs to — 'h' the horizontal,
+           'v' the vertical, 'ab' the line between the two points — and
+           the panel lights them one at a time, lighting that side of
+           the triangle as it goes. */
         formula: [
-          { kind: 'lead',   text: 'AB² = 4² + 3²' },
-          { kind: 'step',   text: '= 16 + 9' },
-          { kind: 'step',   text: '= 25' },
-          { kind: 'result', text: 'AB = 5 units' }
+          { kind: 'lead', parts: [
+              { t: 'AB\u00B2', lit: 'ab' }, { t: ' = ' },
+              { t: '4\u00B2', lit: 'h' }, { t: ' + ' }, { t: '3\u00B2', lit: 'v' } ] },
+          { kind: 'step', parts: [
+              { t: '= ' }, { t: '16', lit: 'h' }, { t: ' + ' }, { t: '9', lit: 'v' } ] },
+          { kind: 'step', parts: [
+              { t: '= ' }, { t: '25', lit: 'ab' } ] },
+          { kind: 'result', parts: [
+              { t: 'AB = ' }, { t: '5\u00A0units', lit: 'ab' } ] }
         ]
       } },
 

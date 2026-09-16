@@ -203,6 +203,26 @@
   text-align: center;
 }
 
+/* The working's own parts. A part that names a length waits at low
+   contrast until its moment, then arrives in the colour of the side it
+   belongs to — the same colour that side is drawn in on the board, so
+   the two are plainly one thing. Nothing reflows: only the colour and
+   the contrast change. */
+.triangle-options-panel .formula-view span {
+  transition: color 280ms ease, opacity 280ms ease;
+}
+.triangle-options-panel .formula-view .wait { opacity: .22; }
+.triangle-options-panel .formula-view .now { animation: partIn .42s ease both; }
+.triangle-options-panel .formula-view .now.lit-ab { color: #1F6FD0; }
+.triangle-options-panel .formula-view .now.lit-h  { color: #E07B12; }
+.triangle-options-panel .formula-view .now.lit-v  { color: #2F8F6F; }
+@keyframes partIn {
+  0%   { opacity: .22; transform: scale(1); }
+  55%  { opacity: 1;   transform: scale(1.12); }
+  100% { opacity: 1;   transform: scale(1); }
+}
+.triangle-options-panel .formula-view .now { display: inline-block; }
+
 /* the arithmetic, stepped in under it */
 .triangle-options-panel .formula-step {
   align-self: flex-end;

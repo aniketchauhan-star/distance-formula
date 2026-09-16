@@ -1221,6 +1221,12 @@
       const f = spec.from, t = spec.to;
       const x1 = px(f.x), y1 = py(f.y), x2 = px(t.x), y2 = py(t.y);
 
+      /* Its own colour, by which way it runs — the length written
+         beside it takes the same one, so the two read as one thing. */
+      const side = (f.y === t.y) ? (LG.hColor || LG.color) : (LG.vColor || LG.color);
+      L.line.setAttribute('stroke', side);
+      L.len.setAttribute('fill', side);
+
       L.line.setAttribute('x1', x1); L.line.setAttribute('y1', y1);
       L.line.setAttribute('x2', x2); L.line.setAttribute('y2', y2);
       const len = Math.hypot(x2 - x1, y2 - y1);
@@ -1230,7 +1236,7 @@
       if (spec.mark) {
         L.dot.setAttribute('cx', x2); L.dot.setAttribute('cy', y2);
         // the corner can be drawn as a plotted point rather than a leg end
-        L.dot.setAttribute('fill', spec.mark.fill || LG.color);
+        L.dot.setAttribute('fill', spec.mark.fill || side);
         L.coord.textContent = spec.mark.coordText ||
                               ('(' + t.x + ',\u00A0' + t.y + ')');
         const mw = this.textW(L.coord.textContent, G.segment.coordSize);
@@ -1323,6 +1329,38 @@
       });
 
       later(done, delay + 260);
+    },
+
+    /* Which side of the triangle the working is talking about: that one
+       comes forward and the rest step back, so a child reading "4\u00B2"
+       can see at once which line it means. `which` is 'h', 'v' or 'ab';
+       anything else puts the board back the way it was. */
+    spotlightPart: function (which) {
+      if (!this.segLine) return;
+      const self = this;
+      const part = {
+        ab: [this.segLine, this.segRes],
+        h:  [this.legSlots[0] && this.legSlots[0].line, this.legSlots[0] && this.legSlots[0].len],
+        v:  [this.legSlots[1] && this.legSlots[1].line, this.legSlots[1] && this.legSlots[1].len]
+      };
+      /* `lit` is spoken for — it is what makes a reached segment pulse —
+         so these carry their own names. */
+      Object.keys(part).forEach(function (k) {
+        part[k].forEach(function (n) {
+          if (!n) return;
+          const on = !!which && k === which;
+          n.classList.toggle('spot', on);
+          n.classList.toggle('hush', !!which && !on);
+          n.classList.remove('spotbeat');
+          if (on) n.classList.add('spotbeat');
+        });
+      });
+      clearTimeout(this.beatOff);
+      if (which) this.beatOff = setTimeout(function () {
+        Object.keys(part).forEach(function (k) {
+          part[k].forEach(function (n) { if (n) n.classList.remove('spotbeat'); });
+        });
+      }, 520);
     },
 
     /* No plate to fit any more — the text carries its own paper halo,
@@ -1852,6 +1890,7 @@
 
     /* Reset so a replay rebuilds the same entrance. */
     reset: function () {
+      this.spotlightPart(null);
       /* Text as well as classes: every screen that reveals the board
          seats its own segment straight after, so there is nothing here
          worth keeping, and leaving it meant a replayed board came up
@@ -3081,6 +3120,10 @@
         this.state = 'waiting';
         if (Opts) Opts.lock();
         SFX.correct();
+        /* How long the working takes to play. The screen has to stay
+           open for all of it, and the ordinary pause after a right
+           answer is nowhere near that. */
+        const work = (t.spec.formula && Opts) ? Opts.formulaMs(t.spec.formula) : 0;
         const at = this.optionSpot(t.spec.answer);
         this.later(function () {
           SFX.cheer();
@@ -3089,16 +3132,28 @@
           /* The panel has already played its own verdict, so there may
              be nothing left to say — finishWith arms the hand-over
              either way, where speak() would need a line to ride on. */
-          self.finishWith(t.spec.correctLine);
+          /* 1100 before it starts, then the working, then a beat to
+             read the answer — measured from here, which is 260 in. */
+          self.finishWith(t.spec.correctLine, work ? work + 2300 : null);
         }, 260);
         /* The chosen method, worked through where the buttons were.
            Late enough that the green border is read first: it is the
            only thing telling them which one they picked, and the
-           working covers it over. */
+           working covers it over.
+
+           Each part of the working lights the side of the triangle it
+           names, as it names it — 4\u00B2 and 16 the horizontal, 3\u00B2
+           and 9 the vertical, AB\u00B2 and 25 and the answer the line
+           between the points. */
         if (t.spec.formula && Opts) {
           this.later(function () {
-            Opts.showFormula(t.spec.formula);
+            Opts.showFormula(t.spec.formula, function (which) {
+              Board.spotlightPart(which);
+              SFX.tick(2);
+            });
             SFX.sparkle();
+            // the board goes back to itself once the working is read
+            self.later(function () { Board.spotlightPart(null); }, work + 1400);
           }, 1100);
         }
       } else {

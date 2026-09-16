@@ -528,6 +528,21 @@ html, body {
 }
 #gridAxes .segres.pop { animation: labelPop .58s cubic-bezier(.22, .68, .3, 1) both; }
 
+/* The working and the board saying the same thing at once: the side
+   being named comes forward, the others step back. Opacity and a glow
+   only — the geometry never moves, so nothing can drift out of place. */
+#gridAxes .segres, #gridAxes .leglen, #gridAxes .segline, #gridAxes .legline {
+  transition: opacity 300ms ease, filter 300ms ease;
+}
+#gridAxes .hush { opacity: .28; }
+#gridAxes .spot { filter: drop-shadow(0 0 7px rgba(255, 196, 74, .95)); }
+#gridAxes .spotbeat { animation: partBeat .5s ease; }
+@keyframes partBeat {
+  0%   { opacity: 1; }
+  45%  { opacity: .45; }
+  100% { opacity: 1; }
+}
+
 /* a plotted segment: points, the line joining them, and labels */
 #gridAxes .seg { opacity: 0; pointer-events: none; }
 #gridAxes .seg.on { opacity: 1; }
