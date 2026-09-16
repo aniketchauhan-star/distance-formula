@@ -26,6 +26,7 @@ window.TriangleOptions = (function () {
     const root = document.createElement('div');
     root.classList.add('triangle-options-panel');
     root.id = opts.id || 'triangleOptions';
+    const home = { x: opts.x, y: opts.y };
     if (opts.x !== undefined) root.style.left = opts.x + 'px';
     if (opts.y !== undefined) root.style.top = opts.y + 'px';
     if (opts.scale) root.style.setProperty('--k', opts.scale);
@@ -103,8 +104,12 @@ window.TriangleOptions = (function () {
        host which side it just named, so the board can light the same
        thing at the same moment. That is the whole point of the sequence:
        the words and the drawing say one thing together. */
-    const LINE_MS = 420;      // a line arriving
-    const BEAT_MS = 620;      // one named part after the last
+    /* Paced to be followed, not to be got through: this is the one
+       place in the game where the child is being shown the answer
+       rather than asked for it, so each line and each part of it is
+       given its own moment. */
+    const LINE_MS = 620;      // a line arriving
+    const BEAT_MS = 820;      // one named part after the last
 
     let formula = null, beats = [];
     function clearBeats() {
@@ -180,7 +185,20 @@ window.TriangleOptions = (function () {
       hideFormula: hideFormula,
       setChoices: function (list) { build(list); },
       setAnswer: function (k) { answerKey = k; },
-      reset: function () { hideFormula(); clearStates(); locked = false; },
+      reset: function () {
+        hideFormula(); clearStates(); locked = false;
+        // back where it was mounted, wherever the working moved it to
+        if (home.x !== undefined) root.style.left = home.x + 'px';
+        if (home.y !== undefined) root.style.top = home.y + 'px';
+      },
+
+      /* The working takes the middle of her column, not the foot of it.
+         Moved while hidden, so it arrives in its new place rather than
+         sliding there. */
+      moveTo: function (x, y) {
+        root.style.left = x + 'px';
+        root.style.top = y + 'px';
+      },
       lock: function () { locked = true; },
       /* `rising` is for the moment it takes the space Swifty has just
          flown out of: it comes up from below rather than appearing, so

@@ -3407,6 +3407,61 @@
                exhausted: t.wrong > list.length };
     },
 
+    /* The worked solution, given the screen to itself.
+
+       She goes first and the answers go with her: a panel of choices
+       under a solution is still asking a question, and she is standing
+       on the very spot the working is about to be written. Then it is
+       written where she was — the middle of her column — slowly enough
+       to be followed, each part lighting the side of the triangle it
+       names. Then she comes back and sits on it, and it is left up long
+       enough to read the whole thing back.
+
+       Both ways in use this: getting it right, and running out of
+       tries. What is shown is the same thing either way. */
+    workThrough: function (t, then) {
+      const self = this, W = C.BOARD.working;
+      if (!Opts || !t.spec.formula) { if (then) then(); return; }
+      Opts.lock();
+      Bubble.close();                       // she is about to fly
+
+      /* The answers drop away as she lifts off, not once she has gone —
+         they leave together, which is what makes it read as the screen
+         being cleared for the solution rather than as a panel jumping
+         to a new place. */
+      this.later(function () { Opts.hide(); }, 760);
+
+      this.later(function () {
+        self.flyOut(function () {
+          Opts.moveTo(W.pos.x, W.pos.y);
+          Opts.show(true);
+          const ms = Opts.showFormula(t.spec.formula, function (which) {
+            Board.spotlightPart(which);
+            SFX.tick(2);
+          });
+          SFX.sparkle();
+          self.later(function () {
+            Board.spotlightPart(null);
+            self.landOnWorking();          // written; she comes back to it
+            self.later(function () { if (then) then(); }, C.AUTO.afterWorking);
+          }, ms + 320);
+        });
+      }, 700);
+    },
+
+    /* Down onto the working panel, wherever it has moved to. */
+    landOnWorking: function () {
+      const g = workGeom(), from = this.geom || {};
+      const p0 = { x: parseFloat(el.birdRig.style.left) || 0,
+                   y: parseFloat(el.birdRig.style.top) || 0 };
+      const s0 = from.scale || C.CHAR_SCALE;
+      this.geom = g;
+      this.raised = true;
+      standPose = !!g.stand;
+      flyTo(p0, { x: g.anchor.x, y: g.anchor.y }, s0, g.scale);
+      applyGeom(g);
+    },
+
     /* One of the answer options was pressed. The panel has already
        played its own verdict; this decides what she says. */
     checkChoice: function (right) {
@@ -3431,9 +3486,10 @@
           /* The panel has already played its own verdict, so there may
              be nothing left to say — finishWith arms the hand-over
              either way, where speak() would need a line to ride on. */
-          /* 1100 before it starts, then the working, then a beat to
-             read the answer — measured from here, which is 260 in. */
-          self.finishWith(t.spec.correctLine, work ? work + 2300 : null);
+          /* With a working to come, the hand-over belongs to it: she
+             has to leave, it has to be written, and she has to come
+             back. finishWith would settle in the middle of that. */
+          if (!work) self.finishWith(t.spec.correctLine);
         }, 260);
         /* The chosen method, worked through where the buttons were.
            Late enough that the green border is read first: it is the
@@ -3444,15 +3500,9 @@
            names, as it names it — 4\u00B2 and 16 the horizontal, 3\u00B2
            and 9 the vertical, AB\u00B2 and 25 and the answer the line
            between the points. */
-        if (t.spec.formula && Opts) {
+        if (work) {
           this.later(function () {
-            Opts.showFormula(t.spec.formula, function (which) {
-              Board.spotlightPart(which);
-              SFX.tick(2);
-            });
-            SFX.sparkle();
-            // the board goes back to itself once the working is read
-            self.later(function () { Board.spotlightPart(null); }, work + 1400);
+            self.workThrough(t, function () { self.settle(C.AUTO.afterLine); });
           }, 1100);
         }
       } else {
@@ -3465,12 +3515,9 @@
           t.done = true;
           this.state = 'waiting';
           Opts.lock();
+          SFX.chime();
           this.later(function () {
-            Opts.showFormula(t.spec.formula);
-            SFX.chime();
-            SFX.sparkle();
-            // longer than usual: there are four lines of working to read
-            self.settle(C.AUTO.afterReveal);
+            self.workThrough(t, function () { self.settle(C.AUTO.afterLine); });
           }, 420);
           return;
         }
@@ -3742,6 +3789,16 @@
   function controlGeom() {
     return standGeom(C.BOARD.standUp, {
       noShadow: true,        // she is standing on the control, not on grass
+      panelBox: { x: C.BOARD.panel.pos.x, y: C.BOARD.panel.pos.y,
+                  w: C.BOARD.panel.w, h: C.BOARD.panel.h }
+    });
+  }
+
+  /* Her seat on the working panel — the same pose as the one on the
+     answers, moved up with it. */
+  function workGeom() {
+    return standGeom(C.BOARD.working.stand, {
+      noShadow: true,
       panelBox: { x: C.BOARD.panel.pos.x, y: C.BOARD.panel.pos.y,
                   w: C.BOARD.panel.w, h: C.BOARD.panel.h }
     });
