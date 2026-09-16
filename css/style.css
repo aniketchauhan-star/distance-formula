@@ -562,50 +562,7 @@ html, body {
 }
 #gridAxes .hush { opacity: .28; }
 #gridAxes .spot { filter: drop-shadow(0 0 7px rgba(255, 196, 74, .95)); }
-#gridAxes .spotbeat { animation: partBeat .5s ease; }
-/* The shape being named. Two lights, not one: a side swells and dies as
-   she names it, then all three come up together and are held there for
-   a beat before they go — the difference between three lines flashing
-   and a triangle being pointed at.
 
-   Two shadows on each, a tight bright one for the edge and a wide soft
-   one for the air around it, so the glow reads over the cream without
-   the line itself looking thicker. Warm on all three, whatever colour
-   they happen to be drawn in. */
-/* Each side blooms in its own colour — currentColor, which placeLeg and
-   placeSegment set alongside the stroke. One warm glow for all three
-   read beautifully on the navy diagonal and disappeared against the
-   orange and the green, because a glow only shows where it differs from
-   what is under it. A line's own colour always differs from the cream.
-
-   Three stacked shadows: tight, mid and wide, so it blooms outward
-   rather than sitting as a ring. The brightness lift is what makes the
-   line itself look lit rather than merely surrounded. */
-#gridAxes .tripulse { animation: triPulse .7s ease-in-out; }
-@keyframes triPulse {
-  0%   { filter: none; }
-  42%  { stroke-width: 12px;
-         filter: brightness(1.22) saturate(1.2)
-                 drop-shadow(0 0 4px currentColor)
-                 drop-shadow(0 0 12px currentColor); }
-  100% { filter: none; }
-}
-#gridAxes .trihold { animation: triHold 1.25s ease-in-out; }
-@keyframes triHold {
-  0%   { filter: none; }
-  20%  { stroke-width: 13px;
-         filter: brightness(1.26) saturate(1.25)
-                 drop-shadow(0 0 5px currentColor)
-                 drop-shadow(0 0 15px currentColor); }
-  64%  { stroke-width: 13px;
-         filter: brightness(1.26) saturate(1.25)
-                 drop-shadow(0 0 5px currentColor)
-                 drop-shadow(0 0 15px currentColor); }
-  100% { filter: none; }
-}
-@media (prefers-reduced-motion: reduce) {
-  #gridAxes .tripulse, #gridAxes .trihold { animation: none; }
-}
 @keyframes partBeat {
   0%   { opacity: 1; }
   45%  { opacity: .45; }
@@ -1157,4 +1114,61 @@ html, body {
 @media (prefers-reduced-motion: reduce) {
   .cloud, .fx-mote, #gridAxes .dots.on .gdot,
   .loader-title, #playBtn.idle { animation: none !important; }
+}
+
+
+/* =============================================================
+   Highlights, last in the file on purpose.
+
+   `animation` is one property, so only one rule can set it. A drawn
+   line already carries `.draw` — #gridAxes .legline.draw and
+   #gridAxes .segline.draw are both (1,2,0) — and a plain #gridAxes
+   .tripulse is only (1,1,0), so the draw rule won every time and the
+   highlight animation never ran on any line that had been drawn, which
+   is all of them. The class is doubled here to match that weight, and
+   the block sits last so source order settles the tie.
+   ============================================================= */
+#gridAxes .spotbeat.spotbeat { animation: partBeat .5s ease; }
+/* The shape being named. Two lights, not one: a side swells and dies as
+   she names it, then all three come up together and are held there for
+   a beat before they go — the difference between three lines flashing
+   and a triangle being pointed at.
+
+   Two shadows on each, a tight bright one for the edge and a wide soft
+   one for the air around it, so the glow reads over the cream without
+   the line itself looking thicker. Warm on all three, whatever colour
+   they happen to be drawn in. */
+/* Each side blooms in its own colour — currentColor, which placeLeg and
+   placeSegment set alongside the stroke. One warm glow for all three
+   read beautifully on the navy diagonal and disappeared against the
+   orange and the green, because a glow only shows where it differs from
+   what is under it. A line's own colour always differs from the cream.
+
+   Three stacked shadows: tight, mid and wide, so it blooms outward
+   rather than sitting as a ring. The brightness lift is what makes the
+   line itself look lit rather than merely surrounded. */
+#gridAxes .tripulse.tripulse { animation: triPulse .7s ease-in-out; }
+@keyframes triPulse {
+  0%   { filter: none; }
+  42%  { stroke-width: 12px;
+         filter: brightness(1.22) saturate(1.2)
+                 drop-shadow(0 0 4px currentColor)
+                 drop-shadow(0 0 12px currentColor); }
+  100% { filter: none; }
+}
+#gridAxes .trihold.trihold { animation: triHold 1.25s ease-in-out; }
+@keyframes triHold {
+  0%   { filter: none; }
+  20%  { stroke-width: 13px;
+         filter: brightness(1.26) saturate(1.25)
+                 drop-shadow(0 0 5px currentColor)
+                 drop-shadow(0 0 15px currentColor); }
+  64%  { stroke-width: 13px;
+         filter: brightness(1.26) saturate(1.25)
+                 drop-shadow(0 0 5px currentColor)
+                 drop-shadow(0 0 15px currentColor); }
+  100% { filter: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #gridAxes .tripulse.tripulse, #gridAxes .trihold.trihold { animation: none; }
 }
