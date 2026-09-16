@@ -2661,6 +2661,28 @@
       });
     },
 
+    /* Heard, not read. The screen has already shown how it went — a red
+       border, a dot lighting up — so the words would only be repeating
+       it. She still says them; there is just nothing to read.
+
+       Bubble.close() stops the voice, so it has to go first, and the
+       hand-over is armed off the clip's own length because there is no
+       balloon finishing to ride on. */
+    sayOnly: function (line, then) {
+      const self = this;
+      this.state = 'speaking';
+      Bubble.close();
+      SFX.duck(true);                                  // dip the music under her
+      if (!standPose) Sprite.play('talk', true);       // her beak still moves
+      const ms = (window.Voice && window.Voice.say(line)) || 0;
+      this.later(function () {
+        SFX.duck(false);
+        if (!standPose) Sprite.stopAt('talk', 0);
+        if (then) then();
+        self.settle(self.task && self.task.done ? C.AUTO.afterCorrect : C.AUTO.afterLine);
+      }, (ms || 700) + 180);
+    },
+
     /* Some moments need no words: the point lighting up under their
        finger says "right" better than the word does, and a child who
        has just tapped the wrong square can see that without being told.
@@ -2895,12 +2917,15 @@
              either way, where speak() would need a line to ride on. */
           self.finishWith(t.spec.correctLine);
         }, 260);
-        // the chosen method, worked through where the buttons were
+        /* The chosen method, worked through where the buttons were.
+           Late enough that the green border is read first: it is the
+           only thing telling them which one they picked, and the
+           working covers it over. */
         if (t.spec.formula && Opts) {
           this.later(function () {
             Opts.showFormula(t.spec.formula);
             SFX.sparkle();
-          }, 700);
+          }, 1100);
         }
       } else {
         t.wrong++;
@@ -2921,7 +2946,9 @@
           }, 420);
           return;
         }
-        this.later(function () { self.speak(fb.msg); }, 320);
+        this.later(function () {
+          if (t.spec.voiceOnly) self.sayOnly(fb.msg); else self.speak(fb.msg);
+        }, 320);
       }
     },
 

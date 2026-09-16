@@ -39,6 +39,13 @@ window.Voice = (function () {
        of her saying exactly the same thing. */
     'Not quite! Try again!':
       ['06-not-quite-try-again.mp3', 2.38],
+    /* The back half of the same recording, cut at the reader's own
+       pause between "Not quite" and "try again" — so it is her voice
+       saying the two words, not a second take. The choice screens play
+       this with no balloon: the red border has already said it went
+       wrong, and hearing it is enough. */
+    'Try again!':
+      ['06b-try-again.mp3', 1.18],
     'Here it is — (3, 2).':
       ['07-here-it-is-3-2.mp3', 2.30],
     'Locate the point (6, 2).':

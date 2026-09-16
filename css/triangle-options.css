@@ -176,6 +176,14 @@
   padding: 6px 4px 10px;
   font-family: 'Lilita One', 'Nunito', 'Arial Rounded MT Bold', Arial, sans-serif;
   color: #102D70;
+  /* It arrives as a box, not as a panel quietly changing its mind
+     about what it holds: the whole view eases up before the lines
+     inside it start stepping in. */
+  animation: formulaBox .34s cubic-bezier(.22, .68, .3, 1) both;
+}
+@keyframes formulaBox {
+  0%   { opacity: 0; transform: scale(.94) translateY(10px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 /* the statement being applied, set apart on its own ground */
@@ -185,7 +193,12 @@
   border-radius: 20px;
   background: #F1F4FA;
   border: 3px solid #DCE4F2;
-  font-size: clamp(26px, 2.3vw, 40px);
+  /* Fixed, for the same reason the button labels are: a vw size inside
+     a stage that is itself transform-scaled gets scaled twice, so the
+     working came out a different size at every window width while the
+     panel around it stayed put. These are what the clamps resolved to
+     at the 1920 the game is drawn for. */
+  font-size: 40px;
   letter-spacing: .5px;
   text-align: center;
 }
@@ -194,7 +207,7 @@
 .triangle-options-panel .formula-step {
   align-self: flex-end;
   padding-right: 34px;
-  font-size: clamp(22px, 1.9vw, 34px);
+  font-size: 34px;
   color: #24407F;
 }
 
@@ -202,7 +215,7 @@
 .triangle-options-panel .formula-result {
   margin-top: 10px;
   align-self: center;
-  font-size: clamp(24px, 2.1vw, 38px);
+  font-size: 38px;
   color: #102D70;
 }
 

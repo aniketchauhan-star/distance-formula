@@ -1238,7 +1238,11 @@ window.CFG = (function () {
       task: {
         kind: 'choice',
         answer: 'right-angled',
-        tryAgainLine: 'Not quite — try again!'
+        /* Heard, not read: the panel's border has gone red, so a
+           balloon spelling that out again is one more thing to sit
+           through. */
+        tryAgainLine: 'Try again!',
+        voiceOnly: true
       } },
 
     /* 18 — same triangle again, now asking how to reach the third
@@ -1253,12 +1257,12 @@ window.CFG = (function () {
       task: {
         kind: 'choice',
         answer: 'pythagoras',
-        /* Each wrong attempt gets the next hint; once they run out the
-           working is shown rather than leaving a child guessing. */
-        feedback: [
-          'Not quite. Check your working and try again.',
-          'Use the right triangle to find AB.'
-        ],
+        /* One rung, spoken and not shown — so a second wrong answer
+           spends the ladder and the working appears, which is the two
+           attempts the rest of the game allows before it counts out
+           loud. */
+        feedback: ['Try again!'],
+        voiceOnly: true,
         /* Shown on a correct answer, or after the hints are spent. */
         formula: [
           { kind: 'lead',   text: 'AB² = 4² + 3²' },
