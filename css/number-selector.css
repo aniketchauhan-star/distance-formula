@@ -1,325 +1,283 @@
 /* =============================================================
-   Number selector — self-contained.
-   Everything is namespaced under .number-mechanic, and the component
-   is positioned and scaled by its own wrapper, so it can be moved or
-   removed without touching the rest of the game.
+   Number selector — a mechanical reel.
 
-   Built at its natural size and scaled by the host with --k, so the
-   proportions below are the ones from the brief rather than whatever
-   happened to fit the column it is dropped into.
+   One connected control: a gold housing with an arrow built into each
+   end and a clipped ivory reel running the whole width between them.
+   The numbers either side of the chosen one carry on underneath the
+   arrows rather than sitting in cards of their own, which is what
+   makes it read as one mechanism instead of five parts.
 
-   One light source, upper left. Every raised thing carries a flat
-   colour shadow straight down for its edge, a blurred one down-right
-   for the cast, and a white inset along its top for the lit face.
-   Pressing anything moves it down and shortens its edge by the same
-   amount, so the face travels and the base stays put. Nothing casts a
-   shadow in any other direction.
+   Everything is namespaced under .number-control and scaled by the
+   host with --k, so the sizes below are the ones from the brief
+   rather than whatever fitted the column it is dropped into.
+
+   One light source, upper left: every raised thing has a lighter top,
+   a flat colour edge straight down and a blurred cast under it, and
+   pressing moves the face down while the base stays put.
    ============================================================= */
 
-.number-mechanic {
-  --card: 110px;
-  --arrow: 90px;
-  --dot: 16px;
+.number-control {
+  --gold-light: #FFD758;
+  --gold:       #FFB51F;
+  --orange:     #F28A08;
+  --orange-dark:#C95B04;
+  --cream:      #FFF8E8;
+  --cream-dark: #F2E2C2;
+  --blue:       #0754B8;
+
+  --housing-w: 800px;
+  --housing-h: 190px;
+  --side-w: 140px;
+  --seat-w: 190px;
+  --seat-h: 150px;
 
   position: absolute;
-  box-sizing: border-box;
-  width: 640px;
-  height: 320px;
-
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 30px;
-
-  background: #FFFDF4;
-  border: 4px solid #F5B92B;
-  border-radius: 30px;
-
-  box-shadow:
-    0 8px 0 #D7820B,
-    0 14px 24px rgba(115, 65, 10, 0.16),
-    inset 0 3px 0 rgba(255, 255, 255, 0.8);
+  gap: 38px;
 
   font-family: 'Nunito', system-ui, sans-serif;
   transform-origin: top left;
   transform: scale(var(--k, 1));
 }
 
-/* ---------------- the one row ----------------
-   Arrow, track, arrow. It must never wrap: the arrows are the whole
-   interface, and a wrapped row puts one of them under the number. */
-.number-mechanic .selector-area {
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: center;
-  justify-content: center;
-  gap: 26px;
+/* ---------------- the housing ---------------- */
+.number-control .selector {
+  position: relative;
+  width: var(--housing-w);
+  height: var(--housing-h);
+  border-radius: 52px;
+  background: linear-gradient(180deg, var(--gold-light) 0%, var(--gold) 52%, var(--orange) 100%);
+  box-shadow:
+    0 10px 0 var(--orange-dark),
+    0 18px 28px rgba(120, 60, 5, 0.24),
+    inset 0 3px 0 rgba(255, 255, 255, 0.65);
 }
 
-/* ---------------- arrows ---------------- */
-.number-mechanic .arrow-button {
-  width: var(--arrow);
-  height: var(--arrow);
-  flex: none;
+/* ---------------- the reel ----------------
+   It runs the full width of the housing and is covered at both ends by
+   the arrows, so a number leaving the middle slides under one of them
+   instead of stopping at an edge. */
+.number-control .reel {
+  position: absolute;
+  left: 0; right: 0;
+  top: 8px; bottom: 8px;
+  overflow: hidden;
+  border-radius: 46px;
+  background: var(--cream);
+  box-shadow:
+    inset 0 6px 12px rgba(150, 95, 20, 0.16),
+    inset 0 -2px 0 rgba(255, 255, 255, 0.7);
+}
+
+/* The block the chosen number sits on. Behind the numbers and outside
+   the sliding lane: the reel moves through it, it does not travel. */
+.number-control .seat {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: var(--seat-w);
+  height: var(--seat-h);
+  margin: calc(var(--seat-h) / -2) 0 0 calc(var(--seat-w) / -2);
+  border-radius: 40px;
+  background: linear-gradient(180deg, #FFE477 0%, #FFC62E 62%, #FFB61C 100%);
+  box-shadow:
+    0 8px 0 var(--orange),
+    0 12px 18px rgba(130, 70, 10, 0.22),
+    inset 0 4px 0 rgba(255, 255, 255, 0.72);
+  transform: translateY(-6px);
+}
+.number-control .seat.pop { animation: selectedPop 280ms cubic-bezier(.2, .8, .25, 1) both; }
+@keyframes selectedPop {
+  0%   { transform: translateY(-6px) scale(1); }
+  45%  { transform: translateY(-10px) scale(1.08); }
+  100% { transform: translateY(-6px) scale(1); }
+}
+
+/* ---------------- the numbers ---------------- */
+.number-control .lane { position: absolute; inset: 0; }
+.number-control .cell {
+  position: absolute;
+  left: 50%; top: 50%;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+  transition:
+    transform 280ms cubic-bezier(.25, .85, .3, 1),
+    color 280ms ease,
+    opacity 280ms ease,
+    filter 280ms ease;
+}
+/* the chosen one, sitting on its block */
+.number-control .cell.on {
+  color: var(--blue);
+  font-size: 96px;
+  font-weight: 900;
+  opacity: 1;
+  filter: none;
+  text-shadow: 0 3px 0 rgba(255, 255, 255, 0.55);
+}
+/* the ones either side: smaller, grey and soft, carrying on under the
+   arrows rather than ending in a card */
+.number-control .cell.off {
+  color: #9C8E7C;
+  font-size: 96px;
+  font-weight: 800;
+  opacity: .5;
+  filter: blur(1.4px);
+  text-shadow: none;
+}
+/* a cell with no value to show — past either end of the range */
+.number-control .cell.empty { opacity: 0; }
+/* the two off-screen buffers are recycled here, so they must not be
+   seen travelling back across the reel */
+.number-control .cell.jump { transition: none; }
+
+/* ---------------- the arrows ----------------
+   Built into the ends of the housing rather than sitting on it. */
+.number-control .side {
+  position: absolute;
+  top: 0; bottom: 0;
+  width: var(--side-w);
+  z-index: 2;
   padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-
-  border-radius: 50%;
-  background: linear-gradient(180deg, #FFE36A, #FFC733);
-  border: 4px solid #D47A08;
+  border: 0;
   cursor: pointer;
+  background: linear-gradient(180deg, var(--gold-light) 0%, var(--gold) 50%, var(--orange) 100%);
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.6),
+              inset 0 -6px 0 rgba(170, 82, 6, 0.28);
+  transition: transform 120ms ease, box-shadow 120ms ease, opacity .16s ease;
+}
+.number-control .side.prev { left: 0;  border-radius: 52px 18px 18px 52px; }
+.number-control .side.next { right: 0; border-radius: 18px 52px 52px 18px; }
+.number-control .side:hover:not(:disabled) { transform: translateY(-2px); }
+.number-control .side:active:not(:disabled),
+.number-control .side.is-pressed:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.45),
+              inset 0 -3px 0 rgba(170, 82, 6, 0.22);
+}
+/* At either end there is nowhere to go. It stays where it is and says
+   so, so the housing never changes shape. */
+.number-control .side:disabled { opacity: .45; cursor: default; }
 
+/* Drawn, not typed: a glyph carries the font's own side bearings and
+   sits off centre in a panel this size. */
+.number-control .chev {
+  width: 0; height: 0;
+  border-top: 26px solid transparent;
+  border-bottom: 26px solid transparent;
+  filter: drop-shadow(0 3px 2px rgba(140, 70, 5, .3));
+}
+.number-control .side.prev .chev { border-right: 34px solid var(--cream); margin-right: 6px; }
+.number-control .side.next .chev { border-left:  34px solid var(--cream); margin-left: 6px; }
+
+/* ---------------- right and wrong ---------------- */
+.number-control.is-correct .seat {
+  background: linear-gradient(180deg, #7DE88A 0%, #46C95A 62%, #34B44A 100%);
   box-shadow:
-    0 7px 0 #AA5A06,
-    0 10px 14px rgba(100, 55, 5, 0.15),
-    inset 0 3px 0 rgba(255, 255, 255, 0.55);
-  transform: translateY(0);
-  transition: transform 120ms ease, box-shadow 120ms ease, opacity .15s ease;
+    0 8px 0 #1E8A38,
+    0 12px 18px rgba(20, 90, 35, 0.22),
+    inset 0 4px 0 rgba(255, 255, 255, 0.5);
+  animation: selectedPop 380ms cubic-bezier(.2, .8, .25, 1) both;
 }
-.number-mechanic .arrow-button:hover:not(:disabled) { transform: translateY(-2px); }
-.number-mechanic .arrow-button:active:not(:disabled),
-.number-mechanic .arrow-button.is-pressed:not(:disabled) {
-  transform: translateY(5px);
-  box-shadow:
-    0 2px 0 #AA5A06,
-    0 4px 7px rgba(100, 55, 5, 0.12),
-    inset 0 3px 0 rgba(255, 255, 255, 0.4);
-}
-/* At either end there is nowhere to go; the button says so rather than
-   disappearing, so the row never changes width. */
-.number-mechanic .arrow-button:disabled {
-  opacity: .42;
-  cursor: default;
-  box-shadow: 0 7px 0 #AA5A06, inset 0 3px 0 rgba(255, 255, 255, 0.4);
-}
-
-/* The heads are drawn, not typed: a glyph would carry the font's own
-   spacing and sit off centre inside the disc. */
-.number-mechanic .arrow-left,
-.number-mechanic .arrow-right {
-  width: 0;
-  height: 0;
-  border-top: 19px solid transparent;
-  border-bottom: 19px solid transparent;
-  filter: drop-shadow(0 2px 1px rgba(140, 70, 5, .28));
-}
-.number-mechanic .arrow-left  { border-right: 25px solid #FFFFFF; margin-right: 5px; }
-.number-mechanic .arrow-right { border-left:  25px solid #FFFFFF; margin-left: 5px; }
-
-/* ---------------- the track ----------------
-   A rail with markers on it, running behind the number so the card
-   reads as sitting on the track rather than beside it. */
-.number-mechanic .number-track {
-  position: relative;
-  flex: none;
-  width: 320px;
-  height: var(--card);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 24px;
-}
-.number-mechanic .number-track::before {
-  content: "";
+.number-control.is-correct .cell.on { color: #FFFFFF; text-shadow: 0 3px 0 rgba(20, 90, 35, .28); }
+.number-control .tick {
   position: absolute;
-  left: 6px; right: 6px;
-  top: 50%;
-  height: 4px;
-  margin-top: -2px;
-  border-radius: 2px;
-  background: #E2CF9F;
-  box-shadow: inset 0 1px 0 rgba(120, 80, 20, .14);
-}
-.number-mechanic .dot {
-  position: relative;          /* over the rail, not under it */
-  flex: none;
-  width: var(--dot);
-  height: var(--dot);
-  border-radius: 50%;
-  background: #D7BE86;
-  box-shadow: inset 0 2px 0 rgba(255, 255, 255, .35);
-  transition: background .18s ease, transform .18s ease;
-}
-/* How far along the range the value has come — the markers fill from
-   the left, so the child can see movement even on a number they cannot
-   yet read. */
-.number-mechanic .dot.lit {
-  background: #F0C053;
-  transform: scale(1.14);
-}
-
-/* ---------------- the active number ---------------- */
-.number-mechanic .number-card {
-  position: relative;
-  flex: none;
-  width: var(--card);
-  height: var(--card);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  border-radius: 20px;
-  background: linear-gradient(180deg, #FFFDF7 0%, #FFF3CE 100%);
-  border: 4px solid #DC8B0C;
-  color: #063C98;
-
-  font-size: 64px;
-  font-weight: 800;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-
-  box-shadow:
-    0 7px 0 #B96A08,
-    0 10px 16px rgba(120, 70, 10, 0.15),
-    inset 0 3px 0 rgba(255, 255, 255, 0.8);
-  transition: background .2s ease, border-color .2s ease, box-shadow .2s ease;
-}
-/* The digit is its own element so the tick can share the card: writing
-   textContent on the card itself would take the tick out with it every
-   time the number changed. */
-.number-mechanic .selected-number { display: block; }
-
-/* ---------------- changing the number ----------------
-   The digit leaving goes the way the row is travelling, the one
-   arriving comes from the other side and settles with a small bounce.
-   Quick, and no spinning. */
-.number-mechanic .selected-number.slide-left  { animation: nsOutLeft  90ms ease-in both; }
-.number-mechanic .selected-number.slide-right { animation: nsOutRight 90ms ease-in both; }
-.number-mechanic .selected-number.enter-left  { animation: nsInLeft  140ms cubic-bezier(.2, .9, .3, 1.4) both; }
-.number-mechanic .selected-number.enter-right { animation: nsInRight 140ms cubic-bezier(.2, .9, .3, 1.4) both; }
-
-@keyframes nsOutLeft  { to { transform: translateX(-12px); opacity: .3; } }
-@keyframes nsOutRight { to { transform: translateX(12px);  opacity: .3; } }
-@keyframes nsInLeft {
-  from { transform: translateX(-12px) scale(.92); opacity: 0; }
-  to   { transform: translateX(0) scale(1); opacity: 1; }
-}
-@keyframes nsInRight {
-  from { transform: translateX(12px) scale(.92); opacity: 0; }
-  to   { transform: translateX(0) scale(1); opacity: 1; }
-}
-
-/* ---------------- right and wrong ----------------
-   Green, one bounce and a tick. Under half a second, and nothing that
-   covers the panel. */
-.number-mechanic.is-correct .number-card {
-  background: linear-gradient(180deg, #7DE88A 0%, #46C95A 65%, #34B44A 100%);
-  border-color: #1E8A38;
-  color: #FFFFFF;
-  box-shadow:
-    0 7px 0 #16772F,
-    0 10px 16px rgba(20, 90, 35, 0.2),
-    inset 0 3px 0 rgba(255, 255, 255, 0.45);
-  animation: nsYes 420ms cubic-bezier(.2, .8, .2, 1) both;
-}
-@keyframes nsYes {
-  0%   { transform: scale(1); }
-  45%  { transform: scale(1.08); }
-  100% { transform: scale(1); }
-}
-/* Above the card, not beside it: the markers sit close in on both
-   sides, so a tick to the right would land on one of them. */
-.number-mechanic .yes-tick {
-  position: absolute;
-  left: 50%; top: -48px;
+  left: 50%; top: 2px;
   transform: translateX(-50%) scale(.4);
-  font-size: 42px;
-  font-weight: 900;
-  line-height: 1;
+  font-size: 44px; font-weight: 900; line-height: 1;
   color: #2FAE45;
-  text-shadow: 0 2px 0 rgba(255, 255, 255, .9);
+  text-shadow: 0 2px 0 rgba(255, 255, 255, .92);
   opacity: 0;
   pointer-events: none;
-  transition: transform 200ms cubic-bezier(.2, .8, .2, 1), opacity 160ms ease;
+  z-index: 3;
+  transition: transform 210ms cubic-bezier(.2, .8, .2, 1), opacity 170ms ease;
 }
-.number-mechanic.is-correct .yes-tick { opacity: 1; transform: translateX(-50%) scale(1); }
+.number-control.is-correct .tick { opacity: 1; transform: translateX(-50%) scale(1); }
 
-/* A small shake and a warm red outline, then straight back to gold. */
-.number-mechanic.is-wrong .number-card {
-  border-color: #E96652;
-  animation: nsNo 260ms ease both;
+.number-control.is-wrong .seat {
+  background: linear-gradient(180deg, #FFC9BE 0%, #F8907C 62%, #EE7259 100%);
+  box-shadow:
+    0 8px 0 #C4503A,
+    0 12px 18px rgba(150, 55, 35, 0.22),
+    inset 0 4px 0 rgba(255, 255, 255, 0.5);
+  animation: seatShake 280ms ease both;
 }
-@keyframes nsNo {
-  0%   { transform: translateX(0); }
-  16%  { transform: translateX(-5px); }
-  33%  { transform: translateX(5px); }
-  50%  { transform: translateX(-4px); }
-  66%  { transform: translateX(4px); }
-  100% { transform: translateX(0); }
+@keyframes seatShake {
+  0%   { transform: translateY(-6px) translateX(0); }
+  16%  { transform: translateY(-6px) translateX(-6px); }
+  33%  { transform: translateY(-6px) translateX(6px); }
+  50%  { transform: translateY(-6px) translateX(-4px); }
+  66%  { transform: translateY(-6px) translateX(4px); }
+  100% { transform: translateY(-6px) translateX(0); }
 }
 
 /* ---------------- check ---------------- */
-.number-mechanic .check-button {
-  width: 260px;
-  height: 75px;
+.number-control .check {
+  width: 440px;
+  height: 110px;
   flex: none;
   padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 14px;
 
-  border-radius: 38px;
-  background: linear-gradient(180deg, #62DB68 0%, #36BD4A 65%, #27A53C 100%);
-  border: 4px solid #FFFFFF;
+  border-radius: 55px;
+  background: linear-gradient(180deg, #49D34F 0%, #20B33C 62%, #1AA134 100%);
+  border: 4px solid rgba(255, 255, 255, 0.92);
   cursor: pointer;
 
   color: #FFFFFF;
   font-family: inherit;
-  font-size: 34px;
-  font-weight: 700;
-  letter-spacing: .4px;
-  text-shadow: 0 2px 2px rgba(0, 70, 20, 0.2);
+  font-size: 48px;
+  font-weight: 800;
+  letter-spacing: .5px;
+  text-shadow: 0 3px 2px rgba(6, 80, 28, 0.32);
 
   box-shadow:
-    0 7px 0 #168534,
-    0 11px 16px rgba(20, 90, 35, 0.18),
-    inset 0 3px 0 rgba(255, 255, 255, 0.32);
+    0 9px 0 #087E2A,
+    0 15px 22px rgba(15, 85, 30, 0.22),
+    inset 0 3px 0 rgba(255, 255, 255, 0.34);
   transition: transform 120ms ease, box-shadow 120ms ease;
 }
-.number-mechanic .check-button:hover:not(:disabled) { transform: translateY(-2px); }
-.number-mechanic .check-button:active:not(:disabled),
-.number-mechanic .check-button.is-pressed:not(:disabled) {
+.number-control .check:hover:not(:disabled) { transform: translateY(-2px); }
+.number-control .check:active:not(:disabled),
+.number-control .check.is-pressed:not(:disabled) {
   transform: translateY(5px);
   box-shadow:
-    0 2px 0 #168534,
-    0 5px 8px rgba(20, 90, 35, 0.16),
-    inset 0 3px 0 rgba(255, 255, 255, 0.28);
+    0 4px 0 #087E2A,
+    0 7px 10px rgba(15, 85, 30, 0.18),
+    inset 0 3px 0 rgba(255, 255, 255, 0.3);
 }
-.number-mechanic .check-icon { font-size: 30px; line-height: 1; }
+.number-control .check-icon { font-size: 42px; line-height: 1; }
 
 /* Answered: nothing left to choose. */
-.number-mechanic.locked .check-button {
-  opacity: .55;
-  cursor: default;
-  box-shadow: 0 7px 0 #168534, inset 0 3px 0 rgba(255, 255, 255, 0.28);
-}
-.number-mechanic.locked .check-button:hover { transform: none; }
+.number-control.locked .check { opacity: .55; cursor: default; }
+.number-control.locked .check:hover { transform: none; }
 
-.number-mechanic.hidden { display: none !important; }
+.number-control.hidden { display: none !important; }
 
-/* Coming up into the space she has just left. Short enough to be
-   settled before she lands on it. The scale rides in the keyframes:
-   an animation with `both` holds its last frame, so a keyframe that
-   only translated would drop the inline scale the host set. */
-.number-mechanic.rising { animation: nsRise .42s cubic-bezier(.22, .68, .3, 1) both; }
-@keyframes nsRise {
+/* Coming up into the space she has just left, settled before she lands
+   on it. The scale rides in the keyframes: an animation with `both`
+   holds its last frame, so a keyframe that only translated would drop
+   the inline scale the host set. */
+.number-control.rising { animation: ncRise .42s cubic-bezier(.22, .68, .3, 1) both; }
+@keyframes ncRise {
   0%   { opacity: 0; transform: scale(var(--k, 1)) translateY(90px); }
   60%  { opacity: 1; transform: scale(var(--k, 1)) translateY(-8px); }
   100% { opacity: 1; transform: scale(var(--k, 1)) translateY(0); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .number-mechanic .dot,
-  .number-mechanic .yes-tick { transition: none; }
-  .number-mechanic .selected-number.slide-left,
-  .number-mechanic .selected-number.slide-right,
-  .number-mechanic .selected-number.enter-left,
-  .number-mechanic .selected-number.enter-right,
-  .number-mechanic.is-correct .number-card,
-  .number-mechanic.is-wrong .number-card { animation: none; }
-  .number-mechanic.rising { animation: none; }
+  .number-control .cell { transition: none; }
+  .number-control .seat.pop,
+  .number-control.is-correct .seat,
+  .number-control.is-wrong .seat { animation: none; }
+  .number-control .tick { transition: none; }
+  .number-control.rising { animation: none; }
 }

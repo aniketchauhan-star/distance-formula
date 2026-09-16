@@ -847,13 +847,14 @@ window.CFG = (function () {
        so its proportions stay the ones it was designed at rather than
        whatever happened to fit. */
     selector: {
-      /* The mechanic's own natural size — one row of arrow, track and
-         arrow over the Check button. Scaled so the panel keeps the
-         width it had in her column: she lands on its top edge at y 688
-         and the board still starts 34px clear of its right. */
+      /* The reel's own natural size — one gold housing 800 x 190 with
+         an arrow built into each end, and the Check button under it.
+         Scaled so it keeps the width it has always had in her column:
+         she lands on the housing's top edge at y 688, and the board
+         still starts 34px clear of its right. */
       pos: { x: 34, y: 680 },
-      w: 640, h: 320,
-      scale: 0.831
+      w: 800, h: 346,
+      scale: 0.665
     },
 
     /* The triangle-type answer panel takes the slider's place, centred
@@ -1029,26 +1030,20 @@ window.CFG = (function () {
        point she asked for. Two wrong taps and she shows the answer
        herself. */
     { id: 6, line: 'Locate the point (3, 2).', entrance: 'stay',
-      layout: 'grid', dots: true, bubbleScale: 0.9,
+      layout: 'grid', dots: true,
       task: {
         target: { x: 3, y: 2 },
         maxWrong: 2,
-        correctLine: 'Correct!',
-        tryAgainLine: 'Not quite — try again!',
-        revealLine: 'Here it is — (3, 2).'
       } },
 
     /* 7 — same again with a new point, and without the nudge: the first
        one showed how, so pointing at this one too would be doing it for
        them rather than letting them try. */
     { id: 7, line: 'Locate the point (6, 2).', entrance: 'stay', hint: false,
-      layout: 'grid', dots: true, bubbleScale: 0.9,
+      layout: 'grid', dots: true,
       task: {
         target: { x: 6, y: 2 },
         maxWrong: 2,
-        correctLine: 'Correct!',
-        tryAgainLine: 'Not quite — try again!',
-        revealLine: 'Here it is — (6, 2).'
       } },
 
     /* No sweep between 7 and 8: this question is asked on the very board
@@ -1102,12 +1097,12 @@ window.CFG = (function () {
        time, so counting whole squares no longer works — which is the
        point she is about to make. */
     { id: 12, line: 'This one’s different.', entrance: 'fly',
-      layout: 'grid', transition: 'leaves', bubbleScale: 0.9,
+      layout: 'grid', transition: 'leaves',
       segment: { a: { x: 2, y: 1 }, b: { x: 6, y: 4, nameDx: 40, nameDy: 8 } } },
 
     // 13 — same board and same segment, she just carries on talking
     { id: 13, line: 'Can the grid help?', entrance: 'stay',
-      layout: 'grid', bubbleScale: 0.9, keepSegment: true },
+      layout: 'grid', keepSegment: true },
 
     /* 14 — leaves again, back to the board layout with the slider.
        The diagonal is redrawn and a corner C is dropped from it, so
@@ -1238,7 +1233,7 @@ window.CFG = (function () {
     /* 21 — leaves, back to the field layout, and the same idea stated
        in general: the points are named rather than numbered. */
     { id: 21, line: 'The same idea works for any two points.', entrance: 'fly',
-      layout: 'grid', transition: 'leaves', bubbleScale: 0.9,
+      layout: 'grid', transition: 'leaves',
       segment: {
         a: { x: -5, y: 1, name: 'A', coordText: '(x1, y1)', nameDx: -46, nameDy: 8 },
         b: { x:  5, y: 4, name: 'B', coordText: '(x2, y2)', nameDx: 40, nameDy: 8 }
@@ -1263,7 +1258,7 @@ window.CFG = (function () {
        gains its length, written as the difference rather than a
        count of units. */
     { id: 23, line: 'AC = x2 - x1', entrance: 'stay',
-      layout: 'grid', keepSegment: true, bubbleScale: 0.9,
+      layout: 'grid', keepSegment: true,
       segment: {
         a: { x: -5, y: 1, name: 'A', coordText: '(x1, y1)', nameDx: -46, nameDy: 8 },
         b: { x:  5, y: 4, name: 'B', coordText: '(x2, y2)', nameDx: 40, nameDy: 8 }
@@ -1278,7 +1273,7 @@ window.CFG = (function () {
     /* 24 — and now the vertical leg is named too, so both differences
        are on the board together. */
     { id: 24, line: 'CB = y2 - y1', entrance: 'stay',
-      layout: 'grid', keepSegment: true, bubbleScale: 0.9,
+      layout: 'grid', keepSegment: true,
       segment: {
         a: { x: -5, y: 1, name: 'A', coordText: '(x1, y1)', nameDx: -46, nameDy: 8 },
         b: { x:  5, y: 4, name: 'B', coordText: '(x2, y2)', nameDx: 40, nameDy: 8 }
@@ -1295,7 +1290,7 @@ window.CFG = (function () {
        sets up. Nothing is declared to draw, so nothing redraws and
        her line comes straight up. */
     { id: 25, line: 'Now, let’s find AB.', entrance: 'stay',
-      layout: 'grid', keepSegment: true, bubbleScale: 0.9 },
+      layout: 'grid', keepSegment: true },
 
     /* 26 — leaves, then the result on its own: board to the left, the
        working beside it, and nobody in shot. */

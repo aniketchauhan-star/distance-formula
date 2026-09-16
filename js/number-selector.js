@@ -1,6 +1,6 @@
 /* =============================================================
-   Number selector — a left arrow, one number on a track, a right
-   arrow, and Check.
+   Number selector — a mechanical reel with an arrow built into each
+   end of one gold housing, and Check under it.
 
    Self-contained: it owns its markup and its styles, exposes the same
    small surface the game already used (mount / show / hide / reset /
@@ -8,26 +8,29 @@
    onCheck), and knows nothing about what any answer should be — the
    game tells it whether a guess was right, it does not work that out.
 
-   Only the selected value is drawn. The neighbours are gone: three
-   numbers side by side made the child read all three to find the one
-   that counted, where one number in the middle of a track says what
-   is chosen and nothing else. The markers on the track carry the
-   sense of position the neighbours used to.
-
-   All of the look and all of the feedback live in CSS classes; this
-   file only sets values and toggles state.
+   The reel is five cells, not three. Three would mean recycling a cell
+   in plain sight — the one that has just slid off the middle is still
+   on screen — so the two beyond the visible ones are kept as buffers
+   under the arrows, and that is where a cell is moved and rewritten.
    ============================================================= */
 window.NumberSelector = (function () {
   'use strict';
 
-  /* It opens on 0: nothing has been measured yet, so the control says
-     nothing has been measured yet. The back arrow is disabled there,
-     which is the truth — there is nothing below no distance at all. */
+  /* The host sets a range per screen, but only two of its screens
+     carry one: these are the fallback for all the rest, so they are
+     the game's numbers rather than a component default. It opens on 0
+     because nothing has been measured yet — and the back arrow is
+     disabled there, which is the truth. */
   const MIN = 0, MAX = 8, START = 0;
 
-  const DOTS = 4;           // markers on the track, two either side
-  const OUT_MS = 90;        // the digit leaving
-  const IN_MS = 140;        // the one arriving
+  /* How far apart the numbers sit. Wide enough that the two either
+     side straddle the arrow built into each end and are cut off by it,
+     which is what makes the reel read as carrying on under the housing
+     rather than as three numbers in a row. */
+  const PITCH = 255;
+  const OFFSETS = [-2, -1, 0, 1, 2];
+  const SMALL = 0.58;       // the neighbours, against the chosen one
+  const SLIDE_MS = 280;
 
   function mount(parent, opts) {
     opts = opts || {};
@@ -39,7 +42,7 @@ window.NumberSelector = (function () {
     let onChange = null, onCheck = null;
 
     const root = document.createElement('div');
-    root.classList.add('number-mechanic');
+    root.classList.add('number-control');
     root.id = opts.id || 'numberSelector';
     if (opts.x !== undefined) root.style.left = opts.x + 'px';
     if (opts.y !== undefined) root.style.top = opts.y + 'px';
@@ -53,65 +56,79 @@ window.NumberSelector = (function () {
       return n;
     };
 
-    const row = mk('div', 'selector-area');
+    const selector = mk('div', 'selector');
 
-    const left = mk('button', 'arrow-button previous');
+    const left = mk('button', 'side prev');
     left.type = 'button';
     left.setAttribute('aria-label', 'Previous number');
-    left.appendChild(mk('span', 'arrow-left'));
+    left.appendChild(mk('span', 'chev'));
 
-    const track = mk('div', 'number-track');
-    const dots = [];
-    const card = mk('div', 'number-card');
-    const digit = mk('span', 'selected-number');
-    const tick = mk('span', 'yes-tick', '✓');
-    card.appendChild(digit);
-    card.appendChild(tick);
-    /* Half the markers, then the number, then the rest — so the card
-       sits in the middle of the track whatever the value is. */
-    for (let i = 0; i < DOTS; i++) {
-      const d = mk('span', 'dot');
-      dots.push(d);
-      if (i === DOTS / 2) track.appendChild(card);
-      track.appendChild(d);
-    }
-
-    const right = mk('button', 'arrow-button next');
+    const right = mk('button', 'side next');
     right.type = 'button';
     right.setAttribute('aria-label', 'Next number');
-    right.appendChild(mk('span', 'arrow-right'));
+    right.appendChild(mk('span', 'chev'));
 
-    row.appendChild(left); row.appendChild(track); row.appendChild(right);
+    const reel = mk('div', 'reel');
+    const seat = mk('div', 'seat');
+    const lane = mk('div', 'lane');
+    reel.appendChild(seat);
+    reel.appendChild(lane);
 
-    const check = mk('button', 'check-button', 'Check');
+    /* One cell per offset. They are rotated rather than rebuilt, so a
+       number keeps its element as it travels and the transition on it
+       is never interrupted. */
+    const cells = OFFSETS.map(function () {
+      const c = mk('span', 'cell');
+      lane.appendChild(c);
+      return c;
+    });
+
+    const tick = mk('span', 'tick', '✓');
+
+    selector.appendChild(reel);
+    selector.appendChild(tick);
+    selector.appendChild(left);
+    selector.appendChild(right);
+
+    const check = mk('button', 'check', 'Check');
     check.type = 'button';
     check.setAttribute('aria-label', 'Check answer');
     check.appendChild(mk('span', 'check-icon', '✓'));
 
-    root.appendChild(row);
+    root.appendChild(selector);
     root.appendChild(check);
     parent.appendChild(root);
 
-    /* The selected number is announced, not just drawn: the markers are
-       decoration, so a screen reader hears one value. */
-    card.setAttribute('role', 'status');
-    card.setAttribute('aria-live', 'polite');
+    /* The chosen number is announced, not the whole reel: the two
+       beside it are there to show the run, not to be read. */
+    seat.setAttribute('role', 'status');
+    seat.setAttribute('aria-live', 'polite');
 
-    /* The markers fill from the left in proportion to how far along the
-       range the value has come. They are not one-per-value — there are
-       four of them and nine values — they only say roughly where in the
-       run the child is. */
-    function paintDots() {
-      const span = Math.max(1, max - min);
-      const lit = Math.round((current - min) / span * DOTS);
-      dots.forEach(function (d, i) { d.classList.toggle('lit', i < lit); });
+    /* Seats one cell at an offset from the middle. `jump` is for the
+       two buffers, which are moved across the reel rather than along
+       it and must not be seen doing it. */
+    function seatCell(cell, off, jump) {
+      const v = current + off;
+      const mid = off === 0;
+      const scale = mid ? 1 : SMALL;
+      if (jump) cell.classList.add('jump');
+      cell.textContent = (v < min || v > max) ? '' : String(v);
+      cell.classList.toggle('empty', v < min || v > max);
+      cell.classList.toggle('on', mid);
+      cell.classList.toggle('off', !mid);
+      cell.style.transform =
+        'translate(calc(-50% + ' + (off * PITCH) + 'px), -50%) scale(' + scale + ')';
+      if (jump) {
+        void cell.offsetWidth;           // land it before transitions come back
+        cell.classList.remove('jump');
+      }
     }
 
-    function paint() {
-      digit.textContent = String(current);
+    function paint(jumpAll) {
+      cells.forEach(function (c, i) { seatCell(c, OFFSETS[i], jumpAll); });
+      seat.setAttribute('aria-label', String(current));
       left.disabled = current <= min;
       right.disabled = current >= max;
-      paintDots();
     }
 
     /* A press that shows on the button however it was triggered —
@@ -119,7 +136,7 @@ window.NumberSelector = (function () {
        keyboard too. */
     function press(btn) {
       btn.classList.add('is-pressed');
-      setTimeout(function () { btn.classList.remove('is-pressed'); }, 120);
+      setTimeout(function () { btn.classList.remove('is-pressed'); }, 130);
     }
 
     let verdict = null;
@@ -128,33 +145,38 @@ window.NumberSelector = (function () {
       root.classList.remove('is-correct', 'is-wrong');
     }
 
-    /* The digit leaves the way the row is travelling and the next one
-       arrives from the other side. Two steps, not one: the value is
-       only written into the card once the old one is out of the way,
-       so the two are never on screen together. */
-    let swap = null;
-    function show(dir) {
-      clearTimeout(swap);
-      digit.classList.remove('slide-left', 'slide-right', 'enter-left', 'enter-right');
-      if (!dir) { paint(); return; }
-      void digit.offsetWidth;
-      digit.classList.add(dir > 0 ? 'slide-left' : 'slide-right');
-      swap = setTimeout(function () {
-        digit.classList.remove('slide-left', 'slide-right');
-        paint();
-        void digit.offsetWidth;
-        digit.classList.add(dir > 0 ? 'enter-right' : 'enter-left');
-      }, OUT_MS);
+    let popping = null;
+    function popSeat() {
+      clearTimeout(popping);
+      seat.classList.remove('pop');
+      void seat.offsetWidth;
+      seat.classList.add('pop');
+      popping = setTimeout(function () { seat.classList.remove('pop'); }, SLIDE_MS + 40);
     }
 
     function set(v, tell) {
       v = Math.min(max, Math.max(min, Math.round(v)));
       if (v === current) return;
       const dir = v > current ? 1 : -1;
+      const step = Math.abs(v - current);
       current = v;
-
       clearVerdict();          // a new guess clears the verdict on the last
-      show(dir);
+
+      /* More than one step at once — the host setting a value outright
+         rather than the player pressing an arrow — is not a slide. */
+      if (step > 1) { paint(true); }
+      else {
+        /* Rotate so the array still reads -2..+2 from the new value.
+           The cell that falls off one end is the one rewritten, out of
+           sight under an arrow. */
+        const wrapped = dir > 0 ? cells.shift() : cells.pop();
+        if (dir > 0) cells.push(wrapped); else cells.unshift(wrapped);
+        cells.forEach(function (c, i) { seatCell(c, OFFSETS[i], c === wrapped); });
+        seat.setAttribute('aria-label', String(current));
+        left.disabled = current <= min;
+        right.disabled = current >= max;
+        popSeat();
+      }
 
       if (window.Audio8 && window.Audio8.blip) window.Audio8.blip();
       if (tell !== false && onChange) onChange(current);
@@ -171,10 +193,10 @@ window.NumberSelector = (function () {
       press(check);
       if (onCheck) onCheck(current);
     });
-    // taps inside the panel are its own; they must not skip the screen
+    // taps inside the control are its own; they must not skip the screen
     root.addEventListener('click', function (e) { e.stopPropagation(); });
 
-    paint();
+    paint(true);
 
     return {
       el: root,
@@ -187,31 +209,31 @@ window.NumberSelector = (function () {
         min = lo; max = hi;
         startAt = Math.min(max, Math.max(min, start != null ? start : START));
         current = Math.min(max, Math.max(min, current));
-        paint();
+        paint(true);
       },
 
       reset: function () {
-        clearTimeout(swap);
-        digit.classList.remove('slide-left', 'slide-right', 'enter-left', 'enter-right');
         current = startAt;
         clearVerdict();
+        clearTimeout(popping);
+        seat.classList.remove('pop');
         root.classList.remove('locked');
         left.disabled = right.disabled = check.disabled = false;
-        paint();
+        paint(true);
       },
 
       /* The game decides what is right; these only show it. */
       markCorrect: function () {
         clearVerdict();
-        void card.offsetWidth;
+        void seat.offsetWidth;
         root.classList.add('is-correct');
       },
       markWrong: function () {
         clearVerdict();
-        void card.offsetWidth;
+        void seat.offsetWidth;
         root.classList.add('is-wrong');
-        // back to the ordinary golden card once the shake is done
-        verdict = setTimeout(function () { root.classList.remove('is-wrong'); }, 300);
+        // back to the ordinary yellow block once the shake is done
+        verdict = setTimeout(function () { root.classList.remove('is-wrong'); }, 320);
       },
 
       /* Once the answer is right there is nothing left to choose, so

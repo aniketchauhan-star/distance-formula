@@ -2513,6 +2513,22 @@
       });
     },
 
+    /* Some moments need no words: the point lighting up under their
+       finger says "right" better than the word does, and a child who
+       has just tapped the wrong square can see that without being told.
+       Where a screen carries no line for one of those, there is no
+       bubble to finish — and the hand-over rides on the bubble
+       finishing — so it has to be armed here instead, or the screen
+       would sit there for ever with Next unarmed. */
+    finishWith: function (line, pause) {
+      if (line) { this.speak(line); return; }
+      /* `pause` is how long the board is left up to be read. It only
+         applies to the wordless path — a line sets its own, by how long
+         she takes to say it. */
+      this.settle(pause != null ? pause
+        : (this.task && this.task.done ? C.AUTO.afterCorrect : C.AUTO.afterLine));
+    },
+
     /* The Check button on the distance panel. */
     /* The two points a distance question is about: a named leg, or the
        segment itself. Read from the board rather than typed into the
@@ -2744,7 +2760,7 @@
         SFX.cheer();
         SFX.confettiPop();
         FX.pop(at.x, at.y, 18);
-        self.speak(t.spec.correctLine);
+        self.finishWith(t.spec.correctLine);
       }, 260);
     },
 
@@ -2782,11 +2798,14 @@
           FX.ring(at.x, at.y, 150, 'rgba(70,200,95,.9)');
           FX.sparkles(at.x, at.y, 8, 120);
           SFX.chime();
-          self.speak(t.spec.revealLine);
+          /* Shown, not told. With no sentence pointing at it, the board
+             has to stay up long enough to be read — which is the pause
+             a worked solution gets, not the one a right answer gets. */
+          self.finishWith(t.spec.revealLine, C.AUTO.afterReveal);
         }, 620);
       } else {
         this.later(function () {
-          self.speak(t.spec.tryAgainLine);
+          self.finishWith(t.spec.tryAgainLine);
         }, 260);
       }
     },
