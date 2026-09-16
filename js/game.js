@@ -3258,9 +3258,19 @@
         if (fb.exhausted && t.spec.showWorking) {
           t.done = true;
           if (Sel) Sel.lock();
+          const screen = C.SCRIPT[self.index] || {};
           self.later(function () {
-            const ms = self.showWorking(C.SCRIPT[self.index] || {});
-            self.later(function () { self.settle(C.AUTO.afterReveal); }, ms);
+            /* The two sides measured on the board first — they are what
+               the working is about to square and add, so they have to be
+               there before it does. */
+            const ms = self.showWorking(screen);
+            self.later(function () {
+              if (t.spec.formula) {
+                self.workThrough(t, function () { self.settle(C.AUTO.afterLine); });
+              } else {
+                self.settle(C.AUTO.afterReveal);
+              }
+            }, ms);
           }, 420);
           return;
         }
@@ -3349,6 +3359,12 @@
           dy += -uy * 20;
         }
       }
+      /* Where a panel is going to write the working out, the board
+         stops at the two sides: stating the answer twice, once on the
+         line and once in the working, makes the working look like a
+         caption for something already settled. */
+      if (this.task && this.task.spec && this.task.spec.formula) return delay + 240;
+
       const txt = 'AB\u00A0=\u00A0' + this.task.spec.answer + '\u00A0units';
       this.later(function () {
         Board.showSegResult(seg, txt, dy, dx);
@@ -3423,6 +3439,7 @@
       const self = this, W = C.BOARD.working;
       if (!Opts || !t.spec.formula) { if (then) then(); return; }
       Opts.lock();
+      if (Sel) Sel.lock();
       Bubble.close();                       // she is about to fly
 
       /* One thing at a time, in this order: she goes, then the answers
@@ -3431,8 +3448,10 @@
          it being cleared and then used. */
       this.later(function () {
         self.flyOut(function () {
-          // she is gone; now the answers follow her off
+          // she is gone; now the control follows her off, whichever
+          // one this screen was using
           Opts.hide();
+          if (Sel) Sel.hide();
           self.later(function () {
             // and only then does the working take the empty column
             Opts.moveTo(W.pos.x, W.pos.y);

@@ -918,7 +918,7 @@ window.CFG = (function () {
        her column rather than the foot of it. A worked solution is the
        whole screen for as long as it is being written, so it takes the
        middle and nothing stands on it until it is finished. */
-    working: { pos: { x: 34, y: 400 }, scale: 0.73, stand: STAND_WORK },
+    working: { pos: { x: 34, y: 400 }, scale: 0.85, stand: STAND_WORK },
 
     /* And the answer pad takes the same column again, for the
        questions whose answer is typed rather than chosen. */
@@ -1375,8 +1375,24 @@ window.CFG = (function () {
                 'Use the right triangle to find AB.'
               ],
               /* Still wrong after both: it is shown rather than asked a
-                 fourth time — each side measured on the board, then AB. */
-              showWorking: true } },
+                 fourth time — each side measured on the board, then the
+                 working written out in the panel. */
+              showWorking: true,
+              /* And the working itself, in the panel — the same shape
+                 as the one the method screen shows, with this
+                 triangle's own numbers. Each part names a side and
+                 lights it. */
+              formula: [
+                { kind: 'lead', parts: [
+                    { t: 'AB\u00B2', lit: 'ab' }, { t: ' = ' },
+                    { t: '4\u00B2', lit: 'h' }, { t: ' + ' }, { t: '3\u00B2', lit: 'v' } ] },
+                { kind: 'step', parts: [
+                    { t: '= ' }, { t: '16', lit: 'h' }, { t: ' + ' }, { t: '9', lit: 'v' } ] },
+                { kind: 'step', parts: [
+                    { t: '= ' }, { t: '25', lit: 'ab' } ] },
+                { kind: 'result', parts: [
+                    { t: 'AB = ' }, { t: '5\u00A0units', lit: 'ab' } ] }
+              ], } },
 
     { id: 28, line: 'What is the distance between two points?', range: { min: 0, max: 12 }, entrance: 'none',
       layout: 'board', transition: 'leaves', intro: 'measure', entry: true,
@@ -1394,7 +1410,22 @@ window.CFG = (function () {
                 'Not quite. Check your working and try again.',
                 'Use the right triangle to find AB.'
               ],
-              showWorking: true } },
+              showWorking: true,
+              /* And the working itself, in the panel — the same shape
+                 as the one the method screen shows, with this
+                 triangle's own numbers. Each part names a side and
+                 lights it. */
+              formula: [
+                { kind: 'lead', parts: [
+                    { t: 'AB\u00B2', lit: 'ab' }, { t: ' = ' },
+                    { t: '8\u00B2', lit: 'h' }, { t: ' + ' }, { t: '6\u00B2', lit: 'v' } ] },
+                { kind: 'step', parts: [
+                    { t: '= ' }, { t: '64', lit: 'h' }, { t: ' + ' }, { t: '36', lit: 'v' } ] },
+                { kind: 'step', parts: [
+                    { t: '= ' }, { t: '100', lit: 'ab' } ] },
+                { kind: 'result', parts: [
+                    { t: 'AB = ' }, { t: '10\u00A0units', lit: 'ab' } ] }
+              ], } },
 
     /* 21 — leaves, back to the field layout, and the same idea stated
        in general: the points are named rather than numbered. */
