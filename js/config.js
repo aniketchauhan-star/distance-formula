@@ -898,6 +898,10 @@ window.CFG = (function () {
   const RECAP = {
     grid: { x: 46, y: 142, w: 1063, h: 858 },
     formula: { x: 1246, y: 372, w: 630 },
+    /* How far apart the three lines arrive. At 300 they read as one
+       block landing at once; each of these has to be read before the
+       next means anything, so they are given the time to be. */
+    step: 900,
     /* Plain "x2" rather than a subscript glyph, and the square root
        written with brackets rather than an overline: both keep to
        characters the game's font actually carries. */
@@ -1383,7 +1387,12 @@ window.CFG = (function () {
     /* 26 — leaves, then the result on its own: board to the left, the
        working beside it, and nobody in shot. */
     { id: 34, line: null, entrance: 'none',
-      layout: 'recap', transition: 'leaves', keepSegment: true },
+      layout: 'recap', transition: 'leaves', keepSegment: true,
+      /* The formula the whole lesson has been building to. Nothing is
+         said over it, and the ordinary silent beat is 900ms — which
+         took it away before the last line had been read. Next is armed
+         throughout, so this is a chance to look, not a wait. */
+      hold: 5200 },
 
     /* 27-28 — leaves, then back to the opening arrangement: no board,
        no panels, Swifty alone in the field. */

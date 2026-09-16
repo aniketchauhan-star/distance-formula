@@ -1945,15 +1945,16 @@
       const fb = this.inner();
       while (fb.children.length) fb.removeChild(fb.children[0]);
     },
-    /* A fixed set of lines, arriving one after another. */
-    setLines: function (lines) {
+    /* A fixed set of lines, arriving one after another — `step` apart,
+       so a caller whose lines have to be read can space them out. */
+    setLines: function (lines, step) {
       const fb = this.inner();
       this.clear();
       lines.forEach(function (l, i) {
         const d = document.createElement('div');
         d.classList.add('fb-' + (l.kind || 'lead'));
         d.textContent = l.text;
-        d.style.animationDelay = (i * 300) + 'ms';
+        d.style.animationDelay = (i * (step || 300)) + 'ms';
         fb.appendChild(d);
       });
     },
@@ -2190,7 +2191,9 @@
         else if (entry.auto && i + 1 < C.SCRIPT.length) {
           self.later(function () { self.goTo(i + 1); }, 160);
         } else {
-          self.settle(C.AUTO.afterSilent);
+          /* A screen that draws something to be read, rather than just
+             moving a piece into place, can name its own pause. */
+          self.settle(entry.hold != null ? entry.hold : C.AUTO.afterSilent);
         }
       };
 
@@ -2264,7 +2267,7 @@
 
         if (entry.layout === 'recap') {
           Formula.place(C.RECAP.formula);
-          Formula.setLines(C.RECAP.lines);
+          Formula.setLines(C.RECAP.lines, C.RECAP.step);
           el.formulaBoard.classList.remove('hidden');
         } else if (AX) {
           Formula.place(AX.formula);
