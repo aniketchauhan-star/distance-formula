@@ -625,6 +625,23 @@ html, body {
   color: #14418c;
   text-align: center;
 }
+/* A square root drawn whole. The bar is the radicand's top border, and
+   the sign is stretched to that same height, so the two meet at the
+   border's line by construction — no glyph metrics to guess at, and the
+   sign finally carries the weight and colour of the type around it
+   instead of whatever face the browser fell back to for \u221A. */
+#formulaBoard .rad {
+  display: inline-flex;
+  align-items: stretch;
+  white-space: nowrap;
+}
+#formulaBoard .rad-sign { flex: none; width: .60em; }
+#formulaBoard .rad-sign svg { display: block; width: 100%; height: 100%; }
+#formulaBoard .rad-body {
+  border-top: .09em solid currentColor;
+  padding: .08em .24em 0 .03em;
+}
+
 #formulaBoard .fb-lead   { font-size: 36px; letter-spacing: .3px; }
 #formulaBoard .fb-step   { font-size: 38px; letter-spacing: .3px; }
 /* the substituted term, arriving lit */

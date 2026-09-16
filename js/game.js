@@ -1924,6 +1924,110 @@
     }
   };
 
+  /* A square root drawn whole, rather than a sign with brackets standing
+     in for the bar over it.
+
+     Config writes a root as \u221A(...), and that bracket pair is what
+     says how far the root reaches — so it is read as the delimiter and
+     then not drawn, because the bar is the grouping it was standing in
+     for. Everything is walked as one string rather than part by part:
+     the x-axis screens split a radicand across three parts so that one
+     term inside it can glow, and the root still has to be found across
+     those joins. */
+  const Radical = (function () {
+    const SIGN = '\u221A';
+    const SVGNS = 'http://www.w3.org/2000/svg';
+
+    /* Every character with the part it came from, so a run can be
+       regrouped later and keep that part's glow or fade. */
+    function chars(parts) {
+      const out = [];
+      parts.forEach(function (p, i) {
+        String(p.t == null ? '' : p.t).split('').forEach(function (ch) {
+          out.push({ ch: ch, p: i });
+        });
+      });
+      return out;
+    }
+
+    /* From the sign to the bracket closing the one straight after it.
+       Anything else — no sign, or a sign with no bracket — is left to be
+       drawn as plain text rather than guessed at. */
+    function span(cs) {
+      let i = 0;
+      while (i < cs.length && cs[i].ch !== SIGN) i++;
+      if (i >= cs.length) return null;
+      if (!cs[i + 1] || cs[i + 1].ch !== '(') return null;
+      let depth = 0;
+      for (let j = i + 1; j < cs.length; j++) {
+        if (cs[j].ch === '(') depth++;
+        else if (cs[j].ch === ')' && !--depth) return { sign: i, open: i + 1, close: j };
+      }
+      return null;
+    }
+
+    /* Characters back into spans, one per run of the same source part,
+       so a glowing term stays one element the animation can hold. */
+    function emit(host, cs, from, to, parts) {
+      let k = from;
+      while (k < to) {
+        const p = cs[k].p;
+        let s = '';
+        while (k < to && cs[k].p === p) { s += cs[k].ch; k++; }
+        const sp = document.createElement('span');
+        sp.textContent = s;
+        if (parts[p].glow) sp.classList.add('glow');
+        if (parts[p].fade) sp.classList.add('fade');
+        host.appendChild(sp);
+      }
+    }
+
+    /* The sign itself. Lilita One carries no radical, so typing one left
+       the browser falling back to another face and the sign came out
+       lighter than the type around it. Drawn here it takes the colour
+       and weight of its line — and, stretched to the radicand's height,
+       its apex lands on the bar by construction rather than by guessing
+       at a glyph's metrics. */
+    function sign() {
+      const wrap = document.createElement('span');
+      wrap.classList.add('rad-sign');
+      wrap.setAttribute('aria-hidden', 'true');
+      const svg = document.createElementNS(SVGNS, 'svg');
+      svg.setAttribute('viewBox', '0 0 24 50');
+      svg.setAttribute('preserveAspectRatio', 'none');
+      const pl = document.createElementNS(SVGNS, 'polyline');
+      // the short left arm, down to the foot, up to the bar, and along it
+      pl.setAttribute('points', '1.8,30 8,45.5 16.4,1.7 24,1.7');
+      pl.setAttribute('fill', 'none');
+      pl.setAttribute('stroke', 'currentColor');
+      pl.setAttribute('stroke-width', '3.4');
+      pl.setAttribute('stroke-linecap', 'round');
+      pl.setAttribute('stroke-linejoin', 'round');
+      svg.appendChild(pl);
+      wrap.appendChild(svg);
+      return wrap;
+    }
+
+    return {
+      /* Fills `host` with `parts`, drawing any root in them properly. */
+      render: function (host, parts) {
+        const cs = chars(parts), r = span(cs);
+        if (!r) { emit(host, cs, 0, cs.length, parts); return false; }
+        emit(host, cs, 0, r.sign, parts);
+        const rad = document.createElement('span');
+        rad.classList.add('rad');
+        const body = document.createElement('span');
+        body.classList.add('rad-body');
+        emit(body, cs, r.open + 1, r.close, parts);   // inside the brackets
+        rad.appendChild(sign());
+        rad.appendChild(body);
+        host.appendChild(rad);
+        emit(host, cs, r.close + 1, cs.length, parts);
+        return true;
+      }
+    };
+  })();
+
   /* The formula panel. Shows either a fixed set of lines (the recap)
      or one line that is replaced step by step (the x-axis case). */
   const Formula = {
@@ -1953,7 +2057,7 @@
       lines.forEach(function (l, i) {
         const d = document.createElement('div');
         d.classList.add('fb-' + (l.kind || 'lead'));
-        d.textContent = l.text;
+        Radical.render(d, [{ t: l.text }]);
         d.style.animationDelay = (i * (step || 300)) + 'ms';
         fb.appendChild(d);
       });
@@ -1964,13 +2068,7 @@
       this.clear();
       const d = document.createElement('div');
       d.classList.add('fb-step');
-      parts.forEach(function (f) {
-        const sp = document.createElement('span');
-        sp.textContent = f.t;
-        if (f.glow) sp.classList.add('glow');
-        if (f.fade) sp.classList.add('fade');
-        d.appendChild(sp);
-      });
+      Radical.render(d, parts);
       fb.appendChild(d);
     }
   };

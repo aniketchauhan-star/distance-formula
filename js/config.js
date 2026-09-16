@@ -902,9 +902,11 @@ window.CFG = (function () {
        block landing at once; each of these has to be read before the
        next means anything, so they are given the time to be. */
     step: 900,
-    /* Plain "x2" rather than a subscript glyph, and the square root
-       written with brackets rather than an overline: both keep to
-       characters the game's font actually carries. */
+    /* Plain "x2" rather than a subscript glyph — that one is still a
+       character the font has to carry. The root is written \u221A(...)
+       here, and those brackets are read as saying how far it reaches:
+       the panel draws the sign and a bar over everything inside them,
+       so the brackets themselves are never shown. */
     lines: [
       { kind: 'lead',   text: 'AB² = AC² + BC²' },
       { kind: 'lead',   text: 'AB² = (x2 - x1)² + (y2 - y1)²' },
