@@ -459,6 +459,10 @@ html, body {
    filled squares over the same span buried the coordinates and the
    ruling it was meant to be measured against. */
 #gridAxes .units { pointer-events: none; }
+/* The band of unit squares, for a child who has missed twice. Fades up
+   rather than popping: it is help arriving, not an answer landing. */
+#gridAxes .uband { opacity: 0; transition: opacity .34s ease; }
+#gridAxes .uband.on { opacity: 1; }
 #gridAxes .ulabel {
   opacity: 0;
   transition: opacity .3s ease;

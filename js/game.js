@@ -919,6 +919,18 @@
       const ug = document.createElementNS(NS, 'g');
       ug.setAttribute('class', 'units');
 
+      /* The squares that got taken away were one per unit, bordered,
+         drawn on every count — a block of colour over the ruling the
+         child was meant to be reading. This is one pale band, a single
+         cell deep along the line, and it is only ever shown to someone
+         who has missed twice. */
+      const ub = document.createElementNS(NS, 'rect');
+      ub.setAttribute('class', 'uband');
+      ub.setAttribute('fill', U.band.fill);
+      ub.setAttribute('stroke', U.band.edge);
+      ub.setAttribute('stroke-width', U.band.edgeW);
+      ug.appendChild(ub);
+
       const ul = document.createElementNS(NS, 'text');
       ul.setAttribute('class', 'ulabel');
       ul.setAttribute('fill', G.ink);
@@ -926,6 +938,7 @@
       ug.appendChild(ul);
       svg.appendChild(ug);
       this.unitGroup = ug;
+      this.unitBand = ub;
       this.unitLabel = ul;
 
       /* A plotted segment: two named points joined by a line. Built
@@ -1319,6 +1332,7 @@
     },
 
     clearUnits: function () {
+      if (this.unitBand) this.unitBand.classList.remove('on');
       if (this.unitLabel) this.unitLabel.classList.remove('on');
     },
 
@@ -1427,6 +1441,34 @@
       this.unitLabel.setAttribute('y', this.clampY(ly, U.labelSize));
       this.unitLabel.textContent = txt;
       this.unitLabel.classList.add('on');
+    },
+
+    /* The unit squares between the two points, as one band a single
+       cell deep lying along the line. It hangs on the side facing the
+       axis the segment runs parallel to, which is the side the child
+       counts against and the side that cannot run off the board. */
+    showUnitBand: function (from, to) {
+      const G = C.GRID, U = G.unitBox, b = this.unitBand;
+      if (!b) return;
+      const px = function (v) { return G.originX + v * G.stepX; };
+      const py = function (v) { return G.originY - v * G.stepY; };
+      const x0 = Math.min(from.x, to.x), x1 = Math.max(from.x, to.x);
+      const y0 = Math.min(from.y, to.y), y1 = Math.max(from.y, to.y);
+      let L, T, W, Hh;
+      if (from.y === to.y) {                       // a row
+        const down = from.y > 0 ? 1 : -1;          // toward the x-axis
+        L = px(x0); W = px(x1) - px(x0);
+        T = Math.min(py(from.y), py(from.y - down));
+        Hh = G.stepY;
+      } else {                                     // a column
+        const side = from.x > 0 ? -1 : 1;          // toward the y-axis
+        T = py(y1); Hh = py(y0) - py(y1);
+        L = Math.min(px(from.x), px(from.x + side));
+        W = G.stepX;
+      }
+      b.setAttribute('x', L); b.setAttribute('y', T);
+      b.setAttribute('width', Math.abs(W)); b.setAttribute('height', Math.abs(Hh));
+      b.classList.add('on');
     },
 
     /* Seats a segment's two points, its line and its four labels. */
@@ -2047,7 +2089,12 @@
         const numeric = entry.task && (entry.task.kind === 'distance' || entry.task.kind === 'entry');
         const NS = window.NumberSelector;
         const r = entry.range || { min: NS.MIN, max: NS.MAX };
-        Sel.setRange(r.min, r.max, r.start);
+        let hi = r.max;
+        if (numeric && entry.task.kind === 'distance') {
+          const fits = self.paperSteps();
+          if (fits != null) hi = Math.min(hi, fits);
+        }
+        Sel.setRange(r.min, hi, r.start);
         Sel.onCheck(!numeric ? null : function (v) {
           if (entry.task.kind === 'distance') self.checkDistance(v);
           else self.checkEntry(v);
@@ -2602,6 +2649,30 @@
       return backwards ? { from: to, to: from } : { from: from, to: to };
     },
 
+    /* How many whole units the ruled paper allows from where the count
+       sets off — the same reach countOut clamps to, worked out from the
+       same normalised direction. The control must not offer a number
+       the board cannot draw: picking 8 where only four units of paper
+       lie past the start drew four and then wrote "8 units" under it,
+       which is the label telling the child something untrue. */
+    paperSteps: function () {
+      const pair = this.measurePair();
+      if (!pair) return null;
+      let from = pair.from, to = pair.to;
+      if (to.x < from.x || (to.x === from.x && to.y < from.y)) {
+        const swap = from; from = to; to = swap;
+      }
+      const dx = to.x - from.x, dy = to.y - from.y, span = Math.hypot(dx, dy);
+      if (!span) return null;
+      const ux = dx / span, uy = dy / span, P = C.GRID.paper;
+      let reach = Infinity;
+      if (ux > 0) reach = Math.min(reach, (P.gxTo   - from.x) / ux);
+      if (ux < 0) reach = Math.min(reach, (P.gxFrom - from.x) / ux);
+      if (uy > 0) reach = Math.min(reach, (P.gyTo   - from.y) / uy);
+      if (uy < 0) reach = Math.min(reach, (P.gyFrom - from.y) / uy);
+      return Math.max(1, Math.floor(reach + 1e-9));
+    },
+
     /* Both numeric questions answer the same way now: the control
        closes, their number is counted out on the board, and only then
        does the verdict land. Split out because the two used to say the
@@ -2650,7 +2721,17 @@
         self.state = 'waiting';
         // the ladder is read after the count, not before: feedbackFor
         // indexes on how many have been got wrong, this one included
-        const msg = self.feedbackFor(t).msg;
+        /* Two misses in is where a child needs showing rather than
+           telling: she names what is about to happen and the units
+           between the points are laid out to be counted. The question
+           stays theirs — the band is the help, not the answer. */
+        const fb = self.feedbackFor(t);
+        const helping = fb.exhausted && !!t.spec.countLine;
+        const msg = helping ? t.spec.countLine : fb.msg;
+        if (helping) self.later(function () {
+          Board.showUnitBand(pair.from, pair.to);
+          SFX.sparkle();
+        }, 700);
         self.later(function () {
           /* The count they asked for is on the board, short of the
              point or a unit past it, and that is the answer to what

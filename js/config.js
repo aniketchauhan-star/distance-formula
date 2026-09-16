@@ -723,6 +723,10 @@ window.CFG = (function () {
          coordinates it used to collide with are now under their points,
          so the space above the segment is free. */
       labelSize: 32,
+      /* The band shown to someone who has missed twice: pale enough
+         that the ruling and the numbers still read through it, which
+         is what the bordered per-unit squares failed at. */
+      band: { fill: 'rgba(120, 170, 225, .26)', edge: 'rgba(85, 135, 200, .55)', edgeW: 2 },
       labelDy: -34,          // horizontal: above the line
       /* A vertical count stacks its squares in a band one cell wide,
          and the total is far wider than that — it cannot sit beside
@@ -1053,9 +1057,12 @@ window.CFG = (function () {
          two points, so moving a point can never leave a stale answer
          behind. Set it explicitly only to override that. */
       task: {
-        kind: 'distance',       // answered on the slider, not by tapping
-        // a wrong answer counts the units out on the board instead of
-        // just saying no, then hands the slider back
+        kind: 'distance',       // answered on the reel, not by tapping
+        /* A wrong answer counts their number out on the board so the
+           miss can be seen, and says this over it. */
+        tryAgainLine: 'Not quite! Try again!',
+              /* Missed twice: shown instead of told. */
+              countLine: 'Now let’s count the units.'
       } },
 
     /* 9-11 — three more of the same, staying on the board. Two of them
@@ -1096,12 +1103,18 @@ window.CFG = (function () {
     { id: 13, line: 'What is the distance between two points?', entrance: 'none', layout: 'board',
       distance: true, intro: 'measure',
       segment: { a: { x: 4, y: 3 }, b: { x: -3, y: 3 } , dash: true},
-      task: { kind: 'distance' } },
+      task: { kind: 'distance',
+              tryAgainLine: 'Not quite! Try again!',
+              /* Missed twice: shown instead of told. */
+              countLine: 'Now let’s count the units.' } },
 
     { id: 14, line: 'What is the distance between two points?', entrance: 'none', layout: 'board',
       distance: true, intro: 'measure',
       segment: { a: { x: 1, y: 2 }, b: { x: 1, y: -3 } , dash: true},
-      task: { kind: 'distance' } },
+      task: { kind: 'distance',
+              tryAgainLine: 'Not quite! Try again!',
+              /* Missed twice: shown instead of told. */
+              countLine: 'Now let’s count the units.' } },
 
     /* ---- and the same argument for a column. After the first vertical
        question the y-axis gets what the x-axis got: this time the x
@@ -1138,7 +1151,10 @@ window.CFG = (function () {
     { id: 19, line: 'What is the distance between two points?', entrance: 'none', layout: 'board',
       distance: true, intro: 'measure',
       segment: { a: { x: -2, y: 3 }, b: { x: -2, y: 1 } , dash: true},
-      task: { kind: 'distance' } },
+      task: { kind: 'distance',
+              tryAgainLine: 'Not quite! Try again!',
+              /* Missed twice: shown instead of told. */
+              countLine: 'Now let’s count the units.' } },
 
     /* 12 — leaves sweep again and the scene goes back to the field
        layout of screen 5: board on the right, Swifty standing on the

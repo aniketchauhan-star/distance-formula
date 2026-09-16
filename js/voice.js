@@ -34,6 +34,11 @@ window.Voice = (function () {
       ['05-correct.mp3', 0.86],
     'Not quite — try again!':
       ['06-not-quite-try-again.mp3', 2.38],
+    /* The same three words, punctuated the way the counting screens
+       write them. One recording serves both rather than a second cut
+       of her saying exactly the same thing. */
+    'Not quite! Try again!':
+      ['06-not-quite-try-again.mp3', 2.38],
     'Here it is — (3, 2).':
       ['07-here-it-is-3-2.mp3', 2.30],
     'Locate the point (6, 2).':
