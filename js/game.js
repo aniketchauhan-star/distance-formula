@@ -15,7 +15,7 @@
    'bubbleText', 'bubbleLine', 'nextBtn',
    'gridPanel', 'gridImg', 'gridAxes', 'standSwifty',
    'formulaBoard', 'leafLayer', 'fxLayer', 'sceneArt', 'startArt',
-   'startBird', 'startBirdWin', 'startFly', 'startTalk', 'startShadow', 'startSky', 'nudge'
+   'startBird', 'startBirdWin', 'startFly', 'startTalk', 'startShadow', 'startSky'
   ].forEach(function (id) { el[id] = document.getElementById(id); });
 
   /* ---------------- responsive stage ---------------- */
@@ -107,7 +107,6 @@
   }
   const Sprite = makeSprite();        // the game's rig, inside #scene
   const StartSprite = makeSprite();   // the title screen's, bigger
-
 
   let lastT = 0;
   function loop(t) {
@@ -1434,7 +1433,6 @@
       this.unitLabel.classList.add('on');
     },
 
-
     /* Seats a segment's two points, its line and its four labels. */
     placeSegment: function (spec) {
       const G = C.GRID, SG = G.segment;
@@ -1495,7 +1493,14 @@
           p.coordParts.forEach(function (f) {
             const ts = document.createElementNS(NS2, 'tspan');
             ts.textContent = f.t;
-            if (f.glow) ts.classList.add('glowable');
+            /* `glow` may be true, or the name of the part it is — 'x'
+               or 'y' — so a screen can light the y halves of both
+               labels and then the x halves, which is the whole of the
+               argument that the distance is one minus the other. */
+            if (f.glow) {
+              ts.classList.add('glowable');
+              if (typeof f.glow === 'string') ts.dataset.part = f.glow;
+            }
             part.coord.appendChild(ts);
           });
         } else {
@@ -1521,6 +1526,22 @@
                            : (vertical ? X + side * SG.coordDx : X), nw));
         part.name.setAttribute('y', self.clampY(Y + ndy, SG.nameSize));
         part.name.textContent = p.name || '';
+      });
+    },
+
+    /* Lights the fragments named `part` — of one point, or of both.
+       Passing no name lights every glowable fragment, which is what the
+       axis cases want. */
+    glowPart: function (part, on, which) {
+      const self = this;
+      (which ? [which] : ['a', 'b']).forEach(function (k) {
+        const c = self.segParts[k] && self.segParts[k].coord;
+        if (!c) return;
+        Array.prototype.forEach.call(c.children, function (ts) {
+          if (!ts.classList || !ts.classList.contains('glowable')) return;
+          if (part && ts.dataset && ts.dataset.part !== part) return;
+          ts.classList.toggle('glow', !!on);
+        });
       });
     },
 
@@ -2054,7 +2075,30 @@
       }
 
       const withControl = entry.options && entry.intro !== 'measure';
+
+      /* A screen can point at part of what is already drawn while she
+         talks about it: the y halves of both labels, then the x halves,
+         then one x at a time in the order the subtraction reads. The
+         board is already up, so this is the whole of the screen's
+         work — it lights what her line is about. */
+      const spotlight = function () {
+        const h = entry.highlight;
+        /* The beats that do the pointing inherit the board rather than
+           replotting it, so they carry no segment of their own — what
+           matters is that one is drawn, not that this screen drew it. */
+        if (!h || !Board.segParts) return;
+        Board.glowPart(null, false);              // whatever the last screen lit
+        const steps = h.order || [null];
+        steps.forEach(function (which, n) {
+          self.later(function () {
+            Board.glowPart(h.part, true, which);
+            SFX.tick(n);
+          }, (h.delay != null ? h.delay : 260) + n * (h.stagger || 0));
+        });
+      };
+
       const after = function () {
+        spotlight();
         if (entry.line) self.speak(entry.line, withControl && !keepsControl
           ? function () { revealControl(entry); } : null);
         else if (entry.auto && i + 1 < C.SCRIPT.length) {
@@ -2076,6 +2120,13 @@
          about either. */
       const plotThen = function (next) {
         const afterSeg = function () {
+          /* A pair that has already been measured says so on its own
+             line, the way an axis case writes its answer there. */
+          const R = entry.segment && entry.segment.result;
+          if (R) self.later(function () {
+            Board.showSegResult(entry.segment, R.text, R.dy != null ? R.dy : -26, R.dx);
+            SFX.chime();
+          }, 260);
           if (entry.legs) Board.runLegs(entry.legs, self.later.bind(self), next);
           else next();
         };
@@ -2520,8 +2571,9 @@
        bubble to finish — and the hand-over rides on the bubble
        finishing — so it has to be armed here instead, or the screen
        would sit there for ever with Next unarmed. */
-    finishWith: function (line, pause) {
-      if (line) { this.speak(line); return; }
+    finishWith: function (line, pause, then) {
+      if (line) { this.speak(line, then); return; }
+      if (then) then();
       /* `pause` is how long the board is left up to be read. It only
          applies to the wordless path — a line sets its own, by how long
          she takes to say it. */
@@ -2588,7 +2640,7 @@
             SFX.cheer();
             SFX.confettiPop();
             FX.pop(at.x, at.y, 18);
-            self.speak(correctLine);
+            self.finishWith(correctLine);
           }, 260);
           return;
         }
@@ -2604,7 +2656,13 @@
         // indexes on how many have been got wrong, this one included
         const msg = self.feedbackFor(t).msg;
         self.later(function () {
-          self.speak(msg, function () {
+          /* The count they asked for is on the board, short of the
+             point or a unit past it, and that is the answer to what
+             went wrong. Words or none, it is left up to be read and
+             then taken away — the hold cannot ride on a line that may
+             not exist, or the board would never clear and the control
+             never come back. */
+          self.finishWith(msg, C.AUTO.afterLine, function () {
             self.later(function () { self.clearWorking(); }, C.GRID.unitBox.holdMs);
           });
         }, 320);
@@ -2697,7 +2755,10 @@
           SFX.cheer();
           SFX.confettiPop();
           FX.pop(at.x, at.y, 16);
-          self.speak(t.spec.correctLine);
+          /* The panel has already played its own verdict, so there may
+             be nothing left to say — finishWith arms the hand-over
+             either way, where speak() would need a line to ride on. */
+          self.finishWith(t.spec.correctLine);
         }, 260);
         // the chosen method, worked through where the buttons were
         if (t.spec.formula && Opts) {
@@ -3038,23 +3099,21 @@
     }, 150);
   }
 
-  /* ---------------- the nudge ---------------- */
-  /* For a child who has stopped on a locate screen. The point they are
-     looking for speaks up on its own first; only if that goes unanswered
-     does a hand come down and tap it. Touching anything at all puts the
-     clock back to the start — this is a hint for someone stuck, not a
-     timer to beat, so a child who is still thinking and moving the
-     cursor never sees it. */
+  /* ---------------- the hint ----------------
+     For a child who has stopped on a locate screen: the point they are
+     looking for starts pulsing on its own a beat after she has finished
+     asking, and keeps going until it is found. That is the whole of it
+     — a hand used to come down and tap the point as well, which was
+     more help than the moment needs and put a cursor on a screen the
+     child is meant to be reading. */
   const Hint = {
-    pulseT: null, handT: null, hideT: null, dot: null, target: null,
+    pulseT: null, dot: null, target: null,
 
     clear: function () {
-      clearTimeout(this.pulseT); clearTimeout(this.handT); clearTimeout(this.hideT);
-      this.pulseT = this.handT = this.hideT = null;
+      clearTimeout(this.pulseT);
+      this.pulseT = null;
       this.target = null;
       if (this.dot) { this.dot.classList.remove('hint'); this.dot = null; }
-      el.nudge.classList.add('hidden');
-      el.nudge.classList.remove('tapping');
     },
 
     /* Only screens with one right place to point at arm it. */
@@ -3063,7 +3122,7 @@
       this.clear();
       if (!t) return;
       this.target = t;
-      const self = this, N = C.NUDGE;
+      const self = this;
 
       this.pulseT = setTimeout(function () {
         const dot = Board.dots.filter(function (d) {
@@ -3073,31 +3132,7 @@
         self.dot = dot;
         dot.classList.add('hint');
         SFX.blip();
-      }, N.pulseAfter);
-
-      this.handT = setTimeout(function () {
-        // and away again after a while: a pointer, not a fixture
-        self.hideT = setTimeout(function () {
-          el.nudge.classList.add('hidden');
-          el.nudge.classList.remove('tapping');
-        }, N.handFor);
-        const at = Board.stagePos(t.x, t.y);
-        const k = N.height / N.inkH;          // the hand's ink at its rendered size
-        const st = el.nudge.style;
-        st.width  = N.srcW * k + 'px';
-        st.height = N.srcH * k + 'px';
-        // the fingertip, not the corner, is what lands on the point
-        st.left = (at.x - N.tip.x * k) + 'px';
-        st.top  = (at.y - N.tip.y * k) + 'px';
-        /* Pivot on the fingertip, not on the middle of the picture: the
-           tap should press the point it is pointing at, and a scale
-           about the centre swings the finger off it. */
-        st.setProperty('--tipx', (N.tip.x * k) + 'px');
-        st.setProperty('--tipy', (N.tip.y * k) + 'px');
-        el.nudge.classList.remove('hidden');
-        void el.nudge.offsetWidth;
-        el.nudge.classList.add('tapping');
-      }, N.handAfter);
+      }, C.GRID.dot.hintAfter);
     },
 
     // after a wrong tap the point speaks up again, from the top
@@ -3211,9 +3246,6 @@
     el.talkSheet.src = C.ART.swiftyTalk;
     el.standSwifty.src = C.ART.swiftyStand;
     el.playImg.src = C.ART.playButton;
-    el.nudge.src = C.ART.handNudge;
-    el.nudge.style.setProperty('--tipx', (C.NUDGE.tip.x / C.NUDGE.srcW * 100) + '%');
-    el.nudge.style.setProperty('--tipy', (C.NUDGE.tip.y / C.NUDGE.srcH * 100) + '%');
 
     /* Browsers refuse audio before a gesture, so the title screen's
        wind, leaves and landing are silent on a cold load and every

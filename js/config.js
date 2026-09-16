@@ -19,8 +19,7 @@ window.CFG = (function () {
     swiftyFly:   'assets/swifty fly.png',
     swiftyTalk:  'assets/swifty talk.png',
     swiftyStand: 'assets/normal stand swifty.png',
-    leaf:        'assets/leaf.png',
-    handNudge:   'assets/hand nudge.png'
+    leaf:        'assets/leaf.png'
   };
   const MUSIC = 'sfx/bg music.mp3';
 
@@ -624,6 +623,10 @@ window.CFG = (function () {
       strokeWidth: 2,
       rippleMs: 60,         // per-ring delay, so the pulse travels outward
       skipOnAxes: true,     // no marker where a point would sit on an axis
+      /* How long after she has finished asking before the point being
+         looked for starts pulsing on its own. It keeps going until the
+         point is found — it is the only help left on these screens. */
+      hintAfter: 500,
       // markers cover every numbered intersection on both axes
       xFrom: -6, xTo: 6,
       yFrom: -5, yTo: 5
@@ -979,24 +982,6 @@ window.CFG = (function () {
     afterReveal: 3800         // a worked solution, which takes reading
   };
 
-  /* The nudge for a child who has stopped on a locate screen. Measured
-     off the artwork: the hand's own ink runs x 488..770, y 484..840 in
-     a 1234 square, and the fingertip — the part that has to land on the
-     point — is at (571, 484). */
-  const NUDGE = {
-    srcW: 1234, srcH: 1234,
-    tip: { x: 571, y: 484 },
-    inkH: 356,            // the hand's height in source pixels
-    height: 88,           // what it renders at on the stage: under a cell and a half
-    /* Part of the sequence now rather than a rescue for someone stuck:
-       the point starts pulsing as soon as she has finished asking, the
-       hand follows once that is established, and the hand leaves again
-       on its own — it is a pointer, not something to wait out. The
-       pulse stays until the point is found. */
-    pulseAfter: 500,
-    handAfter: 1500,
-    handFor: 3200
-  };
 
   const AUDIO = {
     musicSrc: MUSIC,
@@ -1039,17 +1024,17 @@ window.CFG = (function () {
       layout: 'grid', dots: true,
       task: {
         target: { x: 3, y: 2 },
-        maxWrong: 2,
+        maxWrong: 2
       } },
 
-    /* 7 — same again with a new point, and without the nudge: the first
+    /* 7 — same again with a new point, and without the pulse: the first
        one showed how, so pointing at this one too would be doing it for
        them rather than letting them try. */
     { id: 7, line: 'Locate the point (6, 2).', entrance: 'stay', hint: false,
       layout: 'grid', dots: true,
       task: {
         target: { x: 6, y: 2 },
-        maxWrong: 2,
+        maxWrong: 2
       } },
 
     /* No sweep between 7 and 8: this question is asked on the very board
@@ -1069,59 +1054,120 @@ window.CFG = (function () {
          behind. Set it explicitly only to override that. */
       task: {
         kind: 'distance',       // answered on the slider, not by tapping
-        correctLine: 'Correct!',
         // a wrong answer counts the units out on the board instead of
         // just saying no, then hands the slider back
-        showLine: 'Let’s count the units.',
-        tryAgainLine: 'Now try again!'
+        showLine: 'Let’s count the units.'
       } },
 
     /* 9-11 — three more of the same, staying on the board. Two of them
        are vertical segments, so the count-out stacks its squares
        beside the line instead of hanging them beneath it. */
-    { id: 9, line: 'What is the distance between two points?', entrance: 'none', layout: 'board',
+    /* ---- why the counting works, on a pair that has just been counted.
+       Four beats on one board: the pair joined and measured, then the
+       y halves of both labels light (they match), then the x halves
+       (they do not), then the subtraction itself — 6 first, then 2, in
+       the order it is read. Nothing is asked here; it is the reason
+       behind the counting they have just done twice. */
+    { id: 9, line: 'Did you notice?',
+      entrance: 'stay', layout: 'board', transition: 'leaves',
+      segment: {
+        a: { x: 2, y: 1, name: 'A', nameDx: -40, nameDy: 34,
+             coordParts: [{ t: '(' }, { t: '2', glow: 'x' }, { t: ',\u00A0' },
+                          { t: '1', glow: 'y' }, { t: ')' }] },
+        b: { x: 6, y: 1, name: 'B', nameDx: 40, nameDy: 34,
+             coordParts: [{ t: '(' }, { t: '6', glow: 'x' }, { t: ',\u00A0' },
+                          { t: '1', glow: 'y' }, { t: ')' }] },
+        result: { text: '4\u00A0units', dy: -26 }
+      } },
+
+    { id: 10, line: 'The y-coordinates are the same.',
+      entrance: 'stay', layout: 'board', keepSegment: true,
+      highlight: { part: 'y' } },
+
+    { id: 11, line: 'So, the distance is the difference between the x-coordinates.',
+      entrance: 'stay', layout: 'board', keepSegment: true,
+      highlight: { part: 'x' } },
+
+    /* 6 first, then 2 — the order the subtraction is read in, so the
+       two numbers light as she says them rather than together. */
+    { id: 12, line: '6 - 2 = 4',
+      entrance: 'stay', layout: 'board', keepSegment: true,
+      highlight: { part: 'x', order: ['b', 'a'], stagger: 620 } },
+
+    { id: 13, line: 'What is the distance between two points?', entrance: 'none', layout: 'board',
       distance: true, intro: 'measure',
       segment: { a: { x: 4, y: 3 }, b: { x: -3, y: 3 } , dash: true},
-      task: { kind: 'distance', correctLine: 'Correct!',
-              showLine: 'Let’s count the units.', tryAgainLine: 'Now try again!' } },
+      task: { kind: 'distance',
+              showLine: 'Let’s count the units.' } },
 
-    { id: 10, line: 'What is the distance between two points?', entrance: 'none', layout: 'board',
+    { id: 14, line: 'What is the distance between two points?', entrance: 'none', layout: 'board',
       distance: true, intro: 'measure',
       segment: { a: { x: 1, y: 2 }, b: { x: 1, y: -3 } , dash: true},
-      task: { kind: 'distance', correctLine: 'Correct!',
-              showLine: 'Let’s count the units.', tryAgainLine: 'Now try again!' } },
+      task: { kind: 'distance',
+              showLine: 'Let’s count the units.' } },
 
-    { id: 11, line: 'What is the distance between two points?', entrance: 'none', layout: 'board',
+    /* ---- and the same argument for a column. After the first vertical
+       question the y-axis gets what the x-axis got: this time the x
+       halves are the ones that match, so the distance is the difference
+       of the y halves, and the subtraction reads 2 - (-3). */
+    { id: 15, line: 'Did you notice?',
+      entrance: 'stay', layout: 'board', transition: 'leaves',
+      segment: {
+        a: { x: 1, y: -3, name: 'A',
+             coordParts: [{ t: '(' }, { t: '1', glow: 'x' }, { t: ',\u00A0' },
+                          { t: '-3', glow: 'y' }, { t: ')' }] },
+        b: { x: 1, y: 2, name: 'B',
+             coordParts: [{ t: '(' }, { t: '1', glow: 'x' }, { t: ',\u00A0' },
+                          { t: '2', glow: 'y' }, { t: ')' }] },
+        /* Beside the line, and lifted well off its middle: this pair
+           straddles the x-axis, so the midpoint the length would
+           otherwise take is the row the axis numbers live in. */
+        result: { text: '5\u00A0units', dy: -117, dx: 108 }
+      } },
+
+    { id: 16, line: 'The x-coordinates are the same.',
+      entrance: 'stay', layout: 'board', keepSegment: true,
+      highlight: { part: 'x' } },
+
+    { id: 17, line: 'So, the distance is the difference between the y-coordinates.',
+      entrance: 'stay', layout: 'board', keepSegment: true,
+      highlight: { part: 'y' } },
+
+    /* 2 first, then -3 — the order the subtraction is read in. */
+    { id: 18, line: '2 - (-3) = 5',
+      entrance: 'stay', layout: 'board', keepSegment: true,
+      highlight: { part: 'y', order: ['b', 'a'], stagger: 620 } },
+
+    { id: 19, line: 'What is the distance between two points?', entrance: 'none', layout: 'board',
       distance: true, intro: 'measure',
       segment: { a: { x: -2, y: 3 }, b: { x: -2, y: 1 } , dash: true},
-      task: { kind: 'distance', correctLine: 'Correct!',
-              showLine: 'Let’s count the units.', tryAgainLine: 'Now try again!' } },
+      task: { kind: 'distance',
+              showLine: 'Let’s count the units.' } },
 
     /* 12 — leaves sweep again and the scene goes back to the field
        layout of screen 5: board on the right, Swifty standing on the
        left, and no slider. The segment is diagonal this
        time, so counting whole squares no longer works — which is the
        point she is about to make. */
-    { id: 12, line: 'This one’s different.', entrance: 'fly',
+    { id: 20, line: 'This one’s different.', entrance: 'fly',
       layout: 'grid', transition: 'leaves',
       segment: { a: { x: 2, y: 1 }, b: { x: 6, y: 4, nameDx: 40, nameDy: 8 } } },
 
     // 13 — same board and same segment, she just carries on talking
-    { id: 13, line: 'Can the grid help?', entrance: 'stay',
+    { id: 21, line: 'Can the grid help?', entrance: 'stay',
       layout: 'grid', keepSegment: true },
 
     /* 14 — leaves again, back to the board layout with the slider.
        The diagonal is redrawn and a corner C is dropped from it, so
        the horizontal step A-C can be measured on its own. The answer
        is that leg, not the diagonal, so the task measures from it. */
-    { id: 14, line: 'What is the distance between two points?', entrance: 'none',
+    { id: 22, line: 'What is the distance between two points?', entrance: 'none',
       layout: 'board', transition: 'leaves', distance: true, intro: 'measure',
       segment: { a: { x: 2, y: 1 }, b: { x: 6, y: 4, nameDx: 40, nameDy: 8 } },
       legs: [ { from: { x: 2, y: 1 }, to: { x: 6, y: 1 }, mark: {} } ],
       task: {
         kind: 'distance',
         measureLeg: 0,        // A to C, not A to B
-        correctLine: 'Correct!',
         // no count-out here: a nudge to look at the spaces instead
         tryAgainLine: 'Not quite! Check the spaces between the units.'
       } },
@@ -1129,7 +1175,7 @@ window.CFG = (function () {
     /* 15 — the board is kept exactly as it was. The first leg is
        already drawn, so it only gains its length, and the second leg
        rises from the corner to B. */
-    { id: 15, line: 'What is the distance between two points?', entrance: 'none',
+    { id: 23, line: 'What is the distance between two points?', entrance: 'none',
       layout: 'board', distance: true, intro: 'measure', keepSegment: true,
       segment: { a: { x: 2, y: 1 }, b: { x: 6, y: 4, nameDx: 40, nameDy: 8 } },
       legs: [
@@ -1140,14 +1186,13 @@ window.CFG = (function () {
       task: {
         kind: 'distance',
         measureLeg: 1,        // C to B
-        correctLine: 'Correct!',
         tryAgainLine: 'Not quite! Check the spaces between the units.'
       } },
 
     /* 16 — leaves, then the whole shape redrawn as one closed red
        triangle with both legs measured. Nothing to answer here, so no
        slider: she is just naming what they have built. */
-    { id: 16, line: 'Look! We made a triangle.', entrance: 'stay',
+    { id: 24, line: 'Look! We made a triangle.', entrance: 'stay',
       layout: 'board', transition: 'leaves',
       segment: { a: { x: 2, y: 1 }, b: { x: 6, y: 4, nameDx: 40, nameDy: 8 } },
       legs: [
@@ -1158,7 +1203,7 @@ window.CFG = (function () {
     /* 17 — same triangle, now named. The slider is replaced by the
        three triangle types; the square corner at C makes it a
        right-angled triangle. */
-    { id: 17, line: 'What kind of triangle is it?', entrance: 'stay',
+    { id: 25, line: 'What kind of triangle is it?', entrance: 'stay',
       layout: 'board', keepSegment: true,
       options: [
         { key: 'scalene',      cls: 'scalene',      label: 'Scalene Triangle' },
@@ -1168,13 +1213,12 @@ window.CFG = (function () {
       task: {
         kind: 'choice',
         answer: 'right-angled',
-        correctLine: 'Correct!',
         tryAgainLine: 'Not quite — try again!'
       } },
 
     /* 18 — same triangle again, now asking how to reach the third
        side. Same panel, different three answers. */
-    { id: 18, line: 'We know two sides. How can we find the third?',
+    { id: 26, line: 'We know two sides. How can we find the third?',
       entrance: 'stay', layout: 'board', keepSegment: true,
       options: [
         { key: 'area',       label: 'Area' },
@@ -1184,7 +1228,6 @@ window.CFG = (function () {
       task: {
         kind: 'choice',
         answer: 'pythagoras',
-        correctLine: 'That’s right!',
         /* Each wrong attempt gets the next hint; once they run out the
            working is shown rather than leaving a child guessing. */
         feedback: [
@@ -1206,7 +1249,7 @@ window.CFG = (function () {
        Pythagoras can be applied. Both are Pythagorean triples, so the
        answer comes out whole — 3-4-5 first, then the same shape
        doubled to 6-8-10. */
-    { id: 19, line: 'Use the right triangle to find AB.', range: { min: 0, max: 12 }, entrance: 'none',
+    { id: 27, line: 'Use the right triangle to find AB.', range: { min: 0, max: 12 }, entrance: 'none',
       layout: 'board', transition: 'leaves', intro: 'measure', entry: true,
       segment: { a: { x: -2, y: 2 },
                  b: { x:  2, y: 5, nameDx: 40, nameDy: 8 } , dash: true},
@@ -1215,13 +1258,12 @@ window.CFG = (function () {
         { from: { x:  2, y: 2 }, to: { x: 2, y: 5 } }
       ],
       task: { kind: 'entry', pair: 'AB', answer: 5,
-              correctLine: 'That\u2019s right!',
               feedback: [
                 'Not quite. Count the two sides, then use Pythagoras.',
                 'The sides are 4 and 3. What is \u221a(4\u00b2 + 3\u00b2)?'
               ] } },
 
-    { id: 20, line: 'What is the distance between two points?', range: { min: 0, max: 12 }, entrance: 'none',
+    { id: 28, line: 'What is the distance between two points?', range: { min: 0, max: 12 }, entrance: 'none',
       layout: 'board', transition: 'leaves', intro: 'measure', entry: true,
       segment: { a: { x: -3, y:  3 },
                  b: { x:  5, y: -3, nameDx: 40, nameDy: 8 } , dash: true},
@@ -1230,7 +1272,6 @@ window.CFG = (function () {
         { from: { x:  5, y: 3 }, to: { x: 5, y: -3 } }
       ],
       task: { kind: 'entry', pair: 'AB', answer: 10,
-              correctLine: 'That\u2019s right!',
               feedback: [
                 'Not quite. Count the two sides, then use Pythagoras.',
                 'The sides are 8 and 6. What is \u221a(8\u00b2 + 6\u00b2)?'
@@ -1238,7 +1279,7 @@ window.CFG = (function () {
 
     /* 21 — leaves, back to the field layout, and the same idea stated
        in general: the points are named rather than numbered. */
-    { id: 21, line: 'The same idea works for any two points.', entrance: 'fly',
+    { id: 29, line: 'The same idea works for any two points.', entrance: 'fly',
       layout: 'grid', transition: 'leaves',
       segment: {
         a: { x: -5, y: 1, name: 'A', coordText: '(x1, y1)', nameDx: -46, nameDy: 8 },
@@ -1248,7 +1289,7 @@ window.CFG = (function () {
     /* 22 — the same general segment, with the corner dropped and both
        legs drawn: the right-angled triangle in its general form. The
        corner is named from the two points' own coordinates. */
-    { id: 22, line: null, entrance: 'stay',
+    { id: 30, line: null, entrance: 'stay',
       layout: 'grid', keepSegment: true,
       segment: {
         a: { x: -5, y: 1, name: 'A', coordText: '(x1, y1)', nameDx: -46, nameDy: 8 },
@@ -1263,7 +1304,7 @@ window.CFG = (function () {
     /* 23 — the horizontal leg is named. Nothing is redrawn; it only
        gains its length, written as the difference rather than a
        count of units. */
-    { id: 23, line: 'AC = x2 - x1', entrance: 'stay',
+    { id: 31, line: 'AC = x2 - x1', entrance: 'stay',
       layout: 'grid', keepSegment: true,
       segment: {
         a: { x: -5, y: 1, name: 'A', coordText: '(x1, y1)', nameDx: -46, nameDy: 8 },
@@ -1278,7 +1319,7 @@ window.CFG = (function () {
 
     /* 24 — and now the vertical leg is named too, so both differences
        are on the board together. */
-    { id: 24, line: 'CB = y2 - y1', entrance: 'stay',
+    { id: 32, line: 'CB = y2 - y1', entrance: 'stay',
       layout: 'grid', keepSegment: true,
       segment: {
         a: { x: -5, y: 1, name: 'A', coordText: '(x1, y1)', nameDx: -46, nameDy: 8 },
@@ -1295,36 +1336,36 @@ window.CFG = (function () {
     /* 25 — the board is finished; she just turns to the question it
        sets up. Nothing is declared to draw, so nothing redraws and
        her line comes straight up. */
-    { id: 25, line: 'Now, let’s find AB.', entrance: 'stay',
+    { id: 33, line: 'Now, let’s find AB.', entrance: 'stay',
       layout: 'grid', keepSegment: true },
 
     /* 26 — leaves, then the result on its own: board to the left, the
        working beside it, and nobody in shot. */
-    { id: 26, line: null, entrance: 'none',
+    { id: 34, line: null, entrance: 'none',
       layout: 'recap', transition: 'leaves', keepSegment: true },
 
     /* 27-28 — leaves, then back to the opening arrangement: no board,
        no panels, Swifty alone in the field. */
-    { id: 27, line: 'And that gives us the distance between any two points!',
+    { id: 35, line: 'And that gives us the distance between any two points!',
       entrance: 'fly', transition: 'leaves' },
 
-    { id: 28, line: 'What if both points are on the x-axis?', entrance: 'stay' },
+    { id: 36, line: 'What if both points are on the x-axis?', entrance: 'stay' },
 
     /* 29 — the x-axis case worked through: the general formula narrows
        to |x2 - x1| as the y terms fall away. She says which case it is
        from her own bubble, standing beside the board. */
-    { id: 29, line: 'Both points are on the x-axis.', entrance: 'stay',
+    { id: 37, line: 'Both points are on the x-axis.', entrance: 'stay',
       layout: 'xaxis', transition: 'leaves' },
 
     /* 30 — leaves again, and the same empty field as 25: board and
        working left behind, Swifty flying back in alone to put the next
        question. */
-    { id: 30, line: 'And what if they’re on the y-axis?',
+    { id: 38, line: 'And what if they’re on the y-axis?',
       entrance: 'fly', transition: 'leaves' },
 
     /* 31 — the same working as 27 with the axes swapped: the x terms
        are the pair that falls away this time. */
-    { id: 31, line: 'Both points are on the y-axis.', entrance: 'stay',
+    { id: 39, line: 'Both points are on the y-axis.', entrance: 'stay',
       layout: 'yaxis', transition: 'leaves' }
   ];
 
@@ -1332,6 +1373,6 @@ window.CFG = (function () {
     STAGE_W, STAGE_H, ART, SHEETS, SHEET_W, SHEET_H,
     SWIFTY, CHAR_SCALE, ANCHOR, HEAD_TOP, FEET_DY, SHADOW, CLOUD,
     S5_ORIGIN, GRID, STAND, S8_ORIGIN, BOARD, RECAP, XAXIS, YAXIS,
-    BUBBLE, PLAY, START, NUDGE, AUDIO, AUTO, SCRIPT
+    BUBBLE, PLAY, START, AUDIO, AUTO, SCRIPT
   };
 })();
