@@ -753,7 +753,7 @@ window.CFG = (function () {
          that the ruling and the numbers still read through it, which
          is what the bordered per-unit squares failed at. */
       band: { fill: 'rgba(120, 170, 225, .26)', edge: 'rgba(85, 135, 200, .55)', edgeW: 2 },
-      labelDy: -34,          // horizontal: above the line
+      labelDy: -28,          // horizontal: just above the line
       /* A vertical count stacks its squares in a band one cell wide,
          and the total is far wider than that — it cannot sit beside
          them without covering the very squares being counted. It goes
@@ -765,7 +765,7 @@ window.CFG = (function () {
       labelUpV: 86,
       /* A diagonal has no squares to sit over, so its total goes out to
          the side of the line, clear of the two legs opposite. */
-      diagGap: 64
+      diagGap: 54
     },
 
     /* The line the player lays down with the slider. It grows out of

@@ -1528,6 +1528,72 @@
     /* "N units", where N is the number they chose. Above a horizontal
        count, above the top of a vertical column, and out to the free
        side of a diagonal — never on an axis. */
+    /* Every line actually drawn on the board right now, with the width
+       it is drawn at. A measurement written across another side reads as
+       belonging to that side, so this is what a total has to keep off. */
+    drawnLines: function () {
+      const out = [], LG = C.GRID.leg;
+      const get = function (n, w) {
+        return { x1: +n.getAttribute('x1'), y1: +n.getAttribute('y1'),
+                 x2: +n.getAttribute('x2'), y2: +n.getAttribute('y2'), w: w };
+      };
+      if (this.segGroup && this.segGroup.classList.contains('on') &&
+          this.segLine.classList.contains('draw'))
+        out.push(get(this.segLine, C.GRID.segment.lineWidth));
+      (this.legSlots || []).forEach(function (L) {
+        if (!L.g.classList.contains('on')) return;
+        const dashed = L.dashG && L.dashG.style.display !== 'none';
+        const node = dashed ? L.dashG : L.line;
+        if (node.classList.contains('draw')) out.push(get(dashed ? L.dash : L.line, LG.width));
+      });
+      return out;
+    },
+
+    /* Does any of them pass through this box? The segment is clipped
+       against the box — Liang-Barsky — with the stroke's own half-width
+       as a margin, so a line grazing an edge counts as crossing it. */
+    onALine: function (cx, cy, w, h) {
+      return this.drawnLines().some(function (L) {
+        const m = L.w / 2 + 3;
+        const l = cx - w/2 - m, r = cx + w/2 + m, t = cy - h/2 - m, b = cy + h/2 + m;
+        let t0 = 0, t1 = 1;
+        const dx = L.x2 - L.x1, dy = L.y2 - L.y1;
+        const clip = function (p, q) {
+          if (p === 0) return q >= 0;
+          const u = q / p;
+          if (p < 0) { if (u > t1) return false; if (u > t0) t0 = u; }
+          else       { if (u < t0) return false; if (u < t1) t1 = u; }
+          return true;
+        };
+        return clip(-dx, L.x1 - l) && clip(dx, r - L.x1) &&
+               clip(-dy, L.y1 - t) && clip(dy, b - L.y1);
+      });
+    },
+
+    /* The spot a total wants, or the nearest one to it that is not on a
+       line. Tries where it was put, then the mirror of that across its
+       own line, then walks both of those along the span — so it stays
+       between the two points and near the line it belongs to either
+       way. Gives the wanted spot back if nothing is clear, because a
+       total somewhere is better than none. */
+    clearOfLines: function (mx, my, ox, oy, w, h) {
+      const G = C.GRID;
+      const ax = -oy, ay = ox;                       // along the line
+      const n = Math.hypot(ax, ay) || 1;
+      const sx = (ax / n) * G.stepX * 0.5, sy = (ay / n) * G.stepY * 0.5;
+      const tries = [];
+      [1, -1].forEach(function (side) {
+        for (let k = 0; k <= 2; k++) {
+          tries.push([mx + ox * side + sx * k, my + oy * side + sy * k]);
+          if (k) tries.push([mx + ox * side - sx * k, my + oy * side - sy * k]);
+        }
+      });
+      for (let i = 0; i < tries.length; i++) {
+        if (!this.onALine(tries[i][0], tries[i][1], w, h)) return tries[i];
+      }
+      return [mx + ox, my + oy];
+    },
+
     showUnitTotal: function (from, ux, uy, steps, units) {
       const G = C.GRID, U = G.unitBox, P = G.paper;
       const px = function (v) { return G.originX + v * G.stepX; };
@@ -1568,7 +1634,7 @@
            side where there is not — a column out at x=6 has nothing to
            its right. */
         const uw0 = this.textW(txt, U.labelSize);
-        const gap = uw0 / 2 + G.stepX * 0.34;
+        const gap = uw0 / 2 + G.stepX * 0.24;
         const edge = (P.frameW + P.hiW) + 10;
         const fits = function (c) { return (c - uw0 / 2) >= edge && (c + uw0 / 2) <= G.w - edge; };
         const out = from.x >= 0 ? 1 : -1;
@@ -1583,6 +1649,16 @@
         while (this.onXAxisRow(ly, U.labelSize) && guard++ < 3) ly -= G.stepY;
       }
       const uw = this.textW(txt, U.labelSize);
+      /* Nowhere near a line that is already drawn. mx,my is the point on
+         its own line this was measured from; lx,ly is where it wanted to
+         go, so the difference is the offset to try the other way. */
+      const mid = (ux && uy)
+        ? [(px(from.x) + px(end.x)) / 2, (py(from.y) + py(end.y)) / 2]
+        : (ux ? [(px(from.x) + px(end.x)) / 2, py(from.y)]
+              : [px(from.x), (py(from.y) + py(end.y)) / 2]);
+      const spot = this.clearOfLines(mid[0], mid[1], lx - mid[0], ly - mid[1],
+                                     uw, U.labelSize);
+      lx = spot[0]; ly = spot[1];
       this.unitLabel.setAttribute('x', this.clampX(this.clearOfYAxis(lx, uw), uw));
       this.unitLabel.setAttribute('y', this.clampY(ly, U.labelSize));
       this.unitLabel.textContent = txt;
