@@ -377,16 +377,14 @@ html, body {
   stroke-linecap: round; fill: none;
   stroke-dashoffset: var(--len);
 }
-/* Drawn is a state, not the tail of an animation. Held only by
-   `forwards`, an axis whose sweep never ran stayed at full dash offset
-   — invisible — and one whose arrowheads and numbers never popped kept
-   them at opacity 0 for the rest of the game, because nothing rebuilds
-   a board that is already up. The keyframes introduce these; they do
-   not define them. */
-#gridAxes .axis.draw {
-  stroke-dashoffset: 0;
-  animation: drawOut var(--axisDraw, .9s) cubic-bezier(.3, .85, .35, 1);
-}
+/* `forwards` is load-bearing here and cannot be dropped: build() sets
+   each axis half's stroke-dashoffset as an inline style, and a rule
+   never beats an inline style — only an animation does. So the drawn
+   state has to be the animation's held last frame, and a half-axis the
+   sweep never reached is put right by settleFurniture clearing that
+   inline value instead. The arrowheads and numbers below carry no
+   inline style, so those can simply declare themselves on. */
+#gridAxes .axis.draw { animation: drawOut var(--axisDraw, .9s) cubic-bezier(.3, .85, .35, 1) forwards; }
 
 #gridAxes .arrow { opacity: 0; transform-box: fill-box; transform-origin: center; }
 #gridAxes .arrow.pop { opacity: 1; animation: arrowPop .34s cubic-bezier(.3, 1.7, .5, 1); }

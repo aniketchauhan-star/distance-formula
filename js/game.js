@@ -2129,7 +2129,13 @@
        rebuilt. Anything the sweep did not reach is put in place here. */
     settleFurniture: function () {
       if (!this.built) return;
-      (this.lines || []).forEach(function (l) { l.classList.add('draw'); });
+      (this.lines || []).forEach(function (l) {
+        /* The offset is inline, so the class alone will not shift it —
+           a rule cannot outrank an inline style. Clearing it is what
+           actually draws a half-axis the sweep never got to. */
+        l.style.strokeDashoffset = 0;
+        l.classList.add('draw');
+      });
       (this.arrows || []).forEach(function (a) { a.classList.add('pop'); });
       (this.labels || []).forEach(function (t) { t.classList.add('pop'); });
     },
