@@ -2757,8 +2757,12 @@
       Bubble.open(line, function () {
         if (then) then();
         /* Longer after a right answer than after an ordinary line: the
-           confetti is still coming down. */
-        self.settle(self.task && self.task.done ? C.AUTO.afterCorrect : C.AUTO.afterLine);
+           confetti is still coming down — and a screen that goes on
+           drawing after she has stopped talking can name its own pause,
+           or it is taken away mid-working. */
+        const e = C.SCRIPT[self.index] || {};
+        self.settle(e.hold != null ? e.hold
+          : (self.task && self.task.done ? C.AUTO.afterCorrect : C.AUTO.afterLine));
       });
     },
 

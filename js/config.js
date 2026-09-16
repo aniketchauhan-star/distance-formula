@@ -920,11 +920,17 @@ window.CFG = (function () {
      narrowed step by step until only |x2 - x1| is left.
      ------------------------------------------------------------- */
   const XAXIS = {
-    /* Her column is x 60..616 once the bubble is at its widest, so the
-       board starts clear of it and the working sits centred underneath
-       rather than beside — there is no room for a third column. */
-    grid: { x: 660, y: 16, w: 1040, h: 840 },
-    formula: { x: 800, y: 884, w: 760 },
+    /* The working goes where every other panel in the game goes — the
+       left column — rather than underneath the board. Under it there
+       was only the strip below y 884 to have, which is not enough for a
+       panel and read as one pushed off the bottom of the frame.
+
+       She stands at the foot of that column and her bubble tops out at
+       y 589, so the working takes the empty half above her. The board
+       gives up 40px of width to make the room; its ratio is held, or
+       the cells stop being square. */
+    grid: { x: 720, y: 16, w: 980, h: 792 },
+    formula: { x: 30, y: 132, w: 660 },
 
     /* Both points sit on the axis, so their labels stack above it —
        below is where the axis numbering already lives. */
@@ -1407,7 +1413,13 @@ window.CFG = (function () {
        to |x2 - x1| as the y terms fall away. She says which case it is
        from her own bubble, standing beside the board. */
     { id: 37, line: 'Both points are on the x-axis.', entrance: 'stay',
-      layout: 'xaxis', transition: 'leaves' },
+      layout: 'xaxis', transition: 'leaves',
+      /* The working runs for ten seconds after she has finished saying
+         which case it is, and the ordinary 1500 took the screen away
+         two steps in — the x terms never fell away and |x2 - x1| was
+         never reached. The y-axis screen only escaped this by being
+         the last one, where nothing advances. */
+      hold: 7800 },
 
     /* 30 — leaves again, and the same empty field as 25: board and
        working left behind, Swifty flying back in alone to put the next

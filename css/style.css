@@ -643,7 +643,10 @@ html, body {
 }
 
 #formulaBoard .fb-lead   { font-size: 36px; letter-spacing: .3px; }
-#formulaBoard .fb-step   { font-size: 38px; letter-spacing: .3px; }
+/* The axis screens' working, which now sits in her column rather than
+   in the width it had under the board. The longest line it carries is
+   "d = √((x2 - x1)² + (y2 - y1)²)". */
+#formulaBoard .fb-step   { font-size: 30px; letter-spacing: .3px; }
 /* the substituted term, arriving lit */
 #formulaBoard .fb-step .glow {
   color: #C4620A;
