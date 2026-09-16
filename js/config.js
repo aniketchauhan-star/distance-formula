@@ -830,9 +830,10 @@ window.CFG = (function () {
 
   /* And a perch for the working panel, which sits higher up her column
      than the answers do — she leaves before it is written and comes
-     back to stand on it, so it needs a seat of its own. 280 higher,
-     exactly as far as the panel moves. */
-  const STAND_WORK = standAt(0.88, 60, 144);
+     back to stand on it, so it needs a seat of its own. Her feet sit
+     256 below the pose's own top, so this is the working panel's y less
+     that — move one and the other has to follow. */
+  const STAND_WORK = standAt(0.88, 60, 134);
 
   /* -------------------------------------------------------------
      SCREEN 8 — board on its own, the question in her bubble
@@ -918,7 +919,11 @@ window.CFG = (function () {
        her column rather than the foot of it. A worked solution is the
        whole screen for as long as it is being written, so it takes the
        middle and nothing stands on it until it is finished. */
-    working: { pos: { x: 34, y: 400 }, scale: 0.85, stand: STAND_WORK },
+    /* Drawn at its natural size — the type inside was designed at these
+       numbers, so anything under 1 is shrinking a solution that is the
+       only thing on its half of the screen. 520 wide from x 34 leaves
+       46px to the board's edge. */
+    working: { pos: { x: 34, y: 390 }, scale: 1, stand: STAND_WORK },
 
     /* And the answer pad takes the same column again, for the
        questions whose answer is typed rather than chosen. */
