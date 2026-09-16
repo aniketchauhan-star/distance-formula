@@ -511,17 +511,15 @@ html, body {
   0%, 100% { filter: none; }
   50%      { filter: drop-shadow(0 0 10px rgba(255, 170, 40, .9)); }
 }
-#gridAxes .segresplate {
-  opacity: 0;
-  fill: #FDFBF0; stroke: #2F8F6F; stroke-width: 2.5;
-  transform-box: fill-box; transform-origin: center;
-}
-#gridAxes .segresplate.on { animation: labelPop .58s cubic-bezier(.22, .68, .3, 1) both; }
 #gridAxes .segres {
   opacity: 0;
   font-family: 'Nunito', system-ui, sans-serif;
   font-weight: 600;
   text-anchor: middle; dominant-baseline: middle;
+  /* Its own paper halo rather than a drawn box, the same way a leg
+     writes its length: one kind of measurement, one look. */
+  paint-order: stroke fill;
+  stroke: #FDFBF0; stroke-width: 6;
   transform-box: fill-box; transform-origin: center;
 }
 #gridAxes .segres.pop { animation: labelPop .58s cubic-bezier(.22, .68, .3, 1) both; }

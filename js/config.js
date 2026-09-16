@@ -1056,7 +1056,6 @@ window.CFG = (function () {
         kind: 'distance',       // answered on the slider, not by tapping
         // a wrong answer counts the units out on the board instead of
         // just saying no, then hands the slider back
-        showLine: 'Let’s count the units.'
       } },
 
     /* 9-11 — three more of the same, staying on the board. Two of them
@@ -1069,7 +1068,7 @@ window.CFG = (function () {
        the order it is read. Nothing is asked here; it is the reason
        behind the counting they have just done twice. */
     { id: 9, line: 'Did you notice?',
-      entrance: 'stay', layout: 'board', transition: 'leaves',
+      entrance: 'stay', layout: 'board',
       segment: {
         a: { x: 2, y: 1, name: 'A', nameDx: -40, nameDy: 34,
              coordParts: [{ t: '(' }, { t: '2', glow: 'x' }, { t: ',\u00A0' },
@@ -1097,21 +1096,19 @@ window.CFG = (function () {
     { id: 13, line: 'What is the distance between two points?', entrance: 'none', layout: 'board',
       distance: true, intro: 'measure',
       segment: { a: { x: 4, y: 3 }, b: { x: -3, y: 3 } , dash: true},
-      task: { kind: 'distance',
-              showLine: 'Let’s count the units.' } },
+      task: { kind: 'distance' } },
 
     { id: 14, line: 'What is the distance between two points?', entrance: 'none', layout: 'board',
       distance: true, intro: 'measure',
       segment: { a: { x: 1, y: 2 }, b: { x: 1, y: -3 } , dash: true},
-      task: { kind: 'distance',
-              showLine: 'Let’s count the units.' } },
+      task: { kind: 'distance' } },
 
     /* ---- and the same argument for a column. After the first vertical
        question the y-axis gets what the x-axis got: this time the x
        halves are the ones that match, so the distance is the difference
        of the y halves, and the subtraction reads 2 - (-3). */
     { id: 15, line: 'Did you notice?',
-      entrance: 'stay', layout: 'board', transition: 'leaves',
+      entrance: 'stay', layout: 'board',
       segment: {
         a: { x: 1, y: -3, name: 'A',
              coordParts: [{ t: '(' }, { t: '1', glow: 'x' }, { t: ',\u00A0' },
@@ -1141,8 +1138,7 @@ window.CFG = (function () {
     { id: 19, line: 'What is the distance between two points?', entrance: 'none', layout: 'board',
       distance: true, intro: 'measure',
       segment: { a: { x: -2, y: 3 }, b: { x: -2, y: 1 } , dash: true},
-      task: { kind: 'distance',
-              showLine: 'Let’s count the units.' } },
+      task: { kind: 'distance' } },
 
     /* 12 — leaves sweep again and the scene goes back to the field
        layout of screen 5: board on the right, Swifty standing on the

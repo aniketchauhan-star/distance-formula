@@ -994,15 +994,11 @@
         self.segParts[key] = { dot: c, coord: co, name: nm };
       });
       /* The answer written on the segment, on its own plate. */
-      const rp = document.createElementNS(NS, 'rect');
-      rp.setAttribute('class', 'segresplate');
-      rp.setAttribute('rx', 12);
       const rt = document.createElementNS(NS, 'text');
       rt.setAttribute('class', 'segres');
       rt.setAttribute('fill', G.ink);
       rt.setAttribute('font-size', 34);
-      seg.appendChild(rp); seg.appendChild(rt);
-      this.segResPlate = rp;
+      seg.appendChild(rt);
       this.segRes = rt;
 
       svg.appendChild(seg);
@@ -1571,14 +1567,10 @@
       this.segRes.setAttribute('y', (py(spec.a.y) + py(spec.b.y)) / 2 + dy);
       this.segRes.textContent = text;
       this.segRes.classList.add('pop');
-      if (this.segRes.getBBox) {
-        const bb = this.segRes.getBBox();
-        this.segResPlate.setAttribute('x', bb.x - 16);
-        this.segResPlate.setAttribute('y', bb.y - 9);
-        this.segResPlate.setAttribute('width', bb.width + 32);
-        this.segResPlate.setAttribute('height', bb.height + 18);
-        this.segResPlate.classList.add('on');
-      }
+      /* No plate behind it: the text carries its own paper halo, the
+         same as every other measurement written on the board. A drawn
+         box round this one made it read as a different kind of thing
+         from the leg lengths beside it. */
     },
 
     /* Empties every label the board can write, text and all. The
@@ -1610,7 +1602,7 @@
       this.clearMeasure();
       if (!this.segGroup) return;
       this.glowCoords(false);
-      if (this.segRes) { this.segRes.classList.remove('pop'); this.segResPlate.classList.remove('on'); }
+      if (this.segRes) this.segRes.classList.remove('pop');
       if (this.segLine) this.segLine.classList.remove('lit');
       this.segGroup.classList.remove('on');
       this.segLine.classList.remove('draw');
@@ -2573,6 +2565,10 @@
        would sit there for ever with Next unarmed. */
     finishWith: function (line, pause, then) {
       if (line) { this.speak(line, then); return; }
+      /* Nothing to say, so nothing to say it in: the balloon goes rather
+         than sitting there holding the last thing she said. It is only
+         on screen when there are words in it. */
+      Bubble.close();
       if (then) then();
       /* `pause` is how long the board is left up to be read. It only
          applies to the wordless path — a line sets its own, by how long
