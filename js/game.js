@@ -3425,26 +3425,29 @@
       Opts.lock();
       Bubble.close();                       // she is about to fly
 
-      /* The answers drop away as she lifts off, not once she has gone —
-         they leave together, which is what makes it read as the screen
-         being cleared for the solution rather than as a panel jumping
-         to a new place. */
-      this.later(function () { Opts.hide(); }, 760);
-
+      /* One thing at a time, in this order: she goes, then the answers
+         go, then the working comes up and writes itself. Overlapping
+         any two of them reads as the screen rearranging rather than as
+         it being cleared and then used. */
       this.later(function () {
         self.flyOut(function () {
-          Opts.moveTo(W.pos.x, W.pos.y);
-          Opts.show(true);
-          const ms = Opts.showFormula(t.spec.formula, function (which) {
-            Board.spotlightPart(which);
-            SFX.tick(2);
-          });
-          SFX.sparkle();
+          // she is gone; now the answers follow her off
+          Opts.hide();
           self.later(function () {
-            Board.spotlightPart(null);
-            self.landOnWorking();          // written; she comes back to it
-            self.later(function () { if (then) then(); }, C.AUTO.afterWorking);
-          }, ms + 320);
+            // and only then does the working take the empty column
+            Opts.moveTo(W.pos.x, W.pos.y);
+            Opts.show(true);
+            const ms = Opts.showFormula(t.spec.formula, function (which) {
+              Board.spotlightPart(which);
+              SFX.tick(2);
+            });
+            SFX.sparkle();
+            self.later(function () {
+              Board.spotlightPart(null);
+              self.landOnWorking();        // written; she comes back to it
+              self.later(function () { if (then) then(); }, C.AUTO.afterWorking);
+            }, ms + 320);
+          }, 520);
         });
       }, 700);
     },
