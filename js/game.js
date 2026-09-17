@@ -12,7 +12,7 @@
    'startScreen', 'playBtn', 'playImg', 'scene', 'skyLayer',
    'charGroup', 'shadow', 'birdRig', 'birdFlip', 'birdWin', 'flySheet', 'talkSheet',
    'bubble', 'bubbleShape', 'bubbleBody', 'bubbleSheen',
-   'bubbleText', 'bubbleLine', 'nextBtn',
+   'bubbleText', 'bubbleLine', 'nextBtn', 'backBtn',
    'gridPanel', 'gridImg', 'gridAxes', 'standSwifty',
    'formulaBoard', 'leafLayer', 'fxLayer', 'sceneArt', 'startArt',
    'startBird', 'startBirdWin', 'startFly', 'startTalk', 'startShadow', 'startSky'
@@ -840,10 +840,14 @@
       // at the origin, so it lights as the sweep sets off
       label('0', ox - G.zeroGap, oy + G.labelGap + G.labelSize * 0.42, 0, 'x', 0);
 
-      // the axis names sit past the last number, where each sweep ends
+      /* The axis names sit past the last number, where each sweep ends —
+         but the ruling now runs to the panel's own edges, so past the
+         last number can be past the paper. Clamped on, like every other
+         label the board writes. */
       const N = G.axisName;
-      label('x', xMax + N.gap,  oy - N.rise,    N.size, 'x', G.xTo + 1);
-      label('y', ox + N.yGap,   yMin + N.yDrop, N.size, 'y', G.yTo + 1);
+      const nw = self.textW('x', N.size);
+      label('x', self.clampX(xMax + N.gap, nw), oy - N.rise, N.size, 'x', G.xTo + 1);
+      label('y', ox + N.yGap, self.clampY(yMin + N.yDrop, N.size), N.size, 'y', G.yTo + 1);
 
       /* Screen 6's intersection markers: every gridline crossing in
          the numbered range. Built once, hidden until that screen. */
@@ -988,8 +992,37 @@
       ul.setAttribute('fill', G.ink);
       ul.setAttribute('font-size', U.labelSize);
       ug.appendChild(ul);
+
       svg.appendChild(ug);
       this.unitGroup = ug;
+
+      /* The subtraction worked on the board. Five separate nodes so each
+         part can be revealed on its own, inside one group so the finished
+         sum can be lifted as a single object rather than five characters
+         moving independently.
+
+         The sweep is a second line laid over the segment and drawn end to
+         end; the real line is never touched, so nothing here can disturb
+         what is already on the board. */
+      const eg = document.createElementNS(NS, 'g');
+      eg.setAttribute('class', 'xeq');
+      this.xParts = [0, 1, 2, 3, 4].map(function () {
+        const t = document.createElementNS(NS, 'text');
+        t.setAttribute('class', 'xeq-p');
+        t.setAttribute('font-size', G.xeq.size);
+        eg.appendChild(t);
+        return t;
+      });
+      const fly = document.createElementNS(NS, 'text');
+      fly.setAttribute('class', 'xfly');
+      const word = document.createElementNS(NS, 'text');
+      word.setAttribute('class', 'xword');
+      word.setAttribute('font-size', G.unitBox.labelSize);
+      const sweep = document.createElementNS(NS, 'line');
+      sweep.setAttribute('class', 'xsweep');
+      svg.appendChild(sweep); svg.appendChild(eg); svg.appendChild(fly); svg.appendChild(word);
+      this.xGroup = eg; this.xFly = fly; this.xSweep = sweep; this.xWord = word;
+
       this.unitBand = ub;
       this.unitLabel = ul;
 
@@ -1262,6 +1295,20 @@
       const edge = P.frameW + P.hiW + air;
       return Math.max(edge + w / 2, Math.min(G.w - edge - w / 2, cx));
     },
+    /* Coordinate labels get a tighter margin than everything else.
+       clampX keeps 8 units of air inside the frame, which is right for
+       text that is free to sit anywhere — but a coordinate is not: it
+       belongs over its own point, and the widest of them at x = 6 needs
+       6 of those 8 to stay centred there. Nudging it in instead left
+       the two labels of one pair sitting differently against their own
+       dots, and moved the label when a located point was taken over by
+       a segment. Every one of them clears the frame at this margin. */
+    clampLabel: function (cx, w) {
+      const G = C.GRID, P = G.paper, air = 2;
+      const edge = P.frameW + P.hiW + air;
+      return Math.max(edge + w / 2, Math.min(G.w - edge - w / 2, cx));
+    },
+
     clampY: function (cy, h) {
       const G = C.GRID, P = G.paper, air = 8;
       const edge = P.frameW + P.hiW + air;
@@ -1541,6 +1588,97 @@
     clearUnits: function () {
       if (this.unitBand) this.unitBand.classList.remove('on');
       if (this.unitLabel) this.unitLabel.classList.remove('on');
+      this.clearEquation();
+    },
+
+    /* The worked sum, taken right off the board — text as well as
+       classes, or a node still holding the last pair's digits would
+       flash the moment the next one wrote its own. */
+    clearEquation: function () {
+      this.tweenSeq = (this.tweenSeq || 0) + 1;         // stops anything mid-journey
+      (this.xParts || []).forEach(function (t) {
+        t.classList.remove('on', 'lit', 'gone', 'drop');
+        t.style.transform = ''; t.style.transformOrigin = '';
+        t.textContent = '';
+      });
+      if (this.xGroup) this.xGroup.style.transform = '';
+      if (this.xFly) { this.xFly.classList.remove('on', 'go'); this.xFly.textContent = ''; this.xFly.style.transform = ''; }
+      if (this.xWord) { this.xWord.classList.remove('on'); this.xWord.textContent = ''; }
+      if (this.xSweep) this.xSweep.classList.remove('draw');
+    },
+
+    /* Moves a piece of text by changing its own attributes, one frame at
+       a time. Deliberately not a CSS transform: a transform on an SVG
+       <text> is the one thing here that browsers disagree about — Safari
+       has misplaced its origin, and a transition set in the same tick as
+       its start never runs at all. x, y and font-size are attributes
+       every browser has drawn the same way for twenty years.
+
+       The caller pins the final values itself when the time is up, so
+       the end state never depends on this having painted every frame. */
+    tweenText: function (el, from, to, ms) {
+      const self = this, start = performance.now();
+      const token = this.tweenSeq = (this.tweenSeq || 0) + 1;
+      /* cubic-bezier(.22, .61, .36, 1), solved for x by bisection */
+      const ease = function (t) {
+        let lo = 0, hi = 1, u = t;
+        for (let i = 0; i < 14; i++) {
+          u = (lo + hi) / 2;
+          const x = 3 * (1 - u) * (1 - u) * u * 0.22 + 3 * (1 - u) * u * u * 0.36 + u * u * u;
+          if (x < t) lo = u; else hi = u;
+        }
+        return 3 * (1 - u) * (1 - u) * u * 0.61 + 3 * (1 - u) * u * u + u * u * u;
+      };
+      const step = function () {
+        if (token !== self.tweenSeq) return;             // the board was cleared
+        const p = Math.min(1, (performance.now() - start) / ms), e = ease(p);
+        el.setAttribute('x', from.x + (to.x - from.x) * e);
+        el.setAttribute('y', from.y + (to.y - from.y) * e);
+        el.setAttribute('font-size', from.size + (to.size - from.size) * e);
+        if (p < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    },
+
+    /* Ends a tween where it was meant to end. Cancelling first matters: a
+       frame already queued when the landing fires would otherwise run
+       after it and drag the text back a step. */
+    pinText: function (el, at) {
+      this.tweenSeq = (this.tweenSeq || 0) + 1;
+      el.setAttribute('x', at.x); el.setAttribute('y', at.y); el.setAttribute('font-size', at.size);
+    },
+
+    /* Where one fragment of a coordinate label sits. The label is centred
+       on its point, so a part's middle is the width of everything before
+       it plus half of itself — worked out from the strings rather than
+       measured off the page, which would need a layout the board may not
+       have done yet.
+
+       This is what lets a digit be lifted out of the label it lives in:
+       without it there is no way to know where the "3" in "(3, 2)"
+       begins. */
+    partSpot: function (which, part) {
+      const SG = C.GRID.segment, self = this;
+      const p = this.segParts && this.segParts[which];
+      if (!p || !p.coord) return null;
+      const kids = p.coord.children || [];
+      if (!kids.length) return null;
+      const size = parseFloat(p.coord.getAttribute('font-size')) || SG.coordSize;
+      const widths = Array.prototype.map.call(kids, function (ts) {
+        return self.textW(ts.textContent, size);
+      });
+      const total = widths.reduce(function (t, n) { return t + n; }, 0);
+      const left = parseFloat(p.coord.getAttribute('x')) - total / 2;
+      let run = 0, spot = null;
+      Array.prototype.forEach.call(kids, function (ts, n) {
+        if (!spot && ts.dataset && ts.dataset.part === part) {
+          spot = { x: left + run + widths[n] / 2,
+                   y: parseFloat(p.coord.getAttribute('y')),
+                   size: size, text: ts.textContent, node: ts };
+        }
+        run += widths[n];
+      });
+      return spot;
     },
 
     /* Counts the segment out in unit squares, one at a time, then
@@ -1676,7 +1814,54 @@
       return [mx + ox, my + oy];
     },
 
-    showUnitTotal: function (from, ux, uy, steps, units) {
+    /* The two coordinate labels, as boxes, for anything that has to
+       keep out of their way. They sit close to their own points on
+       purpose, so they are the fixed thing here and whatever else wants
+       that space is what gives. */
+    coordBoxes: function () {
+      const SG = C.GRID.segment, self = this;
+      if (!this.segParts) return [];
+      return ['a', 'b'].map(function (k) {
+        const c = self.segParts[k] && self.segParts[k].coord;
+        if (!c || !(c.textContent || '').trim()) return null;
+        const w = self.textW(c.textContent, SG.coordSize);
+        const x = parseFloat(c.getAttribute('x')), y = parseFloat(c.getAttribute('y'));
+        if (!isFinite(x) || !isFinite(y)) return null;
+        return { l: x - w/2, r: x + w/2, t: y - SG.coordSize/2, b: y + SG.coordSize/2 };
+      }).filter(Boolean);
+    },
+
+    /* A length written along a span, moved off the coordinates if it
+       has landed on them. A short span is the case: three units apart
+       leaves less room between the two labels than "3 units" needs, so
+       there is no height above the line where all three fit.
+
+       It tries the far side of the line first — the coordinates are
+       over the points, so under them is clear — and only steps further
+       out if that is taken too. Both keep it square to the span and the
+       same distance along it. */
+    clearOfCoords: function (lx, ly, mx, my, w, h) {
+      const boxes = this.coordBoxes();
+      if (!boxes.length) return [lx, ly];
+      const air = 6;
+      const hits = function (x, y) {
+        return boxes.some(function (b) {
+          return x - w/2 < b.r + air && x + w/2 > b.l - air &&
+                 y - h/2 < b.b + air && y + h/2 > b.t - air;
+        });
+      };
+      if (!hits(lx, ly)) return [lx, ly];
+      const dx = lx - mx, dy = ly - my;
+      if (!hits(mx - dx, my - dy)) return [mx - dx, my - dy];   // the far side
+      const len = Math.hypot(dx, dy) || 1;
+      for (let i = 1; i <= 8; i++) {
+        const x = lx + (dx/len) * 14 * i, y = ly + (dy/len) * 14 * i;
+        if (!hits(x, y)) return [x, y];
+      }
+      return [lx, ly];
+    },
+
+    showUnitTotal: function (from, ux, uy, steps, units, quiet) {
       const G = C.GRID, U = G.unitBox, P = G.paper;
       const px = function (v) { return G.originX + v * G.stepX; };
       const py = function (v) { return G.originY - v * G.stepY; };
@@ -1741,10 +1926,19 @@
       const spot = this.clearOfLines(mid[0], mid[1], lx - mid[0], ly - mid[1],
                                      uw, U.labelSize);
       lx = spot[0]; ly = spot[1];
-      this.unitLabel.setAttribute('x', this.clampX(this.clearOfYAxis(lx, uw), uw));
-      this.unitLabel.setAttribute('y', this.clampY(ly, U.labelSize));
+      const free = this.clearOfCoords(lx, ly, mid[0], mid[1], uw, U.labelSize);
+      lx = free[0]; ly = free[1];
+      const X0 = this.clampX(this.clearOfYAxis(lx, uw), uw);
+      const Y0 = this.clampY(ly, U.labelSize);
+      /* `quiet` works the spot out without writing anything there, so a
+         length arrived at by working and one counted out land in exactly
+         the same place on the very same pair. */
+      if (quiet) return { x: X0, y: Y0, text: txt, w: uw };
+      this.unitLabel.setAttribute('x', X0);
+      this.unitLabel.setAttribute('y', Y0);
       this.unitLabel.textContent = txt;
       this.unitLabel.classList.add('on');
+      return { x: X0, y: Y0, text: txt, w: uw };
     },
 
     /* The unit squares between the two points, as one band a single
@@ -1788,6 +1982,10 @@
       }
       const NS2 = 'http://www.w3.org/2000/svg';
       const a = spec.a, b = spec.b;
+      /* The pair currently drawn. The beat that argues about a segment
+         inherits it rather than declaring one, so this is the only way
+         it can find out what it is arguing about. */
+      this.lastPlotted = spec;
       // a screen can recolour the segment — red once it closes a triangle
       this.segLine.setAttribute('stroke', spec.color || SG.lineColor);
       this.segLine.style.color = spec.color || SG.lineColor;   // for its own glow
@@ -1802,7 +2000,13 @@
          group's origin is pinned there. */
       this.segDash.setAttribute('x1', px(a.x)); this.segDash.setAttribute('y1', py(a.y));
       this.segDash.setAttribute('x2', px(b.x)); this.segDash.setAttribute('y2', py(b.y));
-      this.segDashG.style.transformOrigin = px(a.x) + 'px ' + py(a.y) + 'px';
+      /* It grows from the left-hand end, so the guide always reads left
+         to right — the order the pair is read in — rather than from
+         whichever point the screen happened to call `a`. A column has
+         no left and right, so that one grows upward from its lower
+         point. */
+      const from = (a.x === b.x) ? (a.y <= b.y ? a : b) : (a.x <= b.x ? a : b);
+      this.segDashG.style.transformOrigin = px(from.x) + 'px ' + py(from.y) + 'px';
       const len = Math.hypot(px(b.x) - px(a.x), py(b.y) - py(a.y));
       this.segLine.setAttribute('stroke-dasharray', len);
       this.segLine.style.strokeDashoffset = len;
@@ -1812,6 +2016,37 @@
       const vertical = (a.x === b.x);
       // face the labels away from the y-axis, or they sit on its numbers
       const side = (a.x >= 0) ? 1 : -1;
+
+      /* Where a row's labels go is decided once, for the pair — never
+         once per point. A label with no room beside its own point used
+         to drop under it on its own, which left the two points on one
+         board labelled two different ways: one level, one below. The
+         child reads that as the two points meaning different things.
+         So if either of them cannot take its own side, both go over
+         their points instead, and they stay a matched pair.
+
+         Over, not under: it is where the labels already are when the
+         child taps the points out, so a pair carried onto the distance
+         question does not shuffle, and it keeps the space beneath the
+         line free for the count-out to hang its squares in. */
+      const label = function (p) {
+        return p.coordParts ? p.coordParts.map(function (f) { return f.t; }).join('')
+                            : (p.coordText || ('(' + p.x + ',\u00A0' + p.y + ')'));
+      };
+      let stacked = false;
+      if (!vertical && spec.coordDy == null) {
+        stacked = [a, b].some(function (p) {
+          const mate = (p === a) ? b : a;
+          const w = self.textW(label(p), SG.coordSize);
+          const want = px(p.x) + (p.x < mate.x ? -1 : 1) * (SG.dotR + SG.coordGap + w / 2);
+          return Math.abs(self.clampX(want, w) - want) > 0.5;   // had to be pulled back
+        });
+        /* And if over the point is where the x-axis numbering is, the
+           pair goes under instead — again together. */
+        if (stacked && [a, b].some(function (p) {
+          return self.onXAxisRow(py(p.y) + G.found.labelDy, SG.coordSize);
+        })) stacked = 'under';
+      }
 
       [['a', a], ['b', b]].forEach(function (pair) {
         const key = pair[0], p = pair[1], part = self.segParts[key];
@@ -1852,20 +2087,21 @@
              numbering, so those go above instead. */
           cx = X;
           cy = Y + spec.coordDy;
+        } else if (stacked) {
+          /* The pair could not both sit beside their points, so both sit
+             over them — at the very offset the located marks use, so a
+             carried pair's labels do not move at all. */
+          /* Squarely over its own point, the same for both — and the
+             same place the located mark already has it, so a pair
+             carried into a question does not shift. */
+          cx = self.clampLabel(X, cw);
+          cy = Y + (stacked === 'under' ? -G.found.labelDy : G.found.labelDy);
         } else {
           // to the text's near edge, the same clear air as a column's
           const outH = SG.dotR + SG.coordGap;
           cx = self.clampX(self.clearOfYAxis(
             X + (p.x < mate.x ? -1 : 1) * (outH + cw / 2), cw), cw);
           cy = Y;
-          /* In the outermost column there is not the room beside the
-             point this wants, and keeping the label on the board brings
-             it back over the point and the letter above it. Then it
-             drops clear instead — still out to its own side, under
-             rather than level with it. */
-          if (Math.abs(cx - X) < cw / 2 + SG.dotR + 6) {
-            cy = Y + SG.coordSize / 2 + SG.dotR + SG.coordGap;
-          }
           /* Level with its point, unless the point is close enough to
              the x-axis that level means on top of the numbering. Then
              it steps off, away from the axis. */
@@ -1874,7 +2110,7 @@
             cy += (p.y >= 0 ? -1 : 1) * 20;
           }
         }
-        part.coord.setAttribute('x', self.clampX(cx, cw));
+        part.coord.setAttribute('x', stacked ? cx : self.clampX(cx, cw));
         part.coord.setAttribute('y', self.clampY(cy, SG.coordSize));
         /* A point can carry its own label — the general case names the
            points (x1, y1) and (x2, y2) rather than their values — and
@@ -1908,6 +2144,11 @@
            the x-axis numbering. */
         if (!vertical && p.nameDy == null && spec.nameDy == null &&
             self.onXAxisRow(Y + ndy, SG.nameSize)) ndy = -ndy;
+        /* Unless the coordinates took that space instead. Then the two
+           would be written on top of each other, so the letter goes
+           under the point — which on a pair labelled this way is free,
+           because a row labelled this way has no letters at all. */
+        if (stacked && p.nameDy == null && spec.nameDy == null && ndy < 0) ndy = -ndy;
         const nw = self.textW(part.name.textContent || 'A', SG.nameSize);
         /* On a column the coordinate has taken the space over or under
            the point, so the letter goes beside it — and on the side the
@@ -1922,6 +2163,200 @@
           vertical && p.nameDy == null ? Y : Y + ndy, SG.nameSize));
         part.name.textContent = p.name || '';
       });
+    },
+
+    /* The subtraction, worked on the board out of the coordinates it
+       comes from — and then handed back to the line as its length.
+
+       The order is the lesson. The two y-halves light first and let go,
+       because they match and so play no part. Then the smaller x is
+       lifted out of its own label into the back of the sum, then the
+       larger into the front; only once both are up does the operator
+       appear between them, then the equals, then the answer. Finally the
+       answer leaves the sum and comes down to the middle of the span,
+       where the word "units" is written after it.
+
+       Nothing here moves an original, and nothing on the grid or the
+       axes is touched. Each digit is copied into a travelling node that
+       is discarded the moment the sum's own part takes over, so the
+       coordinates are untouched from beginning to end. */
+    runEquation: function (later, done) {
+      const G = C.GRID, X = G.xeq, U = G.unitBox, self = this;
+      const sp = this.lastPlotted;
+      if (!this.xParts || !sp || !sp.a || !sp.b) { if (done) later(done, 0); return 0; }
+      this.clearEquation();
+      /* The beat before leaves both x-halves lit, and a sequence whose
+         first move is "these two match" cannot open on a board where
+         everything is already glowing. */
+      this.glowPart(null, false);
+
+      const row = sp.a.y === sp.b.y;
+      const part = row ? 'x' : 'y';
+      const px = function (v) { return G.originX + v * G.stepX; };
+      const py = function (v) { return G.originY - v * G.stepY; };
+
+      const va = row ? sp.a.x : sp.a.y, vb = row ? sp.b.x : sp.b.y;
+      const bigger = va >= vb ? 'a' : 'b', smaller = va >= vb ? 'b' : 'a';
+      /* Taken in the order the points are read on the board — left to
+         right along a row, top to bottom down a column — never by size.
+         Each still lands in its own slot: the larger in front, the
+         smaller behind. On the row the left point happened to hold the
+         smaller value; on a column the top point holds the larger. */
+      const firstRead = row ? (sp.a.x <= sp.b.x ? 'a' : 'b')
+                            : (sp.a.y >= sp.b.y ? 'a' : 'b');
+      const secondRead = firstRead === 'a' ? 'b' : 'a';
+      const slotOf = function (which) { return which === bigger ? 0 : 2; };
+      const hi = Math.max(va, vb), lo = Math.min(va, vb);
+      const units = Math.abs(hi - lo);
+
+      /* Laid out in full before anything is shown, so every part knows
+         where it is going and nothing reflows as the sum is assembled. */
+      /* A negative is bracketed in the sum, so it reads "2 − (-3)" and
+         never "2 − -3". The copy that travels out of the label carries
+         just the number; the brackets are the sum's own and appear when
+         it lands. */
+      const loTxt = lo < 0 ? '(' + lo + ')' : String(lo);
+      const text = [String(hi), '\u2212', loTxt, '=', String(units)];
+      /* textW's flat width per character is fine for digits, but brackets
+         and the minus are narrow glyphs — at a flat width "(-3)" claims
+         half again the room it fills and the sum reads with holes round
+         it. Weighed glyph by glyph here, so the parts sit evenly. */
+      const glyphW = function (t) {
+        return Array.prototype.reduce.call(String(t), function (acc, ch) {
+          return acc + (/[()]/.test(ch) ? 0.33 : /[-\u2212=]/.test(ch) ? 0.5 : 0.58);
+        }, 0) * X.size;
+      };
+      const w = text.map(glyphW);
+      const whole = w.reduce(function (t, n) { return t + n; }, 0) + X.gap * 4;
+      const midX = (px(sp.a.x) + px(sp.b.x)) / 2;
+      /* Centred on the pair, but pushed off the y-axis where the pair
+         sits beside it — a column at x = 1 would otherwise lay the sum
+         straight across the axis numbering. */
+      const left = this.clampX(this.clearOfYAxis(midX, whole), whole) - whole / 2;
+      const topY = Math.min(py(sp.a.y), py(sp.b.y));
+      const stageY = this.clampY(topY - G.stepY * X.stageUp, X.size);
+
+      let run = 0;
+      const at = w.map(function (width) {
+        const cx = left + run + width / 2;
+        run += width + X.gap;
+        return cx;
+      });
+      this.xParts.forEach(function (t, n) {
+        t.setAttribute('x', at[n]);
+        t.setAttribute('y', stageY);
+        t.setAttribute('font-size', X.size);   // the answer came down smaller last time
+        t.textContent = text[n];
+      });
+
+      /* Where the finished length belongs: the very spot the count-out
+         writes its total, which already keeps clear of the coordinate
+         labels and of everything drawn. */
+      const ux = row ? (sp.b.x > sp.a.x ? 1 : -1) : 0;
+      const uy = row ? 0 : (sp.b.y > sp.a.y ? 1 : -1);
+      const spot = this.showUnitTotal(sp.a, ux, uy, units, units, true);
+      const wNum = this.textW(String(units), U.labelSize);
+      const wWord = this.textW('units', U.labelSize);
+      const both = wNum + X.gap + wWord;
+      const numCx = spot.x - both / 2 + wNum / 2;
+      this.xWord.setAttribute('x', spot.x - both / 2 + wNum + X.gap);
+      this.xWord.setAttribute('y', spot.y);
+      this.xWord.style.setProperty('--pen', X.wordMs + 'ms');
+      this.xWord.textContent = 'units';
+
+      /* the sweep, lying along the pair but drawn separately */
+      const l2r = sp[firstRead], r2l = sp[secondRead];
+      const len = Math.hypot(px(r2l.x) - px(l2r.x), py(r2l.y) - py(l2r.y));
+      this.xSweep.setAttribute('x1', px(l2r.x)); this.xSweep.setAttribute('y1', py(l2r.y));
+      this.xSweep.setAttribute('x2', px(r2l.x)); this.xSweep.setAttribute('y2', py(r2l.y));
+      this.xSweep.setAttribute('stroke-dasharray', len);
+      this.xSweep.style.strokeDashoffset = len;
+      this.xSweep.style.setProperty('--sweep', X.sweepMs + 'ms');
+
+      /* Carries a copy of one digit out of its label and up into the sum,
+         then hands over to the sum's own part and gets out of the way. */
+      const lift = function (which, slot, t0) {
+        const from = self.partSpot(which, part);
+        later(function () {
+          /* Everything off first: handing straight from one digit to the
+             next left both lit for the frame they crossed on. */
+          self.glowPart(null, false);
+          self.glowPart(part, true, which);
+          SFX.tick(2);
+        }, t0);
+        later(function () {
+          if (!from) { self.xParts[slot].classList.add('on'); return; }
+          const f = self.xFly;
+          f.textContent = from.text;
+          /* It starts life exactly over the digit it was copied from, at
+             that digit's size, and is carried to its slot by moving its
+             own x, y and font-size — no CSS transform anywhere, so there
+             is nothing for a browser to misplace or fail to start. */
+          f.setAttribute('x', from.x);
+          f.setAttribute('y', from.y);
+          f.setAttribute('font-size', from.size);
+          f.classList.add('on');
+          self.tweenText(f, { x: from.x, y: from.y, size: from.size },
+                            { x: at[slot], y: stageY, size: X.size }, X.flyMs);
+        }, t0 + X.pickMs);
+        later(function () {
+          const f = self.xFly;                 // pin the end, whatever was painted
+          self.pinText(f, { x: at[slot], y: stageY, size: X.size });
+          self.xParts[slot].classList.add('on', 'lit');
+          f.classList.remove('on');
+          self.glowPart(part, false, which);
+          SFX.blip();
+        }, t0 + X.pickMs + X.flyMs);
+      };
+
+      let t = 0;
+      // 1 — the halves that match, lit and let go
+      later(function () { self.glowPart(row ? 'y' : 'x', true); SFX.tick(0); }, t);
+      later(function () { self.glowPart(row ? 'y' : 'x', false); }, t += X.yGlowMs);
+
+      /* 2 and 3 — the smaller first, into the back of the sum, then the
+         larger into the front. Taken in the order they are read off the
+         board; assembled in the order the sum is read. */
+      lift(firstRead, slotOf(firstRead), t);
+      t += X.pickMs + X.flyMs;
+      lift(secondRead, slotOf(secondRead), t);
+      t += X.pickMs + X.flyMs + X.settleMs;
+
+      // 4 — the sum assembled between them, a piece at a time
+      later(function () { self.xParts[1].classList.add('on'); SFX.tick(3); }, t);
+      t += X.opMs;
+      later(function () { self.xParts[3].classList.add('on'); SFX.tick(4); }, t);
+      t += X.eqMs;
+      later(function () { self.xParts[4].classList.add('on', 'lit'); SFX.chime(); }, t);
+      t += X.resMs + X.readMs;
+
+      // 5 — and what it measures, lit from one end of the pair to the other
+      later(function () { self.xSweep.classList.add('draw'); SFX.draw(); }, t);
+      t += X.sweepMs + X.holdMs;
+
+      /* 6 — the answer leaves the sum and comes down to the line. The
+         same node the child watched being worked out, not a second one
+         fading in; the rest of the sum goes with it, because "6 - 3 ="
+         left hanging without its answer reads as broken. */
+      later(function () {
+        const a = self.xParts[4];
+        a.classList.add('drop');
+        self.tweenText(a, { x: at[4], y: stageY, size: X.size },
+                          { x: numCx, y: spot.y, size: U.labelSize }, X.dropMs);
+        [0, 1, 2, 3].forEach(function (n) { self.xParts[n].classList.add('gone'); });
+        SFX.blip();
+      }, t);
+      t += X.dropMs;
+
+      // 7 — landed, pinned, and the word is written after it
+      later(function () {
+        const a = self.xParts[4];
+        self.pinText(a, { x: numCx, y: spot.y, size: U.labelSize });
+        self.xWord.classList.add('on'); SFX.draw();
+      }, t);
+      t += X.wordMs;
+      later(function () { if (done) done(); }, t + 200);
+      return t + 200;
     },
 
     /* Lights the fragments named `part` — of one point, or of both.
@@ -2017,9 +2452,9 @@
       const self = this;
       ['a', 'b'].forEach(function (k) {
         const p = self.segParts[k];
-        p.dot.classList.remove('pop');
-        p.coord.classList.remove('pop');
-        p.name.classList.remove('pop');
+        p.dot.classList.remove('pop', 'set');
+        p.coord.classList.remove('pop', 'set');
+        p.name.classList.remove('pop', 'set');
       });
     },
 
@@ -2034,14 +2469,55 @@
        it is the shape being reasoned about, not the answer. */
     runPoints: function (spec, later, done, withLine) {
       const self = this;
-      /* This screen plots its own points, so anything located on an
-         earlier one goes. A locate screen plots nothing and keeps what
-         is already there — that is how the first point stays put while
-         the second is being found. */
-      this.clearFound();
+      /* When the pair being plotted is the pair the child has just
+         tapped out, those points are already on the board — same place,
+         same size, same colour. Taking them away and plotting them
+         again makes the child watch two points they put there
+         themselves be rebuilt in front of them, which reads as a new
+         board rather than as the same one being asked a question about.
+         So they are adopted: the segment's own dots go up settled, the
+         located marks fade off them, and the points never move. What
+         follows is only what is genuinely new — the coordinates sliding
+         out to make room, then the guide drawn along the span, and then
+         she asks. */
+      const carried = this.carriesFound(spec);
+      /* Otherwise this screen plots its own points, so anything located
+         on an earlier one goes. A locate screen plots nothing and keeps
+         what is already there — that is how the first point stays put
+         while the second is being found. */
+      if (!carried) this.clearFound();
       this.placeSegment(spec);
       this.clearSegment();
       this.segGroup.classList.add('on');
+
+      if (carried) {
+        /* Nothing here is new, so nothing here moves. The segment's own
+           dots and coordinates are put up settled at exactly the places
+           the located marks already have them — same point, same label,
+           same size — and those marks come away in the same frame. The
+           swap is invisible because there is nothing to see: the board
+           the child built simply carries on into the question. */
+        ['a', 'b'].forEach(function (k) {
+          const part = self.segParts[k];
+          part.dot.classList.add('set');
+          part.coord.classList.add('set');
+          if (part.name.textContent) part.name.classList.add('set');
+        });
+        this.clearFound();
+
+        /* The guide is the one thing that is actually new, so it is the
+           one thing that is drawn. */
+        let t = 260;
+        if (withLine) {
+          later(function () { self.segLine.classList.add('draw'); SFX.draw(); }, t);
+          t += 180;
+        }
+        if (spec.dash) {
+          later(function () { self.segDashG.classList.add('draw'); SFX.draw(); }, t);
+          later(done, t + 1180);
+        } else later(done, t + 320);
+        return;
+      }
 
       later(function () { self.segParts.a.dot.classList.add('pop'); SFX.pop(); }, 220);
       later(function () { self.segParts.b.dot.classList.add('pop'); SFX.pop(); }, 720);
@@ -2158,12 +2634,20 @@
       c.setAttribute('stroke-width', F.strokeWidth);
       c.setAttribute('class', 'fdot');
       const t = document.createElementNS(NS2, 'text');
-      t.setAttribute('x', px + F.labelDx);
+      /* Centred over its own point, and pulled back if that would take
+         it off the board — at x = 6 the old fixed offset to the right
+         hung a third of the label past the edge, where the SVG cut it
+         off. Centred is also what a segment does with the pair later,
+         so a point the child locates keeps its label exactly where they
+         first saw it rather than shuffling when the pair is joined. */
+      const ctext = '(' + gx + ',\u00A0' + gy + ')';
+      const cw = this.textW(ctext, F.labelSize);
+      t.setAttribute('x', this.clampLabel(px, cw));
       t.setAttribute('y', py + F.labelDy);
       t.setAttribute('fill', G.ink);
       t.setAttribute('font-size', F.labelSize);
       t.setAttribute('class', 'flabel');
-      t.textContent = '(' + gx + ',\u00A0' + gy + ')';
+      t.textContent = ctext;
       g.appendChild(c); g.appendChild(t);
       el.gridAxes.appendChild(g);
       this.foundMarks.push(g);
@@ -2180,6 +2664,29 @@
       });
       this.foundMarks = [];
     },
+
+    /* Is the pair this segment is about the pair the child has just
+       located? Compared by where the marks actually sit, because that
+       is the only thing that decides whether the segment's own dots can
+       take over from them without anything appearing to move. */
+    carriesFound: function (spec) {
+      const marks = this.foundMarks || [];
+      if (!spec || !spec.a || !spec.b || marks.length !== 2) return false;
+      const G = C.GRID;
+      const at = marks.map(function (g) {
+        const c = g.querySelector('.fdot');
+        return c ? { x: parseFloat(c.getAttribute('cx')),
+                     y: parseFloat(c.getAttribute('cy')) } : null;
+      });
+      if (at.some(function (m) { return !m; })) return false;
+      return [spec.a, spec.b].every(function (p) {
+        const X = G.originX + p.x * G.stepX, Y = G.originY - p.y * G.stepY;
+        return at.some(function (m) {
+          return Math.abs(m.x - X) < 0.5 && Math.abs(m.y - Y) < 0.5;
+        });
+      });
+    },
+
 
     /* A wrong tap: the point flashes red and settles back. */
     reject: function (node) {
@@ -2519,9 +3026,17 @@
       const self = this;
       this.clearPending();
       Hint.clear();
+      /* A beat that speaks without a balloon, or works its own sum, must
+         not open wearing the last one's. Both are inherited, so both go
+         here — at the change — rather than a third of a second later when
+         the beat gets round to its own business. */
+      const next = C.SCRIPT[i] || {};
+      if (next.voiceOnly) Bubble.close();
+      if (next.xEquation && Board.segRes) Board.segRes.classList.remove('pop');
       this.index = i;
       this.state = 'entering';
       el.nextBtn.classList.remove('ready');
+      this.syncNav();
       /* Whatever the last screen's board sweep did not get to, finish
          now — before this screen draws anything of its own on it. */
       if (Board.shown) Board.settleFurniture();
@@ -2671,6 +3186,15 @@
         });
       };
 
+      /* One beat works its subtraction on the board out of the axis it is
+         measured along, instead of stating it in a balloon. It runs on the
+         board this screen inherited, so it waits for nothing. */
+      const buildEquation = function () {
+        if (!entry.xEquation) return;
+        self.later(function () { Board.runEquation(self.later.bind(self)); }, 260);
+      };
+
+
       const after = function () {
         self.pulseTail = 0;
         spotlight();
@@ -2680,7 +3204,9 @@
            the answers rise and she comes down on them. */
         const gated = (bring && self.pulseTail)
           ? function () { self.later(bring, self.pulseTail); } : bring;
-        if (entry.line) self.speak(entry.line, gated);
+        buildEquation();
+        if (entry.line && entry.voiceOnly) self.sayOnly(entry.line, gated);
+        else if (entry.line) self.speak(entry.line, gated);
         else if (entry.auto && i + 1 < C.SCRIPT.length) {
           self.later(function () { self.goTo(i + 1); }, 160);
         } else {
@@ -3224,7 +3750,12 @@
         SFX.duck(false);
         if (!standPose) Sprite.stopAt('talk', 0);
         if (then) then();
-        self.settle(self.task && self.task.done ? C.AUTO.afterCorrect : C.AUTO.afterLine);
+        /* A beat that names its own hold is honoured here too: without it
+           a line said without a balloon takes the ordinary pause and the
+           board is carried off mid-sequence. */
+        const scr = C.SCRIPT[self.index] || {};
+        self.settle(scr.hold != null ? scr.hold
+          : (self.task && self.task.done ? C.AUTO.afterCorrect : C.AUTO.afterLine));
       }, (ms || 700) + 180);
     },
 
@@ -3244,8 +3775,15 @@
       if (then) then();
       /* `pause` is how long the board is left up to be read. It only
          applies to the wordless path — a line sets its own, by how long
-         she takes to say it. */
+         she takes to say it.
+
+         A screen that names its own hold is honoured here too. Without
+         that, a question answered right with nothing to say took the
+         ordinary two seconds and the board was carried off in the
+         middle of whatever it was still drawing. */
+      const scr = C.SCRIPT[this.index] || {};
       this.settle(pause != null ? pause
+        : scr.hold != null ? scr.hold
         : (this.task && this.task.done ? C.AUTO.afterCorrect : C.AUTO.afterLine));
     },
 
@@ -3751,6 +4289,35 @@
       this.skipScreen();
     },
 
+    /* Which way there is left to go. The first screen has nothing
+       behind it and the last nothing ahead, and a button with nowhere
+       to take you should say so rather than swallow the tap. */
+    syncNav: function () {
+      if (el.backBtn) el.backBtn.disabled = this.index <= 0 || this.state === 'start';
+      if (el.nextBtn) el.nextBtn.disabled = this.index + 1 >= C.SCRIPT.length;
+    },
+
+    /* Back one screen, on the same footing as Next: whatever was in
+       flight is cancelled and the screen is played again from the top.
+       It replays rather than restores — a screen is a performance, not
+       a saved state, and half of them are built by the one before. */
+    backScreen: function () {
+      const self = this;
+      if (this.busy || this.state === 'start') return;
+      if (this.index <= 0) return;          // first screen: nothing behind it
+
+      this.busy = true;
+      this.clearPending();
+      el.nextBtn.classList.remove('ready');
+      SFX.pop();
+      Bubble.close();
+
+      setTimeout(function () {
+        self.busy = false;
+        self.goTo(self.index - 1);
+      }, 280);
+    },
+
     /* The Next button: always available, always jumps straight to the
        next screen — mid-flight or mid-sentence, it does not matter. */
     skipScreen: function () {
@@ -3791,12 +4358,24 @@
     });
     el.nextBtn.addEventListener('pointerenter', function () { SFX.blip(); });
 
+    el.backBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      Game.backScreen();
+    });
+    el.backBtn.addEventListener('pointerenter', function () {
+      if (!el.backBtn.disabled) SFX.blip();
+    });
+
     // Tapping the scene skips typing or moves to the next line.
     el.scene.addEventListener('click', function () { Game.advance(); });
     window.addEventListener('keydown', function (e) {
       if (e.code === 'Space' || e.code === 'Enter' || e.code === 'ArrowRight') {
         e.preventDefault();
         if (Game.state === 'start') Game.begin(); else Game.advance();
+      }
+      if (e.code === 'ArrowLeft') {
+        e.preventDefault();
+        Game.backScreen();
       }
     });
   }
@@ -3982,12 +4561,44 @@
      more help than the moment needs and put a cursor on a screen the
      child is meant to be reading. */
   const Hint = {
-    pulseT: null, dot: null, target: null,
+    pulseT: null, nudgeT: null, dot: null, target: null, hand: null,
+
+    /* The hand, built the first time it is wanted and kept after — it
+       is one image that only ever moves. */
+    palm: function () {
+      if (this.hand) return this.hand;
+      const D = C.GRID.dot;
+      const img = document.createElement('img');
+      img.id = 'nudge';
+      img.src = C.ART.handNudge;
+      img.alt = '';
+      img.width = D.nudgeSize;
+      img.height = D.nudgeSize;
+      // the tap pivots on the fingertip, wherever that is in the file
+      img.style.transformOrigin = (D.nudgeTip.x * 100).toFixed(1) + '% ' +
+                                  (D.nudgeTip.y * 100).toFixed(1) + '%';
+      el.scene.appendChild(img);
+      this.hand = img;
+      return img;
+    },
+
+    dropHand: function () {
+      clearTimeout(this.nudgeT);
+      this.nudgeT = null;
+      if (this.hand) this.hand.classList.remove('on');
+    },
+
+    /* The rest of the board going still, or coming back to life. */
+    hush: function (on) {
+      if (Board.dotGroup) Board.dotGroup.classList.toggle('hushed', !!on);
+    },
 
     clear: function () {
       clearTimeout(this.pulseT);
       this.pulseT = null;
       this.target = null;
+      this.dropHand();
+      this.hush(false);            // the others may breathe again
       if (this.dot) { this.dot.classList.remove('hint'); this.dot = null; }
     },
 
@@ -4006,7 +4617,21 @@
         if (!dot) return;
         self.dot = dot;
         dot.classList.add('hint');
+        self.hush(true);           // and everything else goes quiet
         SFX.blip();
+
+        /* And a hand, for a moment. The image hangs from its fingertip,
+           so the finger lands on the point and the rest of the hand
+           falls away below and right of it, clear of what it is
+           pointing at. */
+        const D = C.GRID.dot, at = Board.stagePos(t.x, t.y);
+        const hand = self.palm();
+        hand.style.left = (at.x - D.nudgeSize * D.nudgeTip.x) + 'px';
+        hand.style.top  = (at.y - D.nudgeSize * D.nudgeTip.y) + 'px';
+        hand.classList.remove('on');
+        void hand.offsetWidth;
+        hand.classList.add('on');
+        self.nudgeT = setTimeout(function () { self.dropHand(); }, D.nudgeMs);
       }, C.GRID.dot.hintAfter);
     },
 

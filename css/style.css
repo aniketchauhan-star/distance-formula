@@ -396,6 +396,33 @@ html, body {
 
 /* Screen 6: intersection markers. Hidden until that screen, then
    they pop in and settle into a slow, mild breath. */
+/* The hand that comes with the hint, and goes again. It taps twice and
+   leaves: the glow is what stays until the point is found, so this only
+   has to say "over here" once. */
+#nudge {
+  position: absolute;
+  z-index: 6;
+  opacity: 0;
+  pointer-events: none;
+  /* the fingertip — set from the art's own alpha, in Hint.palm() */
+  filter: drop-shadow(0 6px 10px rgba(80, 50, 10, .30));
+}
+#nudge.on { animation: nudgeTap 1s cubic-bezier(.35, .05, .3, 1) 3; }
+/* The offsets are in px against a 290px image, so they travel with the
+   hand rather than reading as a bigger wobble on a smaller one; the
+   scale pivots on the fingertip, which keeps the finger on the point
+   through the whole tap. */
+@keyframes nudgeTap {
+  0%   { opacity: 0; transform: scale(.86) translate(11px, 15px); }
+  22%  { opacity: 1; transform: scale(1) translate(0, 0); }
+  46%  { transform: scale(.9) translate(-2px, -3px); }
+  70%  { transform: scale(1) translate(0, 0); }
+  100% { opacity: 1; transform: scale(1) translate(0, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #nudge.on { animation: none; opacity: 1; }
+}
+
 #gridAxes .dots .gdot {
   opacity: 0;
   transform-box: fill-box;
@@ -404,11 +431,23 @@ html, body {
   pointer-events: none;
   transition: fill .15s ease;
 }
+/* They breathe while the board is waiting for a tap — that gentle
+   movement is the invitation. */
 #gridAxes .dots.on .gdot {
   animation: dotIn .42s cubic-bezier(.3, 1.7, .5, 1) both,
              dotPulse 2.1s ease-in-out infinite;
   pointer-events: all;           /* they invite a tap, so let them take one */
   cursor: pointer;
+}
+/* And they stop the moment help arrives. The one point being pointed at
+   has to stand out against something, and a board where everything is
+   moving gives it nothing — so once the hint is up, every other marker
+   goes still and only that one is left breathing.
+
+   This sits above the .hint rule on purpose: both weigh the same, so
+   source order is what lets the hinted point keep its own animation. */
+#gridAxes .dots.on.hushed .gdot {
+  animation: dotIn .42s cubic-bezier(.3, 1.7, .5, 1) both;
 }
 /* the tappable affordance: brighten and swell under the cursor */
 #gridAxes .dots.on .gdot:hover {
@@ -509,6 +548,91 @@ html, body {
 }
 #gridAxes .ulabel.on { animation: labelPop .58s cubic-bezier(.22, .68, .3, 1) both; }
 
+/* ---- the subtraction worked on the board ----
+   Calm and instructional: things fade and travel, nothing bounces or
+   flickers. One easing throughout, so every step reads as the same hand. */
+#gridAxes .xeq-p, #gridAxes .xfly {
+  opacity: 0;
+  font-family: 'Nunito', system-ui, sans-serif;
+  font-weight: 700;
+  fill: #102D70;                      /* the working stays navy */
+  text-anchor: middle; dominant-baseline: middle;
+  paint-order: stroke fill;           /* its own hole in the ruling */
+  stroke: #FDFBF0; stroke-width: 7;
+  /* No `transform-box: fill-box` here on purpose. Safari resolves the
+     fill box of an SVG <text> unreliably and falls back to the middle of
+     the whole board, so a digit meant to rise from its label flew in
+     from the centre instead. The JS names each origin outright, in user
+     units, the way the axis numbers already do. */
+}
+/* Each part simply arrives. The movement in this sequence belongs to the
+   numbers that travel; giving it to the others too would make it fidget. */
+#gridAxes .xeq-p.on { opacity: 1; transition: opacity .34s ease, fill .4s ease; }
+/* Warm while it is being explained, navy once it is just part of the sum.
+   Only the numbers being talked about are ever lit. */
+#gridAxes .xeq-p.lit { fill: #E07B12; }
+
+/* The copy on its way up out of a coordinate label. The original is
+   untouched: this is a separate node, thrown away the moment the sum's
+   own part takes over. */
+#gridAxes .xfly.on { opacity: 1; fill: #E07B12; }
+/* No transition here on purpose: the copy is moved by its own x, y and
+   font-size attributes from JS, which every browser draws alike. */
+
+/* The pair lit end to end beneath the finished sum: a second line laid
+   over the real one, so nothing already drawn is disturbed. */
+#gridAxes .xsweep {
+  fill: none;
+  stroke: #E07B12;
+  stroke-width: 9;
+  stroke-linecap: round;
+  opacity: 0;
+  pointer-events: none;
+}
+#gridAxes .xsweep.draw {
+  opacity: .85;
+  animation: drawOut var(--sweep, .8s) cubic-bezier(.22, .61, .36, 1) forwards;
+}
+
+/* The answer leaving the sum for the line — moved by attribute from JS,
+   like the copies; `.drop` only marks that it has left. */
+/* This must be an animation, and must sit below `.on`: that rule holds
+   opacity through a transition and a plain declaration cannot take it
+   back cleanly once the value is already 1. */
+#gridAxes .xeq-p.gone { animation: xeqGone .5s ease both; }
+@keyframes xeqGone {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+/* "units", written after the answer has landed — one pass of the pencil,
+   left to right, the same hand as everything else written on this board. */
+#gridAxes .xword {
+  opacity: 0;
+  font-family: 'Nunito', system-ui, sans-serif;
+  font-weight: 700;
+  fill: #102D70;
+  text-anchor: start; dominant-baseline: middle;
+  paint-order: stroke fill;
+  stroke: #FDFBF0; stroke-width: 7;
+}
+/* Revealed by opacity alone. A clip-path wipe on an SVG <text> reads as
+   handwriting where it works and as nothing at all where it does not,
+   and "nothing at all" is the one outcome this beat cannot afford. */
+#gridAxes .xword.on {
+  opacity: 1;
+  transition: opacity var(--pen, .85s) cubic-bezier(.22, .61, .36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #gridAxes .xeq-p.on { transition: none; }
+  #gridAxes .xeq-p.gone { animation: none; opacity: 0; }
+  #gridAxes .xword.on { animation: none; opacity: 1; }
+  #gridAxes .xsweep.draw { animation: none; opacity: .85; stroke-dashoffset: 0; }
+}
+
+
+
 /* the y-part of a coordinate, lit while it is being substituted */
 #gridAxes .glowable.glow {
   fill: #C4620A;
@@ -583,6 +707,11 @@ html, body {
   transform-box: fill-box; transform-origin: center;
 }
 #gridAxes .segdot.pop { animation: segDotIn .54s cubic-bezier(.22, .68, .3, 1) both; }
+/* Already on the board and staying there. A point the child located is
+   handed over to the segment at the same place, size and colour, so its
+   dot goes up settled — arriving would be the board telling them a
+   point they put there themselves is new. */
+#gridAxes .segdot.set { opacity: 1; animation: none; }
 
 #gridAxes .segline { fill: none; stroke-dashoffset: inherit; }
 #gridAxes .segline.draw { animation: drawOut .62s cubic-bezier(.3, .85, .35, 1) forwards; }
@@ -599,6 +728,10 @@ html, body {
 #gridAxes .segcoord.pop, #gridAxes .segname.pop {
   animation: labelPop .56s cubic-bezier(.22, .68, .3, 1) both;
 }
+/* Already on the board, for the same reason the dot is: a pair the
+   child located keeps the labels they were given, in the same place and
+   at the same size, so the segment taking them over shows nothing. */
+#gridAxes .segcoord.set, #gridAxes .segname.set { opacity: 1; animation: none; }
 
 /* the found point, left behind once it has been located */
 #gridAxes .found {
@@ -829,8 +962,13 @@ html, body {
    answer panels and Swifty all live. */
 /* Top left and small: the board now runs the full height of the right
    of the frame, and this is a way out rather than the way on. */
-#nextBtn {
+/* The pair sits together, so one rule places them and the row keeps
+   them aligned however wide the words are. */
+#nav {
   position: absolute; left: 34px; top: 28px; z-index: 6;
+  display: flex; align-items: center; gap: 12px;
+}
+#nextBtn {
   display: inline-flex; align-items: center; gap: 10px;
   padding: 11px 26px;
   font-family: inherit; font-size: 26px; font-weight: 400; color: #fff;
@@ -849,6 +987,37 @@ html, body {
    finished her line, as a hint that you can move on. */
 #nextBtn.ready { animation: nudge 1.4s ease-in-out infinite; }
 
+/* Back is the way out of a screen rather than the way on, so it is the
+   quieter half of the pair — the same pill, the same border, the same
+   press, but wearing the gold rather than filled with it. Two identical
+   buttons side by side would leave no doubt about which is which only
+   by reading them, which is a beat longer than a child should need. */
+#backBtn {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 11px 22px;
+  font-family: inherit; font-size: 26px; font-weight: 400; color: #C2680E;
+  background: linear-gradient(180deg, #FFFDF5 0%, #FFEFD0 100%);
+  border: 4px solid #fff;
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 0 6px 0 #E6AE55, 0 11px 18px rgba(0, 0, 0, .18);
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+#backBtn .arrow { font-size: 20px; }
+#backBtn:hover  { transform: translateY(-2px); box-shadow: 0 8px 0 #E6AE55, 0 14px 20px rgba(0, 0, 0, .22); }
+#backBtn:active { transform: translateY(4px); box-shadow: 0 2px 0 #E6AE55, 0 5px 10px rgba(0, 0, 0, .22); }
+
+/* At either end of the script there is nowhere to go. The button says
+   so and stops taking the tap, rather than swallowing it in silence. */
+#nav button:disabled {
+  opacity: .40;
+  cursor: default;
+  box-shadow: 0 6px 0 rgba(120, 90, 40, .22);
+}
+#nav button:disabled:hover,
+#nav button:disabled:active { transform: none; box-shadow: 0 6px 0 rgba(120, 90, 40, .22); }
+#nextBtn:disabled.ready { animation: none; }
+
 /* The point being looked for, saying so on its own. */
 #gridAxes .dots.on .gdot.hint {
   animation: dotHint 1s ease-in-out infinite;
@@ -860,6 +1029,12 @@ html, body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* 120 markers breathing at once is exactly what this setting is for.
+     They keep their arrival and then hold still; the hint below still
+     carries its colour, which is what does the pointing anyway. */
+  #gridAxes .dots.on .gdot {
+    animation: dotIn .42s cubic-bezier(.3, 1.7, .5, 1) both;
+  }
   #gridAxes .dots.on .gdot.hint { animation: none; fill: #FFB020; }
 }
 
@@ -1209,4 +1384,3 @@ html, body {
   #gridAxes.triangle-question-active .triangle-point { animation: none; }
 }
 
-}

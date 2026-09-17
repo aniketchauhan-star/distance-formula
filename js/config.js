@@ -19,7 +19,8 @@ window.CFG = (function () {
     swiftyFly:   'assets/swifty fly.png',
     swiftyTalk:  'assets/swifty talk.png',
     swiftyStand: 'assets/normal stand swifty.png',
-    leaf:        'assets/leaf.png'
+    leaf:        'assets/leaf.png',
+    handNudge:   'assets/hand nudge.png'
   };
   const MUSIC = 'sfx/bg music.mp3';
 
@@ -412,6 +413,18 @@ window.CFG = (function () {
     return { x: fx - S5_ORIGIN.x, y: fy - S5_ORIGIN.y };
   };
 
+  /* What a plotted point looks like — one description, used by every
+     one of them. A point the child locates and the same point drawn as
+     the end of a segment are the same point, so they are drawn the same
+     way: finding one used to turn it green and plotting it turned it
+     back to blue, which read as the board swapping it for a different
+     one rather than carrying on with it. Being right is said by the
+     ring, the burst and the cheer, not by recolouring the answer. */
+  /* One definition for every point the child ever sees — the one they
+     tap out and the one a segment joins are the same object, so they
+     cannot drift apart in colour or size. */
+  const POINT = { r: 10, fill: '#2E9E6B', stroke: '#FFFFFF', strokeW: 3 };
+
   const GRID = {
     /* The space the board is drawn in, and the SVG viewBox. It used to
        be the old artwork's 1507 x 1044, which showed x -12.8..12.7 and
@@ -423,16 +436,17 @@ window.CFG = (function () {
        every offset is relative to the origin, so trimming the frame
        only stops the panel drawing cells nobody names, and the same
        range is then drawn at 56px a cell instead of 51px. */
-    /* The viewBox is taller than it looks it needs to be, and that is
-       what evens the gaps up. The SVG is stretched onto the panel with
-       preserveAspectRatio="none", so each axis has its own scale and a
-       margin written here is not the margin seen. With the ruling 14
-       cells across and 12 down, square cells force
-       panel.w = panel.h + 2 x cell — anything else leaves more air at
-       the sides than at the top. Solving that for this panel gives a
-       1210-wide board and a 1070-tall viewBox; the cell stays as it
-       was, so nothing measured below has to move. */
-    w: 1216, h: 1070,
+    /* The viewBox is the ruling and nothing else: 14 cells across by 12
+       down, exactly. There is no spare band round the outside, so the
+       first and last lines of the grid land on the panel's own edges
+       and every square on the board is whole.
+
+       That also settles the gaps for good. Air round the ruling could
+       only ever be even if panel.w - panel.h came to exactly two cells;
+       with none at all, there is nothing to be uneven. The axes still
+       stop short of the edge — they run to the last number plus an
+       overshoot for the arrowhead, not to the frame. */
+    w: 14 * 77.372458, h: 12 * 78,
 
     /* Centred, and filling everything below the band that carries
        Swifty and her line. Square cells tie the panel's aspect to the
@@ -448,7 +462,10 @@ window.CFG = (function () {
        options panel already use, bought the board another 60px. The
        frame was widened to suit, so the board grew without the axes
        leaving its centre. */
-    box: { x: 655, y: 12, w: 1210, h: 1056 },
+    /* 14 by 12 cells, so the panel is 7:6 and the cells stay square.
+       88px a cell — bigger than it has ever been, because the band that
+       used to sit outside the ruling is now grid. */
+    box: { x: 644, y: 12, w: 1232, h: 1056 },
 
     /* Where the board builds itself before anyone is on screen: the
        middle of an empty frame, since it is the whole picture until
@@ -502,7 +519,7 @@ window.CFG = (function () {
     /* The origin sits at the centre of the cream, so the axes are
        centred in the grid rather than merely centred on their own
        extents. */
-    originX: 608, originY: 535,
+    originX: 7 * 77.372458, originY: 6 * 78,
     /* Sized so the numbered plane fills the board. The board is 1.24:1
        and cells have to stay square, so the two ranges cannot both be
        the same: 6 columns each way and 5 rows each way is what a square
@@ -632,10 +649,31 @@ window.CFG = (function () {
       strokeWidth: 2,
       rippleMs: 60,         // per-ring delay, so the pulse travels outward
       skipOnAxes: true,     // no marker where a point would sit on an axis
-      /* How long after she has finished asking before the point being
-         looked for starts pulsing on its own. It keeps going until the
-         point is found — it is the only help left on these screens. */
-      hintAfter: 500,
+      /* How long a child is left to look before anything helps them.
+         Ten seconds is long enough that someone reading the board is
+         never interrupted, and short enough that someone stuck is not
+         left there. Until then nothing on the board moves at all. */
+      hintAfter: 10000,
+      /* When it does come, a hand taps the place as well — but only for
+         a moment. The glow stays until the point is found; the hand
+         says "here" once and gets out of the way. */
+      nudgeMs: 3000,
+      /* The art is a 1234 square that is mostly empty: the drawn hand
+         occupies only x 488..770, y 484..840 of it, so a box sized to
+         look right draws a hand under a quarter that wide. 290 puts
+         about 66x84px of hand on a board whose cells are 88 — plainly a
+         pointing finger, and small enough not to sit on top of the
+         point it is pointing at.
+
+         The fingertip is at 0.4627 across and 0.3922 down. That is
+         measured off the yellow of the hand specifically, not off the
+         file's alpha: the art also carries a pale tap-ripple ring that
+         reaches higher than the finger does, and taking the alpha
+         bounding box read the top of that ring instead, which hung the
+         whole hand a tenth of an image too low and left the fingertip
+         floating below the point. */
+      nudgeSize: 290,
+      nudgeTip: { x: 0.4627, y: 0.3922 },
       // markers cover every numbered intersection on both axes
       xFrom: -6, xTo: 6,
       yFrom: -5, yTo: 5
@@ -647,10 +685,10 @@ window.CFG = (function () {
       /* About a third of a cell across. At half a cell the two points
          were the loudest thing on the board — bigger than the numbers
          beside them and nearly touching the ruling on either side. */
-      dotR: 10,
-      dotFill: '#3B7DD8',
-      dotStroke: '#FFFFFF',
-      dotStrokeW: 3,
+      dotR: POINT.r,
+      dotFill: POINT.fill,
+      dotStroke: POINT.stroke,
+      dotStrokeW: POINT.strokeW,
       lineColor: '#213258',
       lineWidth: 6,
       // the guide drawn between the two points before the question
@@ -745,6 +783,39 @@ window.CFG = (function () {
     /* Unit squares that count out a segment's length when a child
        gets the distance wrong. Filled strongly enough to be obvious
        against the cream board, with a brighter flash as each lands. */
+
+    /* ---- the subtraction, worked on the board ----
+
+       One beat shows where a horizontal distance actually comes from.
+       The two numbers are lifted out of the coordinate labels they live
+       in, carried above the line, and the subtraction is assembled from
+       them a piece at a time — and then its answer comes back down to
+       sit between the points as the length. A child who watches the 3
+       and the 6 leave their coordinates and the answer arrive on the
+       line has been shown why it is a subtraction; a balloon reading
+       "6 - 3 = 3" has told them the answer and nothing else.
+
+       Every duration is slower than the game's usual beat. This is the
+       one screen where the arithmetic is the content. */
+    xeq: {
+      size: 40,          // the sum, big enough to read across the board
+      gap: 11,           // air between its parts
+      stageUp: 1.15,     // cells above the pair, where the numbers land
+      finalUp: 1.9,      // and where the finished sum settles
+      yGlowMs: 1000,     // the matching y-halves, lit and let go
+      pickMs: 320,       // a number lighting before it is lifted
+      flyMs: 800,        // and travelling up off the axis
+      settleMs: 500,     // both up, before the operator appears
+      opMs: 300,         // then the minus
+      eqMs: 500,         // then the equals
+      resMs: 350,        // then the answer
+      readMs: 900,       // which is left to be read
+      sweepMs: 800,      // the pair lit end to end under it
+      holdMs: 900,       // a beat before the answer leaves the sum
+      dropMs: 900,       // and comes down to the middle of the span
+      wordMs: 850        // where "units" is written after it
+    },
+
     unitBox: {
       /* One beat per unit as the line walks out. Slow enough to count
          along with, quick enough that twelve of them is not a wait. */
@@ -758,6 +829,7 @@ window.CFG = (function () {
          coordinates it used to collide with are now under their points,
          so the space above the segment is free. */
       labelSize: 32,
+
       /* The band shown to someone who has missed twice: pale enough
          that the ruling and the numbers still read through it, which
          is what the bordered per-unit squares failed at. */
@@ -792,17 +864,39 @@ window.CFG = (function () {
     /* The marker left behind once a point has been found, with its
        coordinates written beside it. */
     found: {
-      // a located point reads against the pale tappable dots without
-      // having to be three times their size
-      r: 9,
-      fill: '#35B94B',
-      stroke: '#FFFFFF',
-      strokeWidth: 2.5,
+      /* Exactly a plotted point, because that is what it is — the very
+         point the next screen goes on to draw a line from. */
+      r: POINT.r,
+      fill: POINT.fill,
+      stroke: POINT.stroke,
+      strokeWidth: POINT.strokeW,
       labelSize: 34,
-      labelDx: 46,          // label offset from the point
+      /* Close over the point — near enough to belong to it, far enough
+         not to touch it: 42 less the dot's 10 and the text's own 17
+         leaves 15 of clear air. The length written along the line gets
+         out of ITS way rather than the other way round, because the
+         coordinates belong to their points and the total is the thing
+         that floats.
+
+         There is no labelDx any more. A fixed shift to the right hung a
+         third of the label off the board at x = 6, where the SVG cut it
+         off; the label is centred over its point instead, which is also
+         exactly where a segment puts it, so a located point keeps its
+         label when the pair is joined. */
       labelDy: -42
     }
   };
+
+
+
+  /* The whole sequence end to end, plus a beat to read what it leaves.
+     Derived rather than typed, so tuning any step cannot leave the board
+     carried off mid-sentence. */
+  const XEQ_HOLD = (function (x) {
+    return x.yGlowMs + 2 * (x.pickMs + x.flyMs) + x.settleMs +
+           x.opMs + x.eqMs + x.resMs + x.readMs +
+           x.sweepMs + x.holdMs + x.dropMs + x.wordMs + 1200;
+  })(GRID.xeq);
 
   /* Standing pose used once she has landed on screen 5. */
   /* The resting pose, built at whatever size a screen needs. Every
@@ -879,7 +973,7 @@ window.CFG = (function () {
        an otherwise empty frame; it only moves aside once the question
        has been put and the controls are on their way in. Same size, so
        the move is a slide rather than a resize. */
-    centre: { x: 387, y: 40, w: 1146, h: 1000 },
+    centre: { x: 377, y: 40, w: 1166, h: 1000 },
 
     /* Where Swifty lands to put that question, while the board is
        still centred: bottom left, in front of the board's blank
@@ -954,7 +1048,7 @@ window.CFG = (function () {
        any panel at this ratio has panel.w = panel.h + 2 x cell, which
        is exactly the condition for the air round the ruling to match on
        all four sides. */
-    grid: { x: 790, y: 60, w: 1100, h: 960 },
+    grid: { x: 790, y: 68, w: 1108, h: 950 },
     fx: 34, fw: 720
   };
 
@@ -1140,7 +1234,18 @@ window.CFG = (function () {
          the question asked. The guide shows which span is being asked
          about without answering it — the solid line the slider lays
          down is still the answer. */
-      segment: { a: { x: 3, y: 2 }, b: { x: 6, y: 2 }, dash: true },
+      /* The coordinates are split into their parts here rather than on
+         the screen that argues about them, so that argument can keep
+         this very drawing instead of taking it down and putting an
+         identical one back up. Nothing about how they read changes. */
+      segment: {
+        a: { x: 3, y: 2,
+             coordParts: [{ t: '(' }, { t: '3', glow: 'x' }, { t: ',\u00A0' },
+                          { t: '2', glow: 'y' }, { t: ')' }] },
+        b: { x: 6, y: 2,
+             coordParts: [{ t: '(' }, { t: '6', glow: 'x' }, { t: ',\u00A0' },
+                          { t: '2', glow: 'y' }, { t: ')' }] },
+        dash: true },
 
       /* `answer` is left out on purpose: the game measures it from the
          two points, so moving a point can never leave a stale answer
@@ -1165,14 +1270,34 @@ window.CFG = (function () {
        behind the counting they have just done twice. */
     { id: 9, line: 'Did you notice?',
       entrance: 'stay', layout: 'board',
+      /* The very pair screen 8 asked about, not a fresh one. The whole
+         of this argument is "look at what you just measured, and see
+         where the answer came from" — which only works if it is
+         actually what they measured. Changing the numbers under them
+         between the question and its explanation made this read as a
+         second, unrelated example. */
+      /* This beat plots the pair itself rather than keeping screen 8's.
+         Keeping it looked tidier — the same points, no rebuild — but
+         nothing on the measure screen before this one ever reveals the
+         coordinate labels, so a kept segment arrived with its labels
+         still at opacity 0 and the whole argument ran over an empty
+         board. Replotting is what puts them on screen.
+
+         The parts are split out here because the three beats that
+         follow light the x and y halves separately; without them there
+         is nothing for the highlight to take hold of.
+
+         No length is written. The beats that follow build the argument
+         that arrives at it, and the last of them works it out on the
+         board — stating the answer first would make the argument a
+         restatement of something already on screen. */
       segment: {
-        a: { x: 2, y: 1,
-             coordParts: [{ t: '(' }, { t: '2', glow: 'x' }, { t: ',\u00A0' },
-                          { t: '1', glow: 'y' }, { t: ')' }] },
-        b: { x: 6, y: 1,
+        a: { x: 3, y: 2,
+             coordParts: [{ t: '(' }, { t: '3', glow: 'x' }, { t: ',\u00A0' },
+                          { t: '2', glow: 'y' }, { t: ')' }] },
+        b: { x: 6, y: 2,
              coordParts: [{ t: '(' }, { t: '6', glow: 'x' }, { t: ',\u00A0' },
-                          { t: '1', glow: 'y' }, { t: ')' }] },
-        result: { text: '4\u00A0units', dy: -26 }
+                          { t: '2', glow: 'y' }, { t: ')' }] }
       } },
 
     { id: 10, line: 'The y-coordinates are the same.',
@@ -1185,9 +1310,14 @@ window.CFG = (function () {
 
     /* 6 first, then 2 — the order the subtraction is read in, so the
        two numbers light as she says them rather than together. */
-    { id: 12, line: '6 - 2 = 4',
+    { id: 12, line: '6 - 3 = 3',
       entrance: 'stay', layout: 'board', keepSegment: true,
-      highlight: { part: 'x', order: ['b', 'a'], stagger: 620 } },
+      /* She says it; the board works it out. The balloon is left shut on
+         purpose — a bubble reading "6 - 3 = 3" beside a board building
+         that very sum is the answer twice over, and the built one is the
+         half that teaches. No `highlight` here: the sequence does all of
+         its own lighting, in its own order. */
+      voiceOnly: true, xEquation: true, hold: XEQ_HOLD },
 
     { id: 13, line: 'What is the distance between two points?', entrance: 'none', layout: 'board',
       distance: true, intro: 'measure',
@@ -1217,11 +1347,9 @@ window.CFG = (function () {
                           { t: '-3', glow: 'y' }, { t: ')' }] },
         b: { x: 1, y: 2,
              coordParts: [{ t: '(' }, { t: '1', glow: 'x' }, { t: ',\u00A0' },
-                          { t: '2', glow: 'y' }, { t: ')' }] },
-        /* Beside the line, and lifted well off its middle: this pair
-           straddles the x-axis, so the midpoint the length would
-           otherwise take is the row the axis numbers live in. */
-        result: { text: '5\u00A0units', dy: -117, dx: 108 }
+                          { t: '2', glow: 'y' }, { t: ')' }] }
+        /* No length here — screen 18 works it out on the board and
+           writes it beside the line itself. */
       } },
 
     { id: 16, line: 'The x-coordinates are the same.',
@@ -1232,10 +1360,13 @@ window.CFG = (function () {
       entrance: 'stay', layout: 'board', keepSegment: true,
       highlight: { part: 'y' } },
 
-    /* 2 first, then -3 — the order the subtraction is read in. */
+    /* She says it; the board works it out — the column twin of screen
+       12. The 2 is taken first, out of (1, 2), then the -3, the order
+       the points are read down the column. The balloon stays shut and
+       the sequence does its own lighting, so no `highlight` here. */
     { id: 18, line: '2 - (-3) = 5',
       entrance: 'stay', layout: 'board', keepSegment: true,
-      highlight: { part: 'y', order: ['b', 'a'], stagger: 620 } },
+      voiceOnly: true, xEquation: true, hold: XEQ_HOLD },
 
     { id: 19, line: 'What is the distance between two points?', entrance: 'none', layout: 'board',
       distance: true, intro: 'measure',
@@ -1245,18 +1376,59 @@ window.CFG = (function () {
               /* Missed twice: shown instead of told. */
               countLine: 'Now let’s count the units.' } },
 
+    /* ---- 20-21: the recall, immediately before the ground moves.
+
+       Two beats, neither of them a question. The child has just worked
+       through a row and a column; these put both back in front of them
+       finished — the pair, its coordinates, and the length written on
+       the line — one after the other. That is the whole job: the next
+       screen shows a pair that answers to neither method, and it can
+       only land as a problem if both methods are still in mind when it
+       arrives. Recalled first, broken second, rebuilt third.
+
+       They are shown rather than asked deliberately. Asking again here
+       would test what was just tested and spend the child's attention
+       before the part that needs it; seeing a solved case costs one
+       breath and leaves the question that follows the only thing on
+       the board worth thinking about.
+
+       The pairs are the very ones they worked: (2,1)-(6,1) is the row
+       from screen 9 and the argument on 10-12, and (1,-3)-(1,2) is the
+       column from 14 and the argument on 15-18. Fresh numbers here
+       would read as new examples rather than as their own. */
+    { id: 20, line: 'We know how to find horizontal distance.',
+      entrance: 'stay', layout: 'board',
+      /* Under the line: the coordinates sit over their points, so the
+         length goes on the free side rather than crowding them. */
+      segment: { a: { x: 3, y: 2 }, b: { x: 6, y: 2 },
+                 result: { text: '3\u00A0units', dy: 48 } } },
+
+    /* Beside the line and lifted off its middle, the same as screen 15
+       writes this very pair: the column straddles the x-axis, so the
+       midpoint the length would otherwise take is the row the axis
+       numbers live in. */
+    { id: 21, line: 'And vertical distance.',
+      entrance: 'stay', layout: 'board',
+      /* Four words against the other's six, so the ordinary pause would
+         take this one away a second sooner — and what has to be read
+         here is the board, not the sentence. Held so both beats give
+         the same three seconds with the length up. */
+      hold: 2250,
+      segment: { a: { x: 1, y: -3 }, b: { x: 1, y: 2 },
+                 result: { text: '5\u00A0units', dy: -117, dx: 108 } } },
+
     /* 12 — leaves sweep again and the scene goes back to the field
        layout of screen 5: board on the right, Swifty standing on the
        left, and no slider. The segment is diagonal this
        time, so counting whole squares no longer works — which is the
        point she is about to make. */
-    { id: 20, line: 'This one’s different.', entrance: 'fly',
+    { id: 22, line: 'This one’s different.', entrance: 'fly',
       layout: 'grid', transition: 'leaves',
       segment: { a: { x: 2, y: 1 },
                  b: { x: 6, y: 4 } } },
 
     // 13 — same board and same segment, she just carries on talking
-    { id: 21, line: 'Can the grid help?', entrance: 'stay',
+    { id: 23, line: 'Can the grid help?', entrance: 'stay',
       layout: 'grid', keepSegment: true },
 
     /* 14 — leaves again, back to the board layout with the slider.
@@ -1266,7 +1438,7 @@ window.CFG = (function () {
     /* Same grid, same points. No sweep and no replot: A and B are
        already on the board the child is reading, so only the leg down
        to C is new and only the leg is drawn. */
-    { id: 22, line: 'How far apart are A and C?', entrance: 'none',
+    { id: 24, line: 'How far apart are A and C?', entrance: 'none',
       layout: 'board', distance: true, intro: 'measure', keepSegment: true,
       segment: { a: { x: 2, y: 1, name: 'A' },
                  b: { x: 6, y: 4, name: 'B' } },
@@ -1281,7 +1453,7 @@ window.CFG = (function () {
     /* 15 — the board is kept exactly as it was. The first leg is
        already drawn, so it only gains its length, and the second leg
        rises from the corner to B. */
-    { id: 23, line: 'How far apart are C and B?', entrance: 'none',
+    { id: 25, line: 'How far apart are C and B?', entrance: 'none',
       layout: 'board', distance: true, intro: 'measure', keepSegment: true,
       segment: { a: { x: 2, y: 1, name: 'A' },
                  b: { x: 6, y: 4, name: 'B' } },
@@ -1301,7 +1473,7 @@ window.CFG = (function () {
        slider: she is just naming what they have built. */
     /* Still the same grid: the triangle is the two legs they have just
        measured, not a new drawing. */
-    { id: 24, line: 'Look! We made a triangle.', entrance: 'stay',
+    { id: 26, line: 'Look! We made a triangle.', entrance: 'stay',
       layout: 'board', keepSegment: true,
       /* No highlight here. This screen and the one after it show the
          same triangle on the same board, so lighting it on both made
@@ -1319,7 +1491,7 @@ window.CFG = (function () {
     /* 17 — same triangle, now named. The slider is replaced by the
        three triangle types; the square corner at C makes it a
        right-angled triangle. */
-    { id: 25, line: 'What kind of triangle is it?', entrance: 'stay',
+    { id: 27, line: 'What kind of triangle is it?', entrance: 'stay',
       layout: 'board', keepSegment: true,
       /* The same three sides light as she asks — she is asking about
          the shape, so the shape says which lines she means. No hold
@@ -1342,7 +1514,7 @@ window.CFG = (function () {
 
     /* 18 — same triangle again, now asking how to reach the third
        side. Same panel, different three answers. */
-    { id: 26, line: 'We know two sides. How can we find the third?',
+    { id: 28, line: 'We know two sides. How can we find the third?',
       entrance: 'stay', layout: 'board', keepSegment: true,
       /* The third side is the one she is asking about, so it lights
          while she asks — and the answers stay off until she has, or
@@ -1388,7 +1560,7 @@ window.CFG = (function () {
        Pythagoras can be applied. Both are Pythagorean triples, so the
        answer comes out whole — 3-4-5 first, then the same shape
        doubled to 6-8-10. */
-    { id: 27, line: 'Use the right triangle to find AB.', range: { min: 0, max: 12 }, entrance: 'none',
+    { id: 29, line: 'Use the right triangle to find AB.', range: { min: 0, max: 12 }, entrance: 'none',
       layout: 'board', transition: 'leaves', intro: 'measure', entry: true,
       segment: { a: { x: -2, y: 2, name: 'A' },
                  b: { x:  2, y: 5, name: 'B' } , dash: true},
@@ -1426,7 +1598,7 @@ window.CFG = (function () {
                     { t: 'AB = ' }, { t: '5\u00A0units', lit: 'ab' } ] }
               ], } },
 
-    { id: 28, line: 'What is the distance between two points?', range: { min: 0, max: 12 }, entrance: 'none',
+    { id: 30, line: 'What is the distance between two points?', range: { min: 0, max: 12 }, entrance: 'none',
       layout: 'board', transition: 'leaves', intro: 'measure', entry: true,
       segment: { a: { x: -3, y:  3, name: 'A' },
                  b: { x:  5, y: -3, name: 'B' } , dash: true},
@@ -1461,7 +1633,7 @@ window.CFG = (function () {
 
     /* 21 — leaves, back to the field layout, and the same idea stated
        in general: the points are named rather than numbered. */
-    { id: 29, line: 'The same idea works for any two points.', entrance: 'fly',
+    { id: 31, line: 'The same idea works for any two points.', entrance: 'fly',
       layout: 'grid', transition: 'leaves',
       segment: {
         a: { x: -5, y: 1, coordText: '(x1, y1)' },
@@ -1471,7 +1643,7 @@ window.CFG = (function () {
     /* 22 — the same general segment, with the corner dropped and both
        legs drawn: the right-angled triangle in its general form. The
        corner is named from the two points' own coordinates. */
-    { id: 30, line: null, entrance: 'stay',
+    { id: 32, line: null, entrance: 'stay',
       layout: 'grid', keepSegment: true,
       segment: {
         a: { x: -5, y: 1, name: 'A', coordText: '(x1, y1)' },
@@ -1486,7 +1658,7 @@ window.CFG = (function () {
     /* 23 — the horizontal leg is named. Nothing is redrawn; it only
        gains its length, written as the difference rather than a
        count of units. */
-    { id: 31, line: 'AC = x2 - x1', entrance: 'stay',
+    { id: 33, line: 'AC = x2 - x1', entrance: 'stay',
       layout: 'grid', keepSegment: true,
       segment: {
         a: { x: -5, y: 1, name: 'A', coordText: '(x1, y1)' },
@@ -1501,7 +1673,7 @@ window.CFG = (function () {
 
     /* 24 — and now the vertical leg is named too, so both differences
        are on the board together. */
-    { id: 32, line: 'CB = y2 - y1', entrance: 'stay',
+    { id: 34, line: 'CB = y2 - y1', entrance: 'stay',
       layout: 'grid', keepSegment: true,
       segment: {
         a: { x: -5, y: 1, name: 'A', coordText: '(x1, y1)' },
@@ -1518,12 +1690,12 @@ window.CFG = (function () {
     /* 25 — the board is finished; she just turns to the question it
        sets up. Nothing is declared to draw, so nothing redraws and
        her line comes straight up. */
-    { id: 33, line: 'Now, let’s find AB.', entrance: 'stay',
+    { id: 35, line: 'Now, let’s find AB.', entrance: 'stay',
       layout: 'grid', keepSegment: true },
 
     /* 26 — leaves, then the result on its own: board to the left, the
        working beside it, and nobody in shot. */
-    { id: 34, line: null, entrance: 'none',
+    { id: 36, line: null, entrance: 'none',
       layout: 'recap', transition: 'leaves', keepSegment: true,
       /* The formula the whole lesson has been building to. Nothing is
          said over it, and the ordinary silent beat is 900ms — which
@@ -1535,15 +1707,15 @@ window.CFG = (function () {
 
     /* 27-28 — leaves, then back to the opening arrangement: no board,
        no panels, Swifty alone in the field. */
-    { id: 35, line: 'And that gives us the distance between any two points!',
+    { id: 37, line: 'And that gives us the distance between any two points!',
       entrance: 'fly', transition: 'leaves' },
 
-    { id: 36, line: 'What if both points are on the x-axis?', entrance: 'stay' },
+    { id: 38, line: 'What if both points are on the x-axis?', entrance: 'stay' },
 
     /* 29 — the x-axis case worked through: the general formula narrows
        to |x2 - x1| as the y terms fall away. She says which case it is
        from her own bubble, standing beside the board. */
-    { id: 37, line: 'Both points are on the x-axis.', entrance: 'stay',
+    { id: 39, line: 'Both points are on the x-axis.', entrance: 'stay',
       layout: 'xaxis', transition: 'leaves',
       /* The working runs for ten seconds after she has finished saying
          which case it is, and the ordinary 1500 took the screen away
@@ -1555,12 +1727,12 @@ window.CFG = (function () {
     /* 30 — leaves again, and the same empty field as 25: board and
        working left behind, Swifty flying back in alone to put the next
        question. */
-    { id: 38, line: 'And what if they’re on the y-axis?',
+    { id: 40, line: 'And what if they’re on the y-axis?',
       entrance: 'fly', transition: 'leaves' },
 
     /* 31 — the same working as 27 with the axes swapped: the x terms
        are the pair that falls away this time. */
-    { id: 39, line: 'Both points are on the y-axis.', entrance: 'stay',
+    { id: 41, line: 'Both points are on the y-axis.', entrance: 'stay',
       layout: 'yaxis', transition: 'leaves' }
   ];
 
