@@ -797,6 +797,27 @@ window.CFG = (function () {
 
        Every duration is slower than the game's usual beat. This is the
        one screen where the arithmetic is the content. */
+    /* A pair the child finished with, brought back on a later screen
+       beside the one that screen is about. The timings are the
+       segment's own, tightened: the pair being recalled is not news, so
+       it arrives at a glance rather than being introduced. */
+    example: {
+      slots: 1,          // the most any one screen recalls
+      dotAMs: 100,       // its two points
+      dotBMs: 240,
+      lineMs: 420,       // the line that joins them
+      coordMs: 760,      // their coordinates
+      coordStep: 120,
+      resultMs: 1040,    // and what the child measured
+      stagger: 760,      // between one recalled pair and the next
+      /* Held after her line. Long enough that both lengths on the board
+         are up for the three seconds a recall has always given its own
+         — and longer than the whole arrival, so even a beat with
+         nothing recorded to say cannot be carried off with a pair still
+         coming up. */
+      readMs: 2200
+    },
+
     xeq: {
       size: 40,          // the sum, big enough to read across the board
       gap: 11,           // air between its parts
@@ -897,6 +918,10 @@ window.CFG = (function () {
            x.opMs + x.eqMs + x.resMs + x.readMs +
            x.sweepMs + x.holdMs + x.dropMs + x.wordMs + 1200;
   })(GRID.xeq);
+
+  /* Both recall beats take the same hold from the same place, so they
+     stay the same length as each other whatever is tuned. */
+  const EXAMPLE_HOLD = GRID.example.readMs;
 
   /* Standing pose used once she has landed on screen 5. */
   /* The resting pose, built at whatever size a screen needs. Every
@@ -1392,30 +1417,39 @@ window.CFG = (function () {
        breath and leaves the question that follows the only thing on
        the board worth thinking about.
 
-       The pairs are the very ones they worked: (2,1)-(6,1) is the row
+       The pairs are the very ones they worked: (3,2)-(6,2) is the row
        from screen 9 and the argument on 10-12, and (1,-3)-(1,2) is the
        column from 14 and the argument on 15-18. Fresh numbers here
        would read as new examples rather than as their own. */
     { id: 20, line: 'We know how to find horizontal distance.',
-      entrance: 'stay', layout: 'board',
+      entrance: 'stay', layout: 'board', hold: EXAMPLE_HOLD,
+      /* Two pairs on one board: the furniture steps back so they read as
+         the subject rather than as more lines among the ruling. */
+      quietBoard: true,
       /* Under the line: the coordinates sit over their points, so the
          length goes on the free side rather than crowding them. */
       segment: { a: { x: 3, y: 2 }, b: { x: 6, y: 2 },
-                 result: { text: '3\u00A0units', dy: 48 } } },
+                 result: { text: '3\u00A0units', dy: 48 } },
+      /* The other row they measured — screen 13's question, with the
+         answer they gave it. Its middle sits all but on the y-axis, so
+         the length goes above its own line, the side the count-out used
+         there, and far enough right to clear the axis numbering. */
+      examples: [ { a: { x: 4, y: 3 }, b: { x: -3, y: 3 },
+                    result: { text: '7\u00A0units', dy: -48, dx: 66 } } ] },
 
     /* Beside the line and lifted off its middle, the same as screen 15
        writes this very pair: the column straddles the x-axis, so the
        midpoint the length would otherwise take is the row the axis
        numbers live in. */
     { id: 21, line: 'And vertical distance.',
-      entrance: 'stay', layout: 'board',
-      /* Four words against the other's six, so the ordinary pause would
-         take this one away a second sooner — and what has to be read
-         here is the board, not the sentence. Held so both beats give
-         the same three seconds with the length up. */
-      hold: 2250,
+      entrance: 'stay', layout: 'board', hold: EXAMPLE_HOLD, quietBoard: true,
       segment: { a: { x: 1, y: -3 }, b: { x: 1, y: 2 },
-                 result: { text: '5\u00A0units', dy: -117, dx: 108 } } },
+                 result: { text: '5\u00A0units', dy: -117, dx: 108 } },
+      /* The other column they measured — screen 19's question. Its
+         length goes beside its own line on the far side from the pair
+         next to it, level with its own middle. */
+      examples: [ { a: { x: -2, y: 3 }, b: { x: -2, y: 1 },
+                    result: { text: '2\u00A0units', dy: 0, dx: -84 } } ] },
 
     /* 12 — leaves sweep again and the scene goes back to the field
        layout of screen 5: board on the right, Swifty standing on the

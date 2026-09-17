@@ -1026,9 +1026,59 @@
       this.unitBand = ub;
       this.unitLabel = ul;
 
+      const SG = G.segment;
+
+      /* Pairs the child has already finished with, brought back on a
+         later screen beside the one that screen is about.
+
+         Each slot is the segment's own furniture — a line, two points,
+         two labels, two letters and a length — carrying the segment's
+         own classes, so an example is styled by the very rules that
+         styled it the first time and cannot drift from it. No dashed
+         guide: an example is only ever shown finished. Built before the
+         segment group, which leaves the pair a screen is actually about
+         on top of anything recalled beside it. */
+      const EX = G.example;
+      this.exSlots = [];
+      for (let e = 0; e < (EX && EX.slots || 0); e++) {
+        const exg = document.createElementNS(NS, 'g');
+        exg.setAttribute('class', 'example');
+        const exl = document.createElementNS(NS, 'line');
+        exl.setAttribute('class', 'segline');
+        exl.setAttribute('stroke', SG.lineColor);
+        exl.setAttribute('stroke-width', SG.lineWidth);
+        exl.setAttribute('stroke-linecap', 'round');
+        exg.appendChild(exl);
+        const exParts = { a: {}, b: {} };
+        ['a', 'b'].forEach(function (key) {
+          const c = document.createElementNS(NS, 'circle');
+          c.setAttribute('class', 'segdot');
+          c.setAttribute('r', SG.dotR);
+          c.setAttribute('fill', SG.dotFill);
+          c.setAttribute('stroke', SG.dotStroke);
+          c.setAttribute('stroke-width', SG.dotStrokeW);
+          const co = document.createElementNS(NS, 'text');
+          co.setAttribute('class', 'segcoord');
+          co.setAttribute('fill', G.ink);
+          co.setAttribute('font-size', SG.coordSize);
+          const nm = document.createElementNS(NS, 'text');
+          nm.setAttribute('class', 'segname');
+          nm.setAttribute('fill', G.ink);
+          nm.setAttribute('font-size', SG.nameSize);
+          exg.appendChild(c); exg.appendChild(co); exg.appendChild(nm);
+          exParts[key] = { dot: c, coord: co, name: nm };
+        });
+        const exr = document.createElementNS(NS, 'text');
+        exr.setAttribute('class', 'segres');
+        exr.setAttribute('fill', G.ink);
+        exr.setAttribute('font-size', 34);
+        exg.appendChild(exr);
+        svg.appendChild(exg);
+        this.exSlots.push({ g: exg, segParts: exParts, segLine: exl, segRes: exr });
+      }
+
       /* A plotted segment: two named points joined by a line. Built
          here, positioned and revealed by showSegment(). */
-      const SG = G.segment;
       const seg = document.createElementNS(NS, 'g');
       seg.setAttribute('class', 'seg');
       /* A dashed guide along the segment, shown before the question so
@@ -1240,6 +1290,54 @@
       };
     },
 
+    /* Brings back pairs that were finished with screens ago, in the
+       segment's own order — the two points, the line that joins them,
+       their coordinates, then what the child measured. It runs under
+       her line rather than before it, the way the worked subtraction
+       does, so a recall never costs the screen a silent pause. */
+    runExamples: function (list, later, done) {
+      const self = this, EX = C.GRID.example;
+      if (!list || !list.length || !this.exSlots || !this.exSlots.length) {
+        if (done) done(); return;
+      }
+      let t = 0;
+      list.forEach(function (spec, i) {
+        const slot = self.exSlots[i];
+        if (!slot) return;
+        /* Placed by placeSegment itself, so the labels fall exactly
+           where they fell on the screen this pair came from — beside a
+           wide row's points, above and below a column's. */
+        self.placeSegment(spec, slot);
+        later(function () { slot.segParts.a.dot.classList.add('pop'); SFX.tick(0); }, t + EX.dotAMs);
+        later(function () { slot.segParts.b.dot.classList.add('pop'); SFX.tick(2); }, t + EX.dotBMs);
+        later(function () { slot.segLine.classList.add('draw'); SFX.draw(); }, t + EX.lineMs);
+        ['a', 'b'].forEach(function (k, n) {
+          later(function () {
+            slot.segParts[k].coord.classList.add('pop'); SFX.tick(n + 3);
+          }, t + EX.coordMs + n * EX.coordStep);
+        });
+        if (spec.result) later(function () {
+          const R = spec.result;
+          self.showSegResult(spec, R.text, R.dy != null ? R.dy : -26, R.dx, slot);
+          SFX.chime();
+        }, t + EX.resultMs);
+        t += EX.stagger;
+      });
+      later(function () { if (done) done(); }, t + EX.resultMs + 300);
+    },
+
+    clearExamples: function () {
+      (this.exSlots || []).forEach(function (s) {
+        s.segLine.classList.remove('draw', 'lit');
+        s.segRes.classList.remove('pop');
+        ['a', 'b'].forEach(function (k) {
+          ['dot', 'coord', 'name'].forEach(function (n) {
+            s.segParts[k][n].classList.remove('pop', 'set');
+          });
+        });
+      });
+    },
+
     clearLegs: function () {
       if (!this.legSlots) return;
       this.legSlots.forEach(function (L) {
@@ -1364,13 +1462,37 @@
         L.coord.textContent = spec.mark.coordText ||
                               ('(' + t.x + ',\u00A0' + t.y + ')');
         const mw = this.textW(L.coord.textContent, G.segment.coordSize);
-        L.coord.setAttribute('x', this.clampX(x2 + LG.coordDx, mw));
-        L.coord.setAttribute('y', this.clampY(y2, G.segment.coordSize));
+        /* Beside the corner — but only if the frame will take it there.
+           The outermost column has no room on its own side, and the
+           clamp does not decline, it drags: the label came back and
+           landed on the very point it names, which is how "(6, 1)" ended
+           up written across C. So when the side it wants is not there,
+           it goes over the point instead — where every other coordinate
+           in this game sits — or under, if over is the axis numbering. */
+        const want = x2 + LG.coordDx;
+        const beside = this.clampX(want, mw);
+        const squashed = Math.abs(beside - want) > 0.5;
+        let cx = beside, cy = y2;
+        if (squashed) {
+          cy = y2 + G.found.labelDy;
+          if (this.onXAxisRow(cy, G.segment.coordSize)) cy = y2 - G.found.labelDy;
+          cx = this.clampX(x2, mw);
+        }
+        L.coord.setAttribute('x', cx);
+        L.coord.setAttribute('y', this.clampY(cy, G.segment.coordSize));
         /* Below the corner, unless the x-axis row is there. */
         let nx = x2, ny = y2 + LG.nameDy;
         if (this.onXAxisRow(ny, G.segment.nameSize)) {
           ny = y2 - LG.nameDy;
           nx = x2 + LG.nameFlipDx;
+        }
+        /* And if the coordinates have just taken the space over the
+           point, the letter cannot have it as well: it keeps the other
+           side, or goes beside the point where that side is the axis
+           numbering. */
+        if (squashed && (ny - y2) * (cy - y2) > 0) {
+          ny = y2 - (ny - y2);
+          if (this.onXAxisRow(ny, G.segment.nameSize)) { ny = y2; nx = x2 + LG.nameFlipDx; }
         }
         L.name.textContent = spec.mark.name || '';
         const nw2 = this.textW(L.name.textContent || 'A', G.segment.nameSize);
@@ -1970,46 +2092,58 @@
     },
 
     /* Seats a segment's two points, its line and its four labels. */
-    placeSegment: function (spec) {
+    /* `into` names which set of nodes to write into. Left out, it is the
+       board's own pair — every caller in the game. Given an example slot,
+       the very same placement runs against that slot's nodes instead,
+       which is the point: a pair recalled on a later screen is laid out
+       by the code that laid it out the first time, so it cannot drift
+       from how the child saw it. */
+    placeSegment: function (spec, into) {
       const G = C.GRID, SG = G.segment;
+      const T = into || this;
       /* A length written on the last pair does not belong to this one.
          Screens that keep their segment never come through here, so a
          measurement stays up across the beats that talk about it and
          goes the moment the points change. */
-      if (this.segRes) {
-        this.segRes.classList.remove('pop');
-        this.segRes.textContent = '';
+      if (T.segRes) {
+        T.segRes.classList.remove('pop');
+        T.segRes.textContent = '';
       }
       const NS2 = 'http://www.w3.org/2000/svg';
       const a = spec.a, b = spec.b;
       /* The pair currently drawn. The beat that argues about a segment
          inherits it rather than declaring one, so this is the only way
          it can find out what it is arguing about. */
-      this.lastPlotted = spec;
+      /* Only the board's own pair is the one the game is about; an
+         example is a picture of a pair that was settled screens ago. */
+      if (!into) this.lastPlotted = spec;
       // a screen can recolour the segment — red once it closes a triangle
-      this.segLine.setAttribute('stroke', spec.color || SG.lineColor);
-      this.segLine.style.color = spec.color || SG.lineColor;   // for its own glow
+      T.segLine.setAttribute('stroke', spec.color || SG.lineColor);
+      T.segLine.style.color = spec.color || SG.lineColor;   // for its own glow
       const px = function (v) { return G.originX + v * G.stepX; };
       const py = function (v) { return G.originY - v * G.stepY; };
       const self = this;
 
-      this.segLine.setAttribute('x1', px(a.x)); this.segLine.setAttribute('y1', py(a.y));
-      this.segLine.setAttribute('x2', px(b.x)); this.segLine.setAttribute('y2', py(b.y));
+      T.segLine.setAttribute('x1', px(a.x)); T.segLine.setAttribute('y1', py(a.y));
+      T.segLine.setAttribute('x2', px(b.x)); T.segLine.setAttribute('y2', py(b.y));
 
       /* Same two ends for the dashed guide; it grows out of A, so the
          group's origin is pinned there. */
-      this.segDash.setAttribute('x1', px(a.x)); this.segDash.setAttribute('y1', py(a.y));
-      this.segDash.setAttribute('x2', px(b.x)); this.segDash.setAttribute('y2', py(b.y));
+      /* An example carries no guide: it is only ever shown finished. */
+      if (T.segDash) {
+      T.segDash.setAttribute('x1', px(a.x)); T.segDash.setAttribute('y1', py(a.y));
+      T.segDash.setAttribute('x2', px(b.x)); T.segDash.setAttribute('y2', py(b.y));
       /* It grows from the left-hand end, so the guide always reads left
          to right — the order the pair is read in — rather than from
          whichever point the screen happened to call `a`. A column has
          no left and right, so that one grows upward from its lower
          point. */
       const from = (a.x === b.x) ? (a.y <= b.y ? a : b) : (a.x <= b.x ? a : b);
-      this.segDashG.style.transformOrigin = px(from.x) + 'px ' + py(from.y) + 'px';
+      T.segDashG.style.transformOrigin = px(from.x) + 'px ' + py(from.y) + 'px';
+      }
       const len = Math.hypot(px(b.x) - px(a.x), py(b.y) - py(a.y));
-      this.segLine.setAttribute('stroke-dasharray', len);
-      this.segLine.style.strokeDashoffset = len;
+      T.segLine.setAttribute('stroke-dasharray', len);
+      T.segLine.style.strokeDashoffset = len;
 
       /* A vertical segment stacks its points, so labels above and
          below would collide with each other. Those go to the sides. */
@@ -2049,7 +2183,7 @@
       }
 
       [['a', a], ['b', b]].forEach(function (pair) {
-        const key = pair[0], p = pair[1], part = self.segParts[key];
+        const key = pair[0], p = pair[1], part = T.segParts[key];
         const X = px(p.x), Y = py(p.y);
         part.dot.setAttribute('cx', X);  part.dot.setAttribute('cy', Y);
 
@@ -2392,15 +2526,15 @@
     /* dx slides the plate along the segment: a segment centred on the
        origin would otherwise drop its answer straight onto the y-axis
        and the -1 beside it. */
-    showSegResult: function (spec, text, dy, dx) {
-      const G = C.GRID;
+    showSegResult: function (spec, text, dy, dx, into) {
+      const G = C.GRID, T = into || this;
       const px = function (v) { return G.originX + v * G.stepX; };
       const py = function (v) { return G.originY - v * G.stepY; };
-      this.segLine.classList.add('lit');
-      this.segRes.setAttribute('x', (px(spec.a.x) + px(spec.b.x)) / 2 + (dx || 0));
-      this.segRes.setAttribute('y', (py(spec.a.y) + py(spec.b.y)) / 2 + dy);
-      this.segRes.textContent = text;
-      this.segRes.classList.add('pop');
+      T.segLine.classList.add('lit');
+      T.segRes.setAttribute('x', (px(spec.a.x) + px(spec.b.x)) / 2 + (dx || 0));
+      T.segRes.setAttribute('y', (py(spec.a.y) + py(spec.b.y)) / 2 + dy);
+      T.segRes.textContent = text;
+      T.segRes.classList.add('pop');
       /* No plate behind it: the text carries its own paper halo, the
          same as every other measurement written on the board. A drawn
          box round this one made it read as a different kind of thing
@@ -2421,6 +2555,13 @@
         if (p && p.name)  p.name.textContent = '';
       });
       if (this.segRes) this.segRes.textContent = '';
+      (this.exSlots || []).forEach(function (s) {
+        s.segRes.textContent = '';
+        ['a', 'b'].forEach(function (k) {
+          s.segParts[k].coord.textContent = '';
+          s.segParts[k].name.textContent = '';
+        });
+      });
       if (this.legSlots) this.legSlots.forEach(function (L) {
         ['coord', 'name', 'len'].forEach(function (k) {
           if (L[k]) L[k].textContent = '';
@@ -2433,6 +2574,7 @@
     clearSegment: function () {
       this.clearUnits();
       this.clearLegs();
+      this.clearExamples();
       this.clearMeasure();
       if (!this.segGroup) return;
       this.glowCoords(false);
@@ -3033,6 +3175,12 @@
       const next = C.SCRIPT[i] || {};
       if (next.voiceOnly) Bubble.close();
       if (next.xEquation && Board.segRes) Board.segRes.classList.remove('pop');
+      /* A screen carrying more than one pair lets the ruling, the axes
+         and their numbers fall back, so the pairs themselves come
+         forward. Set at the change and faded by the stylesheet, so the
+         board settles into it rather than snapping — and cleared the
+         same way by every screen that does not ask for it. */
+      el.gridPanel.classList.toggle('quiet', !!next.quietBoard);
       this.index = i;
       this.state = 'entering';
       el.nextBtn.classList.remove('ready');
@@ -3235,6 +3383,9 @@
             Board.showSegResult(entry.segment, R.text, R.dy != null ? R.dy : -26, R.dx);
             SFX.chime();
           }, 260);
+          /* Pairs recalled beside this one come up under her line, not
+             before it — the screen is no slower for carrying them. */
+          if (entry.examples) Board.runExamples(entry.examples, self.later.bind(self));
           if (entry.legs) Board.runLegs(entry.legs, self.later.bind(self), next);
           else next();
         };

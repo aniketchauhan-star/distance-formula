@@ -368,6 +368,7 @@ html, body {
 
 #gridAxes  { position: absolute; left: 0; top: 0; overflow: visible; }
 
+
 /* the board arriving out of nowhere */
 #gridPanel.magic-in { animation: magicIn .7s cubic-bezier(.25, .9, .3, 1) both; }
 
@@ -375,6 +376,38 @@ html, body {
    panel, so the board fills in rather than turning up complete. */
 #gridImg.ruling { animation: ruleIn 1s ease-out both; }
 @keyframes ruleIn { from { opacity: 0; } to { opacity: 1; } }
+/* A quiet board. The ruling, the axes, their arrowheads and their
+   numbers all fall back together, so what is plotted on top of them
+   comes forward.
+
+   It is needed because a plotted line and an axis are the same navy at
+   nearly the same weight — which is right on a screen with one pair on
+   it, and wrong on a screen carrying several, where the furniture ends
+   up competing with the very thing it is there to measure.
+
+   Each is dimmed by a different amount rather than all by one: the
+   ruling only has to stay countable, the axes only have to stay
+   findable, but the numbers are what the coordinates are pointing at,
+   so they keep most of their ink. Declared on the base rules as well,
+   so a board goes quiet and comes back with a fade rather than a
+   flicker. */
+#gridImg, #gridAxes .axis, #gridAxes .arrow, #gridAxes .glabel {
+  transition: opacity .45s ease;
+}
+#gridPanel.quiet #gridImg { opacity: .35; }
+#gridPanel.quiet #gridAxes .axis { opacity: .3; }
+/* Past the rules that turn these two on, which are as specific as they
+   are and come earlier in the file. */
+#gridPanel.quiet #gridAxes .arrow.pop { opacity: .3; }
+#gridPanel.quiet #gridAxes .glabel.pop { opacity: .5; }
+
+/* The ruling is the one that cannot be dimmed by a declaration. The rule
+   above runs ruleIn with `both`, so its filled last frame — opacity 1 —
+   beats any rule, whatever its weight; the axes record the same trap a
+   few lines down. So the quiet ruling is an animation of its own, which
+   is what it takes to win. */
+#gridPanel.quiet #gridImg.ruling { animation: ruleQuiet .45s ease both; }
+@keyframes ruleQuiet { to { opacity: .35; } }
 
 /* Each axis is two half-lines drawn outward from the origin, so the
    middle lines grow from the centre rather than sweeping in. */
