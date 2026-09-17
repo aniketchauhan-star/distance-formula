@@ -423,7 +423,16 @@ window.CFG = (function () {
        every offset is relative to the origin, so trimming the frame
        only stops the panel drawing cells nobody names, and the same
        range is then drawn at 56px a cell instead of 51px. */
-    w: 1216, h: 990,
+    /* The viewBox is taller than it looks it needs to be, and that is
+       what evens the gaps up. The SVG is stretched onto the panel with
+       preserveAspectRatio="none", so each axis has its own scale and a
+       margin written here is not the margin seen. With the ruling 14
+       cells across and 12 down, square cells force
+       panel.w = panel.h + 2 x cell — anything else leaves more air at
+       the sides than at the top. Solving that for this panel gives a
+       1210-wide board and a 1070-tall viewBox; the cell stays as it
+       was, so nothing measured below has to move. */
+    w: 1216, h: 1070,
 
     /* Centred, and filling everything below the band that carries
        Swifty and her line. Square cells tie the panel's aspect to the
@@ -439,7 +448,7 @@ window.CFG = (function () {
        options panel already use, bought the board another 60px. The
        frame was widened to suit, so the board grew without the axes
        leaving its centre. */
-    box: { x: 600, y: 12, w: 1308, h: 1056 },
+    box: { x: 655, y: 12, w: 1210, h: 1056 },
 
     /* Where the board builds itself before anyone is on screen: the
        middle of an empty frame, since it is the whole picture until
@@ -493,7 +502,7 @@ window.CFG = (function () {
     /* The origin sits at the centre of the cream, so the axes are
        centred in the grid rather than merely centred on their own
        extents. */
-    originX: 608, originY: 495,
+    originX: 608, originY: 535,
     /* Sized so the numbered plane fills the board. The board is 1.24:1
        and cells have to stay square, so the two ranges cannot both be
        the same: 6 columns each way and 5 rows each way is what a square
@@ -870,7 +879,7 @@ window.CFG = (function () {
        an otherwise empty frame; it only moves aside once the question
        has been put and the controls are on their way in. Same size, so
        the move is a slide rather than a resize. */
-    centre: { x: 387, y: 112, w: 1146, h: 925 },
+    centre: { x: 387, y: 40, w: 1146, h: 1000 },
 
     /* Where Swifty lands to put that question, while the board is
        still centred: bottom left, in front of the board's blank
@@ -940,7 +949,12 @@ window.CFG = (function () {
      the board big on the right. The ratio is held or the cells stop
      being square. */
   const STUDY = {
-    grid: { x: 790, y: 96, w: 1100, h: 888 },
+    /* Same ratio as the main board, so its gaps come out even too —
+       that falls out of the viewBox rather than being tuned per board:
+       any panel at this ratio has panel.w = panel.h + 2 x cell, which
+       is exactly the condition for the air round the ruling to match on
+       all four sides. */
+    grid: { x: 790, y: 60, w: 1100, h: 960 },
     fx: 34, fw: 720
   };
 
