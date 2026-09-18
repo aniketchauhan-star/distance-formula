@@ -878,6 +878,14 @@
           self.dots.push(c);
         }
       }
+      /* The face of the triangle, once its three sides are there. Built
+         before the legs and the segment, so it lies under every line and
+         every label rather than washing over them. */
+      const tf = document.createElementNS(NS, 'polygon');
+      tf.setAttribute('class', 'trifill');
+      svg.appendChild(tf);
+      this.triFill = tf;
+
       /* Legs of the right-angled path. Two slots, each a coloured line
          with an optional endpoint marker and an optional length
          written alongside it. Built once and reused. */
@@ -1025,6 +1033,30 @@
 
       this.unitBand = ub;
       this.unitLabel = ul;
+
+      /* The guided count: one square per unit, each with its own number
+         under it. Built as a pool at the widest span any screen asks
+         about, and seated per count — a node per unit made and thrown
+         away on every miss would flicker. */
+      const UC = G.unitBox.count;
+      this.countCells = [];
+      for (let u = 0; u < UC.slots; u++) {
+        const cg = document.createElementNS(NS, 'g');
+        cg.setAttribute('class', 'ucell');
+        const cr = document.createElementNS(NS, 'rect');
+        cr.setAttribute('class', 'ucell-box');
+        cr.setAttribute('fill', U.band.fill);
+        cr.setAttribute('stroke', U.band.edge);
+        cr.setAttribute('stroke-width', U.band.edgeW);
+        cr.setAttribute('rx', 6);
+        const ct = document.createElementNS(NS, 'text');
+        ct.setAttribute('class', 'ucell-n');
+        ct.setAttribute('fill', G.ink);
+        ct.setAttribute('font-size', UC.numSize);
+        cg.appendChild(cr); cg.appendChild(ct);
+        ug.appendChild(cg);
+        this.countCells.push({ g: cg, box: cr, num: ct });
+      }
 
       const SG = G.segment;
 
@@ -1405,6 +1437,19 @@
          exactly where the ruling is clipped, they are simply out of
          shot. Left alone when there is no view, so nothing that has
          always been drawn at the very edge is shaved. */
+      /* Pushed in, everything inside the viewBox is magnified — the type
+         with it, which left the coordinates shouting at nearly twice the
+         size they were drawn at. So the type is SET smaller in the same
+         proportion rather than scaled: a transform on an SVG <text> is
+         the one thing this board will not do (see the axis numbers), and
+         a size is a size wherever the camera is. */
+      const tk = Math.min(1, V.w / G.w);
+      const gs2 = el.gridAxes.style, SGt = G.segment, LGt = G.leg;
+      gs2.setProperty('--coordFs', (SGt.coordSize * tk) + 'px');
+      gs2.setProperty('--nameFs',  (SGt.nameSize  * tk) + 'px');
+      gs2.setProperty('--lenFs',   (LGt.lenSize   * tk) + 'px');
+      gs2.setProperty('--resFs',   (34 * tk) + 'px');
+
       el.gridAxes.style.clipPath = this.view
         ? 'inset(' + inset + 'px round ' + Math.max(0, P.radius * fs - inset) + 'px)'
         : 'none';
@@ -1480,7 +1525,22 @@
       });
     },
 
+    /* Shades the face of the triangle the two legs and the segment
+       close. Only when all three are actually on the board — a wash
+       over two lines and a gap is not a shape. */
+    showTriangle: function () {
+      const G = C.GRID, sp = this.lastPlotted, L = this.legPlaced || [];
+      if (!this.triFill || !sp || !sp.a || !L[0] || !L[1]) return;
+      const px = function (v) { return G.originX + v * G.stepX; };
+      const py = function (v) { return G.originY - v * G.stepY; };
+      const corner = L[0].to;
+      this.triFill.setAttribute('points',
+        [sp.a, corner, sp.b].map(function (p) { return px(p.x) + ',' + py(p.y); }).join(' '));
+      this.triFill.classList.add('on');
+    },
+
     clearLegs: function () {
+      if (this.triFill) this.triFill.classList.remove('on');
       this.legPlaced = [];
       if (!this.legSlots) return;
       this.legSlots.forEach(function (L) {
@@ -1745,8 +1805,13 @@
     /* The total a count-out arrived at, written as the leg's own length
        — in the leg's colour, in the leg's place — instead of on the
        board's general label. The screen after keeps it untouched. */
-    showLegTotal: function (i, units) {
-      const L = this.legSlots && this.legSlots[i], spec = (this.legPlaced || [])[i];
+    showLegTotal: function (i, units, from, to) {
+      const L = this.legSlots && this.legSlots[i];
+      /* The ends come from the count that has just been walked out —
+         the very pair being measured — rather than from what the board
+         last remembered placing. The two are the same leg, but only one
+         of them is guaranteed to be there when the answer lands. */
+      const spec = (from && to) ? { from: from, to: to } : (this.legPlaced || [])[i];
       if (!L || !spec || !spec.from) return false;
       this.placeLegLength(i, spec.from, spec.to,
         units + '\u00A0unit' + (units === 1 ? '' : 's'));
@@ -1802,6 +1867,9 @@
         delay = base + 1640;
       });
 
+      /* Three sides make a shape: as soon as the second leg is placed,
+         the face it closes with the segment is washed in. */
+      if (specs.length > 1) later(function () { self.showTriangle(); }, 220);
       later(done, delay + 260);
     },
 
@@ -1929,6 +1997,11 @@
     },
 
     clearUnits: function () {
+      if (this.segGroup) this.segGroup.classList.remove('counting');
+      (this.countCells || []).forEach(function (c) {
+        c.g.classList.remove('on', 'lit');
+        c.g.style.display = 'none';
+      });
       if (this.unitBand) this.unitBand.classList.remove('on');
       if (this.unitLabel) this.unitLabel.classList.remove('on');
       this.clearEquation();
@@ -2085,7 +2158,7 @@
         /* Measuring a leg? Then the total IS that leg's length, and it
            belongs on the leg rather than on the board's own label —
            written once, where it stays. */
-        if (leg == null || !self.showLegTotal(leg, units)) {
+        if (leg == null || !self.showLegTotal(leg, units, from, to)) {
           self.showUnitTotal(from, ux, uy, steps, units);
         }
         SFX.chime();
@@ -2315,6 +2388,79 @@
       b.setAttribute('x', L); b.setAttribute('y', T);
       b.setAttribute('width', Math.abs(W)); b.setAttribute('height', Math.abs(Hh));
       b.classList.add('on');
+    },
+
+    /* The guided count, for a child who has missed twice: the unit
+       squares between the two points light one at a time, each with how
+       many there are so far written under it, and then the whole thing
+       clears and plays again. It is the answer to "count the spaces",
+       shown at the speed you would count them out loud. */
+    countUnits: function (from, to, later) {
+      const G = C.GRID, U = G.unitBox, UC = U.count;
+      if (!this.countCells || !this.countCells.length) return 0;
+      const px = function (v) { return G.originX + v * G.stepX; };
+      const py = function (v) { return G.originY - v * G.stepY; };
+      const self = this;
+      const row = from.y === to.y;
+      const n = Math.min(UC.slots,
+        row ? Math.abs(to.x - from.x) : Math.abs(to.y - from.y));
+      if (!n) return 0;
+
+      /* On the side the child counts against — the one facing the axis
+         the pair runs along, which is also the side that cannot run off
+         the board. The same rule the single band used. */
+      const step = row ? (to.x > from.x ? 1 : -1) : (to.y > from.y ? 1 : -1);
+      const down = row ? (from.y > 0 ? 1 : -1) : 0;
+      const side = row ? 0 : (from.x > 0 ? -1 : 1);
+
+      /* The coordinates hang under their points, which is exactly where
+         the squares are — so while the spaces are being counted they
+         step back out of them. They are the context, not the thing
+         being counted. */
+      if (this.segGroup) this.segGroup.classList.add('counting');
+
+      this.countCells.forEach(function (c, i) {
+        if (i >= n) { c.g.classList.remove('on', 'lit'); c.g.style.display = 'none'; return; }
+        c.g.style.display = '';
+        c.g.classList.remove('on', 'lit');
+        let L, T, W, H, nx, ny;
+        if (row) {
+          const a = from.x + step * i, b = a + step;
+          L = Math.min(px(a), px(b)); W = Math.abs(px(b) - px(a));
+          T = Math.min(py(from.y), py(from.y - down)); H = G.stepY;
+          nx = L + W / 2; ny = T + H + UC.numDy;
+        } else {
+          const a = from.y + step * i, b = a + step;
+          T = Math.min(py(a), py(b)); H = Math.abs(py(b) - py(a));
+          L = Math.min(px(from.x), px(from.x + side)); W = G.stepX;
+          nx = L + (side < 0 ? -UC.numDy : W + UC.numDy); ny = T + H / 2;
+        }
+        c.box.setAttribute('x', L); c.box.setAttribute('y', T);
+        c.box.setAttribute('width', W); c.box.setAttribute('height', H);
+        c.num.setAttribute('x', nx); c.num.setAttribute('y', ny);
+        c.num.textContent = String(i + 1);
+      });
+
+      /* Played more than once on purpose: the first time through says
+         what is happening, the second is the one they count along with. */
+      const cycle = n * UC.stepMs + UC.readMs + UC.gapMs;
+      let t = 0;
+      for (let pass = 0; pass < UC.passes; pass++) {
+        for (let k = 0; k < n; k++) {
+          (function (k) {
+            later(function () {
+              const c = self.countCells[k];
+              c.g.classList.add('on', 'lit');
+              SFX.tick(k);
+            }, t + k * UC.stepMs);
+          })(k);
+        }
+        later(function () {
+          self.countCells.forEach(function (c) { c.g.classList.remove('on', 'lit'); });
+        }, t + n * UC.stepMs + UC.readMs);
+        t += cycle;
+      }
+      return t;
     },
 
     /* Seats a segment's two points, its line and its four labels. */
@@ -2701,9 +2847,12 @@
       };
 
       let t = 0;
-      // 1 — the halves that match, lit and let go
-      later(function () { self.glowPart(row ? 'y' : 'x', true); SFX.tick(0); }, t);
-      later(function () { self.glowPart(row ? 'y' : 'x', false); }, t += X.yGlowMs);
+      /* 1 — nothing. The halves that match were lit two beats ago, on
+         the screen whose whole line was "the y-coordinates are the
+         same", and lighting them again here said it a third time and
+         made the child look back at something already settled. A
+         highlight that is finished with does not come back; the board
+         opens on the beat that is actually new. */
 
       /* 2 and 3 — the smaller first, into the back of the sum, then the
          larger into the front. Taken in the order they are read off the
@@ -3042,7 +3191,13 @@
       const ctext = '(' + gx + ',\u00A0' + gy + ')';
       const cw = this.textW(ctext, F.labelSize);
       t.setAttribute('x', this.clampLabel(px, cw));
-      t.setAttribute('y', py + F.labelDy);
+      /* `labelDy` is the offset that puts a label OVER its point; the
+         side is named separately, so a located mark can sit under the
+         point it names without inverting every other label that reads
+         the same number. Both have to agree: a pair tapped out with its
+         coordinates under it and then joined with them over it looks
+         like two different pairs. */
+      t.setAttribute('y', py + (F.side === 'under' ? -F.labelDy : F.labelDy));
       t.setAttribute('fill', G.ink);
       t.setAttribute('font-size', F.labelSize);
       t.setAttribute('class', 'flabel');
@@ -4335,10 +4490,16 @@
 
         const helping = fb.exhausted && !!t.spec.countLine;
         const msg = helping ? t.spec.countLine : fb.msg;
-        if (helping) self.later(function () {
-          Board.showUnitBand(pair.from, pair.to);
-          SFX.sparkle();
-        }, 700);
+        /* "Count the spaces between the two points" — so they are
+           counted, one at a time, with how many there are so far under
+           each, rather than shaded in one block and left to be worked
+           out. It plays twice: once to say what is happening, once to
+           be counted along with. */
+        let counting = 0;
+        if (helping) {
+          counting = Board.countUnits(pair.from, pair.to, self.later.bind(self));
+          self.later(function () { SFX.sparkle(); }, 700);
+        }
         self.later(function () {
           /* The count they asked for is on the board, short of the
              point or a unit past it, and that is the answer to what
@@ -4348,7 +4509,11 @@
              never come back. */
           self.finishWith(msg, C.AUTO.afterLine, function () {
             self.closeAfterLine();
-            self.later(function () { self.clearWorking(); }, C.GRID.unitBox.holdMs);
+            /* The board is held for as long as the counting runs, so it
+               is never taken away mid-count — and for the ordinary hold
+               where there was no counting to do. */
+            self.later(function () { self.clearWorking(); },
+                       Math.max(C.GRID.unitBox.holdMs, counting + 300));
           });
         }, 320);
       };

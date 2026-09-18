@@ -515,6 +515,17 @@ html, body {
   transform-box: fill-box; transform-origin: center;
 }
 #gridAxes .legdot.pop { animation: segDotIn .54s cubic-bezier(.22, .68, .3, 1) both; }
+/* The face of the triangle, once its three sides are there. Barely a
+   wash: it is there to say "this is one shape" and must not compete
+   with the sides, the lengths or the ruling underneath it. */
+#gridAxes .trifill {
+  fill: rgba(224, 123, 18, .11);
+  stroke: none;
+  opacity: 0;
+  transition: opacity .5s ease;
+}
+#gridAxes .trifill.on { opacity: 1; }
+
 #gridAxes .legline { fill: none; }
 /* The dotted guide. The solid line's draw wipes with stroke-dasharray,
    so a line that wants real dots cannot be drawn that way and comes in
@@ -574,6 +585,25 @@ html, body {
 #gridAxes .units { pointer-events: none; }
 /* The band of unit squares, for a child who has missed twice. Fades up
    rather than popping: it is help arriving, not an answer landing. */
+/* The guided count: one square per unit, lit in turn with its running
+   number under it. Each lights rather than appears — the square is the
+   space being counted, and it is already there to be counted. */
+#gridAxes .ucell { opacity: 0; }
+#gridAxes .ucell.on { opacity: 1; animation: uCellIn .34s cubic-bezier(.2, .8, .3, 1) both; }
+@keyframes uCellIn {
+  0%   { opacity: 0; }
+  55%  { opacity: 1; }
+  100% { opacity: 1; }
+}
+#gridAxes .ucell-box { transition: fill .2s ease; }
+#gridAxes .ucell.lit .ucell-box { fill: rgba(120, 170, 225, .42); }
+#gridAxes .ucell-n {
+  font-family: 'Nunito', system-ui, sans-serif;
+  font-weight: 800;
+  text-anchor: middle; dominant-baseline: middle;
+  paint-order: stroke fill; stroke: #FDFBF0; stroke-width: 6;
+}
+
 #gridAxes .uband { opacity: 0; transition: opacity .34s ease; }
 #gridAxes .uband.on { opacity: 1; }
 #gridAxes .ulabel {
@@ -759,6 +789,17 @@ html, body {
 #gridAxes .segline { fill: none; stroke-dashoffset: inherit; }
 #gridAxes .segline.draw { animation: drawOut .62s cubic-bezier(.3, .85, .35, 1) forwards; }
 
+/* Pushed in, the whole viewBox is magnified and the type with it, so
+   every label on the board takes its size from the board's camera
+   rather than from its own attribute — set smaller in the same
+   proportion, never scaled. A declaration beats the presentation
+   attribute the drawing code writes, which is what lets one number
+   govern all of them. */
+#gridAxes .segcoord, #gridAxes .legcoord { font-size: var(--coordFs, 34px); }
+#gridAxes .segname,  #gridAxes .legname  { font-size: var(--nameFs, 30px); }
+#gridAxes .leglen                        { font-size: var(--lenFs, 32px); }
+#gridAxes .segres                        { font-size: var(--resFs, 34px); }
+
 #gridAxes .segcoord, #gridAxes .segname {
   opacity: 0;
   font-family: 'Nunito', system-ui, sans-serif;
@@ -775,6 +816,14 @@ html, body {
    child located keeps the labels they were given, in the same place and
    at the same size, so the segment taking them over shows nothing. */
 #gridAxes .segcoord.set, #gridAxes .segname.set { opacity: 1; animation: none; }
+
+/* While the spaces are being counted, the coordinates hanging under the
+   points are inside the very squares being counted — so they step back.
+   An animation rather than a declaration: .segcoord.pop already holds
+   its own opacity with `both`, and only an animation beats that. Equal
+   weight to it, so this has to stay below it. */
+#gridAxes .seg.counting .segcoord { animation: coordAside .3s ease both; }
+@keyframes coordAside { to { opacity: .22; } }
 
 /* the found point, left behind once it has been located */
 #gridAxes .found {

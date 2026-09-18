@@ -876,6 +876,20 @@ window.CFG = (function () {
          that the ruling and the numbers still read through it, which
          is what the bordered per-unit squares failed at. */
       band: { fill: 'rgba(120, 170, 225, .26)', edge: 'rgba(85, 135, 200, .55)', edgeW: 2 },
+
+      /* The guided count, shown to a child who has missed twice: the
+         squares light one at a time with the running number under
+         each, and then it clears and plays again. Paced to be counted
+         along with out loud, not to be watched. */
+      count: {
+        slots: 14,         // the longest span any screen asks about
+        stepMs: 430,       // one square, then the next
+        readMs: 900,       // the finished row, held to be read
+        gapMs: 420,        // blank, before it goes again
+        passes: 2,         // said once, then counted along with
+        numSize: 30,
+        numDy: 34          // the number, under its own square
+      },
       labelDy: -28,          // horizontal: just above the line
       /* A vertical count stacks its squares in a band one cell wide,
          and the total is far wider than that — it cannot sit beside
@@ -913,6 +927,11 @@ window.CFG = (function () {
       stroke: POINT.stroke,
       strokeWidth: POINT.strokeW,
       labelSize: 34,
+      /* Under the point, matching the pair the argument goes on to make
+         of these two: the space above a plotted pair is where its length
+         and its working are written, so the coordinates keep out of it
+         from the moment the child taps them out. */
+      side: 'under',
       /* Close over the point — near enough to belong to it, far enough
          not to touch it: 42 less the dot's 10 and the text's own 17
          leaves 15 of clear air. The length written along the line gets
@@ -935,7 +954,9 @@ window.CFG = (function () {
      Derived rather than typed, so tuning any step cannot leave the board
      carried off mid-sentence. */
   const XEQ_HOLD = (function (x) {
-    return x.yGlowMs + 2 * (x.pickMs + x.flyMs) + x.settleMs +
+    /* No yGlowMs any more: the matching halves are not lit again here,
+       so the sequence opens on the first digit being taken. */
+    return 2 * (x.pickMs + x.flyMs) + x.settleMs +
            x.opMs + x.eqMs + x.resMs + x.readMs +
            x.sweepMs + x.holdMs + x.dropMs + x.wordMs + 1200;
   })(GRID.xeq);
@@ -1042,13 +1063,15 @@ window.CFG = (function () {
        so its proportions stay the ones it was designed at rather than
        whatever happened to fit. */
     selector: {
-      /* The reel's own natural size — one gold housing 800 x 190 with
-         an arrow built into each end, and the Check button under it.
-         Scaled so it keeps the width it has always had in her column:
-         she lands on the housing's top edge at y 688, and the board
-         still starts 34px clear of its right. */
-      pos: { x: 34, y: 680 },
-      w: 800, h: 346,
+      /* The combination-lock widget's own natural size — a frame 660
+         wide with a round arrow overhanging each end, and GO under its
+         foot. Scaled so it keeps the width it has always had in her
+         column, and set so she still lands on the frame's own top edge:
+         the art's body starts 4.5% down (the pointer is cut into that
+         edge rather than standing above it), which at this scale is
+         12px, and her feet are at 700. */
+      pos: { x: 34, y: 688 },
+      w: 800, h: 500,
       scale: 0.665
     },
 
@@ -1291,11 +1314,10 @@ window.CFG = (function () {
         b: { x: 6, y: 2,
              coordParts: [{ t: '(' }, { t: '6', glow: 'x' }, { t: ',\u00A0' },
                           { t: '2', glow: 'y' }, { t: ')' }] },
-        /* Left over the points here, and only here. This is the pair
-           the child tapped out two screens ago, and it is carried in
-           wearing the labels they put there — moving them as it arrives
-           would read as a different pair. They go under the points on
-           the screen that starts arguing about them, which replots. */
+        /* Under the points, the same as the located marks it is carried
+           in from and the same as every beat that argues about it — so
+           the labels the child put there never move. */
+        coordSide: 'under',
         dash: true },
 
       /* `answer` is left out on purpose: the game measures it from the
@@ -1305,9 +1327,11 @@ window.CFG = (function () {
         kind: 'distance',       // answered on the reel, not by tapping
         /* A wrong answer counts their number out on the board so the
            miss can be seen, and says this over it. */
-        tryAgainLine: 'Not quite! Try again!',
-              /* Missed twice: shown instead of told. */
-              countLine: 'Now let’s count the units.'
+        /* No retry. A wrong answer here goes straight to the showing:
+                 this beat carries little weight, and a child who has
+                 missed learns more from the spaces being counted than
+                 from being sent round again. */
+              countLine: 'Count the spaces between the two points.'
       } },
 
     /* 9-11 — three more of the same, staying on the board. Two of them
@@ -1381,17 +1405,21 @@ window.CFG = (function () {
       distance: true, intro: 'measure',
       segment: { a: { x: 4, y: 3 }, b: { x: -3, y: 3 } , dash: true},
       task: { kind: 'distance',
-              tryAgainLine: 'Not quite! Try again!',
-              /* Missed twice: shown instead of told. */
-              countLine: 'Now let’s count the units.' } },
+              /* No retry. A wrong answer here goes straight to the showing:
+                 this beat carries little weight, and a child who has
+                 missed learns more from the spaces being counted than
+                 from being sent round again. */
+              countLine: 'Count the spaces between the two points.' } },
 
     { id: 14, line: 'What is the distance between two points?', entrance: 'none', layout: 'board',
       distance: true, intro: 'measure',
       segment: { a: { x: 1, y: 2 }, b: { x: 1, y: -3 } , dash: true},
       task: { kind: 'distance',
-              tryAgainLine: 'Not quite! Try again!',
-              /* Missed twice: shown instead of told. */
-              countLine: 'Now let’s count the units.' } },
+              /* No retry. A wrong answer here goes straight to the showing:
+                 this beat carries little weight, and a child who has
+                 missed learns more from the spaces being counted than
+                 from being sent round again. */
+              countLine: 'Count the spaces between the two points.' } },
 
     /* ---- and the same argument for a column. After the first vertical
        question the y-axis gets what the x-axis got: this time the x
@@ -1430,9 +1458,11 @@ window.CFG = (function () {
       distance: true, intro: 'measure',
       segment: { a: { x: -2, y: 3 }, b: { x: -2, y: 1 } , dash: true},
       task: { kind: 'distance',
-              tryAgainLine: 'Not quite! Try again!',
-              /* Missed twice: shown instead of told. */
-              countLine: 'Now let’s count the units.' } },
+              /* No retry. A wrong answer here goes straight to the showing:
+                 this beat carries little weight, and a child who has
+                 missed learns more from the spaces being counted than
+                 from being sent round again. */
+              countLine: 'Count the spaces between the two points.' } },
 
     /* ---- 20-21: the recall, immediately before the ground moves.
 
@@ -1454,8 +1484,16 @@ window.CFG = (function () {
        from screen 9 and the argument on 10-12, and (1,-3)-(1,2) is the
        column from 14 and the argument on 15-18. Fresh numbers here
        would read as new examples rather than as their own. */
-    { id: 20, line: 'We know how to find horizontal distance.',
-      entrance: 'stay', layout: 'board', hold: EXAMPLE_HOLD,
+    /* The pair of them make one point between them, so only the second
+       says it: the rows are put back up, then the columns, and then the
+       line that covers both. A sentence on each said the same thing
+       twice and made them read as two separate recollections. */
+    { id: 20,
+      /* It says nothing, so nothing paces it but this: a spoken beat is
+         held for as long as the words take and then some, and without
+         them the rows would be up and gone before they had been looked
+         at. */
+      entrance: 'stay', layout: 'board', hold: EXAMPLE_HOLD + 1600,
       /* Two pairs on one board: the furniture steps back so they read as
          the subject rather than as more lines among the ruling. */
       quietBoard: true,
@@ -1476,7 +1514,7 @@ window.CFG = (function () {
        writes this very pair: the column straddles the x-axis, so the
        midpoint the length would otherwise take is the row the axis
        numbers live in. */
-    { id: 21, line: 'And vertical distance.',
+    { id: 21, line: 'We know how to find horizontal and vertical distance.',
       entrance: 'stay', layout: 'board', hold: EXAMPLE_HOLD, quietBoard: true,
       segment: { a: { x: 1, y: -3 }, b: { x: 1, y: 2 },
                  result: { text: '5\u00A0units', dy: -117, dx: 108 } },
@@ -1498,23 +1536,21 @@ window.CFG = (function () {
        picture that is finished, rather than talking over one being
        made — which is also why she is given the flight to arrive in
        and does not simply appear. */
-    { id: 22, line: 'This one’s different.', entrance: 'fly',
+    { id: 22, line: 'But what if two points are like this?', entrance: 'fly',
       layout: 'grid', transition: 'leaves',
       /* Named here rather than three screens on. They are called A and B
          from the moment the question about them is asked, and a pair
          that gains its letters later reads as two different pairs — the
          one she wondered about, and the one the triangle is built on. */
+      /* A and B, and only A and B. The run across to C belongs to the
+         beat that says to look at it — put here it answered a question
+         the child has not been asked yet. */
       segment: { a: { x: 2, y: 1, name: 'A' },
-                 b: { x: 6, y: 4, name: 'B' } },
-      legs: [ { from: { x: 2, y: 1 }, to: { x: 6, y: 1 },
-                dash: true, mark: { name: 'C' } } ] },
+                 b: { x: 6, y: 4, name: 'B' } } },
 
     // 13 — same board and same segment, she just carries on talking
     /* The board pushes in here, on the first quadrant the triangle sits
        in, and stays pushed in while the triangle is being measured. */
-    { id: 23, line: 'Can the grid help?', entrance: 'stay',
-      layout: 'grid', keepSegment: true, view: 'triangle', quietBoard: true },
-
     /* 14 — leaves again, back to the board layout with the slider.
        The diagonal is redrawn and a corner C is dropped from it, so
        the horizontal step A-C can be measured on its own. The answer
@@ -1523,18 +1559,23 @@ window.CFG = (function () {
        A, B and the run across to C are all already on the board the
        child is reading, so the leg is marked settled and only the
        question arrives. */
-    { id: 24, line: 'How far apart are A and C?', entrance: 'none',
+    /* The reason and the question in one breath. They used to be two
+       beats — "can the grid help?", then "how far apart are A and C?" —
+       which asked the child to hold a hint across a screen change. */
+    { id: 24, line: 'Our earlier way won’t work this time. But look at A and C. Can you find AC?',
+      entrance: 'none',
       layout: 'board', distance: true, intro: 'measure', keepSegment: true,
       view: 'triangle', quietBoard: true,
       segment: { a: { x: 2, y: 1, name: 'A' },
                  b: { x: 6, y: 4, name: 'B' } },
       legs: [ { from: { x: 2, y: 1 }, to: { x: 6, y: 1 },
-                settled: true, mark: { name: 'C' } } ],
+                dash: true, mark: { name: 'C' } } ],
       task: {
         kind: 'distance',
         measureLeg: 0,        // A to C, not A to B
-        // no count-out here: a nudge to look at the spaces instead
-        tryAgainLine: 'Not quite! Check the spaces between the units.'
+        /* No retry, and the spaces counted rather than a nudge to go
+           and count them — the same showing every other miss gets. */
+        countLine: 'Count the spaces between the two points.'
       } },
 
     /* 15 — the board is kept exactly as it was. The first leg is
@@ -1552,7 +1593,8 @@ window.CFG = (function () {
       task: {
         kind: 'distance',
         measureLeg: 1,        // C to B
-        tryAgainLine: 'Not quite! Check the spaces between the units.'
+        // no retry; see screen 24
+        countLine: 'Count the spaces between the two points.'
       } },
 
     /* 16 — leaves, then the whole shape redrawn as one closed red
@@ -1561,6 +1603,11 @@ window.CFG = (function () {
     /* Still the same grid: the triangle is the two legs they have just
        measured, not a new drawing. */
     { id: 26, line: 'Look! We made a triangle.', entrance: 'stay', view: 'triangle', quietBoard: true,
+      /* The three sides light as she names the shape. They used to light
+         on the question after this one — and that question is gone, so
+         the beat that says "triangle" is the one that should show which
+         three lines it means. */
+      pulse: 'triangle',
       layout: 'board', keepSegment: true,
       /* No highlight here. This screen and the one after it show the
          same triangle on the same board, so lighting it on both made
@@ -1578,29 +1625,10 @@ window.CFG = (function () {
     /* 17 — same triangle, now named. The slider is replaced by the
        three triangle types; the square corner at C makes it a
        right-angled triangle. */
-    { id: 27, line: 'What kind of triangle is it?', entrance: 'stay',
-      layout: 'board', keepSegment: true,
-      /* The same three sides light as she asks — she is asking about
-         the shape, so the shape says which lines she means. No hold
-         needed here: an open question keeps the screen anyway. */
-      pulse: 'triangle',
-      options: [
-        { key: 'scalene',      cls: 'scalene',      label: 'Scalene Triangle' },
-        { key: 'isosceles',    cls: 'isosceles',    label: 'Isosceles Triangle' },
-        { key: 'right-angled', cls: 'right-angled', label: 'Right-angled Triangle' }
-      ],
-      task: {
-        kind: 'choice',
-        answer: 'right-angled',
-        /* Heard, not read: the panel's border has gone red, so a
-           balloon spelling that out again is one more thing to sit
-           through. */
-        tryAgainLine: 'Try again!',
-        voiceOnly: true
-      } },
-
-    /* 18 — same triangle again, now asking how to reach the third
-       side. Same panel, different three answers. */
+    /* No question in between. The triangle is made, both its known
+       sides are measured, and the next thing to say is the theorem
+       itself — asking what kind of triangle it is first put a second
+       question between the child and the answer they were promised. */
     { id: 28, line: 'We know two sides. How can we find the third?',
       entrance: 'stay', layout: 'board', keepSegment: true,
       /* The third side is the one she is asking about, so it lights

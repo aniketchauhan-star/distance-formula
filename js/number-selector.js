@@ -23,13 +23,14 @@ window.NumberSelector = (function () {
      disabled there, which is the truth. */
   const MIN = 0, MAX = 8, START = 0;
 
-  /* How far apart the numbers sit. Wide enough that the two either
-     side straddle the arrow built into each end and are cut off by it,
-     which is what makes the reel read as carrying on under the housing
-     rather than as three numbers in a row. */
-  const PITCH = 255;
+  /* How far apart the barrels sit — read off the skin rather than
+     fixed here, so the art and the travel can never drift apart. It is
+     one third of the window, which puts three barrels across it and
+     lets the next two run on behind the frame. */
   const OFFSETS = [-2, -1, 0, 1, 2];
-  const SMALL = 0.58;       // the neighbours, against the chosen one
+  const SMALL = 1;          /* every barrel is the same size now: the
+                               chosen one is told apart by its gold,
+                               which is the art's own job */
   const SLIDE_MS = 280;
 
   function mount(parent, opts) {
@@ -117,7 +118,7 @@ window.NumberSelector = (function () {
       cell.classList.toggle('on', mid);
       cell.classList.toggle('off', !mid);
       cell.style.transform =
-        'translate(calc(-50% + ' + (off * PITCH) + 'px), -50%) scale(' + scale + ')';
+        'translate(calc(-50% + ' + off + ' * var(--pitch)), -50%) scale(' + scale + ')';
       if (jump) {
         void cell.offsetWidth;           // land it before transitions come back
         cell.classList.remove('jump');

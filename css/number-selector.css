@@ -1,283 +1,210 @@
 /* =============================================================
-   Number selector — a mechanical reel.
+   Number selector — the combination-lock widget.
 
-   One connected control: a gold housing with an arrow built into each
-   end and a clipped ivory reel running the whole width between them.
-   The numbers either side of the chosen one carry on underneath the
-   arrows rather than sitting in cards of their own, which is what
-   makes it read as one mechanism instead of five parts.
+   Built from the art sheet in assets/ui/ rather than drawn in CSS:
+   one frame with a window cut clean through it, three barrels turning
+   behind that window, a round arrow at each end and GO underneath.
 
-   Everything is namespaced under .number-control and scaled by the
-   host with --k, so the sizes below are the ones from the brief
-   rather than whatever fitted the column it is dropped into.
+   The markup is the component's own (js/number-selector.js) and has not
+   changed: .selector holds .reel (.seat + .lane of .cell) and the two
+   .side buttons, and .check sits under it. Only the skin is new, so
+   every behaviour the game already relies on — the roll, the buffers,
+   the correct and wrong states — still works exactly as it did.
 
-   One light source, upper left: every raised thing has a lighter top,
-   a flat colour edge straight down and a blurred cast under it, and
-   pressing moves the face down while the base stays put.
+   Everything below is laid out at the widget's own natural size and
+   scaled as a whole by --k, so the proportions are the ones the art
+   was drawn at whatever the host does with it.
    ============================================================= */
 
 .number-control {
-  --gold-light: #FFD758;
-  --gold:       #FFB51F;
-  --orange:     #F28A08;
-  --orange-dark:#C95B04;
-  --cream:      #FFF8E8;
-  --cream-dark: #F2E2C2;
-  --blue:       #0754B8;
-
-  --housing-w: 800px;
-  --housing-h: 190px;
-  --side-w: 140px;
-  --seat-w: 190px;
-  --seat-h: 150px;
+  /* The art's own proportions, measured off the sheet. */
+  --frame-w: 660px;
+  --frame-h: 400px;          /* 660 x 311/513 */
+  --frame-x: 70px;           /* room for the arrows to overhang */
+  /* The window cut through the frame, as fractions of the art. */
+  --win-x:   calc(var(--frame-x) + var(--frame-w) * 0.2144);
+  --win-y:   calc(var(--frame-h) * 0.2251);
+  --win-w:   calc(var(--frame-w) * 0.5653);
+  --win-h:   calc(var(--frame-h) * 0.3891);
+  /* One barrel, and how far apart the barrels sit. Three across the
+     window, with the two either side running on under the frame. */
+  --pitch:   calc(var(--win-w) / 3);
+  --barrel-w: calc(var(--pitch) * 0.94);
+  --arrow:   150px;
+  --go:      168px;
 
   position: absolute;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 38px;
-
-  font-family: 'Nunito', system-ui, sans-serif;
+  width: 800px;
+  height: 500px;
   transform-origin: top left;
   transform: scale(var(--k, 1));
+  font-family: 'Nunito', system-ui, sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+  z-index: 6;
 }
 
-/* ---------------- the housing ---------------- */
+/* ---- the frame, with its own window cut through it ---------------- */
 .number-control .selector {
-  position: relative;
-  width: var(--housing-w);
-  height: var(--housing-h);
-  border-radius: 52px;
-  background: linear-gradient(180deg, var(--gold-light) 0%, var(--gold) 52%, var(--orange) 100%);
-  box-shadow:
-    0 10px 0 var(--orange-dark),
-    0 18px 28px rgba(120, 60, 5, 0.24),
-    inset 0 3px 0 rgba(255, 255, 255, 0.65);
+  position: absolute;
+  left: var(--frame-x);
+  top: 0;
+  width: var(--frame-w);
+  height: var(--frame-h);
+  background: url('../assets/ui/frame.png') center / 100% 100% no-repeat;
 }
 
-/* ---------------- the reel ----------------
-   It runs the full width of the housing and is covered at both ends by
-   the arrows, so a number leaving the middle slides under one of them
-   instead of stopping at an edge. */
+/* ---- the barrels, seen through the window ------------------------- */
 .number-control .reel {
   position: absolute;
-  left: 0; right: 0;
-  top: 8px; bottom: 8px;
+  left: calc(var(--win-x) - var(--frame-x));
+  top: var(--win-y);
+  width: var(--win-w);
+  height: var(--win-h);
+  /* The window is a hole cut clean through the art, so the barrels are
+     clipped to it and read as carrying on behind the frame — and the
+     slot needs a floor of its own, or the scene shows through the gaps
+     between them. */
   overflow: hidden;
-  border-radius: 46px;
-  background: var(--cream);
-  box-shadow:
-    inset 0 6px 12px rgba(150, 95, 20, 0.16),
-    inset 0 -2px 0 rgba(255, 255, 255, 0.7);
+  border-radius: 14px;
+  background: linear-gradient(180deg, #0B4A4D 0%, #0E6265 52%, #0A4245 100%);
+  box-shadow: inset 0 6px 14px rgba(0, 0, 0, .38);
 }
 
-/* The block the chosen number sits on. Behind the numbers and outside
-   the sliding lane: the reel moves through it, it does not travel. */
+/* The seat is only a hit area and a live region now — the gold barrel
+   behind the chosen number is the art's own. */
 .number-control .seat {
   position: absolute;
   left: 50%; top: 50%;
-  width: var(--seat-w);
-  height: var(--seat-h);
-  margin: calc(var(--seat-h) / -2) 0 0 calc(var(--seat-w) / -2);
-  border-radius: 40px;
-  background: linear-gradient(180deg, #FFE477 0%, #FFC62E 62%, #FFB61C 100%);
-  box-shadow:
-    0 8px 0 var(--orange),
-    0 12px 18px rgba(130, 70, 10, 0.22),
-    inset 0 4px 0 rgba(255, 255, 255, 0.72);
-  transform: translateY(-6px);
+  width: var(--barrel-w);
+  height: 100%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
 }
 .number-control .seat.pop { animation: selectedPop 280ms cubic-bezier(.2, .8, .25, 1) both; }
 @keyframes selectedPop {
-  0%   { transform: translateY(-6px) scale(1); }
-  45%  { transform: translateY(-10px) scale(1.08); }
-  100% { transform: translateY(-6px) scale(1); }
+  0%   { transform: translate(-50%, -50%) scale(1); }
+  45%  { transform: translate(-50%, -50%) scale(1.08); }
+  100% { transform: translate(-50%, -50%) scale(1); }
 }
 
-/* ---------------- the numbers ---------------- */
 .number-control .lane { position: absolute; inset: 0; }
+
+/* One barrel per cell: the art behind, the number on top of it. */
 .number-control .cell {
   position: absolute;
   left: 50%; top: 50%;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-  white-space: nowrap;
-  transition:
-    transform 280ms cubic-bezier(.25, .85, .3, 1),
-    color 280ms ease,
-    opacity 280ms ease,
-    filter 280ms ease;
-}
-/* the chosen one, sitting on its block */
-.number-control .cell.on {
-  color: var(--blue);
-  font-size: 96px;
+  width: var(--barrel-w);
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-weight: 900;
-  opacity: 1;
-  filter: none;
-  text-shadow: 0 3px 0 rgba(255, 255, 255, 0.55);
+  line-height: 1;
+  background: center / 100% 100% no-repeat;
+  transition: transform 280ms cubic-bezier(.22, .68, .3, 1),
+              color 200ms ease, opacity 200ms ease;
 }
-/* the ones either side: smaller, grey and soft, carrying on under the
-   arrows rather than ending in a card */
+.number-control .cell.on {
+  background-image: url('../assets/ui/roller-mid.png');
+  color: #0754B8;
+  font-size: 92px;
+  z-index: 2;
+}
 .number-control .cell.off {
-  color: #9C8E7C;
-  font-size: 96px;
-  font-weight: 800;
-  opacity: .5;
-  filter: blur(1.4px);
-  text-shadow: none;
+  background-image: url('../assets/ui/roller-side.png');
+  color: #8F8374;
+  font-size: 92px;
+  z-index: 1;
 }
-/* a cell with no value to show — past either end of the range */
-.number-control .cell.empty { opacity: 0; }
-/* the two off-screen buffers are recycled here, so they must not be
-   seen travelling back across the reel */
+/* Past the end of the range there is no number to show — but the
+   barrel is still there. A lock's wheel does not have gaps in it, and
+   an empty third of the slot reads as something broken rather than as
+   the end of the counting. */
+.number-control .cell.empty { color: transparent; }
+/* A cell carried across the reel rather than along it must not be seen
+   travelling — see seatCell() in the component. */
 .number-control .cell.jump { transition: none; }
 
-/* ---------------- the arrows ----------------
-   Built into the ends of the housing rather than sitting on it. */
+/* ---- the two round arrows ---------------------------------------- */
 .number-control .side {
   position: absolute;
-  top: 0; bottom: 0;
-  width: var(--side-w);
-  z-index: 2;
+  top: calc(var(--win-y) + var(--win-h) / 2);
+  width: var(--arrow);
+  height: var(--arrow);
+  margin: calc(var(--arrow) / -2) 0 0 calc(var(--arrow) / -2);
   padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   border: 0;
+  background: center / 100% 100% no-repeat;
   cursor: pointer;
-  background: linear-gradient(180deg, var(--gold-light) 0%, var(--gold) 50%, var(--orange) 100%);
-  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.6),
-              inset 0 -6px 0 rgba(170, 82, 6, 0.28);
-  transition: transform 120ms ease, box-shadow 120ms ease, opacity .16s ease;
+  transition: transform 120ms ease, opacity 160ms ease;
+  z-index: 3;
 }
-.number-control .side.prev { left: 0;  border-radius: 52px 18px 18px 52px; }
-.number-control .side.next { right: 0; border-radius: 18px 52px 52px 18px; }
-.number-control .side:hover:not(:disabled) { transform: translateY(-2px); }
+.number-control .side.prev { left: var(--frame-x); background-image: url('../assets/ui/btn-left.png'); }
+.number-control .side.next { left: calc(var(--frame-x) + var(--frame-w)); background-image: url('../assets/ui/btn-right.png'); }
+/* The chevron is drawn into the art. */
+.number-control .chev { display: none; }
+
+.number-control .side:hover:not(:disabled) { transform: translateY(-3px); }
 .number-control .side:active:not(:disabled),
-.number-control .side.is-pressed:not(:disabled) {
-  transform: translateY(3px);
-  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.45),
-              inset 0 -3px 0 rgba(170, 82, 6, 0.22);
-}
-/* At either end there is nowhere to go. It stays where it is and says
-   so, so the housing never changes shape. */
+.number-control .side.is-pressed:not(:disabled) { transform: translateY(3px) scale(.96); }
 .number-control .side:disabled { opacity: .45; cursor: default; }
 
-/* Drawn, not typed: a glyph carries the font's own side bearings and
-   sits off centre in a panel this size. */
-.number-control .chev {
-  width: 0; height: 0;
-  border-top: 26px solid transparent;
-  border-bottom: 26px solid transparent;
-  filter: drop-shadow(0 3px 2px rgba(140, 70, 5, .3));
-}
-.number-control .side.prev .chev { border-right: 34px solid var(--cream); margin-right: 6px; }
-.number-control .side.next .chev { border-left:  34px solid var(--cream); margin-left: 6px; }
-
-/* ---------------- right and wrong ---------------- */
-.number-control.is-correct .seat {
-  background: linear-gradient(180deg, #7DE88A 0%, #46C95A 62%, #34B44A 100%);
-  box-shadow:
-    0 8px 0 #1E8A38,
-    0 12px 18px rgba(20, 90, 35, 0.22),
-    inset 0 4px 0 rgba(255, 255, 255, 0.5);
-  animation: selectedPop 380ms cubic-bezier(.2, .8, .25, 1) both;
-}
-.number-control.is-correct .cell.on { color: #FFFFFF; text-shadow: 0 3px 0 rgba(20, 90, 35, .28); }
-.number-control .tick {
-  position: absolute;
-  left: 50%; top: 2px;
-  transform: translateX(-50%) scale(.4);
-  font-size: 44px; font-weight: 900; line-height: 1;
-  color: #2FAE45;
-  text-shadow: 0 2px 0 rgba(255, 255, 255, .92);
-  opacity: 0;
-  pointer-events: none;
-  z-index: 3;
-  transition: transform 210ms cubic-bezier(.2, .8, .2, 1), opacity 170ms ease;
-}
-.number-control.is-correct .tick { opacity: 1; transform: translateX(-50%) scale(1); }
-
-.number-control.is-wrong .seat {
-  background: linear-gradient(180deg, #FFC9BE 0%, #F8907C 62%, #EE7259 100%);
-  box-shadow:
-    0 8px 0 #C4503A,
-    0 12px 18px rgba(150, 55, 35, 0.22),
-    inset 0 4px 0 rgba(255, 255, 255, 0.5);
-  animation: seatShake 280ms ease both;
-}
-@keyframes seatShake {
-  0%   { transform: translateY(-6px) translateX(0); }
-  16%  { transform: translateY(-6px) translateX(-6px); }
-  33%  { transform: translateY(-6px) translateX(6px); }
-  50%  { transform: translateY(-6px) translateX(-4px); }
-  66%  { transform: translateY(-6px) translateX(4px); }
-  100% { transform: translateY(-6px) translateX(0); }
-}
-
-/* ---------------- check ---------------- */
+/* ---- GO, under the frame's own foot ------------------------------- */
 .number-control .check {
-  width: 440px;
-  height: 110px;
-  flex: none;
+  position: absolute;
+  left: calc(var(--frame-x) + var(--frame-w) * 0.4932);
+  top: var(--frame-h);
+  width: var(--go);
+  height: var(--go);
+  margin: calc(var(--go) * -0.34) 0 0 calc(var(--go) / -2);
   padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-
-  border-radius: 55px;
-  background: linear-gradient(180deg, #49D34F 0%, #20B33C 62%, #1AA134 100%);
-  border: 4px solid rgba(255, 255, 255, 0.92);
+  border: 0;
+  background: url('../assets/ui/btn-go.png') center / 100% 100% no-repeat;
+  /* The word is in the art. */
+  font-size: 0;
+  color: transparent;
   cursor: pointer;
-
-  color: #FFFFFF;
-  font-family: inherit;
-  font-size: 48px;
-  font-weight: 800;
-  letter-spacing: .5px;
-  text-shadow: 0 3px 2px rgba(6, 80, 28, 0.32);
-
-  box-shadow:
-    0 9px 0 #087E2A,
-    0 15px 22px rgba(15, 85, 30, 0.22),
-    inset 0 3px 0 rgba(255, 255, 255, 0.34);
-  transition: transform 120ms ease, box-shadow 120ms ease;
+  transition: transform 120ms ease, opacity 160ms ease, filter 200ms ease;
+  z-index: 4;
 }
-.number-control .check:hover:not(:disabled) { transform: translateY(-2px); }
+.number-control .check-icon { display: none; }
+.number-control .check:hover:not(:disabled) { transform: translateY(-3px); }
 .number-control .check:active:not(:disabled),
-.number-control .check.is-pressed:not(:disabled) {
-  transform: translateY(5px);
-  box-shadow:
-    0 4px 0 #087E2A,
-    0 7px 10px rgba(15, 85, 30, 0.18),
-    inset 0 3px 0 rgba(255, 255, 255, 0.3);
-}
-.number-control .check-icon { font-size: 42px; line-height: 1; }
-
-/* Answered: nothing left to choose. */
+.number-control .check.is-pressed:not(:disabled) { transform: translateY(3px) scale(.96); }
 .number-control.locked .check { opacity: .55; cursor: default; }
 .number-control.locked .check:hover { transform: none; }
 
-.number-control.hidden { display: none !important; }
-
-/* Coming up into the space she has just left, settled before she lands
-   on it. The scale rides in the keyframes: an animation with `both`
-   holds its last frame, so a keyframe that only translated would drop
-   the inline scale the host set. */
-.number-control.rising { animation: ncRise .42s cubic-bezier(.22, .68, .3, 1) both; }
-@keyframes ncRise {
-  0%   { opacity: 0; transform: scale(var(--k, 1)) translateY(90px); }
-  60%  { opacity: 1; transform: scale(var(--k, 1)) translateY(-8px); }
-  100% { opacity: 1; transform: scale(var(--k, 1)) translateY(0); }
+/* ---- right and wrong ---------------------------------------------
+   The art is one colour, so the verdict is told by what the art does
+   rather than by repainting it: GO brightens and lifts on a right
+   answer, and shakes on a wrong one. */
+.number-control.is-correct .check {
+  filter: brightness(1.12) saturate(1.15)
+          drop-shadow(0 0 18px rgba(46, 201, 90, .75));
+}
+.number-control.is-correct .cell.on { color: #14853A; }
+.number-control.is-wrong .check {
+  filter: hue-rotate(-96deg) saturate(1.25);
+  animation: ncShake 420ms cubic-bezier(.36, .07, .19, .97) both;
+}
+.number-control.is-wrong .cell.on { color: #C4503A; }
+@keyframes ncShake {
+  10%, 90% { transform: translateX(-4px); }
+  20%, 80% { transform: translateX(7px); }
+  30%, 50%, 70% { transform: translateX(-10px); }
+  40%, 60% { transform: translateX(10px); }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .number-control .cell { transition: none; }
-  .number-control .seat.pop,
-  .number-control.is-correct .seat,
-  .number-control.is-wrong .seat { animation: none; }
-  .number-control .tick { transition: none; }
-  .number-control.rising { animation: none; }
+/* The tick the reel used to show on a right answer: the art carries
+   its own feedback now, so it stays out of the way. */
+.number-control .tick { display: none; }
+
+.number-control.hidden { display: none !important; }
+
+/* It arrives from below when she comes down onto it. */
+.number-control.rising { animation: ncRise .42s cubic-bezier(.22, .68, .3, 1) both; }
+@keyframes ncRise {
+  from { opacity: 0; transform: scale(var(--k, 1)) translateY(38px); }
+  to   { opacity: 1; transform: scale(var(--k, 1)) translateY(0); }
 }
