@@ -697,6 +697,19 @@ window.CFG = (function () {
       dashArray: '2 15',
       coordSize: 34,
       nameSize: 40,
+      /* How far a length written on a pair keeps off the line it
+         measures — the same air a coordinate keeps off its dot, so the
+         three things written on a segment all sit the same distance
+         from it — and how much of the span it must leave at each end
+         when it has to step along the line to clear an axis. */
+      resGap: 5,
+      resInset: 10,
+      /* The paper halo every label on the board is painted with
+         (`stroke-width` in the stylesheet). Stroked outside the
+         glyphs, so it is half of this again on each side — and
+         it is part of what the child sees, so it is part of what
+         is measured when a label is placed. */
+      haloW: 6,
       /* A horizontal segment carries its labels above and below the
          points. A vertical one cannot — the two points sit one above
          the other and the labels would run into each other — so it
@@ -724,7 +737,17 @@ window.CFG = (function () {
          middle, and they had drifted to 12px one way and 19px the
          other. Close enough to read as belonging to the point, never
          close enough to touch it. */
-      coordGap: 8,
+      /* The air between a point as it is painted — dot plus its
+         white ring — and the ink of its own coordinates. Small on
+         purpose: the numbers are part of the point, not a remark
+         near it, and the label carries its own paper halo, so a
+         few pixels read as touching rather than as crowding.
+         `coordFit` is the older, looser figure, kept for the one
+         question it still answers: whether a row's labels have
+         room beside their points at all. Deciding that on the new
+         air would move pairs that read properly today. */
+      coordGap: 3,
+      coordFit: 8,
       vNameDy: 32
     },
 
@@ -843,6 +866,11 @@ window.CFG = (function () {
          closer still, though — the answer has to be seen coming DOWN
          from it to the line afterwards. */
       stageUp: 0.85,
+      /* A column works its sum below the x-axis rather than over its top
+         point: how far under the axis numbering it sits, and how far off
+         the column itself. */
+      underDown: 0.55,
+      underGap: 0.35,
       finalUp: 1.9,      // and where the finished sum settles
       yGlowMs: 1000,     // the matching y-halves, lit and let go
       pickMs: 320,       // a number lighting before it is lifted
@@ -1502,27 +1530,28 @@ window.CFG = (function () {
          the line, where the working left it. */
       segment: { a: { x: 3, y: 2 }, b: { x: 6, y: 2 },
                  coordSide: 'under',
-                 result: { text: '3\u00A0units', dy: -28 } },
+                 result: { text: '3\u00A0units' } },
       /* The other row they measured — screen 13's question, with the
-         answer they gave it. Its middle sits all but on the y-axis, so
-         the length goes above its own line, the side the count-out used
-         there, and far enough right to clear the axis numbering. */
+         answer they gave it. No offsets on either: a length goes in the
+         middle of the span it measures, and the board steps this one
+         aside far enough to clear the y-axis numbering its own middle
+         falls on — see showSegResult. */
       examples: [ { a: { x: 4, y: 3 }, b: { x: -3, y: 3 },
-                    result: { text: '7\u00A0units', dy: -48, dx: 66 } } ] },
+                    result: { text: '7\u00A0units' } } ] },
 
-    /* Beside the line and lifted off its middle, the same as screen 15
-       writes this very pair: the column straddles the x-axis, so the
-       midpoint the length would otherwise take is the row the axis
-       numbers live in. */
+    /* Both lengths go where every length goes: the middle of the span
+       it measures, out to the side of the line by the same air a
+       coordinate keeps from its dot. This column straddles the x-axis,
+       so its own middle is the row the axis numbers live in — the
+       board slides it down its own line until it is clear of them, and
+       no further. */
     { id: 21, line: 'We know how to find horizontal and vertical distance.',
       entrance: 'stay', layout: 'board', hold: EXAMPLE_HOLD, quietBoard: true,
       segment: { a: { x: 1, y: -3 }, b: { x: 1, y: 2 },
-                 result: { text: '5\u00A0units', dy: -117, dx: 108 } },
-      /* The other column they measured — screen 19's question. Its
-         length goes beside its own line on the far side from the pair
-         next to it, level with its own middle. */
+                 result: { text: '5\u00A0units' } },
+      // the other column they measured — screen 19's question
       examples: [ { a: { x: -2, y: 3 }, b: { x: -2, y: 1 },
-                    result: { text: '2\u00A0units', dy: 0, dx: -84 } } ] },
+                    result: { text: '2\u00A0units' } } ] },
 
     /* 12 — leaves sweep again and the scene goes back to the field
        layout of screen 5: board on the right, Swifty standing on the

@@ -1505,7 +1505,7 @@
         });
         if (spec.result) later(function () {
           const R = spec.result;
-          self.showSegResult(spec, R.text, R.dy != null ? R.dy : -26, R.dx, slot);
+          self.showSegResult(spec, R.text, R.dy, R.dx, slot);
           SFX.chime();
         }, t + EX.resultMs);
         t += EX.stagger;
@@ -1559,10 +1559,66 @@
        under it, with a little air either side. A coordinate written
        into this band lands on one or the other, which is what happens
        to any point sitting one square above the axis. */
-    /* A rough width for a string at a given size, used to decide where
-       a label can go. getBBox would be exact but is only good once the
-       text is laid out, and these decisions are made while placing it. */
-    textW: function (t, size) { return String(t).length * size * 0.58; },
+    /* How much room a string will actually take at a given size, used
+       to decide where a label can go. getBBox would be exact but is
+       only good once the text is laid out, and these decisions are made
+       while placing it — so the same font is measured on a canvas
+       instead, which needs nothing drawn.
+
+       It used to be one character at 0.58 of the type size. That is
+       fine for "-6" and half again too wide for "(-2,\u00A03)", where
+       the brackets, the comma and the space are all narrow — and a
+       label pushed off its own point by half of an over-wide measure
+       floats a clear third of a cell away from the thing it names.
+       Every coordinate written beside its point was doing that.
+
+       Both metrics carry the halo the labels are painted with, so what
+       is measured is what is seen. The estimate stays as the fallback
+       for anywhere there is no canvas to measure on. */
+    textMetrics: function (t, size) {
+      const s = String(t), key = size + '\u0000' + s;
+      const M = this._tm || (this._tm = {});
+      if (M[key]) return M[key];
+      let ctx = this._tmCtx;
+      if (ctx === undefined) {
+        const cv = (typeof document !== 'undefined' && document.createElement)
+                 ? document.createElement('canvas') : null;
+        ctx = this._tmCtx = (cv && cv.getContext) ? cv.getContext('2d') : null;
+      }
+      /* The halo is stroked outside the glyphs, so it widens and heightens
+         what is painted by half its width on every side. */
+      const halo = C.GRID.segment.haloW || 0;
+      let w = 0, up = 0, down = 0;
+      if (ctx) {
+        ctx.font = '600 ' + size + 'px Nunito, system-ui, sans-serif';
+        const m = ctx.measureText(s);
+        w = m.width;
+        /* The canvas measures from the alphabetic baseline; the labels
+           are set `dominant-baseline: middle`, whose anchor sits half
+           an x-height above it. So the two are squared up before the
+           ink is reported, or a word with no descenders — "5 units" —
+           comes out claiming to be centred on something it sits above. */
+        const half = ctx.measureText('x').actualBoundingBoxAscent / 2;
+        up = m.actualBoundingBoxAscent - half;
+        down = m.actualBoundingBoxDescent + half;
+      }
+      if (!w) w = s.length * size * 0.58;
+      /* Older engines report no ink box, and so does the test harness.
+         Bracketed coordinates are the tallest thing written on the
+         board, and this is about their extent either side. */
+      if (!(up > 0)) { up = size * 0.37; down = size * 0.31; }
+      const r = { w: w + halo, h: up + down + halo, up: up + halo / 2, down: down + halo / 2 };
+      M[key] = r;
+      return r;
+    },
+
+    textW: function (t, size) { return this.textMetrics(t, size).w; },
+    textH: function (t, size) { return this.textMetrics(t, size).h; },
+
+    /* Measured before the webfont arrives, every label is sized to the
+       fallback's metrics and stays that way. Called once the real face
+       is in. */
+    forgetTextMetrics: function () { this._tm = null; },
 
     /* The column the y-axis owns: the line, and its numbers down the
        left of it. */
@@ -1583,7 +1639,7 @@
        bracket on every screen that draws that triangle. Only a label
        the line actually cuts is moved; one already clear is returned
        untouched, so nothing that reads properly today shifts. */
-    clearOfLine: function (cx, cy, w, h, x1, y1, x2, y2) {
+    clearOfLine: function (cx, cy, w, h, x1, y1, x2, y2, prefer) {
       const air = 9;
       const top = cy - h / 2, bot = cy + h / 2;
       /* Where the line is over the rows of the page this label covers.
@@ -1602,7 +1658,45 @@
       }
       if (cx + w / 2 <= lo || cx - w / 2 >= hi) return cx;      // already clear of it
       const left = lo - air - w / 2, right = hi + air + w / 2;
+      /* Which side, where the caller cares: a label pushed off a line
+         and then pulled back by the frame has not been moved at all,
+         so it needs to be able to ask for the other one. */
+      if (prefer < 0) return left;
+      if (prefer > 0) return right;
       return (cx - left) <= (right - cx) ? left : right;
+    },
+
+    /* The same against several lines at once, kept on the paper.
+       (`clearOfLines` was taken — by the unit-count's own, further down
+       — and a second key of that name in this object silently wins,
+       which is a whole evening.)
+       Sliding off one line can slide onto another, and a slide the
+       frame undoes is no slide at all, so each side is tried whole —
+       left of everything, right of everything — and the nearer of the
+       two that actually comes out clear is the one taken. */
+    offEveryLine: function (cx, cy, w, h, lines) {
+      const self = this;
+      const clearOf = function (x) {
+        return !lines.some(function (l) {
+          return self.clearOfLine(x, cy, w, h, l[0], l[1], l[2], l[3]) !== x;
+        });
+      };
+      if (clearOf(cx)) return cx;
+      const tries = [];
+      [-1, 1].forEach(function (side) {
+        let x = cx;
+        for (let n = 0; n < lines.length + 1; n++) {
+          const before = x;
+          lines.forEach(function (l) {
+            x = self.clearOfLine(x, cy, w, h, l[0], l[1], l[2], l[3], side);
+          });
+          if (x === before) break;
+        }
+        x = self.clampX(x, w);
+        if (clearOf(x)) tries.push(x);
+      });
+      if (!tries.length) return cx;
+      return tries.sort(function (p, q) { return Math.abs(p - cx) - Math.abs(q - cx); })[0];
     },
 
     /* Slides a label sideways until it is off the y-axis and clear of
@@ -1822,6 +1916,74 @@
 
     /* Draws the legs a screen asks for: any already settled from the
        screen before simply appear, the rest animate in. */
+    /* A corner's coordinates are placed knowing only the leg that
+       arrives at it — the leg that leaves it has not been drawn yet.
+       On the triangle that second leg rises straight up out of the
+       corner, through the very space the label takes when the frame
+       has left it nowhere to go but over the point. So once every leg
+       is down, each corner's label is put clear of all of them, and of
+       the segment they hang off. */
+    clearMarksOfLines: function () {
+      const G = C.GRID, SG = G.segment, LG = G.leg, self = this;
+      const px = function (v) { return G.originX + v * G.stepX; };
+      const py = function (v) { return G.originY - v * G.stepY; };
+      const placed = this.legPlaced || [];
+      const lines = [], boxes = [];
+      placed.forEach(function (s, n) {
+        if (!s || !s.from || !s.to) return;
+        lines.push([px(s.from.x), py(s.from.y), px(s.to.x), py(s.to.y)]);
+        /* A leg's length is written beside it and is just as much in the
+           way as the leg itself. */
+        const L = self.legSlots[n];
+        if (L && L.len && L.len.textContent && L.len.style.display !== 'none') {
+          const w = self.textW(L.len.textContent, LG.lenSize);
+          const x = parseFloat(L.len.getAttribute('x')), y = parseFloat(L.len.getAttribute('y'));
+          if (isFinite(x) && isFinite(y))
+            boxes.push([x - w / 2, y - LG.lenSize / 2, x + w / 2, y + LG.lenSize / 2]);
+        }
+      });
+      const sp = this.lastPlotted;
+      if (sp && sp.a && sp.b) lines.push([px(sp.a.x), py(sp.a.y), px(sp.b.x), py(sp.b.y)]);
+      if (!lines.length) return;
+
+      const blocked = function (x, y, w, h) {
+        return lines.some(function (l) {
+          return self.clearOfLine(x, y, w, h, l[0], l[1], l[2], l[3]) !== x;
+        }) || boxes.some(function (b) {
+          return x - w / 2 < b[2] && x + w / 2 > b[0] && y - h / 2 < b[3] && y + h / 2 > b[1];
+        });
+      };
+
+      (this.legSlots || []).forEach(function (L, i) {
+        const spec = placed[i];
+        if (!spec || !spec.mark || !L.coord.textContent) return;
+        const cw = self.textW(L.coord.textContent, SG.coordSize);
+        const cx = parseFloat(L.coord.getAttribute('x'));
+        const cy = parseFloat(L.coord.getAttribute('y'));
+        const y2 = py(spec.to.y);
+        if (!isFinite(cx) || !isFinite(cy) || !blocked(cx, cy, cw, SG.coordSize)) return;
+
+        /* The rows just over a corner are the busiest on the board: the
+           leg that leaves it rises through them, and the length of the
+           leg that arrives is written along them. Under the corner is
+           empty, so that is where the coordinates go — and the letter,
+           which is one glyph wide and needs almost nothing, takes the
+           space over the point, stepped off the leg standing in it. */
+        const under = self.clampY(y2 - G.found.labelDy, SG.coordSize);
+        if (blocked(cx, under, cw, SG.coordSize)) return;
+        L.coord.setAttribute('y', under);
+
+        const nw = self.textW(L.name.textContent || 'A', SG.nameSize);
+        const ny = self.clampY(y2 - LG.nameDy, SG.nameSize);
+        const nx = self.offEveryLine(parseFloat(L.name.getAttribute('x')),
+                                     ny, nw, SG.nameSize, lines);
+        if (!blocked(nx, ny, nw, SG.nameSize)) {
+          L.name.setAttribute('x', nx);
+          L.name.setAttribute('y', ny);
+        }
+      });
+    },
+
     runLegs: function (specs, later, done) {
       const self = this;
       if (!specs || !specs.length) { done(); return; }
@@ -1831,6 +1993,7 @@
         const L = self.legSlots[i];
         self.placeLeg(i, spec);
         L.g.classList.add('on');
+        if (i === specs.length - 1) self.clearMarksOfLines();
 
         if (spec.settled) {
           // already on the board; only its length is new
@@ -2550,7 +2713,8 @@
         stacked = [a, b].some(function (p) {
           const mate = (p === a) ? b : a;
           const w = self.textW(label(p), SG.coordSize);
-          const want = px(p.x) + (p.x < mate.x ? -1 : 1) * (SG.dotR + SG.coordGap + w / 2);
+          const want = px(p.x) + (p.x < mate.x ? -1 : 1) *
+                       (SG.dotR + SG.coordFit + w / 2);
           return Math.abs(self.clampX(want, w) - want) > 0.5;   // had to be pulled back
         });
         /* And if over the point is where the x-axis numbering is, the
@@ -2575,7 +2739,8 @@
         const ctext = p.coordParts
           ? p.coordParts.map(function (f) { return f.t; }).join('')
           : (p.coordText || ('(' + p.x + ',\u00A0' + p.y + ')'));
-        const cw = self.textW(ctext, SG.coordSize);
+        const cm = self.textMetrics(ctext, SG.coordSize);
+        const cw = cm.w;
 
         /* Which way a label is pushed off its own point: away from the
            other one, always. A column stacks the two points, so those
@@ -2590,9 +2755,15 @@
              the y-axis where the column sits on it, or the label would
              be written straight down the axis line. */
           cx = self.clearOfYAxis(X, cw);
-          // to the text's middle, so its edge lands coordGap off the dot
-          const outV = SG.dotR + SG.coordGap + SG.coordSize / 2;
-          cy = Y + (p.y >= mate.y ? -outV : outV);
+          /* Measured to the ink rather than to the type size, and to
+             whichever edge of it faces the dot — so the gap the child
+             sees between a point and its own coordinates is the gap
+             written in the config, on a label that hangs below it as
+             much as on one that sits above. */
+          const above = (p.y >= mate.y);
+          const edge = SG.dotR + SG.dotStrokeW / 2;     // the dot as painted
+          cy = Y + (above ? -(edge + SG.coordGap + cm.down)
+                          :  (edge + SG.coordGap + cm.up));
         } else if (spec.coordDy != null) {
           /* A screen that has placed its own. Both points on the x-axis
              is the case for it: out to the side there is the axis
@@ -2610,7 +2781,7 @@
           cy = Y + (stacked === 'under' ? -G.found.labelDy : G.found.labelDy);
         } else {
           // to the text's near edge, the same clear air as a column's
-          const outH = SG.dotR + SG.coordGap;
+          const outH = SG.dotR + SG.dotStrokeW / 2 + SG.coordGap;
           cx = self.clampX(self.clearOfYAxis(
             X + (p.x < mate.x ? -1 : 1) * (outH + cw / 2), cw), cw);
           cy = Y;
@@ -2670,7 +2841,10 @@
         if (stacked && p.nameDy == null && spec.nameDy == null) {
           ndy = Math.abs(ndy) * (stacked === 'under' ? -1 : 1);
         }
-        const nw = self.textW(part.name.textContent || 'A', SG.nameSize);
+        /* The letter this point is about to be given, not the one
+           the node still holds from the screen before — the same
+           trap the coordinates record above. */
+        const nw = self.textW(p.name || 'A', SG.nameSize);
         /* On a column the coordinate has taken the space over or under
            the point, so the letter goes beside it — and on the side the
            coordinate did not end up on, which is what keeps the two
@@ -2680,8 +2854,34 @@
         part.name.setAttribute('x', self.clampX(
           p.nameDx != null ? X + p.nameDx
                            : (vertical ? X + other : X), nw));
-        part.name.setAttribute('y', self.clampY(
-          vertical && p.nameDy == null ? Y : Y + ndy, SG.nameSize));
+        let ny = self.clampY(vertical && p.nameDy == null ? Y : Y + ndy, SG.nameSize);
+        /* A point's two labels are both its own, so they may sit close
+           — but never on each other. Drawing the coordinates in against
+           the dot brought them up under the letter on a segment that
+           runs at a slope, where the coordinate is level with the point
+           and the letter is directly over it; the letter gives way, by
+           as little as it takes, along the offset it already has. */
+        const nx = parseFloat(part.name.getAttribute('x'));
+        const cy0 = parseFloat(part.coord.getAttribute('y'));
+        const wantY = (SG.nameSize + SG.coordSize) / 2 + SG.coordGap;
+        const wantX = (nw + cw) / 2 + SG.coordGap;
+        if (p.name && Math.abs(nx - cx0) < wantX) {
+          const off = ny - cy0;
+          if (Math.abs(off) < wantY) {
+            ny = self.clampY(cy0 + (off < 0 || (off === 0 && ndy <= 0) ? -wantY : wantY),
+                             SG.nameSize);
+          }
+          /* Against the top of the paper the letter has nowhere to go —
+             B sits on the fifth row on the screens that state the
+             formula — so there the coordinate gives way instead, out
+             along the side it already went. */
+          if (Math.abs(ny - cy0) < wantY) {
+            const away = (cx0 >= nx ? 1 : -1);
+            part.coord.setAttribute('x',
+              self.clampX(nx + away * wantX, cw));
+          }
+        }
+        part.name.setAttribute('y', ny);
         part.name.textContent = p.name || '';
       });
     },
@@ -2755,23 +2955,40 @@
       const w = text.map(glyphW);
       const whole = w.reduce(function (t, n) { return t + n; }, 0) + X.gap * 4;
       const midX = (px(sp.a.x) + px(sp.b.x)) / 2;
-      /* Centred on the pair, but pushed off the y-axis where the pair
-         sits beside it — a column at x = 1 would otherwise lay the sum
-         straight across the axis numbering. */
-      const left = this.clampX(this.clearOfYAxis(midX, whole), whole) - whole / 2;
-      /* Above whatever is up there — the higher point, or its coordinates
-         if they are written over it. The row writes its coordinates under
-         the points, so the sum comes down into the space they left; the
-         column keeps one over its upper point, and the sum has to clear
-         that rather than land on it. */
-      let topY = Math.min(py(sp.a.y), py(sp.b.y));
-      ['a', 'b'].forEach(function (k) {
-        const c = self.segParts && self.segParts[k] && self.segParts[k].coord;
-        if (!c || !c.textContent) return;
-        const cy = parseFloat(c.getAttribute('y'));
-        if (isFinite(cy)) topY = Math.min(topY, cy - SG.coordSize / 2);
-      });
-      const stageY = this.clampY(topY - G.stepY * X.stageUp, X.size);
+      let left, stageY;
+      if (row) {
+        /* Centred on the pair, but pushed off the y-axis where the pair
+           sits beside it — a row whose middle falls on the axis would
+           otherwise lay the sum straight across its numbering. */
+        left = this.clampX(this.clearOfYAxis(midX, whole), whole) - whole / 2;
+        /* And above whatever is up there — the higher point, or its
+           coordinates if they are written over it. The row writes its
+           coordinates under its points, so the sum comes down into the
+           space they left. */
+        let topY = Math.min(py(sp.a.y), py(sp.b.y));
+        ['a', 'b'].forEach(function (k) {
+          const c = self.segParts && self.segParts[k] && self.segParts[k].coord;
+          if (!c || !c.textContent) return;
+          const cy = parseFloat(c.getAttribute('y'));
+          if (isFinite(cy)) topY = Math.min(topY, cy - SG.coordSize / 2);
+        });
+        stageY = this.clampY(topY - G.stepY * X.stageUp, X.size);
+      } else {
+        /* A column is worked below the x-axis instead: down past the
+           axis and the numbers under it, and off to the side the column
+           is not on. Over the top of a column the sum is a long way from
+           the pair and hard against the frame; under the axis it sits in
+           the quarter of the board a column always leaves empty. */
+        const numbers = G.labelGap + G.labelSize * 0.42 + G.labelSize / 2;
+        stageY = this.clampY(py(0) + numbers + G.stepY * X.underDown, X.size);
+        /* Clear of the column itself, on whichever side has the room. */
+        const gapX = G.stepX * X.underGap;
+        const colX = px(sp.a.x);
+        const toRight = colX + gapX;
+        const toLeft = colX - gapX - whole;
+        left = (toRight + whole <= G.w - 8) ? toRight : toLeft;
+        left = this.clampX(left + whole / 2, whole) - whole / 2;
+      }
 
       let run = 0;
       const at = w.map(function (width) {
@@ -2932,13 +3149,66 @@
     /* dx slides the plate along the segment: a segment centred on the
        origin would otherwise drop its answer straight onto the y-axis
        and the -1 beside it. */
+    /* How long the pair is, written on the pair.
+
+       Its place is not a decision a screen should have to make. A
+       length belongs in the middle of the span it measures — that is
+       what tells the child it is the distance between those two points
+       and not a remark about one of them — so unless a caller says
+       otherwise that is where it goes: square in the middle, out to the
+       side by the same air a coordinate keeps from its dot, and then
+       slid along its own line only as far as it takes to get off the
+       other axis' numbering. Never past the points: a length that has
+       left the span it measures has stopped measuring it. */
     showSegResult: function (spec, text, dy, dx, into) {
-      const G = C.GRID, T = into || this;
+      const G = C.GRID, SG = G.segment, T = into || this;
       const px = function (v) { return G.originX + v * G.stepX; };
       const py = function (v) { return G.originY - v * G.stepY; };
       T.segLine.classList.add('lit');
-      T.segRes.setAttribute('x', (px(spec.a.x) + px(spec.b.x)) / 2 + (dx || 0));
-      T.segRes.setAttribute('y', (py(spec.a.y) + py(spec.b.y)) / 2 + dy);
+      const ax = px(spec.a.x), ay = py(spec.a.y);
+      const bx = px(spec.b.x), by = py(spec.b.y);
+      let X = (ax + bx) / 2, Y = (ay + by) / 2;
+      if (dx == null && dy == null) {
+        const size = SG.resSize || SG.coordSize;
+        const m = this.textMetrics(text, size);
+        /* Ink is the right measure of the air between this and the
+           things it is written beside — a dot, a line. It is the wrong
+           measure of whether it has landed on the axis numbering: a
+           word with no descenders would claim to clear a band it is
+           sitting in, so that question is asked of the whole band a
+           label of this size occupies. */
+        const band = Math.max(m.h, size);
+        const vertical = (ax === bx);
+        const gap = SG.lineWidth / 2 + SG.resGap;
+        /* How far it may travel along the line before it is no longer
+           between the two points. */
+        const half = (vertical ? Math.abs(ay - by) : Math.abs(ax - bx)) / 2;
+        const room = Math.max(0, half - (vertical ? Math.max(m.up, m.down) : m.w / 2) - SG.resInset);
+        if (vertical) {
+          // the side away from the y-axis, where its numbers are not
+          X += (spec.a.x >= 0 ? 1 : -1) * (gap + m.w / 2);
+          /* A column that straddles the x-axis has its own middle in
+             the row the axis numbers live in. It steps off it, along
+             its own line, away from the axis. */
+          const away = (Y <= G.originY) ? -1 : 1;
+          let moved = 0, guard = 0;
+          while (this.onXAxisRow(Y, band) && moved < room && guard++ < 60) {
+            Y += away * 6; moved += 6;
+          }
+        } else {
+          Y -= gap + m.down;
+          // over the line, unless over the line is the x-axis numbering
+          if (this.onXAxisRow(Y, band)) Y = (ay + by) / 2 + gap + m.up;
+          /* And a row whose middle falls on the y-axis steps aside,
+             along its own line, by as much as that takes. */
+          const want = this.clearOfYAxis(X, m.w);
+          X += Math.max(-room, Math.min(room, want - X));
+        }
+        X = this.clampX(X, m.w);
+        Y = this.clampY(Y, band);
+      } else { X += (dx || 0); Y += (dy || 0); }
+      T.segRes.setAttribute('x', X);
+      T.segRes.setAttribute('y', Y);
       T.segRes.textContent = text;
       T.segRes.classList.add('pop');
       /* No plate behind it: the text carries its own paper halo, the
@@ -3801,7 +4071,7 @@
              line, the way an axis case writes its answer there. */
           const R = entry.segment && entry.segment.result;
           if (R) self.later(function () {
-            Board.showSegResult(entry.segment, R.text, R.dy != null ? R.dy : -26, R.dx);
+            Board.showSegResult(entry.segment, R.text, R.dy, R.dx);
             SFX.chime();
           }, 260);
           /* Pairs recalled beside this one come up under her line, not
@@ -4970,7 +5240,9 @@
     // Bubble text is sized by measurement, so the real face has to be
     // in before anything gets measured.
     let fontsReady = false;
-    const fontDone = function () { fontsReady = true; };
+    /* And every label measured before the real face arrived was
+       measured against the fallback's metrics, so those go. */
+    const fontDone = function () { fontsReady = true; Board.forgetTextMetrics(); };
     if (document.fonts && document.fonts.ready) {
       document.fonts.ready.then(fontDone);
       setTimeout(fontDone, 2500);          // never block on a slow CDN
