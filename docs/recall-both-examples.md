@@ -311,3 +311,84 @@ Known and left alone: on screen 34 the letter C and the length
 `x2 - x1` touch by one pixel. It predates this change, it is a hairline
 rather than a collision, and the four screens that share that layout
 would all move to fix it.
+
+---
+
+## 11. Labels off the line, and the pair named when it arrives — 18 Sep 2026
+
+Two more fixes on the triangle beats.
+
+**A label with the line drawn through it.** `(2, 1)` had the hypotenuse
+running through its closing bracket. It was not a one-off: a label sits
+over its own point, and a segment leaving that point at a slope rises
+through the very space the label is written in, so the same fault was on
+eight screens — `(2, 1)` on 22, 24, 25 and 26, and `(5, −3)` on 30, 31,
+33 and 34.
+
+`Board.clearOfLine(cx, cy, w, h, x1, y1, x2, y2)` now slides a label
+sideways, whichever way is the shorter move, until the line clears it by
+9px. It is applied last in `placeSegment`, because it is the only one of
+those adjustments that knows what was *drawn* rather than only where the
+points are, and it returns a label the line does not cut untouched — so
+nothing that already read properly moved. Each branch keeps the clamp it
+always used (`clampLabel` for a stacked label, `clampX` otherwise).
+
+**The pair is named where it first appears.** Screen 22 draws the
+diagonal and asks about it, but A and B were only written on screen 24 —
+so the child met the pair, heard "this one's different", and only two
+beats later found out what they were called. Screen 22's segment now
+carries `name: 'A'` / `name: 'B'`; 23 inherits them, and 24 names the
+same letters, so nothing downstream changed. The letters land exactly
+where screen 24 already put them: under each point, because the
+coordinates have taken the space above it.
+
+`qa-corner.js` covers both — no coordinate label anywhere in the script
+has its own line drawn through it, and no label is written across the
+point it names.
+
+---
+
+## 12. "This one's different." said over the triangle — 18 Sep 2026
+
+The beat used to draw the diagonal, bring Swifty in, and have her say
+*"This one's different."* over a bare A–B; the run across to C arrived two
+beats later, on the question screen. Now the board finishes the picture
+before she arrives:
+
+1. the diagonal A–B is drawn — silent
+2. the dotted run across to C drops from it, and C is marked and named
+3. Swifty flies in and says *"This one's different."*
+4. *"Can the grid help?"*
+5. *"How far apart are A and C?"* — nothing new is drawn, the board is
+   already the one the child is reading
+
+It needed no new code: `plotThen` already draws the segment, then any
+legs, and only then brings her on, so moving the leg onto screen 22 puts
+the whole construction before her entrance. Screen 24's leg is marked
+`settled: true`, so it is kept rather than drawn a second time.
+
+The leg is laid down **dotted** from the moment it appears, which is what
+the leg colours already mean: a side about to be measured is dotted, and
+the count draws a solid stroke along it when the question is answered.
+
+Measured in Chrome: the diagonal draws at 1.2–2.4s, the dotted run at
+4.2s, C's point at 6.0s and its letter at 6.6s, and her line lands at
+9.6s. That is a long silent opening — it is the order that was asked
+for, with her flight after the picture rather than under it — and the
+readiest place to trim it is the two dead stretches inside `runSegment`
+and `runLegs`, which each hand on about a third of a second after their
+last visible step.
+
+Three probes had the old timing built into them and were taught the new
+one rather than relaxed:
+
+- `qa-legorder` and `qa-askorder` decided "is this leg dotted?" from the
+  screen's own `task.measureLeg`. A leg can now be laid down dotted
+  before the screen that measures it, so they read the spec's `dash` as
+  well — and `qa-askorder` now expects a `settled` leg to be *absent*
+  from the drawing order rather than present in it.
+- `qa-dashleg` counted a frame where both a leg's lines were displayed.
+  A slot is built with both displayed and `placeLeg` picks one, so every
+  frame before the run's first leg is placed has both — inside a group
+  that is not on, showing nothing. It now counts only while the leg is
+  actually on the board.

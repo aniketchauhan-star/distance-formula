@@ -46,13 +46,11 @@ from inside `(1, −3)`. Nothing on the grid or the axis numbering is
 touched or lit. Each digit is **copied**; the labels never move, change or
 lose a character.
 
-**Order.** The digits are taken in the order the points are *read on the
-board* — top to bottom for a column, left to right for a row — not by
-size. Here that is the **2 first** (upper point), then the **−3** (lower).
-Each lands in its own slot in the sum regardless of the order taken: the
-larger in front, the smaller behind. The row happened to take the smaller
-first because it was on the left; do not carry "smaller first" over as a
-rule.
+**Order.** The digits are taken in the order the sum is *read and said* —
+"two minus minus-three" fetches the two first. Here that is the **2**
+(upper point), then the **−3** (lower), so on a column the sum's order and
+the board's reading order happen to agree. On a row they do not: the six
+of "six minus three" is the right-hand point, and it still goes first.
 
 ---
 

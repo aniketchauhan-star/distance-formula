@@ -797,6 +797,15 @@ window.CFG = (function () {
 
        Every duration is slower than the game's usual beat. This is the
        one screen where the arithmetic is the content. */
+    /* The board's camera. It pushes in on the triangle while the
+       triangle is what is being worked on, so the squares the child is
+       counting are big enough to count. */
+    zoom: {
+      ms: 900,           // one push, about a second
+      delayMs: 260,      // after the beat opens, so it comes with her line
+      margin: 0.6        // cells of air round what is being framed
+    },
+
     /* A pair the child finished with, brought back on a later screen
        beside the one that screen is about. The timings are the
        segment's own, tightened: the pair being recalled is not news, so
@@ -1270,6 +1279,11 @@ window.CFG = (function () {
         b: { x: 6, y: 2,
              coordParts: [{ t: '(' }, { t: '6', glow: 'x' }, { t: ',\u00A0' },
                           { t: '2', glow: 'y' }, { t: ')' }] },
+        /* Left over the points here, and only here. This is the pair
+           the child tapped out two screens ago, and it is carried in
+           wearing the labels they put there — moving them as it arrives
+           would read as a different pair. They go under the points on
+           the screen that starts arguing about them, which replots. */
         dash: true },
 
       /* `answer` is left out on purpose: the game measures it from the
@@ -1293,8 +1307,13 @@ window.CFG = (function () {
        (they do not), then the subtraction itself — 6 first, then 2, in
        the order it is read. Nothing is asked here; it is the reason
        behind the counting they have just done twice. */
+    /* From here to the end of the argument the board is read rather
+       than counted, so the ruling, the axes and their numbers fall back
+       and the pair, its coordinates and the working come forward. The
+       beats that ASK — 8, 13, 14, 19 — keep the board at full strength:
+       a child counting squares needs to see them. */
     { id: 9, line: 'Did you notice?',
-      entrance: 'stay', layout: 'board',
+      entrance: 'stay', layout: 'board', quietBoard: true,
       /* The very pair screen 8 asked about, not a fresh one. The whole
          of this argument is "look at what you just measured, and see
          where the answer came from" — which only works if it is
@@ -1322,21 +1341,23 @@ window.CFG = (function () {
                           { t: '2', glow: 'y' }, { t: ')' }] },
         b: { x: 6, y: 2,
              coordParts: [{ t: '(' }, { t: '6', glow: 'x' }, { t: ',\u00A0' },
-                          { t: '2', glow: 'y' }, { t: ')' }] }
+                          { t: '2', glow: 'y' }, { t: ')' }] },
+        // the working happens over the line; see screen 8
+        coordSide: 'under'
       } },
 
     { id: 10, line: 'The y-coordinates are the same.',
-      entrance: 'stay', layout: 'board', keepSegment: true,
+      entrance: 'stay', layout: 'board', keepSegment: true, quietBoard: true,
       highlight: { part: 'y' } },
 
     { id: 11, line: 'So, the distance is the difference between the x-coordinates.',
-      entrance: 'stay', layout: 'board', keepSegment: true,
+      entrance: 'stay', layout: 'board', keepSegment: true, quietBoard: true,
       highlight: { part: 'x' } },
 
     /* 6 first, then 2 — the order the subtraction is read in, so the
        two numbers light as she says them rather than together. */
     { id: 12, line: '6 - 3 = 3',
-      entrance: 'stay', layout: 'board', keepSegment: true,
+      entrance: 'stay', layout: 'board', keepSegment: true, quietBoard: true,
       /* She says it; the board works it out. The balloon is left shut on
          purpose — a bubble reading "6 - 3 = 3" beside a board building
          that very sum is the answer twice over, and the built one is the
@@ -1365,7 +1386,7 @@ window.CFG = (function () {
        halves are the ones that match, so the distance is the difference
        of the y halves, and the subtraction reads 2 - (-3). */
     { id: 15, line: 'Did you notice?',
-      entrance: 'stay', layout: 'board',
+      entrance: 'stay', layout: 'board', quietBoard: true,
       segment: {
         a: { x: 1, y: -3,
              coordParts: [{ t: '(' }, { t: '1', glow: 'x' }, { t: ',\u00A0' },
@@ -1378,11 +1399,11 @@ window.CFG = (function () {
       } },
 
     { id: 16, line: 'The x-coordinates are the same.',
-      entrance: 'stay', layout: 'board', keepSegment: true,
+      entrance: 'stay', layout: 'board', keepSegment: true, quietBoard: true,
       highlight: { part: 'x' } },
 
     { id: 17, line: 'So, the distance is the difference between the y-coordinates.',
-      entrance: 'stay', layout: 'board', keepSegment: true,
+      entrance: 'stay', layout: 'board', keepSegment: true, quietBoard: true,
       highlight: { part: 'y' } },
 
     /* She says it; the board works it out — the column twin of screen
@@ -1390,7 +1411,7 @@ window.CFG = (function () {
        the points are read down the column. The balloon stays shut and
        the sequence does its own lighting, so no `highlight` here. */
     { id: 18, line: '2 - (-3) = 5',
-      entrance: 'stay', layout: 'board', keepSegment: true,
+      entrance: 'stay', layout: 'board', keepSegment: true, quietBoard: true,
       voiceOnly: true, xEquation: true, hold: XEQ_HOLD },
 
     { id: 19, line: 'What is the distance between two points?', entrance: 'none', layout: 'board',
@@ -1426,10 +1447,12 @@ window.CFG = (function () {
       /* Two pairs on one board: the furniture steps back so they read as
          the subject rather than as more lines among the ruling. */
       quietBoard: true,
-      /* Under the line: the coordinates sit over their points, so the
-         length goes on the free side rather than crowding them. */
+      /* The same row the argument worked, laid out the way it laid it
+         out: the coordinates under their points, and the length over
+         the line, where the working left it. */
       segment: { a: { x: 3, y: 2 }, b: { x: 6, y: 2 },
-                 result: { text: '3\u00A0units', dy: 48 } },
+                 coordSide: 'under',
+                 result: { text: '3\u00A0units', dy: -28 } },
       /* The other row they measured — screen 13's question, with the
          answer they gave it. Its middle sits all but on the y-axis, so
          the length goes above its own line, the side the count-out used
@@ -1455,28 +1478,46 @@ window.CFG = (function () {
        layout of screen 5: board on the right, Swifty standing on the
        left, and no slider. The segment is diagonal this
        time, so counting whole squares no longer works — which is the
-       point she is about to make. */
+       point she is about to make.
+
+       The board does the whole of it before she arrives: the diagonal
+       is drawn, then the run across to C is dropped from it, and only
+       then does she fly in and say her line. She is remarking on a
+       picture that is finished, rather than talking over one being
+       made — which is also why she is given the flight to arrive in
+       and does not simply appear. */
     { id: 22, line: 'This one’s different.', entrance: 'fly',
       layout: 'grid', transition: 'leaves',
-      segment: { a: { x: 2, y: 1 },
-                 b: { x: 6, y: 4 } } },
+      /* Named here rather than three screens on. They are called A and B
+         from the moment the question about them is asked, and a pair
+         that gains its letters later reads as two different pairs — the
+         one she wondered about, and the one the triangle is built on. */
+      segment: { a: { x: 2, y: 1, name: 'A' },
+                 b: { x: 6, y: 4, name: 'B' } },
+      legs: [ { from: { x: 2, y: 1 }, to: { x: 6, y: 1 },
+                dash: true, mark: { name: 'C' } } ] },
 
     // 13 — same board and same segment, she just carries on talking
+    /* The board pushes in here, on the first quadrant the triangle sits
+       in, and stays pushed in while the triangle is being measured. */
     { id: 23, line: 'Can the grid help?', entrance: 'stay',
-      layout: 'grid', keepSegment: true },
+      layout: 'grid', keepSegment: true, view: 'triangle' },
 
     /* 14 — leaves again, back to the board layout with the slider.
        The diagonal is redrawn and a corner C is dropped from it, so
        the horizontal step A-C can be measured on its own. The answer
        is that leg, not the diagonal, so the task measures from it. */
-    /* Same grid, same points. No sweep and no replot: A and B are
-       already on the board the child is reading, so only the leg down
-       to C is new and only the leg is drawn. */
+    /* Same grid, same points, same leg. Nothing here is new to look at:
+       A, B and the run across to C are all already on the board the
+       child is reading, so the leg is marked settled and only the
+       question arrives. */
     { id: 24, line: 'How far apart are A and C?', entrance: 'none',
       layout: 'board', distance: true, intro: 'measure', keepSegment: true,
+      view: 'triangle',
       segment: { a: { x: 2, y: 1, name: 'A' },
                  b: { x: 6, y: 4, name: 'B' } },
-      legs: [ { from: { x: 2, y: 1 }, to: { x: 6, y: 1 }, mark: { name: 'C' } } ],
+      legs: [ { from: { x: 2, y: 1 }, to: { x: 6, y: 1 },
+                settled: true, mark: { name: 'C' } } ],
       task: {
         kind: 'distance',
         measureLeg: 0,        // A to C, not A to B
@@ -1487,7 +1528,7 @@ window.CFG = (function () {
     /* 15 — the board is kept exactly as it was. The first leg is
        already drawn, so it only gains its length, and the second leg
        rises from the corner to B. */
-    { id: 25, line: 'How far apart are C and B?', entrance: 'none',
+    { id: 25, line: 'How far apart are C and B?', entrance: 'none', view: 'triangle',
       layout: 'board', distance: true, intro: 'measure', keepSegment: true,
       segment: { a: { x: 2, y: 1, name: 'A' },
                  b: { x: 6, y: 4, name: 'B' } },
@@ -1507,7 +1548,7 @@ window.CFG = (function () {
        slider: she is just naming what they have built. */
     /* Still the same grid: the triangle is the two legs they have just
        measured, not a new drawing. */
-    { id: 26, line: 'Look! We made a triangle.', entrance: 'stay',
+    { id: 26, line: 'Look! We made a triangle.', entrance: 'stay', view: 'triangle',
       layout: 'board', keepSegment: true,
       /* No highlight here. This screen and the one after it show the
          same triangle on the same board, so lighting it on both made

@@ -1202,6 +1202,91 @@
        a percent, so nothing reads as stretched, and the SVG overlay
        maps through the same viewBox — axes and numbers stay locked to
        the drawn gridlines either way. */
+    /* How much of the board is inside the window, in the board's own
+       units. Nothing set means all of it, which is what every screen
+       outside the triangle sees. */
+    viewRect: function () {
+      const G = C.GRID;
+      return this.view || { x: 0, y: 0, w: G.w, h: G.h };
+    },
+
+    /* The region a named view asks for, worked out from what is actually
+       drawn rather than typed: the pair on the board, any leg dropped
+       from it, and the origin, so both axes stay in shot. */
+    viewFor: function (name) {
+      if (!name) return null;
+      const G = C.GRID, Z = G.zoom;
+      const px = function (v) { return G.originX + v * G.stepX; };
+      const py = function (v) { return G.originY - v * G.stepY; };
+      const pts = [{ x: 0, y: 0 }];
+      const sp = this.lastPlotted;
+      if (sp && sp.a) { pts.push(sp.a); pts.push(sp.b); }
+      (this.legPlaced || []).forEach(function (l) {
+        if (l && l.from) { pts.push(l.from); pts.push(l.to); }
+      });
+      const xs = pts.map(function (p) { return p.x; });
+      const ys = pts.map(function (p) { return p.y; });
+      const m = Z.margin;
+      const x0 = Math.min.apply(null, xs) - m, x1 = Math.max.apply(null, xs) + m;
+      const y0 = Math.min.apply(null, ys) - m, y1 = Math.max.apply(null, ys) + m;
+      const r = { x: px(x0), y: py(y1), w: px(x1) - px(x0), h: py(y0) - py(y1) };
+      /* Grown to the board's own shape. The SVG is stretched onto the
+         panel rather than fitted, so a view of a different shape would
+         squash the squares into rectangles — and a square that stops
+         being square is the one thing a grid cannot do. */
+      const A = G.w / G.h;
+      if (r.w / r.h < A) { const w = r.h * A; r.x -= (w - r.w) / 2; r.w = w; }
+      else               { const h = r.w / A; r.y -= (h - r.h) / 2; r.h = h; }
+      // never past the paper's own edge, and never wider than the board
+      if (r.w >= G.w || r.h >= G.h) return null;
+      r.x = Math.max(0, Math.min(G.w - r.w, r.x));
+      r.y = Math.max(0, Math.min(G.h - r.h, r.y));
+      return r;
+    },
+
+    /* Pushes the board in to a view, or back out to all of it. The board
+       is re-placed on every frame rather than transformed: the ruling,
+       the axes and everything plotted are all drawn from the view, so
+       they are exactly as sharp pushed in as they are pulled out.
+
+       Token-cancelled, like the text tweens — a screen change or a skip
+       must not leave the board stopped halfway. */
+    viewTo: function (rect, ms) {
+      const self = this, G = C.GRID;
+      const to = rect || { x: 0, y: 0, w: G.w, h: G.h };
+      const from = this.viewRect();
+      this.viewSeq = (this.viewSeq || 0) + 1;
+      const token = this.viewSeq;
+      const near = function (a, b) { return Math.abs(a - b) < 0.5; };
+      if (!this.box || !ms ||
+          (near(from.x, to.x) && near(from.y, to.y) &&
+           near(from.w, to.w) && near(from.h, to.h))) {
+        this.view = rect;
+        if (this.box) this.place(this.box);
+        return;
+      }
+      const ease = function (t) {                 // cubic-bezier(.22,.61,.36,1)
+        let lo = 0, hi = 1, u = t;
+        for (let i = 0; i < 14; i++) {
+          u = (lo + hi) / 2;
+          const x = 3 * (1-u) * (1-u) * u * 0.22 + 3 * (1-u) * u * u * 0.36 + u*u*u;
+          if (x < t) lo = u; else hi = u;
+        }
+        return 3 * (1-u) * (1-u) * u * 0.61 + 3 * (1-u) * u * u + u*u*u;
+      };
+      const start = performance.now();
+      const step = function () {
+        if (token !== self.viewSeq) return;
+        const p = Math.min(1, (performance.now() - start) / ms), e = ease(p);
+        self.view = { x: from.x + (to.x - from.x) * e, y: from.y + (to.y - from.y) * e,
+                      w: from.w + (to.w - from.w) * e, h: from.h + (to.h - from.h) * e };
+        self.place(self.box);
+        if (p < 1) requestAnimationFrame(step);
+        else { self.view = rect; self.place(self.box); }   // pinned, never left mid-push
+      };
+      requestAnimationFrame(step);
+    },
+
     place: function (box) {
       const G = C.GRID, P = G.paper;
       this.box = box;
@@ -1213,24 +1298,33 @@
       /* The board is stretched to its box rather than fitted, so the
          two axes scale by different amounts. Anything round — the
          frame, the corners — follows the wider one. */
-      const sx = box.w / G.w, sy = box.h / G.h;
+      /* Two scales, not one. The panel's own says how big the window is
+         on the stage, and the frame round it follows that — it must not
+         thicken when the board pushes in. The view's says how much board
+         is inside the window, and everything drawn follows that. With no
+         view set the two are the same number, which is what every screen
+         but the triangle's sees. */
+      const V = this.viewRect();
+      const fs = box.w / G.w;
+      const sx = box.w / V.w, sy = box.h / V.h;
       const st = el.gridPanel.style;
       st.setProperty('--paper-inner', P.inner);
       st.setProperty('--paper-frame', P.frame);
       st.setProperty('--paper-edge',  P.edge);
       st.setProperty('--paper-hi',    P.highlight);
-      st.setProperty('--radius', P.radius * sx + 'px');
-      st.setProperty('--edgeW',  P.edgeW  * sx + 'px');
-      st.setProperty('--frameW', P.frameW * sx + 'px');
-      st.setProperty('--hiW',   (P.frameW + P.hiW) * sx + 'px');
+      st.setProperty('--radius', P.radius * fs + 'px');
+      st.setProperty('--edgeW',  P.edgeW  * fs + 'px');
+      st.setProperty('--frameW', P.frameW * fs + 'px');
+      st.setProperty('--hiW',   (P.frameW + P.hiW) * fs + 'px');
 
       /* The grid is pinned to the origin, not to the panel: a line
          every stepX across and every stepY down, so whatever size the
          board is drawn at, a line still falls on every whole
          coordinate and the numbers sit on it. */
       const cw = G.stepX * sx, ch = G.stepY * sy, lw = P.lineW;
-      const left = (G.originX + P.gxFrom * G.stepX) * sx;
-      const top  = (G.originY - P.gyTo   * G.stepY) * sy;
+      // measured from the corner of the view, not the corner of the board
+      const left = (G.originX + P.gxFrom * G.stepX - V.x) * sx;
+      const top  = (G.originY - P.gyTo   * G.stepY - V.y) * sy;
       const gs = el.gridImg.style;
       gs.left   = (left - lw / 2) + 'px';
       gs.top    = (top  - lw / 2) + 'px';
@@ -1254,7 +1348,7 @@
          on an 83px cell, which took the corner out of the outermost
          square and left the two boundary lines stopping short of each
          other instead of meeting. */
-      const inset = (P.frameW + P.hiW) * sx;
+      const inset = (P.frameW + P.hiW) * fs;
       const gw = (P.gxTo - P.gxFrom) * cw + lw, gh = (P.gyTo - P.gyFrom) * ch + lw;
       const cl = Math.max(0, inset - (left - lw / 2));
       const ct = Math.max(0, inset - (top  - lw / 2));
@@ -1262,10 +1356,20 @@
       const cb = Math.max(0, (top  - lw / 2 + gh) - (box.h - inset));
       gs.clipPath = (cl || ct || cr || cb)
         ? 'inset(' + ct + 'px ' + cr + 'px ' + cb + 'px ' + cl +
-          'px round ' + Math.max(0, P.radius * sx - inset) + 'px)'
+          'px round ' + Math.max(0, P.radius * fs - inset) + 'px)'
         : 'none';
 
-      el.gridAxes.setAttribute('viewBox', '0 0 ' + G.w + ' ' + G.h);
+      el.gridAxes.setAttribute('viewBox', V.x + ' ' + V.y + ' ' + V.w + ' ' + V.h);
+      /* Pushed in, the board runs on past the window — the parts of it
+         outside the view are still drawn, just off the side of the
+         panel, and #gridAxes is overflow:visible, so they would paint
+         over the frame and out across the field. Clipped to the cream,
+         exactly where the ruling is clipped, they are simply out of
+         shot. Left alone when there is no view, so nothing that has
+         always been drawn at the very edge is shaved. */
+      el.gridAxes.style.clipPath = this.view
+        ? 'inset(' + inset + 'px round ' + Math.max(0, P.radius * fs - inset) + 'px)'
+        : 'none';
       el.gridAxes.setAttribute('preserveAspectRatio', 'none');
       el.gridAxes.style.width = box.w + 'px';
       el.gridAxes.style.height = box.h + 'px';
@@ -1339,6 +1443,7 @@
     },
 
     clearLegs: function () {
+      this.legPlaced = [];
       if (!this.legSlots) return;
       this.legSlots.forEach(function (L) {
         L.g.classList.remove('on');
@@ -1369,6 +1474,37 @@
                    this.textW('-6', G.labelSize) / 2 - pad;
       const right = G.originX + G.axisWidth / 2 + pad;
       return cx + w / 2 > left && cx - w / 2 < right;
+    },
+
+    /* Slides a label sideways until the drawn line is no longer running
+       through it, whichever way is the shorter move.
+
+       A label sits over its own point, and a segment leaving that point
+       at a slope goes up through the very space the label is written
+       in — which is why "(2, 1)" had the hypotenuse through its last
+       bracket on every screen that draws that triangle. Only a label
+       the line actually cuts is moved; one already clear is returned
+       untouched, so nothing that reads properly today shifts. */
+    clearOfLine: function (cx, cy, w, h, x1, y1, x2, y2) {
+      const air = 9;
+      const top = cy - h / 2, bot = cy + h / 2;
+      /* Where the line is over the rows of the page this label covers.
+         Outside them it cannot be in the way, whatever its x. */
+      const yA = Math.max(top, Math.min(y1, y2));
+      const yB = Math.min(bot, Math.max(y1, y2));
+      if (yA > yB) return cx;
+      let lo, hi;
+      if (y1 === y2) {                       // level: its whole span is in those rows
+        lo = Math.min(x1, x2); hi = Math.max(x1, x2);
+      } else {
+        const at = function (y) { return x1 + (x2 - x1) * ((y - y1) / (y2 - y1)); };
+        const p = at(yA), q = at(yB);
+        lo = Math.max(Math.min(p, q), Math.min(x1, x2));
+        hi = Math.min(Math.max(p, q), Math.max(x1, x2));
+      }
+      if (cx + w / 2 <= lo || cx - w / 2 >= hi) return cx;      // already clear of it
+      const left = lo - air - w / 2, right = hi + air + w / 2;
+      return (cx - left) <= (right - cx) ? left : right;
     },
 
     /* Slides a label sideways until it is off the y-axis and clear of
@@ -1422,6 +1558,9 @@
 
     placeLeg: function (i, spec) {
       const G = C.GRID, LG = G.leg, L = this.legSlots[i];
+      /* Kept so the camera can frame what is actually drawn. */
+      this.legPlaced = this.legPlaced || [];
+      this.legPlaced[i] = spec;
       const px = function (v) { return G.originX + v * G.stepX; };
       const py = function (v) { return G.originY - v * G.stepY; };
       const f = spec.from, t = spec.to;
@@ -2168,7 +2307,13 @@
                             : (p.coordText || ('(' + p.x + ',\u00A0' + p.y + ')'));
       };
       let stacked = false;
-      if (!vertical && spec.coordDy == null) {
+      if (!vertical && spec.coordSide) {
+        /* A screen can say which side of the points its coordinates go.
+           The beats that work the subtraction want them under, because
+           the space above the line is where the working happens and the
+           length it produces is written. */
+        stacked = spec.coordSide;
+      } else if (!vertical && spec.coordDy == null) {
         stacked = [a, b].some(function (p) {
           const mate = (p === a) ? b : a;
           const w = self.textW(label(p), SG.coordSize);
@@ -2244,7 +2389,13 @@
             cy += (p.y >= 0 ? -1 : 1) * 20;
           }
         }
-        part.coord.setAttribute('x', stacked ? cx : self.clampX(cx, cw));
+        /* And off the line itself, if it is going through where the
+           label has landed. Last, because it is the only one of these
+           that knows what was drawn rather than only where the points
+           are. */
+        cx = self.clearOfLine(cx, cy, cw, SG.coordSize,
+                              px(a.x), py(a.y), px(b.x), py(b.y));
+        part.coord.setAttribute('x', stacked ? self.clampLabel(cx, cw) : self.clampX(cx, cw));
         part.coord.setAttribute('y', self.clampY(cy, SG.coordSize));
         /* A point can carry its own label — the general case names the
            points (x1, y1) and (x2, y2) rather than their values — and
@@ -2279,10 +2430,13 @@
         if (!vertical && p.nameDy == null && spec.nameDy == null &&
             self.onXAxisRow(Y + ndy, SG.nameSize)) ndy = -ndy;
         /* Unless the coordinates took that space instead. Then the two
-           would be written on top of each other, so the letter goes
-           under the point — which on a pair labelled this way is free,
-           because a row labelled this way has no letters at all. */
-        if (stacked && p.nameDy == null && spec.nameDy == null && ndy < 0) ndy = -ndy;
+           would be written on top of each other, so the letter takes
+           whichever side of the point the coordinates did not — under
+           them where they went over, and over them where they went
+           under. */
+        if (stacked && p.nameDy == null && spec.nameDy == null) {
+          ndy = Math.abs(ndy) * (stacked === 'under' ? -1 : 1);
+        }
         const nw = self.textW(part.name.textContent || 'A', SG.nameSize);
         /* On a column the coordinate has taken the space over or under
            the point, so the letter goes beside it — and on the side the
@@ -2331,11 +2485,16 @@
 
       const va = row ? sp.a.x : sp.a.y, vb = row ? sp.b.x : sp.b.y;
       const bigger = va >= vb ? 'a' : 'b', smaller = va >= vb ? 'b' : 'a';
-      /* Taken in the order the points are read on the board — left to
-         right along a row, top to bottom down a column — never by size.
-         Each still lands in its own slot: the larger in front, the
-         smaller behind. On the row the left point happened to hold the
-         smaller value; on a column the top point holds the larger. */
+      /* Taken in the order the sum is read — and said. "Six minus three"
+         fetches the six first, so the front of the sum fills before the
+         back, and the child hears the order they are watching. It is not
+         the order the points sit in: on this row the six is the
+         right-hand point. On a column the two happen to agree, the
+         larger y being the upper point.
+
+         The board is still read left to right and top to bottom, and the
+         sweep below keeps to that — what is drawn along the pair is
+         about the pair, not about the sum. */
       const firstRead = row ? (sp.a.x <= sp.b.x ? 'a' : 'b')
                             : (sp.a.y >= sp.b.y ? 'a' : 'b');
       const secondRead = firstRead === 'a' ? 'b' : 'a';
@@ -2451,9 +2610,9 @@
       /* 2 and 3 — the smaller first, into the back of the sum, then the
          larger into the front. Taken in the order they are read off the
          board; assembled in the order the sum is read. */
-      lift(firstRead, slotOf(firstRead), t);
+      lift(bigger, slotOf(bigger), t);
       t += X.pickMs + X.flyMs;
-      lift(secondRead, slotOf(secondRead), t);
+      lift(smaller, slotOf(smaller), t);
       t += X.pickMs + X.flyMs + X.settleMs;
 
       // 4 — the sum assembled between them, a piece at a time
@@ -3181,6 +3340,15 @@
          board settles into it rather than snapping — and cleared the
          same way by every screen that does not ask for it. */
       el.gridPanel.classList.toggle('quiet', !!next.quietBoard);
+      /* The board's camera. A beat that names a view pushes in to it; one
+         that names none pulls back out; one that wants the view it
+         already has does nothing at all. Given a beat to settle first so
+         the push comes with her line rather than under the change, and
+         queued through later() so a skip cancels it with everything
+         else. */
+      this.later(function () {
+        Board.viewTo(Board.viewFor(next.view), C.GRID.zoom.ms);
+      }, C.GRID.zoom.delayMs);
       this.index = i;
       this.state = 'entering';
       el.nextBtn.classList.remove('ready');

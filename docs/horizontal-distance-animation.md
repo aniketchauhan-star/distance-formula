@@ -109,8 +109,8 @@ Slow and readable. Every duration in config, in one block.
 | # | what happens | ms |
 |---|---|---|
 | 1 | both `2`s light inside the two labels — they match, so they are not the distance — then release | 1000 |
-| 2 | the `3` lights inside `(3, 2)`; a copy travels up into the **back** of the sum | 320 + 800 |
-| 3 | the `6` lights inside `(6, 2)`; a copy travels up into the **front**, leaving `6  3` | 320 + 800 |
+| 2 | the `6` lights inside `(6, 2)`; a copy travels up into the **front** of the sum | 320 + 800 |
+| 3 | the `3` lights inside `(3, 2)`; a copy travels up into the **back**, leaving `6  3` | 320 + 800 |
 | 4 | `−` appears between them | +300 |
 | 5 | `=` appears | +500 |
 | 6 | the answer `3` appears | +350 |
@@ -177,7 +177,8 @@ Both labels, both points, the line, `3 units` between them. Nothing above.
 - [ ] `units` appears
 - [ ] the coordinate labels never move, change or vanish
 - [ ] nothing on the grid or axis numbering ever lights
-- [ ] the 3 is taken first and lands right of the 6
+- [ ] the 6 is taken first and lands left of the 3 — the order the sum
+      is read and said
 - [ ] the two digits never overlap
 - [ ] the parts appear strictly in order
 - [ ] the answer that descends is the same element that was worked out
