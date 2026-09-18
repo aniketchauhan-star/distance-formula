@@ -777,7 +777,13 @@ window.CFG = (function () {
          below — so it is pushed along the leg towards the corner, into
          the gap between the two. */
       lenGapV: 78,
-      lenBiasV: 34
+      /* Along a vertical leg, off its middle towards the corner it
+         starts from — the far end of that side carries the other
+         point's coordinates. Kept small: the leg's length now sits
+         INSIDE the shape, where the hypotenuse closes in on it, so a
+         big bias either walks it into that line or down onto the
+         corner's own coordinates. */
+      lenBiasV: 16
     },
 
     /* Unit squares that count out a segment's length when a child
@@ -830,7 +836,13 @@ window.CFG = (function () {
     xeq: {
       size: 40,          // the sum, big enough to read across the board
       gap: 11,           // air between its parts
-      stageUp: 1.15,     // cells above the pair, where the numbers land
+      /* Cells of air above whatever is topmost — the higher point, or
+         its coordinates where they are written over it. Closer than it
+         was: with the row's coordinates moved under its points, the sum
+         was left hanging a cell and a half over an empty space. Not
+         closer still, though — the answer has to be seen coming DOWN
+         from it to the line afterwards. */
+      stageUp: 0.85,
       finalUp: 1.9,      // and where the finished sum settles
       yGlowMs: 1000,     // the matching y-halves, lit and let go
       pickMs: 320,       // a number lighting before it is lifted

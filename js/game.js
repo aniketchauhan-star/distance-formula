@@ -1682,10 +1682,29 @@
 
       if (spec.length) {
         const n = Math.abs(t.x - f.x) + Math.abs(t.y - f.y);
-        const horiz = (f.y === t.y);
         /* A leg can name its length instead of measuring it — the
            general case labels it x2 - x1 rather than 10 units. */
-        const txt = spec.lengthText || (n + '\u00A0unit' + (n === 1 ? '' : 's'));
+        this.placeLegLength(i, f, t,
+          spec.lengthText || (n + '\u00A0unit' + (n === 1 ? '' : 's')));
+        L.len.style.display = L.plate.style.display = '';
+      } else {
+        L.len.style.display = L.plate.style.display = 'none';
+      }
+    },
+
+    /* Where a leg writes how long it is.
+       Its own, so the count-out can put a measured total in the very
+       place the leg's label goes: one label, written once, which the
+       next screen keeps rather than replacing with an identical one of
+       its own — which is what made the length appear, vanish and come
+       back a moment later in a different colour. */
+    placeLegLength: function (i, f, t, txt) {
+      const G = C.GRID, LG = G.leg, L = this.legSlots[i];
+      const px = function (v) { return G.originX + v * G.stepX; };
+      const py = function (v) { return G.originY - v * G.stepY; };
+      const x1 = px(f.x), y1 = py(f.y), x2 = px(t.x), y2 = py(t.y);
+      {
+        const horiz = (f.y === t.y);
         /* Above a horizontal leg — inside the right angle, where the
            board is empty. Beside a vertical one, pushed along it
            towards the corner it starts from: the far end of that side
@@ -1720,10 +1739,20 @@
         L.len.setAttribute('x', this.clampX(lx, lw2));
         L.len.setAttribute('y', this.clampY(ly, LG.lenSize));
         L.len.textContent = txt;
-        L.len.style.display = L.plate.style.display = '';
-      } else {
-        L.len.style.display = L.plate.style.display = 'none';
       }
+    },
+
+    /* The total a count-out arrived at, written as the leg's own length
+       — in the leg's colour, in the leg's place — instead of on the
+       board's general label. The screen after keeps it untouched. */
+    showLegTotal: function (i, units) {
+      const L = this.legSlots && this.legSlots[i], spec = (this.legPlaced || [])[i];
+      if (!L || !spec || !spec.from) return false;
+      this.placeLegLength(i, spec.from, spec.to,
+        units + '\u00A0unit' + (units === 1 ? '' : 's'));
+      L.len.style.display = L.plate.style.display = '';
+      L.len.classList.add('pop');
+      return true;
     },
 
     /* Draws the legs a screen asks for: any already settled from the
@@ -2011,7 +2040,7 @@
        It is their number that gets counted, not the right one, so a
        guess that is too long walks the line straight past the point.
        That overshoot is the feedback: you can see the extra unit. */
-    countOut: function (from, to, units, later, done) {
+    countOut: function (from, to, units, later, done, leg) {
       const G = C.GRID, U = G.unitBox, P = G.paper;
       const self = this;
       this.clearUnits();
@@ -2053,7 +2082,12 @@
       }
 
       later(function () {
-        self.showUnitTotal(from, ux, uy, steps, units);
+        /* Measuring a leg? Then the total IS that leg's length, and it
+           belongs on the leg rather than on the board's own label —
+           written once, where it stays. */
+        if (leg == null || !self.showLegTotal(leg, units)) {
+          self.showUnitTotal(from, ux, uy, steps, units);
+        }
         SFX.chime();
         done();
       }, steps * U.stepMs + 140);
@@ -2522,7 +2556,7 @@
        is discarded the moment the sum's own part takes over, so the
        coordinates are untouched from beginning to end. */
     runEquation: function (later, done) {
-      const G = C.GRID, X = G.xeq, U = G.unitBox, self = this;
+      const G = C.GRID, X = G.xeq, U = G.unitBox, SG = G.segment, self = this;
       const sp = this.lastPlotted;
       if (!this.xParts || !sp || !sp.a || !sp.b) { if (done) later(done, 0); return 0; }
       this.clearEquation();
@@ -2579,7 +2613,18 @@
          sits beside it — a column at x = 1 would otherwise lay the sum
          straight across the axis numbering. */
       const left = this.clampX(this.clearOfYAxis(midX, whole), whole) - whole / 2;
-      const topY = Math.min(py(sp.a.y), py(sp.b.y));
+      /* Above whatever is up there — the higher point, or its coordinates
+         if they are written over it. The row writes its coordinates under
+         the points, so the sum comes down into the space they left; the
+         column keeps one over its upper point, and the sum has to clear
+         that rather than land on it. */
+      let topY = Math.min(py(sp.a.y), py(sp.b.y));
+      ['a', 'b'].forEach(function (k) {
+        const c = self.segParts && self.segParts[k] && self.segParts[k].coord;
+        if (!c || !c.textContent) return;
+        const cy = parseFloat(c.getAttribute('y'));
+        if (isFinite(cy)) topY = Math.min(topY, cy - SG.coordSize / 2);
+      });
       const stageY = this.clampY(topY - G.stepY * X.stageUp, X.size);
 
       let run = 0;
@@ -4323,7 +4368,8 @@
            grid, which is exactly what these screens are teaching. No
            line is walked out along AB; the verdict lands on its own. */
         if (t.spec.noCount) { verdict(); return; }
-        Board.countOut(pair.from, pair.to, v, self.later.bind(self), verdict);
+        Board.countOut(pair.from, pair.to, v, self.later.bind(self), verdict,
+                       t.spec.measureLeg);
       };
       if (narrate) this.speak(narrate, function () {
         // wait out whatever is left of her voice, then a breath
