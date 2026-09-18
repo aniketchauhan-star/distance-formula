@@ -401,6 +401,16 @@ html, body {
 #gridPanel.quiet #gridAxes .arrow.pop { opacity: .3; }
 #gridPanel.quiet #gridAxes .glabel.pop { opacity: .5; }
 
+/* Pushed in, the axes are lines only. At that range the child is reading
+   the drawing and its own labels, not counting along an axis, and the
+   numbers are the loudest thing left on a board that has already been
+   quietened. They are faded, not removed — still there, still lettered,
+   still measured by anything that measures them.
+
+   Weighs the same as the quiet rule above and beats it on source order
+   alone, so it has to stay below it. */
+#gridPanel.framed #gridAxes .glabel.pop { opacity: 0; }
+
 /* The ruling is the one that cannot be dimmed by a declaration. The rule
    above runs ruleIn with `both`, so its filled last frame — opacity 1 —
    beats any rule, whatever its weight; the axes record the same trap a

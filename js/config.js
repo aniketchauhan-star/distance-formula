@@ -1501,7 +1501,7 @@ window.CFG = (function () {
     /* The board pushes in here, on the first quadrant the triangle sits
        in, and stays pushed in while the triangle is being measured. */
     { id: 23, line: 'Can the grid help?', entrance: 'stay',
-      layout: 'grid', keepSegment: true, view: 'triangle' },
+      layout: 'grid', keepSegment: true, view: 'triangle', quietBoard: true },
 
     /* 14 — leaves again, back to the board layout with the slider.
        The diagonal is redrawn and a corner C is dropped from it, so
@@ -1513,7 +1513,7 @@ window.CFG = (function () {
        question arrives. */
     { id: 24, line: 'How far apart are A and C?', entrance: 'none',
       layout: 'board', distance: true, intro: 'measure', keepSegment: true,
-      view: 'triangle',
+      view: 'triangle', quietBoard: true,
       segment: { a: { x: 2, y: 1, name: 'A' },
                  b: { x: 6, y: 4, name: 'B' } },
       legs: [ { from: { x: 2, y: 1 }, to: { x: 6, y: 1 },
@@ -1528,7 +1528,7 @@ window.CFG = (function () {
     /* 15 — the board is kept exactly as it was. The first leg is
        already drawn, so it only gains its length, and the second leg
        rises from the corner to B. */
-    { id: 25, line: 'How far apart are C and B?', entrance: 'none', view: 'triangle',
+    { id: 25, line: 'How far apart are C and B?', entrance: 'none', view: 'triangle', quietBoard: true,
       layout: 'board', distance: true, intro: 'measure', keepSegment: true,
       segment: { a: { x: 2, y: 1, name: 'A' },
                  b: { x: 6, y: 4, name: 'B' } },
@@ -1548,7 +1548,7 @@ window.CFG = (function () {
        slider: she is just naming what they have built. */
     /* Still the same grid: the triangle is the two legs they have just
        measured, not a new drawing. */
-    { id: 26, line: 'Look! We made a triangle.', entrance: 'stay', view: 'triangle',
+    { id: 26, line: 'Look! We made a triangle.', entrance: 'stay', view: 'triangle', quietBoard: true,
       layout: 'board', keepSegment: true,
       /* No highlight here. This screen and the one after it show the
          same triangle on the same board, so lighting it on both made

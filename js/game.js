@@ -1210,30 +1210,62 @@
       return this.view || { x: 0, y: 0, w: G.w, h: G.h };
     },
 
-    /* The region a named view asks for, worked out from what is actually
-       drawn rather than typed: the pair on the board, any leg dropped
-       from it, and the origin, so both axes stay in shot. */
+    /* The region a named view asks for, worked out from what is on the
+       board rather than typed.
+
+       Framed on what is DRAWN AND WRITTEN, not on the coordinates alone:
+       a label sits out beyond the point it names, and air measured from
+       the point would crowd the label against the edge. The origin is
+       taken in too, so both axes stay in shot — as lines, since the
+       numbers are not shown at this range. */
     viewFor: function (name) {
       if (!name) return null;
-      const G = C.GRID, Z = G.zoom;
+      const G = C.GRID, Z = G.zoom, self = this, SG = G.segment, LG = G.leg;
       const px = function (v) { return G.originX + v * G.stepX; };
       const py = function (v) { return G.originY - v * G.stepY; };
-      const pts = [{ x: 0, y: 0 }];
+
+      let x1 = px(0), x2 = px(0), y1 = py(0), y2 = py(0);   // the origin, always
+      const span = function (cx, cy, w, h) {
+        x1 = Math.min(x1, cx - w / 2); x2 = Math.max(x2, cx + w / 2);
+        y1 = Math.min(y1, cy - h / 2); y2 = Math.max(y2, cy + h / 2);
+      };
+      const text = function (n, size) {
+        if (!n || !n.textContent) return;
+        if (n.style && n.style.display === 'none') return;
+        const cx = parseFloat(n.getAttribute('x')), cy = parseFloat(n.getAttribute('y'));
+        if (!isFinite(cx) || !isFinite(cy)) return;
+        span(cx, cy, self.textW(n.textContent, size), size);
+      };
+      const dot = function (n, r) {
+        if (!n || (n.style && n.style.display === 'none')) return;
+        const cx = parseFloat(n.getAttribute('cx')), cy = parseFloat(n.getAttribute('cy'));
+        if (!isFinite(cx) || !isFinite(cy)) return;
+        span(cx, cy, r * 2, r * 2);
+      };
+
       const sp = this.lastPlotted;
-      if (sp && sp.a) { pts.push(sp.a); pts.push(sp.b); }
-      (this.legPlaced || []).forEach(function (l) {
-        if (l && l.from) { pts.push(l.from); pts.push(l.to); }
+      if (sp && sp.a) [sp.a, sp.b].forEach(function (p) { span(px(p.x), py(p.y), SG.dotR * 2, SG.dotR * 2); });
+      if (this.segParts) ['a', 'b'].forEach(function (k) {
+        text(self.segParts[k].coord, SG.coordSize);
+        text(self.segParts[k].name, SG.nameSize);
       });
-      const xs = pts.map(function (p) { return p.x; });
-      const ys = pts.map(function (p) { return p.y; });
-      const m = Z.margin;
-      const x0 = Math.min.apply(null, xs) - m, x1 = Math.max.apply(null, xs) + m;
-      const y0 = Math.min.apply(null, ys) - m, y1 = Math.max.apply(null, ys) + m;
-      const r = { x: px(x0), y: py(y1), w: px(x1) - px(x0), h: py(y0) - py(y1) };
-      /* Grown to the board's own shape. The SVG is stretched onto the
-         panel rather than fitted, so a view of a different shape would
-         squash the squares into rectangles — and a square that stops
-         being square is the one thing a grid cannot do. */
+      (this.legPlaced || []).forEach(function (l, i) {
+        if (!l || !l.from) return;
+        span(px(l.from.x), py(l.from.y), SG.dotR * 2, SG.dotR * 2);
+        span(px(l.to.x), py(l.to.y), SG.dotR * 2, SG.dotR * 2);
+        const L = self.legSlots && self.legSlots[i];
+        if (!L) return;
+        dot(L.dot, LG.dotR);
+        text(L.coord, SG.coordSize);
+        text(L.name, SG.nameSize);
+        text(L.len, LG.lenSize);
+      });
+
+      const mx = Z.margin * G.stepX, my = Z.margin * G.stepY;
+      const r = { x: x1 - mx, y: y1 - my, w: (x2 - x1) + 2 * mx, h: (y2 - y1) + 2 * my };
+      /* Grown to the board's own shape about its middle, so a square on
+         the grid is still square and the drawing sits in the middle of
+         the window rather than off one side. */
       const A = G.w / G.h;
       if (r.w / r.h < A) { const w = r.h * A; r.x -= (w - r.w) / 2; r.w = w; }
       else               { const h = r.w / A; r.y -= (h - r.h) / 2; r.h = h; }
@@ -1258,6 +1290,12 @@
       this.viewSeq = (this.viewSeq || 0) + 1;
       const token = this.viewSeq;
       const near = function (a, b) { return Math.abs(a - b) < 0.5; };
+      /* Pushed in, the board is about one drawing rather than about the
+         scale it sits on, so the axis numbers go — the axes stay, as
+         lines. Set from where the push is HEADING, not from where it
+         is, so the numbers leave as the board comes in and come back as
+         it goes out, rather than either waiting for the other. */
+      el.gridPanel.classList.toggle('framed', !!rect);
       if (!this.box || !ms ||
           (near(from.x, to.x) && near(from.y, to.y) &&
            near(from.w, to.w) && near(from.h, to.h))) {
@@ -1651,9 +1689,20 @@
         /* Above a horizontal leg — inside the right angle, where the
            board is empty. Beside a vertical one, pushed along it
            towards the corner it starts from: the far end of that side
-           carries the other point's coordinates. */
+           carries the other point's coordinates.
+
+           And beside it on the side the rest of the drawing is on —
+           inside the shape, not out in the margin. Always taking the
+           right-hand side put the outermost column's length past the
+           frame, and the clamp does not decline, it drags: it came back
+           and landed along the leg it was measuring. */
         const towardCorner = y1 > y2 ? 1 : -1;
-        let lx = horiz ? (x1 + x2) / 2 : (x1 + LG.lenGapV);
+        let inner = 1;
+        const drawn = this.lastPlotted;
+        if (!horiz && drawn && drawn.a) {
+          inner = (px(drawn.a.x) + px(drawn.b.x)) / 2 <= x1 ? -1 : 1;
+        }
+        let lx = horiz ? (x1 + x2) / 2 : (x1 + inner * LG.lenGapV);
         const ly = horiz ? y1 + LG.lenGap
                          : (y1 + y2) / 2 + towardCorner * LG.lenBiasV;
         /* A leg centred on the origin writes its length straight down
@@ -1661,6 +1710,10 @@
            until it is clear of the axis and the numbers beside it. */
         const lw2 = this.textW(txt, LG.lenSize);
         if (horiz) lx = this.clearOfYAxis(lx, lw2);
+        else if (Math.abs(this.clampX(lx, lw2) - lx) > 0.5) {
+          // no room on that side after all: take the other one whole
+          lx = x1 - inner * LG.lenGapV;
+        }
         /* A vertical leg on the outermost column writes its length past
            the frame — 78px beside x=6 is off the cream once a cell is
            78px wide. */
