@@ -1,0 +1,200 @@
+/* =============================================================
+   The distance slider.
+
+   Namespaced under .distance-slider. Same cream-and-gold housing as
+   the number reel and the answer panel, because it stands in the same
+   column and does the same job; the track inside it is drawn like a
+   ruler rather than like a form control, so it reads as an instrument
+   for measuring and not as a setting to be adjusted.
+   ============================================================= */
+
+.distance-slider {
+  position: absolute;
+  box-sizing: border-box;
+  width: 520px;
+  padding: 26px 26px 26px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+
+  background: linear-gradient(180deg, #FFFDF2 0%, #FFF9E5 100%);
+  border: 9px solid #FFC72C;
+  border-radius: 42px;
+  box-shadow: 0 7px 0 #D78300,
+              0 13px 24px rgba(92, 56, 0, .18),
+              inset 0 3px 0 rgba(255, 255, 255, .9);
+
+  user-select: none;
+  -webkit-user-select: none;
+
+  transform-origin: top left;
+  transform: scale(var(--k, 1));
+}
+.distance-slider * { box-sizing: border-box; }
+.distance-slider.hidden { display: none; }
+
+.ds-top {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.ds-row { flex: 1; min-width: 0; }
+
+/* ---------------- the track ---------------- */
+.ds-track {
+  position: relative;
+  height: 56px;
+  display: flex;
+  align-items: center;
+}
+.ds-rail {
+  position: absolute;
+  left: 0; right: 0;
+  height: 12px;
+  border-radius: 999px;
+  background: #E7DCC2;
+  box-shadow: inset 0 2px 0 rgba(120, 90, 30, .18);
+}
+/* How far along it the value is, in the same blue as Check */
+.ds-rail::after {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: var(--fill, 0%);
+  border-radius: 999px;
+  background: #2F8FE0;
+}
+.ds-ticks { position: absolute; left: 0; right: 0; height: 100%; }
+.ds-tick {
+  position: absolute;
+  top: 50%;
+  width: 2px;
+  height: 12px;
+  margin-left: -1px;
+  transform: translateY(-50%);
+  background: rgba(60, 75, 110, .34);
+}
+.ds-tick.big {
+  height: 26px;
+  width: 3px;
+  margin-left: -1.5px;
+  background: rgba(33, 50, 88, .62);
+}
+.ds-knob {
+  position: absolute;
+  top: 50%;
+  width: 40px;
+  height: 40px;
+  margin-left: -20px;
+  transform: translateY(-50%);
+  border-radius: 50%;
+  background: #2F8FE0;
+  border: 4px solid #FFFFFF;
+  box-shadow: 0 4px 0 #1C6BB0, 0 7px 12px rgba(20, 70, 120, .26);
+  pointer-events: none;
+}
+/* The real control, invisible over the drawn one: it carries the
+   dragging, the arrow keys, the tap on the track and everything
+   assistive technology reads, none of which is worth rewriting. */
+.ds-input {
+  position: absolute;
+  left: -10px; right: -10px;
+  width: calc(100% + 20px);
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.ds-input:disabled { cursor: default; }
+.ds-nums {
+  position: relative;
+  height: 30px;
+  margin-top: 4px;
+  font-family: 'Nunito', system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 26px;
+  color: #213258;
+}
+.ds-num {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------- the readout ---------------- */
+.ds-readout {
+  flex: 0 0 auto;
+  min-width: 128px;
+  padding: 10px 14px 12px;
+  border-radius: 22px;
+  background: #FFFFFF;
+  border: 4px solid #BBD9F2;
+  text-align: center;
+  font-family: 'Nunito', system-ui, sans-serif;
+}
+.ds-value {
+  font-weight: 800;
+  font-size: 50px;
+  line-height: 1;
+  color: #1C6BB0;
+  font-variant-numeric: tabular-nums;
+}
+.ds-units { font-weight: 700; font-size: 24px; color: #5E7793; }
+
+/* ---------------- Check ---------------- */
+.ds-check {
+  width: 300px;
+  height: 78px;
+  border-radius: 26px;
+  border: none;
+  font-family: 'Nunito', system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 34px;
+  color: #FFFFFF;
+  background: #2F8FE0;
+  box-shadow: 0 6px 0 #1C6BB0, 0 10px 16px rgba(20, 70, 120, .22);
+  cursor: pointer;
+  transition: transform .12s ease, box-shadow .12s ease, opacity .2s ease;
+}
+.ds-check:active:not(:disabled) {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 #1C6BB0;
+}
+.ds-check:disabled { opacity: .45; cursor: default; }
+
+/* ---------------- verdicts ---------------- */
+.distance-slider.is-correct .ds-readout { border-color: #17A64A; background: #F1FBF3; }
+.distance-slider.is-correct .ds-value   { color: #0F7C36; }
+.distance-slider.is-wrong   .ds-readout { border-color: #E23A3A; background: #FFF2F2; }
+.distance-slider.is-wrong { animation: dsNo .4s ease both; }
+@keyframes dsNo {
+  0%, 100% { transform: scale(var(--k, 1)) translateX(0); }
+  22%      { transform: scale(var(--k, 1)) translateX(-10px); }
+  58%      { transform: scale(var(--k, 1)) translateX(8px); }
+  82%      { transform: scale(var(--k, 1)) translateX(-3px); }
+}
+
+.distance-slider.rising { animation: dsRise .5s cubic-bezier(.2, .85, .3, 1) both; }
+@keyframes dsRise {
+  0%   { transform: scale(var(--k, 1)) translateY(46px); opacity: 0; }
+  100% { transform: scale(var(--k, 1)) translateY(0);    opacity: 1; }
+}
+
+.distance-slider .ds-input:focus-visible + * ,
+.distance-slider :focus-visible {
+  outline: 4px solid #2F8FE0;
+  outline-offset: 3px;
+}
+/* The knob is what a keyboard user is moving, so that is what should
+   look focused — the input over it is invisible. */
+.distance-slider .ds-input:focus-visible ~ .ds-knob,
+.distance-slider .ds-input:focus-visible {
+  outline: none;
+}
+.distance-slider .ds-input:focus-visible ~ .ds-knob {
+  box-shadow: 0 0 0 5px rgba(47, 143, 224, .45),
+              0 4px 0 #1C6BB0, 0 7px 12px rgba(20, 70, 120, .26);
+}

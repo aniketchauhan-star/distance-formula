@@ -12,7 +12,7 @@
    'startScreen', 'playBtn', 'playImg', 'scene', 'skyLayer',
    'charGroup', 'shadow', 'birdRig', 'birdFlip', 'birdWin', 'flySheet', 'talkSheet',
    'bubble', 'bubbleShape', 'bubbleBody', 'bubbleSheen',
-   'bubbleText', 'bubbleLine', 'nextBtn', 'backBtn',
+   'bubbleText', 'bubbleLine', 'nav', 'nextBtn', 'backBtn',
    'gridPanel', 'gridImg', 'gridAxes', 'standSwifty',
    'formulaBoard', 'leafLayer', 'fxLayer', 'sceneArt', 'startArt',
    'startBird', 'startBirdWin', 'startFly', 'startTalk', 'startShadow', 'startSky'
@@ -123,8 +123,20 @@
      the distance questions and the two worked-out ones alike. It
      replaced a slider and a typed keypad that did the same job in two
      different shapes. */
-  let Sel  = null;              // the number selector, mounted on demand
+  /* `Sel` is whichever numeric control the screen on show is using.
+     Both are mounted once and both answer to the same small surface —
+     show / hide / reset / set / setRange / markCorrect / markWrong /
+     lock / onCheck — so everything that drives an answer can go on
+     saying `Sel` without knowing which one is up. A screen picks with
+     `control: 'slider'`; everything else gets the reel. */
+  let Lock  = null;             // the combination reel
+  let Slide = null;             // the ruler
+  let Sel  = null;              // whichever of the two this screen wants
+  let Slots = null;             // the substitution panel
   let Opts = null;              // the triangle-type answer panel
+  let Jump = null;              // the screen picker beside Next
+  let Hints = null;             // the "Need a hint?" row inside it
+  let Town = null;              // the closing beat's map, drawn over the board
 
   /* Where the character, her shadow and her bubble sit on a given
      screen. Screens 1-4 use the small field pose; screen 5 puts her
@@ -408,16 +420,66 @@
 
     /* It mounts itself and owns its own markup and styles; the game
        only decides where, when, and what range it counts over. */
-    if (window.NumberSelector && !Sel) {
+    if (window.NumberSelector && !Lock) {
       const SP = C.BOARD.selector;
-      Sel = window.NumberSelector.mount(el.scene,
+      Lock = window.NumberSelector.mount(el.scene,
         { x: SP.pos.x, y: SP.pos.y, scale: SP.scale, hidden: true });
+      Sel = Lock;
+    }
+    /* The other way of giving a number: a ruler rather than a keypad,
+       for the one question that is about how far rather than about how
+       many. Same column, same housing, same surface. */
+    if (window.DistanceSlider && !Slide) {
+      const DP = C.BOARD.slider || C.BOARD.selector;
+      Slide = window.DistanceSlider.mount(el.scene,
+        { x: DP.pos.x, y: DP.pos.y, scale: DP.scale, hidden: true });
+    }
+    /* And the panel that asks where the numbers go before anything is
+       worked out. It stands where the answers stand. */
+    if (window.FormulaSlots && !Slots) {
+      const FP = C.BOARD.slots || C.BOARD.options;
+      Slots = window.FormulaSlots.mount(el.scene,
+        { x: FP.pos.x, y: FP.pos.y, scale: FP.scale, hidden: true });
     }
     if (window.TriangleOptions && !Opts) {
       const OP = C.BOARD.options;
       // scaled to her column, the same way the number selector is
       Opts = window.TriangleOptions.mount(el.scene,
         { x: OP.pos.x, y: OP.pos.y, scale: OP.scale, hidden: true });
+      /* The hint lives inside the answers, so it takes their scale and
+         their column without needing to know where either is. */
+      if (window.HintNote) Hints = window.HintNote.mount(Opts.el);
+    }
+
+    /* A way around the lesson, beside the way on: which screen you are
+       on, and every screen you could be on instead. It goes through
+       goTo, so a jump is the ordinary screen change Back and Next make.
+       Switched off in one place — `CFG.NAV.jump` — for a build that
+       should not carry it. */
+    if (window.ScreenJump && !Jump && (!C.NAV || C.NAV.jump !== false)) {
+      Jump = window.ScreenJump.mount(el.nav, {
+        screens: function () { return C.SCRIPT; },
+        current: function () { return Game.index; },
+        go: function (i) { Game.goTo(i); }
+      });
+      Jump.sync();
+    }
+
+    /* The town is drawn over the board, so it goes in the panel and
+       follows every re-place the board makes. */
+    if (window.TownMap && !Town) {
+      Town = window.TownMap.mount(el.gridPanel);
+      Board.onPlaced = function () {
+        const cell = Board.cellSize();
+        Town.place(function (gx, gy) {
+          const G = C.GRID, b = Board.box || G.box;
+          /* Inside the panel, so the panel's own corner is the origin
+             — stagePos answers in stage coordinates and this layer is
+             not on the stage. */
+          return { x: (G.originX + gx * G.stepX) * (b.w / G.w),
+                   y: (G.originY - gy * G.stepY) * (b.h / G.h) };
+        }, cell.w, cell.h);
+      };
     }
 
     /* The standing pose is seated per screen now, in applyGeom — the
@@ -741,12 +803,87 @@
      drawn gridlines (measured into CFG.GRID). */
   const Board = {
     built: false, shown: false, labels: [], axisLabels: [], lines: [], arrows: [], dots: [],
+    /* Which of `GRID.ranges` the board is currently drawn on. */
+    rangeName: 'close', baseGeom: null,
     foundMarks: [],          // points already located, left on the board
 
-    build: function () {
-      if (this.built) return;
-      this.built = true;
+    /* Which board this screen stands on. `close` is the plane the whole
+       lesson is taught on; `wide` is the same plane at two fifths, for
+       a pair that does not fit on it.
 
+       A unit is a cell on both, which is the rule that matters: every
+       point lands on an intersection and can still be counted to. What
+       changes is the size of the cell, the numbers written along the
+       axes, and how far the ruling runs — and nothing else, because
+       every mark the board makes works out where it goes from `origin
+       + n × step` at the moment it is drawn. The origin itself does
+       not move: both ranges are centred on the viewBox, so the panel,
+       the frame and everything measured against them stay put.
+
+       The base geometry is read once and kept, so switching back and
+       forth cannot accumulate rounding. */
+    setRange: function (name) {
+      const G = C.GRID, R = (G.ranges || {})[name || 'close'];
+      if (!R || this.rangeName === (name || 'close')) return false;
+      if (!this.baseGeom) {
+        this.baseGeom = { stepX: G.stepX, stepY: G.stepY,
+                          labelGap: G.labelGap, yLabelGap: G.yLabelGap,
+                          zeroGap: G.zeroGap };
+      }
+      const B = this.baseGeom;
+      G.stepX = B.stepX * R.k;
+      G.stepY = B.stepY * R.k;
+      G.originX = G.w / 2;
+      G.originY = G.h / 2;
+      G.xFrom = R.xFrom; G.xTo = R.xTo;
+      G.yFrom = R.yFrom; G.yTo = R.yTo;
+      G.labelEvery = R.every;
+      G.labelSize = R.labelSize;
+      G.overshoot = R.overshoot;
+      G.arrow = R.arrow;
+      /* The gaps that hold a number off its axis are cell-sized, so
+         they come down with the cell; the axis stroke and the type of
+         the letters x and y do not, because neither is measured in
+         units. */
+      G.labelGap = B.labelGap * R.k;
+      G.yLabelGap = B.yLabelGap * R.k;
+      G.zeroGap = B.zeroGap * R.k;
+      G.paper.gxFrom = R.gxFrom; G.paper.gxTo = R.gxTo;
+      G.paper.gyFrom = R.gyFrom; G.paper.gyTo = R.gyTo;
+      this.rangeName = name || 'close';
+      this.forgetTextMetrics && this.forgetTextMetrics();
+      /* Whatever pair is up was placed against the old cell. It is not
+         "already drawn" any more, whatever its coordinates say. */
+      this.lastPlotted = null;
+
+      if (this.built) {
+        /* Only the axis furniture is remade. Everything in these four
+           lists was made BY the old range and means nothing on the new
+           one; everything else on the board is placed against it and
+           will be placed again. */
+        const svg = el.gridAxes;
+        const drop = function (list) {
+          list.forEach(function (n) { if (n.parentNode) n.parentNode.removeChild(n); });
+          list.length = 0;
+        };
+        drop(this.lines); drop(this.arrows); drop(this.labels);
+        this.axisLabels.length = 0;
+        this.buildAxes();
+      }
+      /* The ruling is laid out from the origin at `place` time, so the
+         new cell size reaches it as soon as the board is placed again
+         — which the screen change is about to do. */
+      return true;
+    },
+
+    /* The axes, their arrowheads and their numbering — everything on
+       the board that is made OF the range rather than merely placed
+       against it. Split out of `build` because a screen can change the
+       range, and then this is the only part that has to be made again:
+       every line, label and marker the board draws afterwards works
+       out where it goes from `origin + n × step` at the moment it is
+       drawn, so those follow the new board without being touched. */
+    buildAxes: function () {
       const G = C.GRID, NS = 'http://www.w3.org/2000/svg';
       const svg = el.gridAxes;
       const ox = G.originX, oy = G.originY;
@@ -829,12 +966,18 @@
          x row and the y=-1 row without them touching, so the x row is
          tucked up under its axis, which is what opens the gap the 0
          and the -1 need. */
+      /* Every unit on the close board; every fifth on the wide one,
+         where thirty-one numbers along an axis would be a wall of
+         digits rather than a scale. The gridline is still there for
+         each of the unnumbered ones — a point between two labels is
+         still a point you can count to. */
+      const step = G.labelEvery || 1;
       for (let x = G.xFrom; x <= G.xTo; x++) {
-        if (x === 0) continue;
+        if (x === 0 || x % step) continue;
         label(String(x), ox + x * G.stepX, oy + G.labelGap + G.labelSize * 0.42, 0, 'x', x);
       }
       for (let y = G.yFrom; y <= G.yTo; y++) {
-        if (y === 0) continue;
+        if (y === 0 || y % step) continue;
         label(String(y), ox - G.yLabelGap - G.labelSize * 0.30, oy - y * G.stepY, 0, 'y', y);
       }
       // at the origin, so it lights as the sweep sets off
@@ -848,6 +991,20 @@
       const nw = self.textW('x', N.size);
       label('x', self.clampX(xMax + N.gap, nw), oy - N.rise, N.size, 'x', G.xTo + 1);
       label('y', ox + N.yGap, self.clampY(yMin + N.yDrop, N.size), N.size, 'y', G.yTo + 1);
+    },
+
+    /* Everything the board owns that outlives a change of range, plus
+       the axes for whichever range is current. Runs once. */
+    build: function () {
+      if (this.built) return;
+      this.built = true;
+
+      const G = C.GRID, NS = 'http://www.w3.org/2000/svg';
+      const svg = el.gridAxes;
+      const ox = G.originX, oy = G.originY;
+      const self = this;
+
+      this.buildAxes();
 
       /* Screen 6's intersection markers: every gridline crossing in
          the numbered range. Built once, hidden until that screen. */
@@ -1030,6 +1187,33 @@
       sweep.setAttribute('class', 'xsweep');
       svg.appendChild(sweep); svg.appendChild(eg); svg.appendChild(fly); svg.appendChild(word);
       this.xGroup = eg; this.xFly = fly; this.xSweep = sweep; this.xWord = word;
+
+      /* The working, written on the paper. One text per line, each one
+         a run of tspans — one per part of the line — so a part is a
+         node the board can point at, fly a number into, and light. The
+         radical's overbar is a line of its own, drawn over the span the
+         radicand actually measures rather than over a guess at it. */
+      const wg = document.createElementNS(NS, 'g');
+      wg.setAttribute('class', 'work');
+      this.workLines = [0, 1, 2, 3, 4, 5].map(function () {
+        const t = document.createElementNS(NS, 'text');
+        t.setAttribute('class', 'workline');
+        const bar = document.createElementNS(NS, 'line');
+        bar.setAttribute('class', 'workbar');
+        wg.appendChild(t); wg.appendChild(bar);
+        return { t: t, bar: bar, spans: [] };
+      });
+      svg.appendChild(wg);
+      this.workGroup = wg;
+
+      /* The square in the corner of a right angle, shown only once the
+         triangle has been named. */
+      const ra = document.createElementNS(NS, 'polyline');
+      ra.setAttribute('class', 'rightangle');
+      ra.setAttribute('fill', 'none');
+      ra.setAttribute('stroke', G.leg.color);
+      svg.appendChild(ra);
+      this.rightMark = ra;
 
       this.unitBand = ub;
       this.unitLabel = ul;
@@ -1295,6 +1479,35 @@
 
       const mx = Z.margin * G.stepX, my = Z.margin * G.stepY;
       const r = { x: x1 - mx, y: y1 - my, w: (x2 - x1) + 2 * mx, h: (y2 - y1) + 2 * my };
+      /* Kept, so the working can be laid out beside the very thing the
+         camera framed rather than beside a second guess at it. */
+      this.drawnBox = { x1: r.x, y1: r.y, x2: r.x + r.w, y2: r.y + r.h };
+      /* A view that has to hold a working as well as a drawing asks for
+         the drawing and then for as much again, out to the side the
+         drawing is not on — so the paper in shot is the triangle in one
+         half and clear board in the other. Which side is worked out
+         from where the drawing sits against the board's own middle,
+         never typed: a pair right of centre writes to its left. */
+      if (name === 'working') {
+        /* How much board the writing needs, worked out rather than
+           guessed at. The working is set to a fixed size ON THE STAGE —
+           like every label here, it shrinks in board units as the
+           camera comes in — so its width in pixels does not change with
+           the view, and the column that holds it has to be that many
+           pixels wide however far the board pushes in.
+             column_px = c · panel / (D + c)   must be at least L
+           gives   c = L·D / (panel − L),
+           which is the widest push this drawing and this working can
+           both fit in. Ask for more and the lines run into the
+           triangle; ask for less and the board barely moves. */
+        const W = G.work, pw = G.centre.w, D = r.w;
+        const L = (this.workWidest || 0) + 2 * W.pad * G.stepX * (pw / G.w);
+        const room = (L > 0 && L < pw * 0.92) ? (L * D) / (pw - L)
+                                              : D * (W.room || 1);
+        this.workSide = ((r.x + r.w / 2) >= G.w / 2) ? -1 : 1;
+        if (this.workSide < 0) r.x -= room;
+        r.w += room;
+      } else this.workSide = 0;
       /* Grown to the board's own shape about its middle, so a square on
          the grid is still square and the drawing sits in the middle of
          the window rather than off one side. */
@@ -1328,11 +1541,17 @@
          is, so the numbers leave as the board comes in and come back as
          it goes out, rather than either waiting for the other. */
       el.gridPanel.classList.toggle('framed', !!rect);
-      if (!this.box || !ms ||
-          (near(from.x, to.x) && near(from.y, to.y) &&
-           near(from.w, to.w) && near(from.h, to.h))) {
+      const same = near(from.x, to.x) && near(from.y, to.y) &&
+                   near(from.w, to.w) && near(from.h, to.h);
+      /* Already there, and on the same footing — pushed in asking to be
+         pushed in, or out asking to be out. Keep the view it has rather
+         than pinning the one just asked for: they are the same view,
+         and only one of them is the one everything on the board was
+         last placed against. */
+      if (same && (!rect === !this.view)) return;
+      if (!this.box || !ms || same) {
         this.view = rect;
-        if (this.box) this.place(this.box);
+        if (this.box) { this.place(this.box); this.relabel(); }
         return;
       }
       const ease = function (t) {                 // cubic-bezier(.22,.61,.36,1)
@@ -1351,10 +1570,29 @@
         self.view = { x: from.x + (to.x - from.x) * e, y: from.y + (to.y - from.y) * e,
                       w: from.w + (to.w - from.w) * e, h: from.h + (to.h - from.h) * e };
         self.place(self.box);
+        self.relabel();
         if (p < 1) requestAnimationFrame(step);
-        else { self.view = rect; self.place(self.box); }   // pinned, never left mid-push
+        else { self.view = rect; self.place(self.box); self.relabel(); }  // pinned
       };
       requestAnimationFrame(step);
+    },
+
+    /* Everything written on the board, put back where it belongs for
+       the camera it is under now. The type is set smaller as the board
+       pushes in, so every offset worked out from its size has to be
+       worked out again — otherwise a pair lettered at full size floats
+       half a cell off its own points the moment the board comes in.
+
+       Only the placing is redone: nothing is cleared, nothing pops
+       again, and a label whose words have not changed keeps the very
+       nodes it had, so a highlight lit on one of its halves survives. */
+    relabel: function () {
+      const self = this;
+      if (this.lastPlotted) this.placeSegment(this.lastPlotted);
+      (this.legPlaced || []).forEach(function (s, i) {
+        if (s && self.legSlots && self.legSlots[i]) self.placeLeg(i, s);
+      });
+      if (this.legPlaced && this.legPlaced.length) this.clearMarksOfLines();
     },
 
     place: function (box) {
@@ -1449,6 +1687,7 @@
       gs2.setProperty('--nameFs',  (SGt.nameSize  * tk) + 'px');
       gs2.setProperty('--lenFs',   (LGt.lenSize   * tk) + 'px');
       gs2.setProperty('--resFs',   (34 * tk) + 'px');
+      gs2.setProperty('--workFs',  (G.work.size * tk) + 'px');
 
       el.gridAxes.style.clipPath = this.view
         ? 'inset(' + inset + 'px round ' + Math.max(0, P.radius * fs - inset) + 'px)'
@@ -1456,6 +1695,33 @@
       el.gridAxes.setAttribute('preserveAspectRatio', 'none');
       el.gridAxes.style.width = box.w + 'px';
       el.gridAxes.style.height = box.h + 'px';
+      /* Anything drawn OVER the board rather than in it has to follow
+         the box the same way the ruling does. The board does not know
+         what that is; it only says that it moved. */
+      if (this.onPlaced) this.onPlaced();
+    },
+
+    /* How big the type on the board actually is, against what the
+       config says. Pushed in, the whole viewBox is magnified and the
+       type is SET smaller in the same proportion so it stays the size
+       it was drawn at — which means a label measured at its config
+       size is measured at nearly twice the size it will be, and every
+       offset worked out from that measure puts it half a cell from the
+       point it names. Anything typographic — the ink of a label, the
+       air between it and its dot — is worked out at this size. The
+       drawing itself is not: a point is part of the picture and is
+       meant to come closer when the board does. */
+    typeScale: function () {
+      const G = C.GRID, V = this.viewRect ? this.viewRect() : null;
+      return V ? Math.min(1, V.w / G.w) : 1;
+    },
+
+    /* What one cell measures on the stage. The board is stretched to
+       its box rather than fitted, so the two axes come out different —
+       which is why anything sized in cells has to ask for both. */
+    cellSize: function () {
+      const G = C.GRID, b = this.box || G.box;
+      return { w: G.stepX * (b.w / G.w), h: G.stepY * (b.h / G.h) };
     },
 
     setDots: function (on) {
@@ -1465,6 +1731,18 @@
          screen turns the highlighters back on, and doing it here rubbed
          out the point they had just found. They go when the board is
          rebuilt or a question plots its own segment instead. */
+    },
+
+    /* Where a point on the BOARD — in the board's own drawing units,
+       which is what every label's x/y is in — sits on the stage. The
+       view is part of it: pushed in, the same board point is somewhere
+       else on the stage, and a flight that ignored that would leave
+       from beside the label rather than out of it. */
+    boardToStage: function (bx, by) {
+      const G = C.GRID, b = this.box || G.box, V = this.viewRect();
+      return { x: b.x + (bx - V.x) * (b.w / V.w),
+               y: b.y + (by - V.y) * (b.h / V.h),
+               k: b.w / V.w };
     },
 
     /* Where a grid point sits in stage coordinates, for effects that
@@ -1495,6 +1773,7 @@
            where they fell on the screen this pair came from — beside a
            wide row's points, above and below a column's. */
         self.placeSegment(spec, slot);
+        slot.g.classList.add('on');
         later(function () { slot.segParts.a.dot.classList.add('pop'); SFX.tick(0); }, t + EX.dotAMs);
         later(function () { slot.segParts.b.dot.classList.add('pop'); SFX.tick(2); }, t + EX.dotBMs);
         later(function () { slot.segLine.classList.add('draw'); SFX.draw(); }, t + EX.lineMs);
@@ -1515,6 +1794,7 @@
 
     clearExamples: function () {
       (this.exSlots || []).forEach(function (s) {
+        s.g.classList.remove('on');
         s.segLine.classList.remove('draw', 'lit');
         s.segRes.classList.remove('pop');
         ['a', 'b'].forEach(function (k) {
@@ -1540,6 +1820,7 @@
     },
 
     clearLegs: function () {
+      this.rightAngle(false);
       if (this.triFill) this.triFill.classList.remove('on');
       this.legPlaced = [];
       if (!this.legSlots) return;
@@ -1716,10 +1997,26 @@
        is exactly what happened when a cell went from 59px to 78px.
        Clamping here means no cell size can push one off, whatever
        offset asked for it. */
+    /* What is in shot, in board units, with the frame's own thickness
+       taken off every side.
+
+       The window is the VIEW, not the paper. With no view set the two
+       are the same thing and this is what it always was; pushed in they
+       are not, and a label held off the paper's edge is held off a line
+       the child cannot see while the edge they CAN see cuts through it.
+       The frame is a fixed thickness on the stage, so the further in
+       the board comes the thinner it is in board units. */
+    window: function (air) {
+      const G = C.GRID, P = G.paper, V = this.viewRect();
+      const k = V.w / G.w;
+      const edge = (P.frameW + P.hiW + air) * k;
+      return { lo: V.x + edge, hi: V.x + V.w - edge,
+               top: V.y + edge, bot: V.y + V.h - edge };
+    },
+
     clampX: function (cx, w) {
-      const G = C.GRID, P = G.paper, air = 8;
-      const edge = P.frameW + P.hiW + air;
-      return Math.max(edge + w / 2, Math.min(G.w - edge - w / 2, cx));
+      const W = this.window(8);
+      return Math.max(W.lo + w / 2, Math.min(W.hi - w / 2, cx));
     },
     /* Coordinate labels get a tighter margin than everything else.
        clampX keeps 8 units of air inside the frame, which is right for
@@ -1730,15 +2027,13 @@
        dots, and moved the label when a located point was taken over by
        a segment. Every one of them clears the frame at this margin. */
     clampLabel: function (cx, w) {
-      const G = C.GRID, P = G.paper, air = 2;
-      const edge = P.frameW + P.hiW + air;
-      return Math.max(edge + w / 2, Math.min(G.w - edge - w / 2, cx));
+      const W = this.window(2);
+      return Math.max(W.lo + w / 2, Math.min(W.hi - w / 2, cx));
     },
 
     clampY: function (cy, h) {
-      const G = C.GRID, P = G.paper, air = 8;
-      const edge = P.frameW + P.hiW + air;
-      return Math.max(edge + h / 2, Math.min(G.h - edge - h / 2, cy));
+      const W = this.window(8);
+      return Math.max(W.top + h / 2, Math.min(W.bot - h / 2, cy));
     },
 
     onXAxisRow: function (cy, h) {
@@ -1757,6 +2052,8 @@
       const py = function (v) { return G.originY - v * G.stepY; };
       const f = spec.from, t = spec.to;
       const x1 = px(f.x), y1 = py(f.y), x2 = px(t.x), y2 = py(t.y);
+      // the size the camera is actually setting this leg's labels at
+      const tk = this.typeScale();
 
       /* Its own colour, by which way it runs — the length written
          beside it takes the same one, so the two read as one thing. */
@@ -1792,7 +2089,7 @@
         L.dot.setAttribute('fill', spec.mark.fill || side);
         L.coord.textContent = spec.mark.coordText ||
                               ('(' + t.x + ',\u00A0' + t.y + ')');
-        const mw = this.textW(L.coord.textContent, G.segment.coordSize);
+        const mw = this.textW(L.coord.textContent, G.segment.coordSize * tk);
         /* Beside the corner — but only if the frame will take it there.
            The outermost column has no room on its own side, and the
            clamp does not decline, it drags: the label came back and
@@ -1800,22 +2097,28 @@
            up written across C. So when the side it wants is not there,
            it goes over the point instead — where every other coordinate
            in this game sits — or under, if over is the axis numbering. */
-        const want = x2 + LG.coordDx;
+        /* Beside the corner, the same measured air a point keeps from
+           its own coordinates — dot, a breath, then the ink. A fixed
+           offset was chosen for type at full size, and pushed in it
+           held the label a third of a cell out from the corner and
+           then, being too far out to fit, sent it over the point
+           instead. */
+        const want = x2 + LG.dotR + G.segment.coordGap * tk + mw / 2;
         const beside = this.clampX(want, mw);
         const squashed = Math.abs(beside - want) > 0.5;
         let cx = beside, cy = y2;
         if (squashed) {
-          cy = y2 + G.found.labelDy;
-          if (this.onXAxisRow(cy, G.segment.coordSize)) cy = y2 - G.found.labelDy;
+          cy = y2 + G.found.labelDy * tk;
+          if (this.onXAxisRow(cy, G.segment.coordSize * tk)) cy = y2 - G.found.labelDy * tk;
           cx = this.clampX(x2, mw);
         }
         L.coord.setAttribute('x', cx);
-        L.coord.setAttribute('y', this.clampY(cy, G.segment.coordSize));
+        L.coord.setAttribute('y', this.clampY(cy, G.segment.coordSize * tk));
         /* Below the corner, unless the x-axis row is there. */
-        let nx = x2, ny = y2 + LG.nameDy;
-        if (this.onXAxisRow(ny, G.segment.nameSize)) {
-          ny = y2 - LG.nameDy;
-          nx = x2 + LG.nameFlipDx;
+        let nx = x2, ny = y2 + LG.nameDy * tk;
+        if (this.onXAxisRow(ny, G.segment.nameSize * tk)) {
+          ny = y2 - LG.nameDy * tk;
+          nx = x2 + LG.nameFlipDx * tk;
         }
         /* And if the coordinates have just taken the space over the
            point, the letter cannot have it as well: it keeps the other
@@ -1823,12 +2126,12 @@
            numbering. */
         if (squashed && (ny - y2) * (cy - y2) > 0) {
           ny = y2 - (ny - y2);
-          if (this.onXAxisRow(ny, G.segment.nameSize)) { ny = y2; nx = x2 + LG.nameFlipDx; }
+          if (this.onXAxisRow(ny, G.segment.nameSize * tk)) { ny = y2; nx = x2 + LG.nameFlipDx * tk; }
         }
         L.name.textContent = spec.mark.name || '';
-        const nw2 = this.textW(L.name.textContent || 'A', G.segment.nameSize);
+        const nw2 = this.textW(L.name.textContent || 'A', G.segment.nameSize * tk);
         L.name.setAttribute('x', this.clampX(nx, nw2));
-        L.name.setAttribute('y', this.clampY(ny, G.segment.nameSize));
+        L.name.setAttribute('y', this.clampY(ny, G.segment.nameSize * tk));
         L.dot.style.display = L.coord.style.display = L.name.style.display = '';
       } else {
         L.dot.style.display = L.coord.style.display = L.name.style.display = 'none';
@@ -1857,6 +2160,7 @@
       const px = function (v) { return G.originX + v * G.stepX; };
       const py = function (v) { return G.originY - v * G.stepY; };
       const x1 = px(f.x), y1 = py(f.y), x2 = px(t.x), y2 = py(t.y);
+      const tk = this.typeScale();
       {
         const horiz = (f.y === t.y);
         /* Above a horizontal leg — inside the right angle, where the
@@ -1875,23 +2179,23 @@
         if (!horiz && drawn && drawn.a) {
           inner = (px(drawn.a.x) + px(drawn.b.x)) / 2 <= x1 ? -1 : 1;
         }
-        let lx = horiz ? (x1 + x2) / 2 : (x1 + inner * LG.lenGapV);
-        const ly = horiz ? y1 + LG.lenGap
-                         : (y1 + y2) / 2 + towardCorner * LG.lenBiasV;
+        let lx = horiz ? (x1 + x2) / 2 : (x1 + inner * LG.lenGapV * tk);
+        const ly = horiz ? y1 + LG.lenGap * tk
+                         : (y1 + y2) / 2 + towardCorner * LG.lenBiasV * tk;
         /* A leg centred on the origin writes its length straight down
            the y-axis, so it slides along its own leg towards the corner
            until it is clear of the axis and the numbers beside it. */
-        const lw2 = this.textW(txt, LG.lenSize);
+        const lw2 = this.textW(txt, LG.lenSize * tk);
         if (horiz) lx = this.clearOfYAxis(lx, lw2);
         else if (Math.abs(this.clampX(lx, lw2) - lx) > 0.5) {
           // no room on that side after all: take the other one whole
-          lx = x1 - inner * LG.lenGapV;
+          lx = x1 - inner * LG.lenGapV * tk;
         }
         /* A vertical leg on the outermost column writes its length past
            the frame — 78px beside x=6 is off the cream once a cell is
            78px wide. */
         L.len.setAttribute('x', this.clampX(lx, lw2));
-        L.len.setAttribute('y', this.clampY(ly, LG.lenSize));
+        L.len.setAttribute('y', this.clampY(ly, LG.lenSize * tk));
         L.len.textContent = txt;
       }
     },
@@ -1929,6 +2233,8 @@
       const py = function (v) { return G.originY - v * G.stepY; };
       const placed = this.legPlaced || [];
       const lines = [], boxes = [];
+      // measured at the size the camera is setting, like everything else
+      const tk = this.typeScale();
       placed.forEach(function (s, n) {
         if (!s || !s.from || !s.to) return;
         lines.push([px(s.from.x), py(s.from.y), px(s.to.x), py(s.to.y)]);
@@ -1936,10 +2242,11 @@
            way as the leg itself. */
         const L = self.legSlots[n];
         if (L && L.len && L.len.textContent && L.len.style.display !== 'none') {
-          const w = self.textW(L.len.textContent, LG.lenSize);
+          const w = self.textW(L.len.textContent, LG.lenSize * tk);
+          const h = LG.lenSize * tk;
           const x = parseFloat(L.len.getAttribute('x')), y = parseFloat(L.len.getAttribute('y'));
           if (isFinite(x) && isFinite(y))
-            boxes.push([x - w / 2, y - LG.lenSize / 2, x + w / 2, y + LG.lenSize / 2]);
+            boxes.push([x - w / 2, y - h / 2, x + w / 2, y + h / 2]);
         }
       });
       const sp = this.lastPlotted;
@@ -1957,11 +2264,12 @@
       (this.legSlots || []).forEach(function (L, i) {
         const spec = placed[i];
         if (!spec || !spec.mark || !L.coord.textContent) return;
-        const cw = self.textW(L.coord.textContent, SG.coordSize);
+        const cw = self.textW(L.coord.textContent, SG.coordSize * tk);
+        const ch = SG.coordSize * tk;
         const cx = parseFloat(L.coord.getAttribute('x'));
         const cy = parseFloat(L.coord.getAttribute('y'));
         const y2 = py(spec.to.y);
-        if (!isFinite(cx) || !isFinite(cy) || !blocked(cx, cy, cw, SG.coordSize)) return;
+        if (!isFinite(cx) || !isFinite(cy) || !blocked(cx, cy, cw, ch)) return;
 
         /* The rows just over a corner are the busiest on the board: the
            leg that leaves it rises through them, and the length of the
@@ -1969,15 +2277,16 @@
            empty, so that is where the coordinates go — and the letter,
            which is one glyph wide and needs almost nothing, takes the
            space over the point, stepped off the leg standing in it. */
-        const under = self.clampY(y2 - G.found.labelDy, SG.coordSize);
-        if (blocked(cx, under, cw, SG.coordSize)) return;
+        const under = self.clampY(y2 - G.found.labelDy * tk, ch);
+        if (blocked(cx, under, cw, ch)) return;
         L.coord.setAttribute('y', under);
 
-        const nw = self.textW(L.name.textContent || 'A', SG.nameSize);
-        const ny = self.clampY(y2 - LG.nameDy, SG.nameSize);
+        const nw = self.textW(L.name.textContent || 'A', SG.nameSize * tk);
+        const nh = SG.nameSize * tk;
+        const ny = self.clampY(y2 - LG.nameDy * tk, nh);
         const nx = self.offEveryLine(parseFloat(L.name.getAttribute('x')),
-                                     ny, nw, SG.nameSize, lines);
-        if (!blocked(nx, ny, nw, SG.nameSize)) {
+                                     ny, nw, nh, lines);
+        if (!blocked(nx, ny, nw, nh)) {
           L.name.setAttribute('x', nx);
           L.name.setAttribute('y', ny);
         }
@@ -2000,8 +2309,10 @@
           if (!spec.noLine) (spec.dash ? L.dashG : L.line).classList.add('draw');
           if (spec.mark) { L.dot.classList.add('pop'); L.coord.classList.add('pop'); L.name.classList.add('pop'); }
           if (spec.length) {
-            later(function () { self.showLegLength(i); SFX.tick(2); }, delay + 200);
-            delay += 520;
+            const fly = self.flyIntoLeg(i, spec, later, delay + 200);
+            later(function () { self.showLegLength(i); SFX.tick(2); },
+                  delay + 200 + fly);
+            delay += 520 + fly;
           }
           return;
         }
@@ -2153,10 +2464,73 @@
       }, 520);
     },
 
+    /* The square in the corner, drawn from the two legs rather than
+       typed: which way each of them runs decides which of the four
+       corners it goes in, so it is right whatever the pair is.
+
+       It is the evidence for an answer, so it arrives with the answer.
+       A marker already sitting there turns "what type of triangle is
+       this?" into a reading exercise. */
+    rightAngle: function (on) {
+      const G = C.GRID, LG = G.leg;
+      const m = this.rightMark;
+      if (!m) return;
+      const L = this.legPlaced || [];
+      if (!on || !L[0] || !L[1]) { m.classList.remove('on'); return; }
+      const px = function (v) { return G.originX + v * G.stepX; };
+      const py = function (v) { return G.originY - v * G.stepY; };
+      const c0 = L[0].to;                       // the corner the two share
+      const s = (LG.rightAngle || 0.28) * G.stepX * this.typeScale();
+      /* Inside the angle: one step back along the leg that arrives,
+         one step along the leg that leaves. */
+      const hx = Math.sign(px(L[0].from.x) - px(c0.x)) || -1;
+      const vy = Math.sign(py(L[1].to.y) - py(c0.y)) || -1;
+      const x0 = px(c0.x), y0 = py(c0.y);
+      m.setAttribute('points',
+        [ [x0 + hx * s, y0],
+          [x0 + hx * s, y0 + vy * s],
+          [x0,          y0 + vy * s] ].map(function (p) { return p[0] + ',' + p[1]; }).join(' '));
+      m.setAttribute('stroke-width', (LG.rightAngleW || 4) * this.typeScale());
+      m.classList.add('on');
+    },
+
     /* No plate to fit any more — the text carries its own paper halo,
        so it reads over the ruling without a box taking up the room. */
     showLegLength: function (i) {
       this.legSlots[i].len.classList.add('pop');
+    },
+
+    /* A leg whose length is written in the points' own letters — `AC =
+       x2 - x1`, on the screens that name the general case. Those two
+       symbols are read off the board, out of `(x2, y1)` and `(x1, y1)`,
+       so they arrive from it.
+
+       This is the screen where a child either sees that `x2` is an
+       ADDRESS rather than a value, or does not, and the flight is the
+       only thing on it that can say so. */
+    flyIntoLeg: function (i, spec, later, at) {
+      const L = this.legSlots && this.legSlots[i];
+      const src = spec.lengthFrom;
+      if (!L || !src || !src.length || !Game.flyInto) return 0;
+      const F = C.GRID.fly, self = this, step = F.pickMs + F.ms;
+      src.forEach(function (from, n) {
+        later(function () { Game.flyInto({ from: from }, L.len); }, at + n * step);
+      });
+      return src.length * step;
+    },
+
+    /* A leg put on the board by something other than `runLegs` — the
+       working, on a screen that held its triangle back until the
+       substitution needed it. `placeLeg` seats one; this is what makes
+       it seen. Without it the sides are measured, their lengths are
+       written, and none of it is on: the group they live in is still
+       switched off. */
+    revealLeg: function (i, dash) {
+      const L = this.legSlots && this.legSlots[i];
+      if (!L) return;
+      L.g.classList.add('on');
+      (dash ? L.dashG : L.line).classList.add('draw');
+      if (L.dot) L.dot.classList.add('pop');
     },
 
     clearUnits: function () {
@@ -2635,12 +3009,23 @@
        from how the child saw it. */
     placeSegment: function (spec, into) {
       const G = C.GRID, SG = G.segment;
+      /* The paper is ordinarily made by the first screen that shows it,
+         and every screen after inherits it. The picker breaks that: a
+         jump from the title beat straight into the middle of the lesson
+         asks for a pair to be drawn on paper nobody has made yet. Make
+         it — `build` only ever runs once. */
+      if (!into) this.build();
       const T = into || this;
+      if (!T.segLine) return;
       /* A length written on the last pair does not belong to this one.
          Screens that keep their segment never come through here, so a
          measurement stays up across the beats that talk about it and
-         goes the moment the points change. */
-      if (T.segRes) {
+         goes the moment the points change.
+
+         Unless this IS the pair that is already up — `relabel` puts the
+         same spec back through here on every frame of a push-in, and a
+         length wiped sixty times a second is a length nobody sees. */
+      if (T.segRes && spec !== this.lastPlotted) {
         T.segRes.classList.remove('pop');
         T.segRes.textContent = '';
       }
@@ -2658,6 +3043,9 @@
       const px = function (v) { return G.originX + v * G.stepX; };
       const py = function (v) { return G.originY - v * G.stepY; };
       const self = this;
+      /* Everything typographic is worked out at the size the camera is
+         actually setting it, not at the size the config names. */
+      const tk = this.typeScale(), gap = SG.coordGap * tk;
 
       T.segLine.setAttribute('x1', px(a.x)); T.segLine.setAttribute('y1', py(a.y));
       T.segLine.setAttribute('x2', px(b.x)); T.segLine.setAttribute('y2', py(b.y));
@@ -2712,7 +3100,7 @@
       } else if (!vertical && spec.coordDy == null) {
         stacked = [a, b].some(function (p) {
           const mate = (p === a) ? b : a;
-          const w = self.textW(label(p), SG.coordSize);
+          const w = self.textW(label(p), SG.coordSize * self.typeScale());
           const want = px(p.x) + (p.x < mate.x ? -1 : 1) *
                        (SG.dotR + SG.coordFit + w / 2);
           return Math.abs(self.clampX(want, w) - want) > 0.5;   // had to be pulled back
@@ -2720,7 +3108,7 @@
         /* And if over the point is where the x-axis numbering is, the
            pair goes under instead — again together. */
         if (stacked && [a, b].some(function (p) {
-          return self.onXAxisRow(py(p.y) + G.found.labelDy, SG.coordSize);
+          return self.onXAxisRow(py(p.y) + G.found.labelDy, SG.coordSize * self.typeScale());
         })) stacked = 'under';
       }
 
@@ -2728,6 +3116,17 @@
         const key = pair[0], p = pair[1], part = T.segParts[key];
         const X = px(p.x), Y = py(p.y);
         part.dot.setAttribute('cx', X);  part.dot.setAttribute('cy', Y);
+
+        /* A point something else on the board already names. Two lines
+           that share an end — the two walks out of Maya's house — each
+           want to label it, and the second lands exactly on the first.
+           The dot is drawn (it is an end of this line too, and it is
+           the same dot in the same place), and nothing is written. */
+        if (p.quiet) {
+          part.coord.textContent = '';
+          part.name.textContent = '';
+          return;
+        }
 
         const mate = (p === spec.a) ? spec.b : spec.a;
         /* What this label will say, worked out before it is placed
@@ -2739,7 +3138,7 @@
         const ctext = p.coordParts
           ? p.coordParts.map(function (f) { return f.t; }).join('')
           : (p.coordText || ('(' + p.x + ',\u00A0' + p.y + ')'));
-        const cm = self.textMetrics(ctext, SG.coordSize);
+        const cm = self.textMetrics(ctext, SG.coordSize * tk);
         const cw = cm.w;
 
         /* Which way a label is pushed off its own point: away from the
@@ -2762,8 +3161,17 @@
              much as on one that sits above. */
           const above = (p.y >= mate.y);
           const edge = SG.dotR + SG.dotStrokeW / 2;     // the dot as painted
-          cy = Y + (above ? -(edge + SG.coordGap + cm.down)
-                          :  (edge + SG.coordGap + cm.up));
+          cy = Y + (above ? -(edge + gap + cm.down)
+                          :  (edge + gap + cm.up));
+        } else if (p.coordDx != null || p.coordDy != null) {
+          /* A POINT that has placed its own, in cells, so the offset
+             holds at whatever size the board is drawn at. The case for
+             it is a point sitting on the origin: below it is the x
+             numbering, left of it is the y numbering, and every rule
+             above is about getting clear of the other point rather
+             than clear of the axes. Such a point has to be told. */
+          cx = self.clampLabel(X + (p.coordDx || 0) * G.stepX, cw);
+          cy = self.clampY(Y - (p.coordDy || 0) * G.stepY, SG.coordSize * tk);
         } else if (spec.coordDy != null) {
           /* A screen that has placed its own. Both points on the x-axis
              is the case for it: out to the side there is the axis
@@ -2778,10 +3186,10 @@
              same place the located mark already has it, so a pair
              carried into a question does not shift. */
           cx = self.clampLabel(X, cw);
-          cy = Y + (stacked === 'under' ? -G.found.labelDy : G.found.labelDy);
+          cy = Y + (stacked === 'under' ? -G.found.labelDy : G.found.labelDy) * tk;
         } else {
           // to the text's near edge, the same clear air as a column's
-          const outH = SG.dotR + SG.dotStrokeW / 2 + SG.coordGap;
+          const outH = SG.dotR + SG.dotStrokeW / 2 + gap;
           cx = self.clampX(self.clearOfYAxis(
             X + (p.x < mate.x ? -1 : 1) * (outH + cw / 2), cw), cw);
           cy = Y;
@@ -2797,13 +3205,21 @@
            label has landed. Last, because it is the only one of these
            that knows what was drawn rather than only where the points
            are. */
-        cx = self.clearOfLine(cx, cy, cw, SG.coordSize,
+        cx = self.clearOfLine(cx, cy, cw, SG.coordSize * tk,
                               px(a.x), py(a.y), px(b.x), py(b.y));
         part.coord.setAttribute('x', stacked ? self.clampLabel(cx, cw) : self.clampX(cx, cw));
         part.coord.setAttribute('y', self.clampY(cy, SG.coordSize));
         /* A point can carry its own label — the general case names the
            points (x1, y1) and (x2, y2) rather than their values — and
            can split it so one fragment glows on its own. */
+        /* Only when the words have actually changed. Rebuilding the
+           label rewrites its fragments, and a fragment lit by
+           `glowPart` — the half of a coordinate an argument is about —
+           is a node: rebuild it under the highlight and the light goes
+           out. It used to be safe because nothing re-placed a label it
+           was not also re-writing; `relabel` does. */
+        if (part.coord.textContent === ctext) { /* the same words, still there */ }
+        else {
         while (part.coord.firstChild) part.coord.removeChild(part.coord.firstChild);
         if (p.coordParts) {
           p.coordParts.forEach(function (f) {
@@ -2822,17 +3238,18 @@
         } else {
           part.coord.textContent = ctext;
         }
+        }
 
         /* A point can carry its own letter offset. The default puts the
            letter straight below, which lands on top of a leg dropped
            from that same point — so those points push theirs aside. */
-        let ndy = p.nameDy != null ? p.nameDy
-                : (vertical ? SG.vNameDy : (spec.nameDy != null ? spec.nameDy : SG.nameDy));
+        let ndy = (p.nameDy != null ? p.nameDy
+                : (vertical ? SG.vNameDy : (spec.nameDy != null ? spec.nameDy : SG.nameDy))) * tk;
         /* The coordinates have gone out to the side, so the letter has
            the space over the point — or under it, where over would be
            the x-axis numbering. */
         if (!vertical && p.nameDy == null && spec.nameDy == null &&
-            self.onXAxisRow(Y + ndy, SG.nameSize)) ndy = -ndy;
+            self.onXAxisRow(Y + ndy, SG.nameSize * tk)) ndy = -ndy;
         /* Unless the coordinates took that space instead. Then the two
            would be written on top of each other, so the letter takes
            whichever side of the point the coordinates did not — under
@@ -2844,17 +3261,17 @@
         /* The letter this point is about to be given, not the one
            the node still holds from the screen before — the same
            trap the coordinates record above. */
-        const nw = self.textW(p.name || 'A', SG.nameSize);
+        const nw = self.textW(p.name || 'A', SG.nameSize * tk);
         /* On a column the coordinate has taken the space over or under
            the point, so the letter goes beside it — and on the side the
            coordinate did not end up on, which is what keeps the two
            apart where the coordinate had to slide off the y-axis. */
         const cx0 = parseFloat(part.coord.getAttribute('x'));
-        const other = (cx0 >= X ? -1 : 1) * SG.coordDx;
+        const other = (cx0 >= X ? -1 : 1) * SG.coordDx * tk;
         part.name.setAttribute('x', self.clampX(
-          p.nameDx != null ? X + p.nameDx
+          p.nameDx != null ? X + p.nameDx * tk
                            : (vertical ? X + other : X), nw));
-        let ny = self.clampY(vertical && p.nameDy == null ? Y : Y + ndy, SG.nameSize);
+        let ny = self.clampY(vertical && p.nameDy == null ? Y : Y + ndy, SG.nameSize * tk);
         /* A point's two labels are both its own, so they may sit close
            — but never on each other. Drawing the coordinates in against
            the dot brought them up under the letter on a segment that
@@ -2863,13 +3280,13 @@
            as little as it takes, along the offset it already has. */
         const nx = parseFloat(part.name.getAttribute('x'));
         const cy0 = parseFloat(part.coord.getAttribute('y'));
-        const wantY = (SG.nameSize + SG.coordSize) / 2 + SG.coordGap;
-        const wantX = (nw + cw) / 2 + SG.coordGap;
+        const wantY = (SG.nameSize + SG.coordSize) * tk / 2 + gap;
+        const wantX = (nw + cw) / 2 + gap;
         if (p.name && Math.abs(nx - cx0) < wantX) {
           const off = ny - cy0;
           if (Math.abs(off) < wantY) {
             ny = self.clampY(cy0 + (off < 0 || (off === 0 && ndy <= 0) ? -wantY : wantY),
-                             SG.nameSize);
+                             SG.nameSize * tk);
           }
           /* Against the top of the paper the letter has nowhere to go —
              B sits on the fifth row on the screens that state the
@@ -3162,6 +3579,7 @@
        left the span it measures has stopped measuring it. */
     showSegResult: function (spec, text, dy, dx, into) {
       const G = C.GRID, SG = G.segment, T = into || this;
+      if (!T.segLine) return;             // no paper yet; see placeSegment
       const px = function (v) { return G.originX + v * G.stepX; };
       const py = function (v) { return G.originY - v * G.stepY; };
       T.segLine.classList.add('lit');
@@ -3169,7 +3587,7 @@
       const bx = px(spec.b.x), by = py(spec.b.y);
       let X = (ax + bx) / 2, Y = (ay + by) / 2;
       if (dx == null && dy == null) {
-        const size = SG.resSize || SG.coordSize;
+        const size = (SG.resSize || SG.coordSize) * this.typeScale();
         const m = this.textMetrics(text, size);
         /* Ink is the right measure of the air between this and the
            things it is written beside — a dot, a line. It is the wrong
@@ -3179,7 +3597,7 @@
            label of this size occupies. */
         const band = Math.max(m.h, size);
         const vertical = (ax === bx);
-        const gap = SG.lineWidth / 2 + SG.resGap;
+        const gap = SG.lineWidth / 2 + SG.resGap * this.typeScale();
         /* How far it may travel along the line before it is no longer
            between the two points. */
         const half = (vertical ? Math.abs(ay - by) : Math.abs(ax - bx)) / 2;
@@ -3217,6 +3635,123 @@
          from the leg lengths beside it. */
     },
 
+    /* The widest line of a working, in stage pixels on the centred
+       board — which is the one number the framing needs, and the one
+       thing about the working that does not change when the camera
+       moves. */
+    workingWidth: function (lines) {
+      const G = C.GRID, W = G.work, self = this;
+      let w = 0;
+      (lines || []).forEach(function (l) {
+        const t = (l.parts || [{ t: l.text || '' }])
+          .map(function (f) { return f.t; }).join('');
+        w = Math.max(w, self.textW(t, W.size));
+      });
+      return w * (G.centre.w / G.w);
+    },
+
+    /* ---------------- the working, on the paper ----------------
+
+       Laid out in the half of the view the drawing is not in, at the
+       size the camera is setting, one line per row. Nothing is revealed
+       here — `showWorkLine` does that, one at a time, so the child
+       reads at the pace the lines arrive. */
+    layoutWorking: function (lines) {
+      const G = C.GRID, W = G.work, NS2 = 'http://www.w3.org/2000/svg';
+      const V = this.viewRect(), D = this.drawnBox, side = this.workSide;
+      if (!this.workLines || !D || !side) return false;
+      const tk = this.typeScale(), size = W.size * tk;
+      const pad = W.pad * G.stepX * tk;
+      /* The column: from the view's edge to the drawing's, with air at
+         both ends. Left-aligned inside it. */
+      const left = side < 0 ? V.x + pad : D.x2 + pad;
+      const right = side < 0 ? D.x1 - pad : V.x + V.w - pad;
+      const step = W.lineGap * G.stepY * tk;
+      let top = (D.y1 + D.y2) / 2 - (lines.length - 1) * step / 2;
+      /* Centred on the drawing — unless that drops a line onto the
+         x-axis, which is the one line on this paper strong enough to
+         cut through text. The whole block moves, not the line: evenly
+         spaced lines with one nudged out of the way read as a mistake,
+         and the block has room above and below. */
+      const size0 = W.size * tk;
+      for (let n = 0; n < lines.length; n++) {
+        const y = top + n * size0 * 0 + n * step;
+        if (!this.onXAxisRow(y, size0 * 1.4)) continue;
+        const up = y - (G.originY - G.axisWidth / 2 - size0 * 0.9);
+        const down = (G.originY + G.labelGap + G.labelSize * 0.42 +
+                      G.labelSize / 2 + size0 * 0.9) - y;
+        top += (up <= down) ? -up : down;
+        break;
+      }
+      const self = this;
+
+      this.workLines.forEach(function (L, i) {
+        const spec = lines[i];
+        L.t.classList.remove('on');
+        L.bar.classList.remove('on');
+        L.spans = [];
+        while (L.t.firstChild) L.t.removeChild(L.t.firstChild);
+        if (!spec) { L.t.textContent = ''; return; }
+        L.t.setAttribute('x', left);
+        L.t.setAttribute('y', top + i * step);
+        L.t.setAttribute('font-size', size);
+        (spec.parts || [{ t: spec.text || '' }]).forEach(function (f) {
+          const ts = document.createElementNS(NS2, 'tspan');
+          ts.textContent = f.t;
+          if (f.lit) { ts.classList.add('lit-' + f.lit); if (f.from) ts.classList.add('wait'); }
+          L.t.appendChild(ts);
+          L.spans.push(ts);
+        });
+      });
+      /* And the longest line must fit the column it was given. If it
+         does not, the framing asked for too little room — say so rather
+         than letting a line run into the drawing. */
+      let widest = 0;
+      lines.forEach(function (l) {
+        const txt = (l.parts || [{ t: l.text || '' }]).map(function (f) { return f.t; }).join('');
+        widest = Math.max(widest, self.textW(txt, size));
+      });
+      return widest <= (right - left);
+    },
+
+    /* One line, shown — and its radical's bar drawn over exactly the
+       span the radicand measures, which can only be known once the
+       line has been laid out. */
+    showWorkLine: function (i, spec) {
+      const L = this.workLines && this.workLines[i];
+      if (!L) return;
+      L.t.classList.add('on');
+      const W = C.GRID.work;
+      const size = parseFloat(L.t.getAttribute('font-size')) || W.size;
+      /* The radicand is everything after the sign. Measured off the
+         parts, not off the rendered boxes: this board is laid out
+         before it is painted, and a box read now is a box from the
+         screen before. */
+      const parts = (spec && spec.parts) || [{ t: (spec && spec.text) || '' }];
+      const txt = parts.map(function (f) { return f.t; }).join('');
+      const at = txt.indexOf('\u221A');
+      if (at < 0) { L.bar.classList.remove('on'); return; }
+      const x0 = parseFloat(L.t.getAttribute('x'));
+      const y0 = parseFloat(L.t.getAttribute('y'));
+      const from = x0 + this.textW(txt.slice(0, at + 1), size);
+      const to = x0 + this.textW(txt, size);
+      const up = y0 - size * (0.5 + W.barGap);
+      L.bar.setAttribute('x1', from); L.bar.setAttribute('y1', up);
+      L.bar.setAttribute('x2', to);   L.bar.setAttribute('y2', up);
+      L.bar.setAttribute('stroke-width', W.barW * this.typeScale());
+      L.bar.classList.add('on');
+    },
+
+    clearWorkLines: function () {
+      (this.workLines || []).forEach(function (L) {
+        L.t.classList.remove('on');
+        L.bar.classList.remove('on');
+        while (L.t.firstChild) L.t.removeChild(L.t.firstChild);
+        L.t.textContent = '';
+        L.spans = [];
+      });
+    },
+
     /* Empties every label the board can write, text and all. The
        ordinary clears only drop the classes that show a label, so its
        words survive — invisible, but still there. That is fine between
@@ -3245,6 +3780,18 @@
       });
       if (this.unitLabel) this.unitLabel.textContent = '';
       if (this.foundLabel) this.foundLabel.textContent = '';
+    },
+
+    /* Is the pair on the paper this one? What "keeping" a drawing
+       means is that the beat before left the right thing there — true
+       of every route through the script, and false the moment the
+       picker drops a child in from somewhere else. Every screen that
+       keeps asks this first. */
+    showing: function (spec) {
+      const k = this.lastPlotted;
+      return !!(spec && spec.a && spec.b && k && k.a && k.b &&
+                k.a.x === spec.a.x && k.a.y === spec.a.y &&
+                k.b.x === spec.b.x && k.b.y === spec.b.y);
     },
 
     clearSegment: function () {
@@ -3791,10 +4338,43 @@
         return;
       }
 
+      /* A working takes half a minute to write and it owns the screen
+         while it does. The balloon that was still open when the ladder
+         ran out finishes somewhere in the middle of it — and by then
+         the task is done, so this would otherwise arm the hand-over and
+         take the paper away mid-sentence. The working settles when it
+         is finished; until then nothing else does. */
+      if (this.writing) return;
+
       this.later(function () {
         if (self.index !== i) return;        // something got there first
-        self.goTo(i + 1);
+        self.goTo(self.nextIndex());
       }, pause || C.AUTO.afterLine);
+    },
+
+    /* Where the next step goes. Ordinarily the screen after this one.
+       A beat that teaches a child who has missed twice sets it to the
+       beat that does the teaching, and a child who got it right sets it
+       past them — so the guided path exists for whoever needs it and
+       does not exist for whoever does not.
+
+       Read once and cleared, so a branch can never outlive the answer
+       that set it. */
+    branch: null,
+    nextIndex: function () {
+      const to = this.branch;
+      this.branch = null;
+      if (to == null) return this.index + 1;
+      const k = C.SCRIPT.findIndex(function (s) { return s.id === to; });
+      return k < 0 ? this.index + 1 : k;
+    },
+
+    /* Everything in flight, stopped. The queued steps are this object's
+       own; a leaf sweep is not — it runs on plain timeouts of its own,
+       and left alone it dresses and plots the screen being left onto
+       the board of the screen just arrived at. */
+    stopSweep: function () {
+      if (FX && FX.leaves && FX.leaves.cancel) FX.leaves.cancel();
     },
 
     /* Every queued step goes through here so a skip can cancel it. */
@@ -3811,6 +4391,13 @@
     clearPending: function () {
       this.pending.forEach(clearTimeout);
       this.pending = [];
+      /* Whatever was being written is not being written any more —
+         Next, Back and the picker all come through here, and a screen
+         left mid-working must not hand the flag to the next one. */
+      this.writing = false;
+      this.ruler = false;
+      this.stopSweep();
+      if (FX && FX.landAll) FX.landAll();   // nothing left in the air
       if (this.entranceCancel) { this.entranceCancel(); this.entranceCancel = null; }
       // a skip mid-flight sets her down rather than leaving her airborne
       if (this.landFlight) this.landFlight(true);
@@ -3847,6 +4434,10 @@
     },
 
     goTo: function (i) {
+      /* A branch belongs to the answer that set it and to nothing
+         else: arriving anywhere clears it, so Back and Next can never
+         carry one into a screen that did not ask for it. */
+      this.branch = null;
       const self = this;
       this.clearPending();
       Hint.clear();
@@ -3870,6 +4461,14 @@
          queued through later() so a skip cancels it with everything
          else. */
       this.later(function () {
+        /* "The view it already has" is compared by NAME, not by the
+           rect the name works out to. The rect is derived from what is
+           written on the board, and what is written moves with the
+           camera — the type is set smaller as the board comes in — so
+           two asks for the same view come back a few pixels apart and
+           the board re-pushes to chase itself. The name does not move. */
+        if (next.view && Board.viewName === next.view) return;
+        Board.viewName = next.view || null;
         Board.viewTo(Board.viewFor(next.view), C.GRID.zoom.ms);
       }, C.GRID.zoom.delayMs);
       this.index = i;
@@ -3892,11 +4491,27 @@
          screen that asks something new about what is already drawn
          needs the board watched, not a panel of answers sitting under
          it waiting to be pressed. */
+      /* Which thing she would be standing on. Keeping a control means
+         the one already under her is the one this screen wants — the
+         reel, the ruler, the answers or the slots. Four screens in a
+         row now change control between them, and a screen that assumed
+         it had inherited the reel when the beat before put the
+         substitution panel up came up with no control at all. */
+      const kindOf = function (e) {
+        if (!e) return null;
+        if (e.task && e.task.kind === 'slots') return 'slots';
+        if (e.options) return 'options';
+        if (e.distance || e.entry) return e.control === 'slider' ? 'slider' : 'lock';
+        return null;
+      };
+      const wantKind = kindOf(entry);
       const keepsControl = (entry.intro === 'measure' || entry.layout === 'board') &&
-                           !!(entry.distance || entry.entry || entry.options) &&
+                           !!wantKind &&
                            entry.transition !== 'leaves' && !entry.askFirst &&
-                           this.raised && Board.shown;
+                           this.raised && Board.shown &&
+                           this.controlKind === wantKind;
       this.raised = keepsControl;
+      this.controlKind = wantKind;
       const geom = keepsControl ? controlGeom() : geomFor(i);
       this.geom = geom;
       standPose = !!geom.stand;
@@ -3951,6 +4566,42 @@
         ? { target: entry.task.target, spec: entry.task, wrong: 0, done: false }
         : null;
 
+      /* Back to the first beat is a replay, and a replay starts on an
+         empty board. The ordinary clears only switch labels off, which
+         is right between screens — the next one writes over them — and
+         wrong here: the board is put away holding the last run's
+         coordinates, and `reset` does not run again until it is next
+         built. So the words go now, while nothing is looking at them. */
+      if (i === 0) Board.blankLabels();
+
+      /* Which plane this screen is taught on, before anything is
+         measured against it. Nearly every screen wants the one the
+         lesson has always used; a pair that does not fit on it asks
+         for the wide one by name. */
+      Board.setRange(entry.board || 'close');
+
+      /* Which numeric control this screen wants. The reel is for
+         digits and the ruler is for magnitude; a screen says which and
+         the other one leaves, so only ever one of them is on the
+         frame. */
+      const wantsRuler = entry.control === 'slider' && Slide;
+      const nextSel = wantsRuler ? Slide : Lock;
+      if (Sel && Sel !== nextSel) { Sel.lock(); Sel.hide(); }
+      Sel = nextSel;
+
+      /* The substitution panel belongs to one kind of question and
+         nothing else, so it is put away the moment a screen is not
+         asking one. */
+      if (Slots) {
+        const asks = entry.task && entry.task.kind === 'slots';
+        if (!asks) { Slots.lock(); Slots.hide(); }
+        else {
+          Slots.setPair(entry.segment.a, entry.segment.b);
+          Slots.reset();
+          Slots.onOffer(function (f) { self.checkSlots(f); });
+        }
+      }
+
       /* Both kinds of numeric question are answered on the same
          control; only a distance one lays a line down as it changes. */
       if (Sel) {
@@ -3969,7 +4620,14 @@
         });
         /* Nothing is drawn while the number is being chosen. Pressing
            Check is the moment you find out, and a line creeping out to
-           the answer beforehand gave it away before the press. */
+           the answer beforehand gave it away before the press.
+
+           The ruler is the one exception, and it is armed by a miss
+           rather than by arriving — see `armRuler`. A slider you can
+           drag until the line lands on the point is a dexterity game
+           and the formula never gets used; a slider that becomes a
+           ruler once you have already had your go is the scaffold this
+           game always gives, arriving when it is needed. */
         Sel.onChange(null);
       }
       // a choice task is answered on the options panel
@@ -3981,7 +4639,12 @@
         Opts.onAnswer(choice ? function (key, right) { self.checkChoice(right); } : null);
       }
 
-      const withControl = entry.options && entry.intro !== 'measure';
+      /* A screen that puts its answers up before she arrives brings
+         them in itself, so nothing may bring them in again after. */
+      /* The substitution panel arrives the same way the answers do:
+         after she has spoken, into the space she leaves. */
+      const withControl = (entry.options || (entry.task && entry.task.kind === 'slots')) &&
+                          entry.intro !== 'measure' && !entry.askLast;
 
       /* A screen can point at part of what is already drawn while she
          talks about it: the y halves of both labels, then the x halves,
@@ -4007,9 +4670,33 @@
              stopped talking. A control that arrives inside it is a panel
              of answers landing on top of the thing being pointed at, so
              whatever brings one in waits this out first. */
+          /* When the light will actually go out, as a time rather than
+             as a length. Subtracting the recording's length from the
+             run assumes her balloon closes the instant the recording
+             ends, and it does not — it opens late and types — so the
+             two drift by a couple of frames and she is lifted out from
+             under a light that is still burning. A moment read off the
+             same clock the light is on cannot drift. */
           self.pulseTail = Math.max(0, (start + run) - voiced) + 260;
+          self.pulseOff = performance.now() + start + run + 260;
           Board.pulseSides(self.later.bind(self), start, keys, run);
         }
+        /* One side held forward for as long as the beat lasts, rather
+           than lit and let go. The beat that asks for CB has to leave
+           AC on the board — the child needs to see they now have two
+           measured sides — while the one being asked for is the loud
+           one. */
+        if (entry.focus) self.later(function () {
+          Board.spotlightPart(entry.focus);
+        }, 300);
+
+        /* And a beat can name its sides one after the other: the two
+           known ones, then the one it is about to ask after. */
+        if (entry.spotSeq) entry.spotSeq.forEach(function (k, n) {
+          self.later(function () { Board.spotlightPart(k); SFX.tick(n); },
+                     700 + n * 900);
+        });
+
         const h = entry.highlight;
         /* The beats that do the pointing inherit the board rather than
            replotting it, so they carry no segment of their own — what
@@ -4034,17 +4721,43 @@
       };
 
 
+      /* A beat that states a derivation rather than asking for one.
+         Every working in this game plays because an answer was given —
+         right, or the ladder spent. A screen that simply shows the
+         method has no such trigger, so its own line is the trigger:
+         she finishes, and the working begins. */
+      const derive = function (next) {
+        if (!entry.derive) { if (next) next(); return; }
+        self.later(function () {
+          self.workThrough({ spec: entry.derive, done: true },
+                           function () { self.settle(C.AUTO.afterLine); });
+        }, 420);
+      };
+
       const after = function () {
         self.pulseTail = 0;
+        self.pulseOff = 0;
         spotlight();
         const bring = withControl && !keepsControl
           ? function () { revealControl(entry); } : null;
         /* She asks, the shape lights, the light goes — and only then do
            the answers rise and she comes down on them. */
-        const gated = (bring && self.pulseTail)
-          ? function () { self.later(bring, self.pulseTail); } : bring;
+        const gated = (bring && self.pulseOff)
+          ? function () {
+              self.later(bring, Math.max(0, self.pulseOff - performance.now()));
+            } : bring;
         buildEquation();
-        if (entry.line && entry.voiceOnly) self.sayOnly(entry.line, gated);
+        /* A beat that states a derivation says its lines and then hands
+           over to the working — which settles the screen itself once it
+           has finished writing. Nothing else may settle in between. */
+        if (entry.derive) {
+          self.sayLines([entry.line, entry.line2].filter(Boolean), function () {
+            if (gated) gated();
+            derive();
+          });
+        }
+        else if (entry.line && entry.voiceOnly) self.sayOnly(entry.line, gated);
+        else if (entry.line && entry.line2) self.speakBoth(entry.line, entry.line2, gated);
         else if (entry.line) self.speak(entry.line, gated);
         else if (entry.auto && i + 1 < C.SCRIPT.length) {
           self.later(function () { self.goTo(i + 1); }, 160);
@@ -4056,6 +4769,19 @@
       };
 
       const arrive = function () {
+        /* The reverse of every other question in the game: the answers
+           and the hint go up first and she comes to them. The child
+           looks at what is on the board and has begun to wonder before
+           anybody says anything, so her line lands on a question they
+           have already started asking themselves — which is the
+           difference between being told a problem and noticing one. */
+        if (entry.askLast && entry.options && Opts) {
+          Opts.reset();
+          Opts.show(true);
+          self.later(function () { self.perchOn(entry.perch, after); },
+                     C.AUTO.perchMs || 900);
+          return;
+        }
         if (entry.entrance === 'fly') self.flyIn(after);
         else if (entry.entrance === 'flyOut') self.flyOut(after);
         else if (entry.entrance === 'hop') self.hop(after);
@@ -4067,6 +4793,21 @@
          about either. */
       const plotThen = function (next) {
         const afterSeg = function () {
+          /* Places on the board that are not one of the pair — the
+             third corner of a town. Plotted and labelled exactly as
+             the pair is, because they are the same kind of thing. */
+          (entry.mark || []).forEach(function (m, n) {
+            self.later(function () { Board.solve(m.x, m.y); SFX.tick(n + 1); },
+                       260 + n * 220);
+          });
+          /* A pair already on the board, joined here. The beat that
+             says "first, find this distance" is the one that draws the
+             line the distance is along — before it there is nothing on
+             the board saying which two places the question is about,
+             which is the question. */
+          if (entry.joinSegment && Board.segLine) self.later(function () {
+            Board.segLine.classList.add('draw'); SFX.draw();
+          }, 240);
           /* A pair that has already been measured says so on its own
              line, the way an axis case writes its answer there. */
           const R = entry.segment && entry.segment.result;
@@ -4081,9 +4822,31 @@
           else next();
         };
         /* A screen that keeps what it inherited does not replot the
-           segment — only whatever is new gets drawn. */
-        if (entry.segment && !entry.keepSegment) {
-          Board.runSegment(entry.segment, self.later.bind(self), afterSeg);
+           segment — only whatever is new gets drawn.
+
+           Unless what it inherited is not its pair. Keeping is what
+           lets a run of beats argue about one drawing without redrawing
+           it between each; it assumes the beat before left the right
+           thing there, which is true of every route through the script
+           and false the moment the picker drops a child in from
+           somewhere else. So the pair it declares wins over the pair
+           that happens to be up. */
+        const samePair = Board.showing(entry.segment);
+        /* Redrawing over the top of the wrong pair leaves the wrong
+           pair's labels and lengths underneath it, so the paper is
+           wiped first: this is not "keeping" anything, it is drawing
+           this screen from nothing. */
+        if (entry.segment && entry.keepSegment && !samePair) Board.clearSegment();
+        if (entry.segment && (!entry.keepSegment || !samePair)) {
+          /* Plotted, but not joined. A line drawn between two of three
+             places says which pair is being asked about, so a screen
+             whose whole question is "which pair?" puts the points up
+             and leaves them apart. */
+          if (entry.pointsOnly) {
+            Board.runPoints(entry.segment, self.later.bind(self), afterSeg, false);
+          } else {
+            Board.runSegment(entry.segment, self.later.bind(self), afterSeg);
+          }
         } else {
           // kept, but this screen may be the one that names the points
           if (entry.segment) Board.nameSegment(entry.segment, self.later.bind(self));
@@ -4105,6 +4868,9 @@
            too — only the count-out squares go. */
         if (entry.keepSegment) Board.clearUnits();
         else Board.clearSegment();
+        /* A working written on the paper belongs to the screen that
+           wrote it. The one after gets clean paper. */
+        Board.clearWorkLines();
         /* The player's own measuring line is left lit when they get it
            right — on the screen they drew it, where it is the answer.
            It must not travel: it is 9px of light blue lying exactly
@@ -4136,6 +4902,7 @@
           else Sel.hide();
         }
         if (Opts && !entry.options) Opts.hide();   // shown by revealControl
+        dressTown(entry);
 
         if (entry.layout === 'recap') {
           Formula.place(C.RECAP.formula);
@@ -4150,6 +4917,28 @@
         }
       };
 
+      /* The map over the board, and the two things that sit with it in
+         the control column. All three belong to the screen rather than
+         to the component, and all three have to be taken away again by
+         the screens that do not want them — a town left standing on the
+         screen after is a town on the wrong board. */
+      const dressTown = function (e) {
+        if (Town) {
+          if (e.town) { Town.set(C.TOWN.places); Board.onPlaced(); Town.show(); }
+          else Town.hide();
+        }
+        if (Opts) Opts.setRow(!!e.optionRow);
+        if (Hints) {
+          if (e.hint) { Hints.set(e.hint); Hints.show(); } else Hints.hide();
+        }
+        /* A place marked on an earlier beat is a second dot and a
+           second label on a point this one is drawing itself. */
+        if (e.dropMarks) Board.clearFound();
+        /* And a triangle that was the working's own scaffolding does
+           not belong to the screen after it. */
+        if (e.dropLegs) Board.clearLegs();
+      };
+
       /* An axis case: plot the segment, then narrow the formula a step
          at a time until only the one difference that matters is left.
          Which axis it is lives entirely in the config passed in. */
@@ -4160,7 +4949,23 @@
           let t = 0;
           // the two zeros light up, and the formula takes them in
           self.later(function () { Board.glowCoords(true); SFX.tick(0); }, t += 500);
-          self.later(function () { Formula.setStep(X.steps[1]); SFX.draw(); }, t += 700);
+          /* The two zeros are read off the board, so they arrive from
+             it. That term collapsing a beat later is only believable if
+             the child watched the numbers that made it zero arrive in
+             it — which is the entire argument this screen is making. */
+          self.later(function () {
+            Formula.setStep(X.steps[1]);
+            SFX.draw();
+            const half = X.a.coordParts.filter(function (p) { return p.glow; })[0];
+            const node = el.formulaBoard.querySelector('.fb-step .glow');
+            if (half && node) {
+              self.flyInto({ from: { p: 'a', half: half.glow } }, node);
+              self.later(function () {
+                self.flyInto({ from: { p: 'b', half: half.glow } }, node);
+              }, C.GRID.fly.pickMs + C.GRID.fly.ms);
+            }
+          }, t += 700);
+          t += 2 * (C.GRID.fly.pickMs + C.GRID.fly.ms);
           // then that term collapses away
           self.later(function () { Formula.setStep(X.steps[2]); SFX.tick(3); }, t += 1400);
           self.later(function () { Formula.setStep(X.steps[3]); SFX.draw(); }, t += 900);
@@ -4182,7 +4987,24 @@
         let read = 0;
         if (entry.line) {
           self.later(function () {
-            self.stay(function () { self.speak(entry.line); });
+            self.stay(function () {
+              /* Her line is said, not `speak`ed: `speak` settles the
+                 screen when the balloon finishes, and on this beat the
+                 balloon finishes in the middle of the working. The
+                 hand-over belongs to `step`, which is the thing that
+                 knows when the working is done — the un-arming of Next
+                 just below has always said so.
+
+                 It never showed while the y-axis case was the last
+                 screen in the game, because a settle with nothing
+                 after it does nothing. Give it something to advance
+                 to and the answer never reaches the segment. */
+              const g = self.geom || {};
+              const aim = g.aim || { x: C.ANCHOR.x, y: C.ANCHOR.y - 200 * C.CHAR_SCALE };
+              self.state = 'speaking';
+              FX.sparkles(aim.x, aim.y, 7, 170 * (g.scale || C.CHAR_SCALE));
+              Bubble.open(entry.line);
+            });
           }, LEAD);
           read = entry.line.length * 42 + 500;
         }
@@ -4206,6 +5028,7 @@
            live from the moment the points are down, so a child who is
            ahead of her can answer while she is still asking. */
         if (Sel) { if (keepsControl) Sel.reset(); else Sel.hide(); }
+        if (Slots && !(entry.task && entry.task.kind === 'slots')) Slots.hide();
 
         /* A screen that follows straight on from the one before keeps
            the board it inherited, and her with it: no sweep, no
@@ -4225,7 +5048,10 @@
            straight on from the last one look like a new one, and the
            child watches the board they were already reading be rebuilt
            in front of them. Only what is new gets drawn. */
-        const holds = !!entry.keepSegment && Board.shown;
+        /* And keeping is only keeping when what is up is this screen's
+           own pair — see Board.showing. */
+        const holds = !!entry.keepSegment && Board.shown &&
+                      (!entry.segment || Board.showing(entry.segment));
         Board.setDots(false);
         if (holds) Board.clearUnits(); else Board.clearSegment();
 
@@ -4287,7 +5113,12 @@
                names that corner and gives the question something to
                point at, so it goes down first and the counting happens
                along a side that is already there. */
-            if (entry.legs) {
+            /* A screen can hold its legs back for the working. On the
+               closing beat the triangle is not what is being asked
+               about — the distance is — and a right-angled triangle
+               already drawn round the line would be answering the
+               question the working exists to answer. */
+            if (entry.legs && !entry.legsLater) {
               /* The side being asked about goes down dotted: the count
                  lays a solid stroke along it, and a solid guide under a
                  solid stroke reads as one thick line rather than as
@@ -4326,6 +5157,21 @@
         }, 240);
       };
 
+      /* And a working written on the paper goes with the screen that
+         wrote it, however the next one is arrived at. */
+      Board.clearWorkLines();
+
+      /* The picker is told where the game went, however it got there —
+         her own hand-over, Back, Next, or a jump from the picker
+         itself. */
+      if (Jump) { Jump.close(); Jump.sync(); }
+
+      /* Behind the leaves where there are leaves — dress() does it —
+         and straight away where there are not. Either way it happens
+         before anything is drawn, never after, or the town flashes up
+         on the board the screen before was using. */
+      if (entry.transition !== 'leaves') dressTown(entry);
+
       if (entry.transition === 'leaves') {
         this.state = 'entering';
         SFX.wind(FX.leaves.seconds);
@@ -4359,10 +5205,12 @@
         const brought = withControl && !!entry.line && !keepsControl;
         if (Sel && (entry.distance || entry.entry) && !brought) { Sel.reset(); Sel.show(); }
         if (Opts && entry.options && !brought) { Opts.reset(); Opts.show(); }
+        const asksSlots = entry.task && entry.task.kind === 'slots';
+        if (Slots && asksSlots && !brought) { Slots.reset(); Slots.show(); }
         /* And one the screen before left standing has to go. Not showing
            it is only half of "must not be up already" — it was already
            there, so the screen has to take it away. */
-        if (brought) { if (Sel) Sel.hide(); if (Opts) Opts.hide(); }
+        if (brought) { if (Sel) Sel.hide(); if (Opts) Opts.hide(); if (Slots) Slots.hide(); }
       }
 
       /* A grid screen builds the board in first — but only if it is
@@ -4393,6 +5241,42 @@
         Board.setDots(!!entry.dots);
         plotThen(arrive);
       }
+    },
+
+    /* Down onto one of the answers, rather than onto the panel as a
+       whole. She lands on the button named by the screen — its top
+       edge, the way she already perches on the selector's frame — and
+       asks from there. */
+    perchOn: function (key, done) {
+      const self = this;
+      const g = standGeom(C.BOARD.perch, {
+        noShadow: true,          // she is standing on a button, not on grass
+        panelBox: { x: C.BOARD.panel.pos.x, y: C.BOARD.panel.pos.y,
+                    w: C.BOARD.panel.w, h: C.BOARD.panel.h }
+      });
+      /* Which button, worked out from the screen's own answers rather
+         than typed twice: the perch is seated on the right-hand one, so
+         a left-hand key steps back by the width of a button and its
+         gap. */
+      const entry = C.SCRIPT[this.index] || {};
+      const list = entry.options || [];
+      let n = list.length - 1;
+      for (let i = 0; i < list.length; i++) if (list[i].key === key) n = i;
+      const O = C.BOARD.options;
+      const step = (O.w - 2 * (9 + 28) + 24) / 2 * O.scale;
+      const shift = (n - (list.length - 1)) * step;
+      if (shift) {
+        g.standBox.x += shift;
+        g.anchor.x += shift;
+        g.aim.x += shift;
+      }
+      /* Seat the rig on the button and then use the ordinary entrance:
+         flyIn lands her wherever `geom` says, so the perch needs no
+         flight of its own. */
+      this.geom = g;
+      this.raised = true;
+      applyGeom(g);
+      this.flyIn(done);
     },
 
     /* Swifty flies in from off-stage on the fly sheet, then lands. */
@@ -4561,6 +5445,46 @@
       });
     },
 
+    /* Lines said one after the other, and NOTHING settled at the end of
+       them. `speak` hands the screen on when its balloon finishes,
+       which is right for a beat whose last act is speaking — and wrong
+       for one that goes on to write a derivation, because the screen
+       would be carried off while the working was still being written.
+       Whatever follows owns the hand-over. */
+    sayLines: function (list, then) {
+      const self = this;
+      this.state = 'speaking';
+      const g = this.geom || {};
+      const aim = g.aim || { x: C.ANCHOR.x, y: C.ANCHOR.y - 200 * C.CHAR_SCALE };
+      FX.sparkles(aim.x, aim.y, 7, 170 * (g.scale || C.CHAR_SCALE));
+      const step = function (i) {
+        if (i >= list.length) { if (then) then(); return; }
+        Bubble.open(list[i], function () {
+          self.later(function () { step(i + 1); }, C.AUTO.betweenLines);
+        });
+      };
+      step(0);
+    },
+
+    /* Two things said on one beat, one after the other.
+
+       `speak` settles the screen when its balloon finishes, which is
+       right for a beat that says one thing and wrong for a beat that
+       says two: the hand-over would be armed while she was still
+       talking, and a short hold would carry the screen off mid-sentence.
+       So the first line is opened rather than spoken, and only the
+       second one settles. */
+    speakBoth: function (a, b, then) {
+      const self = this;
+      this.state = 'speaking';
+      const g = this.geom || {};
+      const aim = g.aim || { x: C.ANCHOR.x, y: C.ANCHOR.y - 200 * C.CHAR_SCALE };
+      FX.sparkles(aim.x, aim.y, 7, 170 * (g.scale || C.CHAR_SCALE));
+      Bubble.open(a, function () {
+        self.later(function () { self.speak(b, then); }, C.AUTO.betweenLines);
+      });
+    },
+
     /* She has said it, so the balloon goes. On a screen that stays open
        for another go it would otherwise sit there for the rest of the
        question — the child reading "Not quite! Try again!" over their
@@ -4627,6 +5551,127 @@
       this.settle(pause != null ? pause
         : scr.hold != null ? scr.hold
         : (this.task && this.task.done ? C.AUTO.afterCorrect : C.AUTO.afterLine));
+    },
+
+    /* ---------------- numbers come from somewhere ----------------
+
+       A working does not invent its numbers. The ones that could have
+       been read off the board arrive by leaving the board: a copy lifts
+       out of the coordinate half or the leg length it was read from,
+       carries across the screen, and lands in the slot that needed it.
+       The ones that were worked out — the squares, the sums — simply
+       appear, because that is what they are: arithmetic, not reading.
+
+       That distinction is the whole teaching. `(x2 - x1)` is not hard
+       arithmetic, it is hard REFERENCE: the child has to hold that x2
+       is an address on the board rather than a value, and a formula
+       that writes itself out of thin air hides exactly that. */
+
+    /* Where a part says it was read from, as a place on the stage.
+       `from: { p: 'a'|'b', half: 'x'|'y' }` — a half of a coordinate
+       label; `from: { leg: 0|1 }` — a leg's own written length. */
+    sourceSpot: function (from) {
+      if (!from) return null;
+      if (from.leg != null) {
+        const L = Board.legSlots && Board.legSlots[from.leg];
+        if (!L || !L.len || !L.len.textContent) return null;
+        if (!L.len.classList.contains('pop')) return null;   // not up yet
+        const x = parseFloat(L.len.getAttribute('x')),
+              y = parseFloat(L.len.getAttribute('y'));
+        if (!isFinite(x) || !isFinite(y)) return null;
+        const s = Board.boardToStage(x, y);
+        return { x: s.x, y: s.y,
+                 size: C.GRID.leg.lenSize * Board.typeScale() * s.k,
+                 text: (L.len.textContent || '').split('\u00A0')[0] };
+      }
+      /* A coordinate half. It can only be found where the label was
+         built in parts — a plain label is one run of text with no
+         halves to point at — so a screen that wants this says so in
+         its own `coordParts`. */
+      const spot = Board.partSpot(from.p, from.half);
+      if (!spot) return null;
+      const s = Board.boardToStage(spot.x, spot.y);
+      return { x: s.x, y: s.y, size: spot.size * s.k, text: spot.text,
+               p: from.p, half: from.half };
+    },
+
+    /* Carries one number out of the board and into the slot waiting for
+       it. Lights where it came from as it leaves, and lets go as it
+       lands — the original never moves, never empties, never resizes. */
+    flyInto: function (part, node) {
+      const src = this.sourceSpot(part.from);
+      /* No source on the board — the label was never built in parts, or
+         the leg is not up yet. The number simply appears, which is what
+         every working did before this existed. */
+      if (!src || !node) return 0;
+      const F = C.GRID.fly;
+      const st = el.stage.getBoundingClientRect();
+      const k = st.width / C.STAGE_W || 1;
+      const r = node.getBoundingClientRect();
+      const to = { x: (r.x + r.width / 2 - st.x) / k,
+                   y: (r.y + r.height / 2 - st.y) / k,
+                   size: parseFloat(getComputedStyle(node).fontSize) / 1 || 34 };
+      const self = this;
+      if (src.p) Board.glowPart(src.half, true, src.p);
+      SFX.tick(2);
+      this.later(function () {
+        FX.flyGlyph(src.text, src, to, F.ms, function () {
+          if (src.p) Board.glowPart(src.half, false, src.p);
+          SFX.blip();
+        });
+      }, F.pickMs);
+      return F.pickMs + F.ms;
+    },
+
+    /* And the other direction: the answer leaving the working and
+       landing on the thing it measures.
+
+       Not the answer said twice. It is the same statement relocating —
+       the working has finished making it, and where it belongs is on
+       the line, which is where the child will look for it. The board's
+       own sum has ended this way since it was built; this is that
+       ending, for the workings that happen in a panel. */
+    flyAnswerHome: function (t, then) {
+      const spec = t && t.spec, seg = (C.SCRIPT[this.index] || {}).segment;
+      const F = C.GRID.fly, self = this;
+      const done = function () { if (then) then(); };
+      if (!spec || !spec.formula || !seg || !Opts) { done(); return 0; }
+
+      /* The part the working marked as the one that goes home, and the
+         node it was written into. */
+      let node = null, text = null, idx = -1;
+      const view = Opts.el.querySelector('.formula-view');
+      if (view) spec.formula.forEach(function (l, li) {
+        (l.parts || []).forEach(function (p, pi) {
+          if (!p.home || node) return;
+          const line = view.children[li];
+          if (line) { node = line.children[pi]; text = p.t; idx = li; }
+        });
+      });
+      if (!node) { done(); return 0; }
+
+      const st = el.stage.getBoundingClientRect();
+      const k = st.width / C.STAGE_W || 1;
+      const r = node.getBoundingClientRect();
+      const from = { x: (r.x + r.width / 2 - st.x) / k,
+                     y: (r.y + r.height / 2 - st.y) / k,
+                     size: parseFloat(getComputedStyle(node).fontSize) || 34 };
+      /* Where it is going: the middle of the pair, in stage terms — the
+         same place showSegResult is about to write it. */
+      const G = C.GRID;
+      const mid = Board.boardToStage(
+        (G.originX + (seg.a.x + seg.b.x) / 2 * G.stepX),
+        (G.originY - (seg.a.y + seg.b.y) / 2 * G.stepY));
+      const to = { x: mid.x, y: mid.y,
+                   size: (G.segment.resSize || G.segment.coordSize) *
+                         Board.typeScale() * mid.k };
+      node.classList.add('gone');
+      FX.flyGlyph(text.replace(/\u00A0/g, ' '), from, to, F.ms, function () {
+        Board.showSegResult(seg, text);
+        SFX.sparkle();
+        done();
+      });
+      return F.ms + 200;
     },
 
     /* The Check button on the distance panel. */
@@ -4702,6 +5747,10 @@
           t.done = true;
           self.state = 'waiting';
           SFX.correct();
+          /* Past the beats that teach it: they are for a child who did
+             not get here. The choice path has had this since the café
+             beat; a numeric question can want it just as much. */
+          if (t.spec.rightAt != null) self.branch = t.spec.rightAt;
           if (Sel) Sel.markCorrect();
           // nothing was walked out on the Pythagoras screens, so there
           // is no line from A to B to leave lit
@@ -4726,6 +5775,9 @@
         SFX.wrong();
         if (Sel) Sel.markWrong();
         self.state = 'waiting';
+        /* They have had their ungiven go. Now the slider becomes the
+           ruler it looks like. */
+        if (t.spec.rulerAfterMiss) self.later(function () { self.armRuler(); }, 640);
         // the ladder is read after the count, not before: feedbackFor
         // indexes on how many have been got wrong, this one included
         /* Two misses in is where a child needs showing rather than
@@ -4738,8 +5790,23 @@
            it is shown: the two sides measured on the board and then AB,
            which is the working itself rather than a sentence about it.
            The question is over, so nothing is cleared away after. */
+        /* Out of hints, and the teaching is a beat of its own rather
+           than a working written here. The asking stops and the screen
+           hands over to it; she says so there, not here, because a
+           child needs a moment to stop being wrong before they can
+           start learning. */
+        if (fb.exhausted && t.spec.teachAt != null) {
+          t.done = true;
+          self.state = 'waiting';
+          if (Sel) Sel.lock();
+          self.branch = t.spec.teachAt;
+          self.later(function () { self.settle(C.AUTO.afterSilent); }, 520);
+          return;
+        }
+
         if (fb.exhausted && t.spec.showWorking) {
           t.done = true;
+          self.writing = true;      // from here the screen belongs to it
           if (Sel) Sel.lock();
           const screen = C.SCRIPT[self.index] || {};
           self.later(function () {
@@ -4826,6 +5893,11 @@
         self.later(function () {
           // placeLeg works the length out from the leg's own two ends
           Board.placeLeg(i, Object.assign({}, spec, { length: true }));
+          /* A screen that held its triangle back until now has never
+             drawn these, so the working is the thing that puts them
+             up. On a screen that drew them with the question this
+             changes nothing — they are already on. */
+          if (entry.legsLater) Board.revealLeg(i, spec.dash);
           Board.showLegLength(i);
           SFX.tick(2 + i);
         }, delay);
@@ -4906,6 +5978,91 @@
       this.revealAnswer(v, v === answer, t.spec.correctLine);
     },
 
+    /* The slider turning into a ruler. From here it lays a line out of
+       the first point along the pair's own bearing, as long as the
+       number it is showing — short of the second point, past it, or
+       exactly on it. It is armed once, by the first miss. */
+    armRuler: function () {
+      const self = this;
+      if (!Sel || this.ruler) return;
+      const pair = this.measurePair();
+      if (!pair) return;
+      this.ruler = true;
+      const dx = pair.to.x - pair.from.x, dy = pair.to.y - pair.from.y;
+      const span = Math.hypot(dx, dy) || 1;
+      const ux = dx / span, uy = dy / span;
+      const lay = function (v) {
+        if (!v) { Board.clearMeasure(); return; }
+        Board.drawMeasure(pair.from, pair.from.x + ux * v, pair.from.y + uy * v);
+      };
+      Sel.onChange(lay);
+      lay(Sel.value);
+    },
+
+    /* Where the numbers go, checked before anything is worked out.
+
+       What counts as right is narrower than "the answer comes out the
+       same" and wider than one canonical line. Both brackets must hold
+       one value from each point; the first bracket must hold the two
+       x's and the second the two y's; and the two brackets must be
+       subtracted the same way round — both B−A, or both A−B. Squares
+       kill the sign, so `(4 − (−2))² + (−3 − 5)²` and
+       `(−2 − 4)² + (5 − (−3))²` are the same number and the same
+       understanding; a build that took only one of them would be
+       teaching that the formula has a direction, which it has not.
+
+       Mixing an x with a y is the error this screen exists to catch,
+       and it is caught here rather than three lines later in an
+       arithmetic slip nobody can trace. */
+    checkSlots: function (f) {
+      const t = this.task, self = this;
+      if (!t || t.done || !Slots) return;
+      const axes = f.map(function (p) { return p.axis; }).join('');
+      const froms = f.map(function (p) { return p.from; }).join('');
+      const right = axes === 'xxyy' && (froms === 'baba' || froms === 'abab');
+
+      if (right) {
+        t.done = true;
+        this.state = 'waiting';
+        Slots.lock();
+        SFX.correct();
+        SFX.chime();
+        this.later(function () { self.finishWith(t.spec.correctLine); }, 320);
+        return;
+      }
+
+      t.wrong++;
+      SFX.wrong();
+      Slots.markWrong();
+      this.state = 'waiting';
+      const fb = this.feedbackFor(t);
+
+      /* Spent. The chips walk in by themselves, in reading order,
+         because the order is half of what is being shown — and then
+         the beat moves on. Nothing is asked a third time, here least
+         of all: a child who has put the numbers in the wrong places
+         twice is not going to find them on a third go. */
+      if (fb.exhausted) {
+        t.done = true;
+        Slots.lock();
+        const W = C.GRID.slots || {};
+        this.later(function () {
+          Slots.fillIn([2, 0, 3, 1], W.fillMs || 620, function () {
+            self.later(function () {
+              self.speak(t.spec.spentLine || t.spec.correctLine,
+                         function () { self.settle(C.AUTO.afterLine); });
+            }, 420);
+          });
+        }, 520);
+        return;
+      }
+
+      this.later(function () {
+        Slots.reset();
+        if (t.spec.voiceOnly) self.sayOnly(fb.msg); else self.speak(fb.msg);
+      }, 700);
+    },
+
     /* The feedback ladder: each wrong attempt gets the next message,
        and once they run out the worked solution is shown rather than
        leaving a child guessing. A task with a single tryAgainLine
@@ -4929,11 +6086,129 @@
 
        Both ways in use this: getting it right, and running out of
        tries. What is shown is the same thing either way. */
+    /* The worked solution, written on the paper.
+
+       She goes, the control goes with her, and then — with nothing else
+       on the frame — the board comes to the middle, pushes in on what is
+       drawn AND on the room the working needs, and writes the working
+       beside the drawing. A panel beside a picture makes the child
+       choose which to look at; on one sheet there is nothing to choose,
+       and the number that flew out of a label lands where the label can
+       still be seen.
+
+       Move, then push, then write, and never two at once: a board that
+       moves while it is being read is a board nobody reads. */
+    workOnBoard: function (t, then) {
+      const self = this, G = C.GRID, W = G.work, Z = G.zoom;
+      const lines = t.spec.formula || [];
+      const fly = G.fly.pickMs + G.fly.ms;
+      this.writing = true;                   // the screen is the working's now
+      Bubble.close();
+      if (Sel) Sel.lock();
+      if (Opts) Opts.lock();
+
+      this.later(function () {
+        self.flyOut(function () {
+          if (Opts) Opts.hide();
+          if (Sel) Sel.hide();
+          /* Everything the working is not about comes off the paper.
+             The town is scenery for the question — five buildings and
+             their names, drawn over the very half the working is about
+             to be written in — and the places marked beside the pair
+             are the same. What is left is the pair, its triangle, and
+             the room to write in. */
+          if (Town) Town.hide();
+          Board.clearFound();
+          /* 1 — to the middle of the frame. */
+          self.later(function () {
+            el.gridPanel.classList.add('sliding');
+            Board.place(G.centre);
+            self.later(function () { el.gridPanel.classList.remove('sliding'); }, 700);
+            /* 2 — and in, on the drawing and the room beside it. */
+            self.later(function () {
+              Board.workWidest = Board.workingWidth(lines);
+              Board.viewName = 'working';
+              Board.viewTo(Board.viewFor('working'), Z.ms);
+              /* 3 — then the lines, one at a time. Laid out after the
+                 push has landed, so they are placed against the view
+                 they will be read in. */
+              self.later(function () {
+                const fits = Board.layoutWorking(lines);
+                if (!fits) Board.layoutWorking(lines);   // placed anyway; see below
+                let at = 0;
+                lines.forEach(function (l, i) {
+                  const parts = l.parts || [];
+                  self.later(function () { Board.showWorkLine(i, l); SFX.draw(); }, at);
+                  let beat = at + W.beatMs;
+                  /* Every part that names a side of the drawing lights
+                     it as it lands. The ones that were READ off the
+                     board arrive from it first; the ones that were
+                     worked out are simply there — which is the whole
+                     distinction, and it is visible only if both of them
+                     light. */
+                  parts.forEach(function (p, k) {
+                    if (!p.lit) return;
+                    const land = function () {
+                      const L = Board.workLines[i], s = L && L.spans[k];
+                      if (s) { s.classList.remove('wait'); s.classList.add('now'); }
+                      Board.spotlightPart(p.lit);
+                      SFX.tick(2);
+                    };
+                    if (p.from) {
+                      const t0 = beat;
+                      self.later(function () {
+                        self.flyInto(p, (Board.workLines[i] || {}).spans[k]);
+                      }, t0);
+                      self.later(land, t0 + fly);
+                      beat = t0 + fly + W.beatMs;
+                    } else {
+                      self.later(land, beat);
+                      beat += W.beatMs;
+                    }
+                  });
+                  at = Math.max(at + W.lineMs, beat);
+                });
+                self.later(function () {
+                  Board.spotlightPart(null);
+                  const home = self.flyAnswerHomeFromBoard(t, lines);
+                  self.later(function () {
+                    self.writing = false;    // written; it can be handed on
+                    if (then) then();
+                  }, home + C.AUTO.afterWorking);
+                }, at + 400);
+              }, Z.ms + 200);
+            }, 760);
+          }, 300);
+        });
+      }, 700);
+    },
+
+    /* The answer leaving the working for the line it measures — the
+       board's own version, a short move on the same paper. */
+    flyAnswerHomeFromBoard: function (t, lines) {
+      const G = C.GRID, seg = (C.SCRIPT[this.index] || {}).segment;
+      if (!seg) return 0;
+      let text = null;
+      lines.forEach(function (l) {
+        (l.parts || []).forEach(function (p) { if (p.home && !text) text = p.t; });
+      });
+      if (!text) return 0;
+      Board.showSegResult(seg, text);
+      SFX.sparkle();
+      return 600;
+    },
+
     workThrough: function (t, then) {
       const self = this, W = C.BOARD.working;
       if (!Opts || !t.spec.formula) { if (then) then(); return; }
+      /* A screen can ask for its working on the paper instead. */
+      if ((C.SCRIPT[this.index] || {}).stage === 'working') {
+        this.workOnBoard(t, then);
+        return;
+      }
       Opts.lock();
       if (Sel) Sel.lock();
+      this.writing = true;                  // the screen is the working's now
       Bubble.close();                       // she is about to fly
 
       /* One thing at a time, in this order: she goes, then the answers
@@ -4950,15 +6225,28 @@
             // and only then does the working take the empty column
             Opts.moveTo(W.pos.x, W.pos.y);
             Opts.show(true);
+            const F = C.GRID.fly;
             const ms = Opts.showFormula(t.spec.formula, function (which) {
               Board.spotlightPart(which);
               SFX.tick(2);
+            }, {
+              flyMs: F.pickMs + F.ms,
+              onFly: function (part, node) { self.flyInto(part, node); }
             });
             SFX.sparkle();
             self.later(function () {
               Board.spotlightPart(null);
-              self.landOnWorking();        // written; she comes back to it
-              self.later(function () { if (then) then(); }, C.AUTO.afterWorking);
+              /* The answer goes home before she comes back to the
+                 working: she lands on a panel that has finished
+                 saying its piece, and the line carries the result. */
+              const home = self.flyAnswerHome(t);
+              self.later(function () {
+                self.landOnWorking();      // written; she comes back to it
+                self.later(function () {
+                  self.writing = false;
+                  if (then) then();
+                }, C.AUTO.afterWorking);
+              }, home);
             }, ms + 320);
           }, 520);
         });
@@ -4989,11 +6277,21 @@
         t.done = true;
         this.state = 'waiting';
         if (Opts) Opts.lock();
+        /* Past the beats that teach it: they are for a child who did
+           not get here. */
+        if (t.spec.rightAt != null) this.branch = t.spec.rightAt;
+        /* The evidence for what they just named, drawn as they name
+           it: the square in the corner they built themselves two beats
+           ago by walking across and then up. */
+        if (t.spec.marksRightAngle) this.later(function () {
+          Board.rightAngle(true); SFX.chime();
+        }, 420);
         SFX.correct();
         /* How long the working takes to play. The screen has to stay
            open for all of it, and the ordinary pause after a right
            answer is nowhere near that. */
-        const work = (t.spec.formula && Opts) ? Opts.formulaMs(t.spec.formula) : 0;
+        const work = (t.spec.formula && Opts)
+          ? Opts.formulaMs(t.spec.formula, C.GRID.fly.pickMs + C.GRID.fly.ms) : 0;
         const at = this.optionSpot(t.spec.answer);
         this.later(function () {
           SFX.cheer();
@@ -5017,6 +6315,7 @@
            and 9 the vertical, AB\u00B2 and 25 and the answer the line
            between the points. */
         if (work) {
+          this.writing = true;
           this.later(function () {
             self.workThrough(t, function () { self.settle(C.AUTO.afterLine); });
           }, 1100);
@@ -5026,9 +6325,29 @@
         SFX.wrong();
         const fb = this.feedbackFor(t);
 
+        /* Two misses on a two-answer question is not a question any
+           more: the method is not there to be used, and a third go is
+           asking a child to guess. The asking stops here and the beat
+           that teaches it takes over — she says so on that screen, not
+           on this one, because a child needs a moment to stop being
+           wrong before they can start learning. */
+        if (fb.exhausted && t.spec.marksRightAngle) this.later(function () {
+          Board.rightAngle(true);
+        }, 620);
+
+        if (fb.exhausted && t.spec.teachAt != null) {
+          t.done = true;
+          this.state = 'waiting';
+          if (Opts) Opts.lock();
+          this.branch = t.spec.teachAt;
+          this.later(function () { self.settle(C.AUTO.afterSilent); }, 520);
+          return;
+        }
+
         /* Out of hints: show the working instead of asking again. */
         if (fb.exhausted && t.spec.formula && Opts) {
           t.done = true;
+          this.writing = true;
           this.state = 'waiting';
           Opts.lock();
           SFX.chime();
@@ -5037,6 +6356,29 @@
           }, 420);
           return;
         }
+        /* Spent, with nothing to show and nowhere to send them: the
+           last rung would otherwise be said a second time and the
+           buttons left live, which is the third ask this game does not
+           make. She names it herself and the beat moves on — the
+           marker above has already put the evidence in the corner, so
+           what she says is about something they can see. */
+        if (fb.exhausted) {
+          t.done = true;
+          this.state = 'waiting';
+          /* Not just locked — answered. Three live-looking buttons
+             under a bird who has just said which one it is reads as a
+             third go, so the panel says it too. */
+          if (Opts) Opts.reveal();
+          const told = t.spec.spentLine || t.spec.correctLine;
+          this.later(function () {
+            if (told) self.speak(told, function () { self.settle(C.AUTO.afterLine); });
+            else self.settle(C.AUTO.afterSilent);
+            /* after the marker above, never under it: she is naming a
+               square that has to already be in the corner. */
+          }, 900);
+          return;
+        }
+
         this.later(function () {
           if (t.spec.voiceOnly) self.sayOnly(fb.msg); else self.speak(fb.msg);
         }, 320);
@@ -5176,7 +6518,11 @@
     skipScreen: function () {
       const self = this;
       if (this.busy || this.state === 'start') return;
-      if (this.index + 1 >= C.SCRIPT.length) return;   // last screen: nothing follows
+      /* Whatever the answer branched to, Next goes there as well —
+         pressing it must never walk a child who got it right into the
+         beats that exist to teach a child who did not. */
+      const to = this.nextIndex();
+      if (to >= C.SCRIPT.length) return;               // nothing follows
 
       this.busy = true;
       this.clearPending();                  // stop the entrance and any queued step
@@ -5186,7 +6532,7 @@
 
       setTimeout(function () {
         self.busy = false;
-        self.goTo(self.index + 1);
+        self.goTo(to);
       }, 280);
     }
   };
@@ -5404,6 +6750,10 @@
       }
       if (Opts) {
         if (entry.options) { Opts.reset(); Opts.show(true); } else Opts.hide();
+      }
+      if (Slots) {
+        if (entry.task && entry.task.kind === 'slots') { Slots.reset(); Slots.show(true); }
+        else Slots.hide();
       }
     }, 150);
   }

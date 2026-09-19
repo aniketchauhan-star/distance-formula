@@ -1,0 +1,188 @@
+/* =============================================================
+   The substitution panel.
+
+   Everything is namespaced under .formula-slots, so the component can
+   be moved or removed without touching the game. It wears the same
+   cream-and-gold as the answer panel and the number reel, because it
+   stands in the same column and does the same job — it is the thing
+   the child answers on.
+   ============================================================= */
+
+.formula-slots {
+  position: absolute;
+  box-sizing: border-box;
+  width: 520px;
+  /* NOT `overflow: hidden`. A scroll container's items may shrink below
+     their own content, so hiding the overflow here let the formula
+     collapse into a heap at one end of the row instead of clipping it.
+     The line measures itself and scales to fit instead — see `fit` in
+     the component — so there is nothing left to clip. */
+  padding: 30px 26px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+
+  background: linear-gradient(180deg, #FFFDF2 0%, #FFF9E5 100%);
+  border: 9px solid #FFC72C;
+  border-radius: 42px;
+  box-shadow: 0 7px 0 #D78300,
+              0 13px 24px rgba(92, 56, 0, .18),
+              inset 0 3px 0 rgba(255, 255, 255, .9);
+
+  user-select: none;
+  -webkit-user-select: none;
+
+  /* Scaled by the host through --k, never through an inline transform:
+     the entrance below is itself a transform and would overwrite one. */
+  transform-origin: top left;
+  transform: scale(var(--k, 1));
+}
+.formula-slots * { box-sizing: border-box; }
+.formula-slots.hidden { display: none; }
+
+/* ---------------- the formula ---------------- */
+/* One flat grid: d², =, and then the two bracketed subtractions, each
+   symbol in its own column. Sizing a row of algebra by intrinsic inline
+   widths kept resolving it to about half of what its pieces add up to,
+   which put the four slots in a heap at one end; a grid track takes its
+   width from the item in it and there is nothing to negotiate. */
+.fs-line {
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-auto-columns: max-content;
+  align-items: center;
+  justify-items: center;
+  font-family: 'Nunito', system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 30px;
+  color: #213258;
+  white-space: nowrap;
+}
+.fs-d  { font-style: italic; margin-right: 6px; }
+.fs-eq { opacity: .85; margin-right: 8px; }
+.fs-paren { font-weight: 700; opacity: .8; margin-right: 2px; }
+.fs-close { font-weight: 700; opacity: .8; margin-left: 2px; }
+.fs-minus { opacity: .85; margin: 0 6px; }
+.fs-plus  { opacity: .85; margin: 0 10px; }
+
+/* ---------------- the slots ---------------- */
+.fs-slot {
+  width: 58px;
+  height: 54px;
+  line-height: 48px;
+  text-align: center;
+  border-radius: 14px;
+  border: 3px dashed #C9A253;
+  background: #FFFFFF;
+  font: inherit;
+  font-size: 28px;
+  color: #213258;
+  cursor: pointer;
+  transition: border-color .18s ease, background .18s ease, transform .18s ease;
+}
+/* Waiting for the chip in the child's hand: solid, and lifted, so it
+   is obvious where the thing they have picked up can go. */
+.fs-slot.open {
+  border-style: solid;
+  border-color: #17A64A;
+  background: #F1FBF3;
+  transform: translateY(-3px);
+}
+.fs-slot.taken {
+  border-style: solid;
+  border-color: #213258;
+  background: #FFF6DC;
+}
+/* Which point it came from, kept quiet — a bar under the number rather
+   than a fill, so the slot still reads as part of the formula. */
+.fs-slot.taken[data-from="a"] { box-shadow: inset 0 -7px 0 #D8384A; }
+.fs-slot.taken[data-from="b"] { box-shadow: inset 0 -7px 0 #1E88A8; }
+.fs-slot.landed { animation: fsLand .42s cubic-bezier(.2, .8, .25, 1) both; }
+@keyframes fsLand {
+  0%   { transform: translateY(-16px) scale(1.12); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+/* ---------------- the chips ---------------- */
+.fs-tray {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 14px;
+}
+.fs-chip {
+  min-width: 96px;
+  height: 74px;
+  padding: 0 18px;
+  border-radius: 20px;
+  border: 4px solid transparent;
+  font-family: 'Nunito', system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 36px;
+  color: #FFFFFF;
+  cursor: pointer;
+  transition: transform .16s ease, box-shadow .16s ease, opacity .2s ease;
+}
+/* The two towers' own colours. This says WHICH POINT a number came
+   from and nothing else — a child can see that each bracket wants one
+   of each colour, and still has to work out that x goes with x. */
+.fs-chip[data-from="a"] { background: #D8384A; box-shadow: 0 6px 0 #9E2231; }
+.fs-chip[data-from="b"] { background: #1E88A8; box-shadow: 0 6px 0 #14607A; }
+.fs-chip.held {
+  transform: translateY(-6px) scale(1.06);
+  border-color: #FFC72C;
+}
+.fs-chip.used {
+  opacity: .28;
+  box-shadow: none;
+  transform: translateY(3px);
+  cursor: default;
+}
+.fs-chip:disabled { cursor: default; }
+
+/* ---------------- Check ---------------- */
+.fs-check {
+  width: 236px;
+  height: 74px;
+  border-radius: 26px;
+  border: none;
+  font-family: 'Nunito', system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 32px;
+  color: #FFFFFF;
+  background: #2F8FE0;
+  box-shadow: 0 6px 0 #1C6BB0, 0 10px 16px rgba(20, 70, 120, .22);
+  cursor: pointer;
+  transition: transform .12s ease, box-shadow .12s ease, opacity .2s ease;
+}
+.fs-check:active:not(:disabled) {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 #1C6BB0;
+}
+.fs-check:disabled { opacity: .42; cursor: default; }
+
+/* the whole panel says no, once */
+.formula-slots.is-wrong { animation: fsNo .42s ease both; }
+@keyframes fsNo {
+  0%, 100% { transform: scale(var(--k, 1)) translateX(0); }
+  20%      { transform: scale(var(--k, 1)) translateX(-11px); }
+  55%      { transform: scale(var(--k, 1)) translateX(9px); }
+  80%      { transform: scale(var(--k, 1)) translateX(-4px); }
+}
+.formula-slots.locked .fs-slot,
+.formula-slots.locked .fs-chip { cursor: default; }
+
+/* rising into the space she has just left */
+.formula-slots.rising { animation: fsRise .5s cubic-bezier(.2, .85, .3, 1) both; }
+@keyframes fsRise {
+  0%   { transform: scale(var(--k, 1)) translateY(46px); opacity: 0; }
+  100% { transform: scale(var(--k, 1)) translateY(0);    opacity: 1; }
+}
+
+/* Keyboard reach: every slot, chip and Check is a real button, so the
+   only thing missing is somewhere visible for focus to land. */
+.formula-slots :focus-visible {
+  outline: 4px solid #2F8FE0;
+  outline-offset: 3px;
+}

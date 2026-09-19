@@ -774,6 +774,17 @@ html, body {
 /* a plotted segment: points, the line joining them, and labels */
 #gridAxes .seg { opacity: 0; pointer-events: none; }
 #gridAxes .seg.on { opacity: 1; }
+
+/* A slot for a pair recalled beside the one a screen is about — off
+   until something is put in it, exactly as the segment above is.
+
+   It was not, and an empty slot is not empty: its line is built with a
+   stroke and a round cap and no coordinates, so it sat at 0,0 as a 6px
+   navy dot in the board's own ink, on the corner of the paper, on every
+   screen in the game. The dots and labels inside were invisible
+   already; only the line had nothing switching it off. */
+#gridAxes .example { opacity: 0; pointer-events: none; }
+#gridAxes .example.on { opacity: 1; }
 #gridAxes .segdot {
   opacity: 0;
   paint-order: stroke fill;
@@ -1476,3 +1487,58 @@ html, body {
   #gridAxes.triangle-question-active .triangle-point { animation: none; }
 }
 
+
+/* A number in flight, out of the board and into a working. It is a
+   copy — the label it came from never moves — so it carries the same
+   face and the same paper halo, and lands at the size the working is
+   set in rather than the size it left at. */
+.fx-glyph {
+  font-family: 'Nunito', system-ui, sans-serif;
+  font-weight: 600;
+  color: #1F6FD0;
+  line-height: 1;
+  transform: translate(-50%, -50%);
+  text-shadow: 0 0 6px #FDFBF0, 0 0 6px #FDFBF0, 0 0 3px #FDFBF0;
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* The working, written on the paper beside the drawing. Sized through
+   the camera like every other label on this board, so it is the size it
+   is meant to be on the stage whatever the board has pushed in to. */
+#gridAxes .work { opacity: 1; pointer-events: none; }
+#gridAxes .workline {
+  opacity: 0;
+  font-family: 'Nunito', system-ui, sans-serif;
+  font-weight: 600;
+  font-size: var(--workFs, 40px);
+  fill: #213258;
+  text-anchor: start; dominant-baseline: middle;
+  paint-order: stroke fill;
+  stroke: #FDFBF0; stroke-width: 7;
+}
+#gridAxes .workline.on { animation: labelPop .5s cubic-bezier(.22,.68,.3,1) both; }
+#gridAxes .workbar {
+  opacity: 0;
+  stroke: #213258;
+  stroke-linecap: round;
+  fill: none;
+}
+#gridAxes .workbar.on { opacity: 1; transition: opacity .3s ease .12s; }
+
+/* A part of a working that names a side of the drawing takes that
+   side's colour as it lands, the same three the panel uses. */
+#gridAxes .workline tspan.lit-h.now  { fill: #E07B12; }
+#gridAxes .workline tspan.lit-v.now  { fill: #2F8F6F; }
+#gridAxes .workline tspan.lit-ab.now { fill: #1F6FD0; }
+#gridAxes .workline tspan.wait { opacity: .28; }
+
+/* The square in the corner of a right angle. It is the evidence for
+   the answer to "what type of triangle is this?", so it arrives with
+   the answer rather than sitting there waiting to be read off. */
+#gridAxes .rightangle {
+  opacity: 0;
+  stroke-linejoin: miter;
+  stroke-linecap: butt;
+}
+#gridAxes .rightangle.on { animation: labelPop .5s cubic-bezier(.22,.68,.3,1) both; }

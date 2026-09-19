@@ -140,6 +140,13 @@
               inset 0 3px 0 rgba(255, 255, 255, .5);
   animation: toCorrect .5s cubic-bezier(.2, .8, .25, 1) both;
 }
+/* The two nobody should pick, once the asking is over. They stay
+   readable — a child who chose one is still looking at it — but they
+   step back so the answer is the only thing lit. */
+.triangle-option.spent {
+  opacity: .45;
+  filter: saturate(.35);
+}
 .triangle-option.incorrect {
   border-color: #E23A3A;
   box-shadow: 0 0 0 5px rgba(226, 58, 58, .32),
@@ -263,4 +270,63 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .triangle-options-panel.rising { animation: none; }
+}
+
+/* =============================================================
+   Two answers, side by side — the closing beat's pair of cafes.
+
+   Two places on a map are a pair, not a list: stacked they read as
+   first-then-second, which is an order neither of them has. The panel
+   wraps, so anything else it holds (the hint row, which asks for a
+   whole line) drops beneath them on its own.
+   ============================================================= */
+.triangle-options-panel.pair {
+  flex-flow: row wrap;
+  gap: 24px;
+  align-items: flex-start;
+}
+.triangle-options-panel.pair .triangle-option {
+  flex: 1 1 calc(50% - 12px);
+  width: auto;
+  min-width: 0;
+  /* Two words on a button half the width, so the type comes down with
+     it — "Café A" still sits on one line with room to spare. */
+  font-size: 40px;
+}
+
+/* Their own two colours rather than the positional ones: each carries
+   the colour of its own pill on the map, so a child can pair a button
+   with a place without reading either. The names are on both — colour
+   is the second channel here, never the only one. */
+.triangle-option.cafe-a {
+  background: linear-gradient(180deg, #F2707F 0%, #E0475C 48%, #CC2C44 100%);
+  border: 4px solid #B22239;
+  box-shadow: 0 7px 0 #8E1B2D, 0 10px 15px rgba(150, 30, 55, .18),
+              inset 0 3px 0 rgba(255, 255, 255, .35);
+}
+.triangle-option.cafe-b {
+  background: linear-gradient(180deg, #4FC2DE 0%, #2AA2C4 48%, #1786A8 100%);
+  border: 4px solid #12708E;
+  box-shadow: 0 7px 0 #0E5A73, 0 10px 15px rgba(20, 110, 140, .18),
+              inset 0 3px 0 rgba(255, 255, 255, .35);
+}
+
+/* The distance formula stated in full is half as long again as
+   anything else this panel writes, and at the lead's own size it runs
+   off both ends of the box. */
+.triangle-options-panel .formula-lead.sm {
+  font-size: 26px;
+  letter-spacing: 0;
+}
+/* And a substituted line can be as long: the walk across both axes puts
+   two bracketed negatives into it, which is half again the width of
+   anything the first-quadrant screens write. */
+.triangle-options-panel .formula-step.sm { font-size: 26px; }
+
+/* A result that has left the working for the line it measures. It is
+   not said twice: the working made the statement, and the statement has
+   gone to where the child will look for it. */
+.triangle-options-panel .formula-view .gone {
+  opacity: .25;
+  transition: opacity 320ms ease;
 }

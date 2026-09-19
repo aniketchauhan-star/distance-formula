@@ -20,22 +20,40 @@
   /* The art's own proportions, measured off the sheet. */
   --frame-w: 660px;
   --frame-h: 400px;          /* 660 x 311/513 */
-  --frame-x: 70px;           /* room for the arrows to overhang */
+  --frame-x: 78px;           /* room for the arrows to overhang — half
+                                an arrow, and a few px of air */
   /* The window cut through the frame, as fractions of the art. */
   --win-x:   calc(var(--frame-x) + var(--frame-w) * 0.2144);
-  --win-y:   calc(var(--frame-h) * 0.2251);
-  --win-w:   calc(var(--frame-w) * 0.5653);
-  --win-h:   calc(var(--frame-h) * 0.3891);
+  --win-y:   calc(var(--frame-h) * 0.2283);
+  --win-w:   calc(var(--frame-w) * 0.5634);
+  --win-h:   calc(var(--frame-h) * 0.3762);
+  /* The middle of the round socket the art bulges out on each side, as
+     a fraction of the frame's height — measured off the sheet, not
+     guessed from the window, because the two are not quite level. */
+  --dial-y:  calc(var(--frame-h) * 0.4244);
   /* One barrel, and how far apart the barrels sit. Three across the
-     window, with the two either side running on under the frame. */
+     window, with the two either side running on under the frame.
+
+     The chosen barrel and its neighbours are two different drawings and
+     two different shapes: the gold one is 155 x 182 on the sheet and a
+     plain one is 144 x 155, so the gold one is both wider and a good
+     deal taller. Stretching them both into one box threw that away and
+     drew three identical drums. Sized from the art instead: the gold
+     one fills the slot top to bottom and the two beside it sit a little
+     short of it, which is what makes the chosen one read as chosen
+     before the colour does. */
   --pitch:   calc(var(--win-w) / 3);
-  --barrel-w: calc(var(--pitch) * 0.94);
+  --barrel-h: var(--win-h);
+  --barrel-w: calc(var(--barrel-h) * 0.852);     /* 155/182 */
+  --side-h:   calc(var(--win-h) * 0.852);        /* 155/182 of the gold one */
+  --side-w:   calc(var(--side-h) * 0.929);       /* 144/155 */
   --arrow:   150px;
   --go:      168px;
 
   position: absolute;
-  width: 800px;
-  height: 500px;
+  /* frame-x + frame-w + half an arrow, and deep enough for GO's foot. */
+  width: 816px;
+  height: 520px;
   transform-origin: top left;
   transform: scale(var(--k, 1));
   font-family: 'Nunito', system-ui, sans-serif;
@@ -94,8 +112,9 @@
 .number-control .cell {
   position: absolute;
   left: 50%; top: 50%;
-  width: var(--barrel-w);
-  height: 100%;
+  /* Each kind takes its own size below; this is the fallback. */
+  width: var(--side-w);
+  height: var(--side-h);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -107,14 +126,20 @@
 }
 .number-control .cell.on {
   background-image: url('../assets/ui/roller-mid.png');
+  width: var(--barrel-w);
+  height: var(--barrel-h);
   color: #0754B8;
   font-size: 92px;
   z-index: 2;
 }
 .number-control .cell.off {
   background-image: url('../assets/ui/roller-side.png');
+  width: var(--side-w);
+  height: var(--side-h);
   color: #8F8374;
-  font-size: 92px;
+  /* Set to its own barrel, not to the gold one's — the same share of a
+     smaller drum, so all three digits look like one row of type. */
+  font-size: 78px;
   z-index: 1;
 }
 /* Past the end of the range there is no number to show — but the
@@ -127,12 +152,24 @@
 .number-control .cell.jump { transition: none; }
 
 /* ---- the two round arrows ---------------------------------------- */
+/* ---- the two round arrows ----------------------------------------
+
+   These are children of the FRAME, not of the widget, so every offset
+   here is measured from the frame's own top-left corner — not from the
+   widget's. Written as though they were the widget's, each arrow came
+   out one whole `--frame-x` to the right of its socket: the left one
+   sat inside the housing and the right one hung off past its own bulge,
+   with the cream lobe showing between. GO looks right because GO IS a
+   child of the widget.
+
+   Centred by folding the half-width into `left` and `top` rather than
+   by a negative margin or a translate, because :hover and :active both
+   put a transform on these and a centring transform would fight them. */
 .number-control .side {
   position: absolute;
-  top: calc(var(--win-y) + var(--win-h) / 2);
+  top: calc(var(--dial-y) - var(--arrow) / 2);
   width: var(--arrow);
   height: var(--arrow);
-  margin: calc(var(--arrow) / -2) 0 0 calc(var(--arrow) / -2);
   padding: 0;
   border: 0;
   background: center / 100% 100% no-repeat;
@@ -140,8 +177,16 @@
   transition: transform 120ms ease, opacity 160ms ease;
   z-index: 3;
 }
-.number-control .side.prev { left: var(--frame-x); background-image: url('../assets/ui/btn-left.png'); }
-.number-control .side.next { left: calc(var(--frame-x) + var(--frame-w)); background-image: url('../assets/ui/btn-right.png'); }
+/* Each one centred on the outer tip of its own lobe, which is where the
+   art's bulge reaches the edge of the sheet. */
+.number-control .side.prev {
+  left: calc(var(--arrow) / -2);
+  background-image: url('../assets/ui/btn-left.png');
+}
+.number-control .side.next {
+  left: calc(var(--frame-w) - var(--arrow) / 2);
+  background-image: url('../assets/ui/btn-right.png');
+}
 /* The chevron is drawn into the art. */
 .number-control .chev { display: none; }
 

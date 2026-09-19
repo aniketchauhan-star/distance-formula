@@ -447,20 +447,93 @@ window.FX = (function () {
       el.appendChild(d);
     }
 
-    setTimeout(function () { if (onCover) onCover(); }, LEAF_DUR * LEAF_COVER);
-    setTimeout(function () {
+    /* A sweep in flight has to be stoppable. Its two steps dress the
+       screen and then build it, and they are plain timeouts — the
+       game's own `later()` cannot reach them — so a child who presses
+       Next while the leaves are crossing had the screen they were
+       leaving dress and plot itself onto the board of the screen they
+       had arrived at. Handing the caller a way to call it off is the
+       whole fix; `Game.clearPending` uses it. */
+    const t1 = setTimeout(function () { if (onCover) onCover(); },
+                          LEAF_DUR * LEAF_COVER);
+    const t2 = setTimeout(function () {
+      leaves.cancel = null;
       el.classList.add('hidden');
       el.innerHTML = '';
       if (onDone) onDone();
     }, LEAF_DUR + maxDelay + 160);
+
+    leaves.cancel = function () {
+      clearTimeout(t1); clearTimeout(t2);
+      leaves.cancel = null;
+      el.classList.add('hidden');
+      el.innerHTML = '';
+    };
   }
+  leaves.cancel = null;
 
   // how long a sweep runs, in seconds, so the gust can be scored to it
   leaves.seconds = LEAF_DUR / 1000;
 
 
-  function clear() { if (layer) layer.innerHTML = ''; }
+  /* A number leaving the board and landing in a working.
+
+     The board's own flight (`Board.tweenText`) moves SVG text inside
+     the board's own coordinates, which is right when a digit travels
+     from a label to a sum drawn on the same board. It cannot reach the
+     working panel: that is HTML, on the stage, in different units
+     entirely. So this one lives on the stage and is given both ends in
+     stage coordinates.
+
+     rAF rather than a CSS transition, for the reason section 0 of the
+     horizontal prompt records: a transition given its start and its end
+     in the same tick never runs, and this has to tween a font-size as
+     well as a position. */
+  const flights = [];
+  function flyGlyph(text, from, to, ms, done) {
+    if (!layer) { if (done) done(); return function () {}; }
+    const d = document.createElement('div');
+    d.className = 'fx fx-glyph';
+    d.textContent = text;
+    layer.appendChild(d);
+    let live = true;
+    const put = function (x, y, size) {
+      d.style.left = x + 'px';
+      d.style.top = y + 'px';
+      d.style.fontSize = size + 'px';
+    };
+    put(from.x, from.y, from.size);
+    const t0 = performance.now();
+    /* cubic-bezier(.3, .8, .35, 1) — the arc everything else on this
+       board travels on. */
+    const ease = function (t) { return 1 - Math.pow(1 - t, 3); };
+    const stop = function () {
+      if (!live) return;
+      live = false;
+      const i = flights.indexOf(stop);
+      if (i >= 0) flights.splice(i, 1);
+      if (d.parentNode) d.parentNode.removeChild(d);
+    };
+    flights.push(stop);
+    const step = function () {
+      if (!live) return;
+      const p = Math.min(1, (performance.now() - t0) / (ms || 700));
+      const e = ease(p);
+      put(from.x + (to.x - from.x) * e,
+          from.y + (to.y - from.y) * e,
+          from.size + (to.size - from.size) * e);
+      if (p < 1) requestAnimationFrame(step);
+      else { stop(); if (done) done(); }
+    };
+    requestAnimationFrame(step);
+    return stop;
+  }
+  /* Nothing may be left in the air when a screen changes. */
+  function landAll() { flights.slice().forEach(function (s) { s(); }); }
+
+  function clear() { landAll(); if (layer) layer.innerHTML = ''; }
 
   return { init, starBurst, ring, pop, sparkles, puff, motes, clouds,
+           flyGlyph, landAll,
            leafDrift, wind, leaves, clear };
 })();

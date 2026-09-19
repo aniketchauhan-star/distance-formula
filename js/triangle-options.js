@@ -39,7 +39,7 @@ window.TriangleOptions = (function () {
 
     function clearStates() {
       buttons.forEach(function (b) {
-        b.classList.remove('selected', 'correct', 'incorrect');
+        b.classList.remove('selected', 'correct', 'incorrect', 'spent');
       });
     }
 
@@ -58,6 +58,7 @@ window.TriangleOptions = (function () {
         b.type = 'button';
         b.classList.add('triangle-option');
         b.classList.add('opt-' + (i + 1));        // positional colour
+        b.style.order = '1';                      // answers first, hint under
         if (c.cls) b.classList.add(c.cls);
         b.textContent = c.label;
         b.dataset.key = c.key;
@@ -119,16 +120,30 @@ window.TriangleOptions = (function () {
 
     /* How long the whole thing runs, without running it — the host has
        to hold the screen open for exactly that. */
-    function formulaMs(lines) {
+    /* A part that is flown into takes the flight's time as well as its
+       own beat: the host is carrying a number across the screen into
+       it, and a working whose screen is taken away mid-flight has a
+       number still in the air when the board goes. */
+    function formulaMs(lines, flyMs) {
       let ms = 0;
       (lines || []).forEach(function (l) {
         ms += LINE_MS;
-        (l.parts || []).forEach(function (f) { if (f.lit) ms += BEAT_MS; });
+        (l.parts || []).forEach(function (f) {
+          if (!f.lit) return;
+          ms += BEAT_MS + (f.from && flyMs ? flyMs : 0);
+        });
       });
       return ms;
     }
 
-    function showFormula(lines, onBeat) {
+    /* `opts.onFly(part, node)` is called when a part that names a source
+       is about to arrive, and `opts.flyMs` is how long the host needs to
+       carry it there. The panel stays in charge of the timing — it is
+       the thing that knows when each line lands — and the host stays in
+       charge of the flight. */
+    function showFormula(lines, onBeat, opts) {
+      opts = opts || {};
+      const FLY_MS = opts.flyMs || 0;
       buttons.forEach(function (b) { b.classList.add('hidden'); });
       clearBeats();
       if (formula) root.removeChild(formula);
@@ -140,6 +155,10 @@ window.TriangleOptions = (function () {
         const d = document.createElement('div');
         d.classList.add('formula-' + (l.kind || 'step'));
         d.style.animationDelay = at + 'ms';
+        /* A line long enough to need it can ask to be set smaller —
+           the distance formula written out in full is half as long
+           again as anything else this panel states. */
+        if (l.small) d.classList.add('sm');
         if (l.parts) {
           l.parts.forEach(function (f) {
             const sp = document.createElement('span');
@@ -157,6 +176,13 @@ window.TriangleOptions = (function () {
         (l.parts || []).forEach(function (f, k) {
           if (!f.lit) return;
           const sp = d.children[k], which = f.lit;
+          /* Flown first, then landed. The number has to be seen leaving
+             the board before the slot it is going into fills, or the
+             slot has filled itself and the flight is decoration. */
+          if (f.from && FLY_MS && opts.onFly) {
+            beats.push(setTimeout(function () { opts.onFly(f, sp); }, at));
+            at += FLY_MS;
+          }
           beats.push(setTimeout(function () {
             sp.classList.remove('wait');
             sp.classList.add('now');
@@ -184,6 +210,12 @@ window.TriangleOptions = (function () {
       formulaMs: formulaMs,
       hideFormula: hideFormula,
       setChoices: function (list) { build(list); },
+
+      /* Two answers that name two places on a map read as a pair when
+         they sit side by side, and as a list when they are stacked.
+         The panel lays them out in a row on request; anything else it
+         holds — the hint row — takes a line of its own beneath. */
+      setRow: function (on) { root.classList.toggle('pair', !!on); },
       setAnswer: function (k) { answerKey = k; },
       reset: function () {
         hideFormula(); clearStates(); locked = false;
@@ -200,6 +232,19 @@ window.TriangleOptions = (function () {
         root.style.top = y + 'px';
       },
       lock: function () { locked = true; },
+      /* Nobody got it, so the panel says which one it was. Locking
+         alone leaves three live-looking answers under a bird who has
+         just given the answer, which reads as a third go; the green
+         border is how this panel has always said "this one", so it
+         says it here too. */
+      reveal: function () {
+        locked = true;
+        clearStates();
+        buttons.forEach(function (b) {
+          if (b.dataset.key === answerKey) b.classList.add('correct', 'selected');
+          else b.classList.add('spent');
+        });
+      },
       /* `rising` is for the moment it takes the space Swifty has just
          flown out of: it comes up from below rather than appearing, so
          it is visibly settled by the time she lands on it. */
