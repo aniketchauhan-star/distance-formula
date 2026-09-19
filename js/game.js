@@ -877,6 +877,18 @@
            without this the new plane came up as bare paper with no axes
            and no numbers on it at all. They are simply put in the state
            the ones they replaced were in. */
+        /* And put back UNDER the drawing. `buildAxes` appends, which is
+           right the first time — it runs before anything else is made —
+           and wrong every time after: a rebuilt axis went on top of the
+           very triangle it is the paper for. Since the board gained a
+           second range this has been true of every screen that changes
+           one. */
+        const svg2 = el.gridAxes;
+        const axisNodes = this.lines.concat(this.arrows, this.labels);
+        axisNodes.forEach(function (n) { svg2.removeChild(n); });
+        for (let k = axisNodes.length - 1; k >= 0; k--) {
+          svg2.insertBefore(axisNodes[k], svg2.firstChild);
+        }
         if (wasDrawn || this.shown) this.showAxes();
       }
       /* The ruling is laid out from the origin at `place` time, so the
@@ -1841,10 +1853,47 @@
       this.triFill.classList.add('on');
     },
 
+    /* Does what is drawn run over an axis?
+
+       The axes are the paper and the drawing is the subject, and where
+       they meet the paper gives way. A side crossing a 7px axis of the
+       same colour family, at the same weight, leaves nothing in the
+       picture saying which of the two is the shape.
+
+       Every side counts — the pair's own line and both legs — because
+       all of them are the drawing. A side crosses when its two ends sit
+       on opposite sides of an axis, and a corner ON one counts as well:
+       a point at x = 0 has the y-axis running straight through it. */
+    crossesAxis: function () {
+      const on = (g) => g && g.classList && g.classList.contains('on');
+      const sides = [];
+      if (this.lastPlotted && this.lastPlotted.a && on(this.segGroup)) {
+        sides.push([this.lastPlotted.a, this.lastPlotted.b]);
+      }
+      (this.legPlaced || []).forEach(function (s, i) {
+        const L = this.legSlots && this.legSlots[i];
+        if (s && s.from && s.to && on(L && L.g)) sides.push([s.from, s.to]);
+      }, this);
+      return sides.some(function (s) {
+        const a = s[0], b = s[1];
+        return (a.x <= 0 && b.x >= 0) || (a.x >= 0 && b.x <= 0) ||
+               (a.y <= 0 && b.y >= 0) || (a.y >= 0 && b.y <= 0);
+      });
+    },
+
+    /* And the class that says so. Called wherever the drawing changes,
+       not only on a screen change: a beat whose legs arrive after its
+       line starts not crossing and ends crossing. */
+    markCrossing: function () {
+      if (!el.gridPanel) return;
+      el.gridPanel.classList.toggle('crossed', this.shown && this.crossesAxis());
+    },
+
     clearLegs: function () {
       this.rightAngle(false);
       if (this.triFill) this.triFill.classList.remove('on');
       this.legPlaced = [];
+      this.markCrossing();
       if (!this.legSlots) return;
       this.legSlots.forEach(function (L) {
         L.g.classList.remove('on');
@@ -2472,7 +2521,7 @@
         const L = self.legSlots[i];
         self.placeLeg(i, spec);
         L.g.classList.add('on');
-        if (i === specs.length - 1) self.clearMarksOfLines();
+        if (i === specs.length - 1) { self.clearMarksOfLines(); self.markCrossing(); }
 
         if (spec.settled) {
           // already on the board; only its length is new
@@ -3231,7 +3280,7 @@
       if (!into && spec !== this.lastPlotted) {
         ['a', 'b'].forEach(function (k) { if (T.segParts[k]) T.segParts[k].heldDir = null; });
       }
-      if (!into) this.lastPlotted = spec;
+      if (!into) { this.lastPlotted = spec; this.markCrossing(); }
       // a screen can recolour the segment — red once it closes a triangle
       T.segLine.setAttribute('stroke', spec.color || SG.lineColor);
       T.segLine.style.color = spec.color || SG.lineColor;   // for its own glow
@@ -3901,6 +3950,7 @@
       if (this.segRes) this.segRes.classList.remove('pop');
       if (this.segLine) this.segLine.classList.remove('lit');
       this.segGroup.classList.remove('on');
+      this.markCrossing();
       const parts = this.segParts;
       if (parts) ['a', 'b'].forEach(function (k) {
         parts[k].dot.classList.remove('triangle-point');
@@ -3951,6 +4001,7 @@
       this.placeSegment(spec);
       this.clearSegment();
       this.segGroup.classList.add('on');
+      this.markCrossing();
 
       if (carried) {
         /* Nothing here is new, so nothing here moves. The segment's own
@@ -4059,6 +4110,7 @@
       this.placeSegment(spec);
       this.clearSegment();
       this.segGroup.classList.add('on');
+      this.markCrossing();
 
       later(function () { self.segParts.a.dot.classList.add('pop'); SFX.tick(0); }, 120);
       later(function () { self.segParts.b.dot.classList.add('pop'); SFX.tick(2); }, 380);
@@ -4564,6 +4616,12 @@
          board settles into it rather than snapping — and cleared the
          same way by every screen that does not ask for it. */
       el.gridPanel.classList.toggle('quiet', !!next.quietBoard);
+      /* And the other reason a board steps back, which no screen asks
+         for because the board can see it: the drawing runs over an
+         axis. It fades the axes and their numbers and leaves the ruling
+         alone — the one beat that asks a child to count squares over an
+         axis still needs the squares. */
+      Board.markCrossing();
       /* The board's camera. A beat that names a view pushes in to it; one
          that names none pulls back out; one that wants the view it
          already has does nothing at all. Given a beat to settle first so

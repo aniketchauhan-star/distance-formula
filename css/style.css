@@ -401,6 +401,25 @@ html, body {
 #gridPanel.quiet #gridAxes .arrow.pop { opacity: .3; }
 #gridPanel.quiet #gridAxes .glabel.pop { opacity: .5; }
 
+/* The other reason the board steps back, and it is not the same reason.
+
+   `quiet` is a beat saying "this one is about the drawing, not about
+   counting", and it takes the ruling down with everything else.
+   `crossed` is the BOARD saying "a side of this drawing runs over an
+   axis" — the paper giving way to the subject where the two meet — and
+   it leaves the ruling alone. Screen 58 is why the two are separate: it
+   asks a child to count fourteen squares up a side that crosses the
+   x-axis, so the axis has to get out of the way and the squares have to
+   stay countable.
+
+   The numbers do not go as far down as the lines. A child reads
+   coordinates off them on every screen in this game, and a number at .3
+   is a number they have to squint at; the lines carry less here, so the
+   lines can go further. */
+#gridPanel.crossed #gridAxes .axis { opacity: .3; }
+#gridPanel.crossed #gridAxes .arrow.pop { opacity: .3; }
+#gridPanel.crossed #gridAxes .glabel.pop { opacity: .5; }
+
 /* Pushed in, the axes are lines only. At that range the child is reading
    the drawing and its own labels, not counting along an axis, and the
    numbers are the loudest thing left on a board that has already been
