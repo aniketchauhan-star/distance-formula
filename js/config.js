@@ -571,6 +571,15 @@ window.CFG = (function () {
                every: 1, labelSize: 36, overshoot: 58,
                arrow: { len: 34, halfW: 20 },
                gxFrom: -7, gxTo: 7, gyFrom: -6, gyTo: 6 },
+      /* Between the two, for a shape that is too big for the lesson's
+         own plane and too small to be lost on the rescue's. Still
+         numbered every unit — at 53px a cell there is room for all
+         twenty-one numbers, and a board a child can count on is worth
+         more than a tidy axis. */
+      mid:   { k: 0.6, xFrom: -10, xTo: 10, yFrom: -8,  yTo: 8,
+               every: 1, labelSize: 30, overshoot: 40,
+               arrow: { len: 26, halfW: 15 },
+               gxFrom: -11, gxTo: 11, gyFrom: -10, gyTo: 10 },
       wide:  { k: 0.4, xFrom: -15, xTo: 15, yFrom: -13, yTo: 13,
                every: 5, labelSize: 26, overshoot: 30,
                arrow: { len: 22, halfW: 13 },
@@ -781,6 +790,11 @@ window.CFG = (function () {
          room beside their points at all. Deciding that on the new
          air would move pairs that read properly today. */
       coordGap: 3,
+      /* The air between a point's letter and the coordinate under it.
+         They are one block, so this is leading rather than a gap
+         between two labels — tight enough that the two read as one
+         thing and loose enough that the descenders clear. */
+      stackGap: 2,
       coordFit: 8,
       vNameDy: 32
     },
@@ -2661,6 +2675,207 @@ window.CFG = (function () {
                 { kind: 'result', parts: [
                     { t: 'SR = ' }, { t: '13\u00A0units', lit: 'ab', home: true } ] }
               ] },
+      hold: 6000 },
+
+    /* ================= what kind of triangle is this park? =========
+       The last beat, and the first one where the distance formula is
+       not the question but the tool. Three sides, measured, compared,
+       and a name put to the shape.
+
+       The triangle is 13-14-15 — the only near-equilateral triangle
+       with whole, unequal sides that fits on a lattice this size. That
+       is the whole design: it LOOKS equilateral, so a child who answers
+       by eye is wrong, and the only way through is to measure. Drawn as
+       a pair (A–B) with two legs (B→C, C→A), which is how the board
+       already holds three sides: `ab`, `h` and `v`.
+       ============================================================== */
+
+    /* 55 — the question. */
+    { id: 55, line: 'What kind of triangle is this park?',
+      transition: 'leaves', entrance: 'fly', layout: 'board',
+      board: 'mid', askFirst: true, optionTrio: true,
+      quietBoard: true, fillTriangle: true,
+      hint: 'Measure all three. Looking is not enough.',
+      segment: { a: { x: -6, y: -2, name: 'A', coordSide: 'under' },
+                 b: { x:  6, y: -7, name: 'B', coordSide: 'under' } },
+      legs: [
+        { from: { x:  6, y: -7 }, to: { x: 6, y: 7 }, mark: { name: 'C' } },
+        { from: { x:  6, y:  7 }, to: { x: -6, y: -2 } }
+      ],
+      options: [
+        { key: 'scalene',     cls: 'scalene',     label: 'Scalene',     marks: 0 },
+        { key: 'isosceles',   cls: 'isosceles',   label: 'Isosceles',   marks: 2 },
+        { key: 'equilateral', cls: 'right-angled', label: 'Equilateral', marks: 3 }
+      ],
+      task: {
+        kind: 'choice',
+        answer: 'scalene',
+        /* One rung, and it points at the work rather than the answer. */
+        feedback: ['Have another look at the three sides.'],
+        voiceOnly: true,
+        correctLine: 'Scalene — no two sides the same.',
+        /* Right, and the six beats that measure it are stepped over:
+           they are for a child who guessed. */
+        rightAt: 'end',
+        teachAt: 56
+      },
+      hold: 3000 },
+
+    /* 56 — a beat to stop being wrong in. The cards go, the triangle
+       stays exactly where it was. Screens 43 and 50 do the same job for
+       the same reason. */
+    { id: 56, line: 'Oops! Let\u2019s check the sides.',
+      entrance: 'stay', layout: 'board', board: 'mid', keepSegment: true,
+      quietBoard: true, fillTriangle: true,
+      segment: { a: { x: -6, y: -2, name: 'A', coordSide: 'under' },
+                 b: { x:  6, y: -7, name: 'B', coordSide: 'under' } },
+      legs: [
+        { from: { x:  6, y: -7 }, to: { x: 6, y: 7 }, mark: { name: 'C' }, settled: true },
+        { from: { x:  6, y:  7 }, to: { x: -6, y: -2 }, settled: true }
+      ],
+      hold: 1500 },
+
+    /* 57, 58, 59 — one shape three times: the side being asked about is
+       the loud one, the sides already found keep their lengths and step
+       back, and the board fills up in front of them. */
+    { id: 57, line: 'First, find AB.', focus: 'ab',
+      entrance: 'stay', layout: 'board', board: 'mid', keepSegment: true,
+      quietBoard: true, fillTriangle: true,
+      intro: 'measure', entry: true, range: { min: 0, max: 18 },
+      hint: 'Twelve across and five up.',
+      segment: { a: { x: -6, y: -2, name: 'A', coordSide: 'under' },
+                 b: { x:  6, y: -7, name: 'B', coordSide: 'under' } },
+      legs: [
+        { from: { x:  6, y: -7 }, to: { x: 6, y: 7 }, mark: { name: 'C' }, settled: true },
+        { from: { x:  6, y:  7 }, to: { x: -6, y: -2 }, settled: true }
+      ],
+      task: { kind: 'entry', pair: 'AB', answer: 13, noCount: true,
+              keepLength: true,
+              correctLine: 'Thirteen. That one stays.',
+              feedback: ['Square them, add, then take the root.'],
+              showWorking: true,
+              formula: [
+                { kind: 'lead', parts: [
+                    { t: 'AB\u00B2', lit: 'ab' }, { t: ' = ' },
+                    { t: '12\u00B2' }, { t: ' + ' }, { t: '5\u00B2' } ] },
+                { kind: 'step', parts: [
+                    { t: '= ' }, { t: '144' }, { t: ' + ' }, { t: '25' } ] },
+                { kind: 'step', parts: [ { t: '= ' }, { t: '169', lit: 'ab' } ] },
+                { kind: 'result', parts: [
+                    { t: 'AB = ' }, { t: '13\u00A0units', lit: 'ab', home: true } ] }
+              ] } },
+
+    /* The one side of this triangle that runs straight up the grid — so
+       it is the one a child can COUNT, and counting a side you can count
+       is knowing which tool a job needs, not cheating. It is asked as a
+       distance rather than as a typed answer for exactly that reason. */
+    { id: 58, line: 'Now find BC.', focus: 'h',
+      entrance: 'none', layout: 'board', board: 'mid', keepSegment: true,
+      /* The board stays at full strength here, alone of the seven: this
+         is the beat that asks a child to COUNT, and counting squares
+         needs the squares. */
+      fillTriangle: true,
+      intro: 'measure', distance: true, range: { min: 0, max: 18 },
+      hint: 'This one runs straight up. You can count it.',
+      segment: { a: { x: -6, y: -2, name: 'A', coordSide: 'under' },
+                 b: { x:  6, y: -7, name: 'B', coordSide: 'under' },
+                 result: { text: '13\u00A0units' } },
+      legs: [
+        { from: { x:  6, y: -7 }, to: { x: 6, y: 7 }, mark: { name: 'C' }, settled: true },
+        { from: { x:  6, y:  7 }, to: { x: -6, y: -2 }, settled: true }
+      ],
+      task: { kind: 'distance', measureLeg: 0, keepLength: true,
+              correctLine: 'Fourteen.',
+              feedback: ['Count the squares from B up to C.'],
+              countLine: 'Count the spaces between the two points.' } },
+
+    { id: 59, line: 'One more. Find CA.', focus: 'v',
+      entrance: 'none', layout: 'board', board: 'mid', keepSegment: true,
+      quietBoard: true, fillTriangle: true,
+      intro: 'measure', entry: true, range: { min: 0, max: 18 },
+      hint: 'Twelve across and nine down.',
+      segment: { a: { x: -6, y: -2, name: 'A', coordSide: 'under' },
+                 b: { x:  6, y: -7, name: 'B', coordSide: 'under' },
+                 result: { text: '13\u00A0units' } },
+      legs: [
+        { from: { x:  6, y: -7 }, to: { x: 6, y: 7 }, mark: { name: 'C' }, settled: true, length: true },
+        { from: { x:  6, y:  7 }, to: { x: -6, y: -2 }, settled: true }
+      ],
+      task: { kind: 'entry', measureLeg: 1, answer: 15, noCount: true,
+              keepLength: true,
+              correctLine: 'Fifteen. All three are down.',
+              feedback: ['Square them, add, then take the root.'],
+              showWorking: true,
+              formula: [
+                { kind: 'lead', parts: [
+                    { t: 'CA\u00B2', lit: 'v' }, { t: ' = ' },
+                    { t: '12\u00B2' }, { t: ' + ' }, { t: '9\u00B2' } ] },
+                { kind: 'step', parts: [
+                    { t: '= ' }, { t: '144' }, { t: ' + ' }, { t: '81' } ] },
+                { kind: 'step', parts: [ { t: '= ' }, { t: '225', lit: 'v' } ] },
+                { kind: 'result', parts: [
+                    { t: 'CA = ' }, { t: '15\u00A0units', lit: 'v', home: true } ] }
+              ] } },
+
+    /* 60 — the screen the whole repair is for. Three numbers become a
+       property here, and a child who computed all three perfectly can
+       still not have noticed what they MEAN. It is also where 13 and 14
+       being close has to be decided out loud: about-the-same is not the
+       same. */
+    { id: 60, line: 'What do you notice about the side lengths?',
+      entrance: 'stay', layout: 'board', board: 'mid', keepSegment: true,
+      askFirst: true, optionRow: false, quietBoard: true, fillTriangle: true,
+      pulse: 'triangle',
+      hint: 'Are any two of them the same number?',
+      segment: { a: { x: -6, y: -2, name: 'A', coordSide: 'under' },
+                 b: { x:  6, y: -7, name: 'B', coordSide: 'under' },
+                 result: { text: '13\u00A0units' } },
+      legs: [
+        { from: { x:  6, y: -7 }, to: { x: 6, y: 7 }, mark: { name: 'C' }, settled: true, length: true },
+        { from: { x:  6, y:  7 }, to: { x: -6, y: -2 }, settled: true, length: true }
+      ],
+      options: [
+        { key: 'all-equal',  cls: 'scalene',      label: 'All equal' },
+        { key: 'two-equal',  cls: 'isosceles',    label: 'Two equal' },
+        { key: 'all-diff',   cls: 'right-angled', label: 'All different' }
+      ],
+      task: {
+        kind: 'choice',
+        answer: 'all-diff',
+        feedback: ['Are any two of them the same number?'],
+        voiceOnly: true,
+        correctLine: 'All different — 13, 14 and 15.',
+        spentLine: 'Thirteen, fourteen, fifteen — all different.'
+      },
+      hold: 2600 },
+
+    /* 61 — and back to the question they opened. Same three cards, same
+       triangle, three lengths on the board now. The loop a child opened
+       by getting it wrong is closed by them getting it right. */
+    { id: 61, line: 'So, which triangle is it?',
+      entrance: 'stay', layout: 'board', board: 'mid', keepSegment: true,
+      askFirst: true, optionTrio: true, quietBoard: true, fillTriangle: true,
+      hint: 'No two sides are the same length.',
+      segment: { a: { x: -6, y: -2, name: 'A', coordSide: 'under' },
+                 b: { x:  6, y: -7, name: 'B', coordSide: 'under' },
+                 result: { text: '13\u00A0units' } },
+      legs: [
+        { from: { x:  6, y: -7 }, to: { x: 6, y: 7 }, mark: { name: 'C' }, settled: true, length: true },
+        { from: { x:  6, y:  7 }, to: { x: -6, y: -2 }, settled: true, length: true }
+      ],
+      options: [
+        { key: 'scalene',     cls: 'scalene',     label: 'Scalene',     marks: 0 },
+        { key: 'isosceles',   cls: 'isosceles',   label: 'Isosceles',   marks: 2 },
+        { key: 'equilateral', cls: 'right-angled', label: 'Equilateral', marks: 3 }
+      ],
+      task: {
+        kind: 'choice',
+        answer: 'scalene',
+        feedback: ['All three lengths are different. Which name is that?'],
+        voiceOnly: true,
+        correctLine: 'That\u2019s right — a scalene triangle.',
+        spentLine: 'All different means scalene.'
+      },
       hold: 6000 }
   ];
 
