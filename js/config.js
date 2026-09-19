@@ -2634,23 +2634,16 @@ window.CFG = (function () {
          away from the vehicle and clear of both axes; the vehicle,
          down in the third quadrant with nothing near it, keeps the
          ordinary treatment. */
-      /* Both points have to be told where their labels go, and for
-         once it is not about each other.
-
-         The station is ON the origin — the first point in this game
-         that is — so underneath it is the x numbering and to its left
-         is the y numbering. Its coordinate goes up and to the right,
-         far enough that its left edge clears the y-axis, and its
-         letter goes up and to the left, so the two are on opposite
-         sides of the axis rather than stacked on it.
-
-         The vehicle has nothing near it but the line it is an end of,
-         so its coordinate goes under it and its letter out to the
-         side, off that line. */
-      segment: { a: { x: 0, y: 0, name: 'S',
-                      coordDx: 2.6, coordDy: 1.4, nameDx: -46, nameDy: -30 },
-                 b: { x: -5, y: -12, name: 'R',
-                      coordDx: 0, coordDy: -1.5, nameDx: -54, nameDy: 10 },
+      /* The station is ON the origin — the first point in this game
+         that is — so underneath it is the x numbering, to its left is
+         the y numbering, and the two axis letters are the nearest
+         things on the board to it. Both points used to be told where
+         their labels went, the station's pushed two and a half cells
+         off its own dot to clear all of that. Nothing is told now:
+         the rule keeps clear of the numbering and the letters both,
+         and it puts a label against its point rather than near it. */
+      segment: { a: { x: 0, y: 0, name: 'S' },
+                 b: { x: -5, y: -12, name: 'R' },
                  dash: true },
       legs: [
         { from: { x: 0, y: 0 }, to: { x: -5, y: 0 }, mark: { name: 'C' } },

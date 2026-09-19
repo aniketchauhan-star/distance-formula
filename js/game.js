@@ -1893,6 +1893,7 @@
       this.rightAngle(false);
       if (this.triFill) this.triFill.classList.remove('on');
       this.legPlaced = [];
+      this.labelFace = null;
       this.markCrossing();
       if (!this.legSlots) return;
       this.legSlots.forEach(function (L) {
@@ -2130,6 +2131,9 @@
       });
       this.inked = list;
       this.inkLines = [];
+      /* And the one obstacle that is never overridden: the inside of
+         the shape. Worked out once for the pass, like the rest. */
+      this.labelFace = this.shapeFace();
       return list;
     },
 
@@ -2154,11 +2158,83 @@
       return false;
     },
 
+    /* Where a block of this size sits so that its NEAREST INK is
+       `gap` from the point, in this direction.
+
+       It used to be `gap` on each axis at once, which is the right
+       distance for the four cardinals and `gap × √2` — 41% too far —
+       for the four diagonals. The diagonals are the ones a label
+       reaches for first, because they are the ones that keep clear of
+       the drawing, so every label placed the preferred way was placed
+       the furthest way. Measured along the direction instead, all
+       eight hug their point by the same amount. */
+    blockAt: function (w, h, X, Y, d, gap) {
+      const m = Math.hypot(d[0], d[1]) || 1;
+      const cx = X + (d[0] / m) * gap + d[0] * w / 2;
+      const cy = Y + (d[1] / m) * gap + d[1] * h / 2;
+      return { x: cx, y: cy,
+               box: { l: cx - w / 2, t: cy - h / 2, r: cx + w / 2, b: cy + h / 2 } };
+    },
+
+    /* The closed region the drawing encloses — the same three corners
+       `showTriangle` washes in, whether or not it is actually shaded:
+       a label in a triangle is in the triangle either way. Null while
+       nothing is closed, because two points and a line enclose
+       nothing. */
+    shapeFace: function () {
+      const G = C.GRID, sp = this.lastPlotted, L = this.legPlaced || [];
+      if (!sp || !sp.a || !sp.b || !L[0] || !L[1] || !L[0].to) return null;
+      const px = function (v) { return G.originX + v * G.stepX; };
+      const py = function (v) { return G.originY - v * G.stepY; };
+      const poly = [sp.a, L[0].to, sp.b].map(function (p) {
+        return { x: px(p.x), y: py(p.y) };
+      });
+      /* Three points on one line enclose nothing either. */
+      const ar = (poly[1].x - poly[0].x) * (poly[2].y - poly[0].y) -
+                 (poly[2].x - poly[0].x) * (poly[1].y - poly[0].y);
+      return Math.abs(ar) < 1 ? null : poly;
+    },
+
+    inFace: function (x, y, poly) {
+      let inside = false;
+      for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+        const a = poly[i], b = poly[j];
+        if ((a.y > y) !== (b.y > y) &&
+            x < (b.x - a.x) * (y - a.y) / (b.y - a.y) + a.x) inside = !inside;
+      }
+      return inside;
+    },
+
+    /* Any part of this box in that face: a corner of the box inside it,
+       a corner of it inside the box, or one of its sides crossing the
+       box — which is the same as part of the box being inside. */
+    boxHitsFace: function (B2, poly) {
+      if (!poly || poly.length < 3) return false;
+      const cs = [[B2.l, B2.t], [B2.r, B2.t], [B2.l, B2.b], [B2.r, B2.b]];
+      for (let i = 0; i < cs.length; i++) {
+        if (this.inFace(cs[i][0], cs[i][1], poly)) return true;
+      }
+      for (let i = 0; i < poly.length; i++) {
+        const v = poly[i];
+        if (v.x > B2.l && v.x < B2.r && v.y > B2.t && v.y < B2.b) return true;
+        const u = poly[(i + 1) % poly.length];
+        if (this.boxHitsLine(B2, { x1: v.x, y1: v.y, x2: u.x, y2: u.y })) return true;
+      }
+      return false;
+    },
+
     /* Where a box of this size may sit beside this point. Eight places,
        sorted so the one pointing AWAY from the drawing comes first — a
        label belongs outside the shape it is labelling, never in its
-       fill. The first clear one wins; if none is clear, the one that
-       overlaps least does. */
+       fill.
+
+       Two rules, and only one of them bends. A label hugs its point:
+       its nearest ink is `gap` off the dot, the same `gap` in all eight
+       directions. And no label is ever inside a shape. So the search
+       walks OUTWARD when it has to, and never inward: every step keeps
+       clear of the face, including the least-bad one it settles for. A
+       label pressed against the frame is untidy; a label in the fill is
+       written on the thing it is annotating. */
     placeBlock: function (w, h, X, Y, gap, away, keep) {
       const self = this, W = this.window(2);
       const DIRS = [[1,-1],[-1,-1],[1,1],[-1,1],[0,-1],[0,1],[1,0],[-1,0]];
@@ -2180,27 +2256,51 @@
           return d[0] !== keep[0] || d[1] !== keep[1];
         }));
       }
-      let best = null;
-      for (let i = 0; i < order.length; i++) {
-        const d = order[i];
-        const cx = X + d[0] * (gap + w / 2), cy = Y + d[1] * (gap + h / 2);
-        const box = { l: cx - w / 2, t: cy - h / 2, r: cx + w / 2, b: cy + h / 2 };
-        /* Off the paper is not a candidate at all. */
-        if (box.l < W.lo || box.r > W.hi || box.t < W.top || box.b > W.bot) continue;
+      const face = this.labelFace;
+      const cost = function (box) {
         let over = 0;
-        (this.inked || []).forEach(function (o) {
+        (self.inked || []).forEach(function (o) {
           const ox = Math.min(box.r, o.r) - Math.max(box.l, o.l);
           const oy = Math.min(box.b, o.b) - Math.max(box.t, o.t);
           if (ox > 0 && oy > 0) over += ox * oy;
         });
-        (this.inkLines || []).forEach(function (L) {
+        (self.inkLines || []).forEach(function (L) {
           if (self.boxHitsLine(box, L)) over += 400;
         });
-        if (!over) return { x: cx, y: cy, box: box, dir: d };
-        if (!best || over < best.over) best = { x: cx, y: cy, box: box, over: over, dir: d };
+        return over;
+      };
+      /* Distance stretches; outside does not. Every direction at `gap`
+         first, then the same eight walked out a step at a time, and
+         only then the least bad of everything that was outside. */
+      const OUT = [0, gap * 0.8, gap * 1.8, gap * 3.2, gap * 5.4];
+      let best = null;
+      for (let s = 0; s < OUT.length; s++) {
+        for (let i = 0; i < order.length; i++) {
+          const d = order[i];
+          const at = this.blockAt(w, h, X, Y, d, gap + OUT[s]);
+          const box = at.box;
+          /* Off the paper is not a candidate at all. */
+          if (box.l < W.lo || box.r > W.hi || box.t < W.top || box.b > W.bot) continue;
+          /* Nor is inside the shape, however bad the alternatives. */
+          if (face && this.boxHitsFace(box, face)) continue;
+          const over = cost(box);
+          if (!over) return { x: at.x, y: at.y, box: box, dir: d };
+          if (!best || over < best.over) {
+            best = { x: at.x, y: at.y, box: box, over: over, dir: d };
+          }
+        }
       }
       if (best) return best;
-      /* Nowhere on the paper at all: clamped where it was asked for. */
+      /* Nowhere on the paper at all: clamped where it was asked for —
+         and still not into the face, which is the one thing that never
+         gives. */
+      for (let i = 0; i < order.length; i++) {
+        const at = this.blockAt(w, h, X, Y, order[i], gap);
+        const cx2 = this.clampLabel(at.x, w), cy2 = this.clampY(at.y, h);
+        const box = { l: cx2 - w/2, t: cy2 - h/2, r: cx2 + w/2, b: cy2 + h/2 };
+        if (face && this.boxHitsFace(box, face)) continue;
+        return { x: cx2, y: cy2, box: box, dir: order[i] };
+      }
       const cx = this.clampLabel(X + (ax.x >= 0 ? 1 : -1) * (gap + w / 2), w);
       const cy = this.clampY(Y - (gap + h / 2), h);
       return { x: cx, y: cy,
@@ -2215,7 +2315,7 @@
       const G = C.GRID, SG = G.segment, tk = this.typeScale();
       opt = opt || {};
       const ctext = opt.ctext || '';
-      const ntext = p.name || '';
+      const ntext = (opt.ntext != null ? opt.ntext : p.name) || '';
       const cm = ctext ? this.textMetrics(ctext, SG.coordSize * tk) : null;
       const nm = ntext ? this.textMetrics(ntext, SG.nameSize * tk) : null;
       const cw = cm ? cm.w : 0, ch = cm ? (SG.coordSize * tk) : 0;
@@ -2365,7 +2465,7 @@
       const px = function (v) { return G.originX + v * G.stepX; };
       const py = function (v) { return G.originY - v * G.stepY; };
       const x1 = px(f.x), y1 = py(f.y), x2 = px(t.x), y2 = py(t.y);
-      const tk = this.typeScale();
+      const tk = this.typeScale(), self2 = this;
       {
         const horiz = (f.y === t.y);
         /* Above a horizontal leg — inside the right angle, where the
@@ -2379,13 +2479,31 @@
            frame, and the clamp does not decline, it drags: it came back
            and landed along the leg it was measuring. */
         const towardCorner = y1 > y2 ? 1 : -1;
-        let inner = 1;
+        /* Which side of this leg the rest of the drawing is on — and so
+           which side the length may not have. A length is the one label
+           that may sit along the side it belongs to, but not in the
+           face: written there it is written on the very thing it is
+           measuring. Both of these used to be aimed deliberately
+           inward, so a triangle carried both its lengths in its own
+           fill.
+
+           Taken from the pair the legs hang off rather than from the
+           closed face, so the answer is the same before and after the
+           third side lands: the side that is going to be the inside is
+           already the inside while the shape is still open, and a
+           length the child has just counted does not jump when the
+           triangle closes round it. */
         const drawn = this.lastPlotted;
-        if (!horiz && drawn && drawn.a) {
-          inner = (px(drawn.a.x) + px(drawn.b.x)) / 2 <= x1 ? -1 : 1;
+        let inner = 1, vSide = 1;
+        if (drawn && drawn.a && drawn.b) {
+          const mx = (px(drawn.a.x) + px(drawn.b.x)) / 2;
+          const my = (py(drawn.a.y) + py(drawn.b.y)) / 2;
+          if (horiz) vSide = (my <= y1) ? -1 : 1;   // pair above it: write below
+          else inner = (mx <= x1) ? 1 : -1;         // pair to its left: write right
         }
+        const face = this.shapeFace();
         let lx = horiz ? (x1 + x2) / 2 : (x1 + inner * LG.lenGapV * tk);
-        const ly = horiz ? y1 + LG.lenGap * tk
+        const ly = horiz ? y1 + vSide * LG.lenGap * tk
                          : (y1 + y2) / 2 + towardCorner * LG.lenBiasV * tk;
         /* A leg centred on the origin writes its length straight down
            the y-axis, so it slides along its own leg towards the corner
@@ -2393,8 +2511,11 @@
         const lw2 = this.textW(txt, LG.lenSize * tk);
         if (horiz) lx = this.clearOfYAxis(lx, lw2);
         else if (Math.abs(this.clampX(lx, lw2) - lx) > 0.5) {
-          // no room on that side after all: take the other one whole
-          lx = x1 - inner * LG.lenGapV * tk;
+          /* No room on that side after all: take the other one whole —
+             unless the other one is the inside of the shape, which it
+             may not have at any price. Then it comes in against the
+             frame instead, which is untidy where the fill is wrong. */
+          if (!face) lx = x1 - inner * LG.lenGapV * tk;
         }
         /* And a vertical leg whose middle is level with the x-axis
            writes its length across the axis numbering — "14 units" over
@@ -2413,8 +2534,36 @@
         /* A vertical leg on the outermost column writes its length past
            the frame — 78px beside x=6 is off the cream once a cell is
            78px wide. */
-        L.len.setAttribute('x', this.clampX(lx, lw2));
-        L.len.setAttribute('y', this.clampY(lyOut, LG.lenSize * tk));
+        let fx = this.clampX(lx, lw2), fy = this.clampY(lyOut, LG.lenSize * tk);
+        /* And out of the face, which the outer side cannot always
+           manage: beside the outermost column there are 53px of paper
+           and "3 units" is 136 wide, so the clamp does not decline, it
+           drags — and what it drags the length into is the shape it is
+           measuring. Then it slides ALONG its own leg instead, the
+           shorter way, until it is past the corner and out. Along the
+           side is where a length belongs; inside the face is the one
+           place beside that side it may not be. */
+        if (face) {
+          const bw = lw2 / 2, bh = LG.lenSize * tk / 2;
+          const hits = function (X, Y) {
+            return self2.boxHitsFace({ l: X - bw, t: Y - bh, r: X + bw, b: Y + bh }, face);
+          };
+          if (hits(fx, fy)) {
+            const ux = x2 - x1, uy = y2 - y1, m = Math.hypot(ux, uy) || 1;
+            const step = Math.max(8, LG.lenSize * tk * 0.4);
+            for (let n = 1; n <= 60; n++) {
+              let done = false;
+              for (let s2 = 1; s2 >= -1 && !done; s2 -= 2) {
+                const X = this.clampX(fx + (ux / m) * step * n * s2, lw2);
+                const Y = this.clampY(fy + (uy / m) * step * n * s2, LG.lenSize * tk);
+                if (!hits(X, Y)) { fx = X; fy = Y; done = true; }
+              }
+              if (done) break;
+            }
+          }
+        }
+        L.len.setAttribute('x', fx);
+        L.len.setAttribute('y', fy);
         L.len.textContent = txt;
       }
     },
@@ -2516,12 +2665,34 @@
       const self = this;
       if (!specs || !specs.length) { done(); return; }
 
+      /* Every side this screen is going to draw, recorded before the
+         first of them is placed. A leg's length and a corner's label
+         both have to keep out of the face the three sides close, and
+         that face is not knowable from one leg — so the first leg used
+         to be laid out as if there were no shape and then moved when
+         the last one arrived, which is a length written twice in two
+         places. */
+      this.legPlaced = this.legPlaced || [];
+      specs.forEach(function (s, i) { self.legPlaced[i] = s; });
+      /* And only those. A screen that keeps its drawing keeps the
+         record of it too, so a screen drawing one side after a screen
+         that drew two inherited the second — and closed a face that is
+         not on the paper. A screen's `legs` is always all of its
+         sides: the ones carried over say `settled`, they are not left
+         out. */
+      this.legPlaced.length = specs.length;
+
       let delay = 0;
       specs.forEach(function (spec, i) {
         const L = self.legSlots[i];
         self.placeLeg(i, spec);
         L.g.classList.add('on');
-        if (i === specs.length - 1) { self.clearMarksOfLines(); self.markCrossing(); }
+        /* Every side is down now, so the face exists — and the pair's
+           own two labels were placed before it did, when the only
+           thing to keep out of was a line. Lay the board out again
+           knowing the shape, then put the corners clear of the lines
+           as before. */
+        if (i === specs.length - 1) { self.relabel(); self.markCrossing(); }
 
         if (spec.settled) {
           // already on the board; only its length is new
@@ -3408,7 +3579,10 @@
             part.coord.textContent = ctext;
           }
         }
-        part.name.textContent = p.name || '';
+        /* Its own if it has one, else whatever the board was told to
+           call it while this same pair was already up. */
+        const ntxt = p.name || (!into && self.namedAs ? (self.namedAs[key] || '') : '');
+        part.name.textContent = ntxt;
 
         /* Away from the drawing: the direction from the middle of what
            is drawn, out through this point. A label that goes that way
@@ -3424,28 +3598,15 @@
         }
         if (!away.x && !away.y) away = { x: 1, y: -1 };
 
-        /* A screen may still say "put this one here" — there will
-           always be one picture the rule reads differently from a
-           person. It is an override, not the way things are done. */
-        if (p.coordDx != null || p.coordDy != null) {
-          const G2 = C.GRID;
-          const cw2 = self.textW(ctext, SG.coordSize * tk);
-          const cx2 = self.clampLabel(X + (p.coordDx || 0) * G2.stepX, cw2);
-          const cy2 = self.clampY(Y - (p.coordDy || 0) * G2.stepY, SG.coordSize * tk);
-          part.coord.setAttribute('x', cx2);
-          part.coord.setAttribute('y', cy2);
-          const nw2 = self.textW(p.name || 'A', SG.nameSize * tk);
-          part.name.setAttribute('x', self.clampX(
-            p.nameDx != null ? X + p.nameDx * tk : cx2, nw2));
-          part.name.setAttribute('y', self.clampY(
-            p.nameDy != null ? Y + p.nameDy * tk : cy2 - SG.coordSize * tk, SG.nameSize * tk));
-          self.inkBox(cx2 - cw2 / 2, cy2 - SG.coordSize * tk,
-                      cx2 + cw2 / 2, cy2 + SG.coordSize * tk, 'placed by hand');
-          return;
-        }
-
+        /* No hand-placed exceptions any more. The one that was left
+           pushed the rescue vehicle's coordinates two and a half cells
+           off their own point, because the rule could not then see the
+           axis letters and would have written (0, 0) into the y. It can
+           see them now, so the rule does it — and a screen that still
+           reads better by hand is a fault in the rule to go and find. */
         self.placePointLabel(part, p, X, Y,
-                             { ctext: ctext, away: away, at: p.x + ',' + p.y });
+                             { ctext: ctext, ntext: ntxt, away: away,
+                               at: p.x + ',' + p.y });
       });
     },
 
@@ -3941,6 +4102,7 @@
     },
 
     clearSegment: function () {
+      this.namedAs = null;          // this pair's letters go with it
       this.clearUnits();
       this.clearLegs();
       this.clearExamples();
@@ -4056,13 +4218,24 @@
       const self = this;
       if (!spec || !this.segParts) return false;
       let any = false;
+      this.namedAs = this.namedAs || {};
       ['a', 'b'].forEach(function (k) {
         const p = spec[k], part = self.segParts[k];
         if (!p || !p.name || part.name.textContent === p.name) return;
         part.name.textContent = p.name;
+        /* Remembered, not only written. The pair on the paper was drawn
+           from a spec that did not name its points, so every later
+           lay-out of that pair reads a nameless spec — and a letter put
+           straight onto the node went out again the next time anything
+           asked the board to arrange itself. */
+        self.namedAs[k] = p.name;
         any = true;
       });
       if (!any) return false;
+      /* A letter is half of its point's block. Now that the point has
+         two halves, the block is laid out again — otherwise the letter
+         stays wherever the screen before it left one. */
+      if (this.lastPlotted) this.placeSegment(this.lastPlotted);
       ['a', 'b'].forEach(function (k, i) {
         later(function () {
           self.segParts[k].name.classList.add('pop');
