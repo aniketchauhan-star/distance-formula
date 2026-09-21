@@ -19,6 +19,7 @@ window.CFG = (function () {
     swiftyFly:   'assets/swifty fly.png',
     swiftyTalk:  'assets/swifty talk.png',
     swiftyStand: 'assets/normal stand swifty.png',
+    townSheet:   'assets/sheet.png',
     leaf:        'assets/leaf.png',
     handNudge:   'assets/hand nudge.png'
   };
@@ -240,7 +241,11 @@ window.CFG = (function () {
        the shape crisp rather than merely present. */
     fill:   '#FFFDF7',
     edge:   '#232A44',
-    ink_:   '#7C3B12',            // the text
+    /* The words are the same ink as the outline. A warm brown was the
+       right colour for a bubble edged in amber; edged in indigo it
+       read as two different inks in one box. One colour, and the
+       letters sit at about 15:1 on the near-white fill. */
+    ink_:   '#232A44',            // the text, and the edge
     sheen:  'rgba(255, 255, 255, .92)',   // the catch-light in the corner
     size:   32,                   // the size every line is set at
 
@@ -1393,6 +1398,32 @@ window.CFG = (function () {
        In cells, for the same reason. */
     liftCells: 0.16,
     fadeMs: 420
+  };
+
+  /* The town's art: one sheet, cut by these rects.
+
+     Measured off the alpha rather than assumed. The sheet came back
+     1774 x 887 with the seven drawings placed freely — different
+     sizes, different gaps — rather than on the even grid that was
+     asked for, so there is no cell to divide by and every rect here
+     is the drawing's own opaque bounds.
+
+     They are also different shapes: the café is 1.21 wide to tall,
+     the station 1.90, the tower 0.53. So a place is sized by its
+     HEIGHT and takes its own width from its own ratio — asking them
+     all to fill one box would squash the van and stretch the tower.
+     `tall` is that height in cells. */
+  TOWN.sheet = { src: ART.townSheet, w: 1774, h: 887 };
+  TOWN.sprites = {
+    cafe:    { x:   52, y:  99, w: 346, h: 285, tall: 1.05 },
+    house:   { x:  484, y: 110, w: 356, h: 274, tall: 1.05 },
+    school:  { x:  912, y: 101, w: 397, h: 283, tall: 1.05 },
+    park:    { x: 1380, y: 129, w: 336, h: 271, tall: 1.05 },
+    /* Not placed on any screen yet — screens 49 to 54 do not use this
+       layer. Cut and ready for when they do. */
+    tower:   { x:  139, y: 470, w: 171, h: 324, tall: 1.55 },
+    station: { x:  468, y: 578, w: 396, h: 208, tall: 0.95 },
+    van:     { x:  927, y: 618, w: 363, h: 173, tall: 0.78 }
   };
   TOWN.places = [
     { key: 'cafeB',  x: TOWN.cafeB.x,  y: TOWN.cafeB.y,
