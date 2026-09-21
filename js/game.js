@@ -1229,6 +1229,16 @@
          radicand actually measures rather than over a guess at it. */
       const wg = document.createElementNS(NS, 'g');
       wg.setAttribute('class', 'work');
+      /* Something to write it on. Five lines of algebra straight onto
+         the ruling is five lines with grid lines through them; the
+         plate is the paper's own cream with a soft edge, quiet enough
+         to be a surface rather than a second panel competing with the
+         drawing beside it. First into the group, so it is behind every
+         line of the working. */
+      const wp = document.createElementNS(NS, 'rect');
+      wp.setAttribute('class', 'workplate');
+      wg.appendChild(wp);
+      this.workPlate = wp;
       this.workLines = [0, 1, 2, 3, 4, 5].map(function () {
         const t = document.createElementNS(NS, 'text');
         t.setAttribute('class', 'workline');
@@ -2019,39 +2029,6 @@
       return (cx - left) <= (right - cx) ? left : right;
     },
 
-    /* The same against several lines at once, kept on the paper.
-       (`clearOfLines` was taken — by the unit-count's own, further down
-       — and a second key of that name in this object silently wins,
-       which is a whole evening.)
-       Sliding off one line can slide onto another, and a slide the
-       frame undoes is no slide at all, so each side is tried whole —
-       left of everything, right of everything — and the nearer of the
-       two that actually comes out clear is the one taken. */
-    offEveryLine: function (cx, cy, w, h, lines) {
-      const self = this;
-      const clearOf = function (x) {
-        return !lines.some(function (l) {
-          return self.clearOfLine(x, cy, w, h, l[0], l[1], l[2], l[3]) !== x;
-        });
-      };
-      if (clearOf(cx)) return cx;
-      const tries = [];
-      [-1, 1].forEach(function (side) {
-        let x = cx;
-        for (let n = 0; n < lines.length + 1; n++) {
-          const before = x;
-          lines.forEach(function (l) {
-            x = self.clearOfLine(x, cy, w, h, l[0], l[1], l[2], l[3], side);
-          });
-          if (x === before) break;
-        }
-        x = self.clampX(x, w);
-        if (clearOf(x)) tries.push(x);
-      });
-      if (!tries.length) return cx;
-      return tries.sort(function (p, q) { return Math.abs(p - cx) - Math.abs(q - cx); })[0];
-    },
-
     /* Slides a label sideways until it is off the y-axis and clear of
        the numbers beside it, whichever way is the shorter move. */
     clearOfYAxis: function (cx, w) {
@@ -2600,64 +2577,48 @@
       const px = function (v) { return G.originX + v * G.stepX; };
       const py = function (v) { return G.originY - v * G.stepY; };
       const placed = this.legPlaced || [];
-      const lines = [], boxes = [];
+      if (!placed.filter(Boolean).length) return;
       // measured at the size the camera is setting, like everything else
       const tk = this.typeScale();
-      placed.forEach(function (s, n) {
-        if (!s || !s.from || !s.to) return;
-        lines.push([px(s.from.x), py(s.from.y), px(s.to.x), py(s.to.y)]);
-        /* A leg's length is written beside it and is just as much in the
-           way as the leg itself. */
-        const L = self.legSlots[n];
-        if (L && L.len && L.len.textContent && L.len.style.display !== 'none') {
-          const w = self.textW(L.len.textContent, LG.lenSize * tk);
-          const h = LG.lenSize * tk;
-          const x = parseFloat(L.len.getAttribute('x')), y = parseFloat(L.len.getAttribute('y'));
-          if (isFinite(x) && isFinite(y))
-            boxes.push([x - w / 2, y - h / 2, x + w / 2, y + h / 2]);
+
+      /* A blocked corner used to be moved by hand: the coordinates
+         dropped to a fixed offset under the point and the letter
+         stepped sideways off whatever line was in the way. That offset
+         is a distance to the label's MIDDLE, not to its ink, so it owed
+         nothing to the gap every other label keeps — on screen 25 it
+         put the corner's coordinates ON its own dot, 2px INSIDE the
+         circle they belong to.
+
+         There is one rule for this now and it already knows how to
+         miss a line. The only thing it could not see was the lengths
+         written beside the legs, because nothing inks those — so they
+         go in, and then each corner is simply placed again. */
+      (this.legSlots || []).forEach(function (L, n) {
+        const s = placed[n];
+        if (!s || !L.len || !L.len.textContent || L.len.style.display === 'none') return;
+        const w = self.textW(L.len.textContent, LG.lenSize * tk);
+        const h = LG.lenSize * tk;
+        const x = parseFloat(L.len.getAttribute('x')), y = parseFloat(L.len.getAttribute('y'));
+        if (isFinite(x) && isFinite(y)) {
+          self.inkBox(x - w / 2, y - h / 2, x + w / 2, y + h / 2, 'a leg length');
         }
       });
-      const sp = this.lastPlotted;
-      if (sp && sp.a && sp.b) lines.push([px(sp.a.x), py(sp.a.y), px(sp.b.x), py(sp.b.y)]);
-      if (!lines.length) return;
-
-      const blocked = function (x, y, w, h) {
-        return lines.some(function (l) {
-          return self.clearOfLine(x, y, w, h, l[0], l[1], l[2], l[3]) !== x;
-        }) || boxes.some(function (b) {
-          return x - w / 2 < b[2] && x + w / 2 > b[0] && y - h / 2 < b[3] && y + h / 2 > b[1];
-        });
-      };
 
       (this.legSlots || []).forEach(function (L, i) {
         const spec = placed[i];
         if (!spec || !spec.mark || !L.coord.textContent) return;
-        const cw = self.textW(L.coord.textContent, SG.coordSize * tk);
-        const ch = SG.coordSize * tk;
-        const cx = parseFloat(L.coord.getAttribute('x'));
-        const cy = parseFloat(L.coord.getAttribute('y'));
-        const y2 = py(spec.to.y);
-        if (!isFinite(cx) || !isFinite(cy) || !blocked(cx, cy, cw, ch)) return;
-
-        /* The rows just over a corner are the busiest on the board: the
-           leg that leaves it rises through them, and the length of the
-           leg that arrives is written along them. Under the corner is
-           empty, so that is where the coordinates go — and the letter,
-           which is one glyph wide and needs almost nothing, takes the
-           space over the point, stepped off the leg standing in it. */
-        const under = self.clampY(y2 - G.found.labelDy * tk, ch);
-        if (blocked(cx, under, cw, ch)) return;
-        L.coord.setAttribute('y', under);
-
-        const nw = self.textW(L.name.textContent || 'A', SG.nameSize * tk);
-        const nh = SG.nameSize * tk;
-        const ny = self.clampY(y2 - LG.nameDy * tk, nh);
-        const nx = self.offEveryLine(parseFloat(L.name.getAttribute('x')),
-                                     ny, nw, nh, lines);
-        if (!blocked(nx, ny, nw, nh)) {
-          L.name.setAttribute('x', nx);
-          L.name.setAttribute('y', ny);
+        const x2 = px(spec.to.x), y2 = py(spec.to.y);
+        const drawn = self.lastPlotted;
+        let away = { x: 1, y: -1 };
+        if (drawn && drawn.a) {
+          const mx = (px(drawn.a.x) + px(drawn.b.x) + x2) / 3;
+          const my = (py(drawn.a.y) + py(drawn.b.y) + y2) / 3;
+          away = { x: x2 - mx, y: y2 - my };
         }
+        self.placePointLabel(
+          L.markLabel || (L.markLabel = { coord: L.coord, name: L.name }),
+          { name: spec.mark.name, coordText: L.coord.textContent },
+          x2, y2, { ctext: L.coord.textContent, away: away });
       });
     },
 
@@ -2697,6 +2658,12 @@
         if (spec.settled) {
           // already on the board; only its length is new
           if (!spec.noLine) (spec.dash ? L.dashG : L.line).classList.add('draw');
+          /* And this is the hand-over: the side the child measured is
+             now drawn in its own colour with its own length, so the
+             lit measuring line lying along it has been taken over and
+             can go. Same tick as the leg being drawn — the measure
+             must never travel to a screen that is not about it. */
+          Board.clearMeasure();
           if (spec.mark) { L.dot.classList.add('pop'); L.coord.classList.add('pop'); L.name.classList.add('pop'); }
           if (spec.length) {
             const fly = self.flyIntoLeg(i, spec, later, delay + 200);
@@ -2817,6 +2784,31 @@
       later(function () {
         el.gridAxes.classList.remove('triangle-question-active');
         overlay.forEach(function (l) { l.classList.remove('on'); });
+        dots.forEach(function (n) { n.classList.remove('triangle-point'); });
+      }, start + run);
+      return start + run;
+    },
+
+    /* The same highlight, on POINTS rather than sides. "Look at A and
+       C" names two dots and nothing between them — the line between
+       them is the next sentence, and lighting it early answers the
+       question before it is asked. `a` and `b` are the pair's own
+       ends, `c` the corner the first leg arrives at. */
+    pulsePoints: function (later, delay, keys, runMs) {
+      if (!this.segParts) return 0;
+      const of = { a: this.segParts.a.dot, b: this.segParts.b.dot,
+                   c: this.legSlots && this.legSlots[0] && this.legSlots[0].dot };
+      const dots = (keys || ['a', 'b']).map(function (k) { return of[k]; })
+        .filter(Boolean);
+      if (!dots.length) return 0;
+      const start = delay || 0, run = runMs || 1600;
+      later(function () {
+        dots.forEach(function (n) { n.classList.add('triangle-point'); });
+        el.gridAxes.classList.add('triangle-question-active');
+        SFX.tick(3);
+      }, start);
+      later(function () {
+        el.gridAxes.classList.remove('triangle-question-active');
         dots.forEach(function (n) { n.classList.remove('triangle-point'); });
       }, start + run);
       return start + run;
@@ -3040,7 +3032,7 @@
        It is their number that gets counted, not the right one, so a
        guess that is too long walks the line straight past the point.
        That overshoot is the feedback: you can see the extra unit. */
-    countOut: function (from, to, units, later, done, leg) {
+    countOut: function (from, to, units, later, done, leg, keep) {
       const G = C.GRID, U = G.unitBox, P = G.paper;
       const self = this;
       this.clearUnits();
@@ -3084,11 +3076,21 @@
       later(function () {
         /* Measuring a leg? Then the total IS that leg's length, and it
            belongs on the leg rather than on the board's own label —
-           written once, where it stays. */
-        if (leg == null || !self.showLegTotal(leg, units, from, to)) {
-          self.showUnitTotal(from, ux, uy, steps, units);
+           written once, where it stays.
+
+           Only when the number is right. The line walking past the
+           point is the feedback for a guess that is too long and it
+           costs nothing; a NUMBER written on a side of the drawing is
+           the board asserting a length, and the board must never
+           assert a wrong one. "2 units" used to go against a leg that
+           is 4 long, in the leg's own colour, in the place a correct
+           length goes. */
+        if (keep) {
+          if (leg == null || !self.showLegTotal(leg, units, from, to)) {
+            self.showUnitTotal(from, ux, uy, steps, units);
+          }
+          SFX.chime();
         }
-        SFX.chime();
         done();
       }, steps * U.stepMs + 140);
     },
@@ -3355,13 +3357,15 @@
           const a = from.x + step * i, b = a + step;
           L = Math.min(px(a), px(b)); W = Math.abs(px(b) - px(a));
           T = Math.min(py(from.y), py(from.y - down)); H = G.stepY;
-          nx = L + W / 2; ny = T + H + UC.numDy;
         } else {
           const a = from.y + step * i, b = a + step;
           T = Math.min(py(a), py(b)); H = Math.abs(py(b) - py(a));
           L = Math.min(px(from.x), px(from.x + side)); W = G.stepX;
-          nx = L + (side < 0 ? -UC.numDy : W + UC.numDy); ny = T + H / 2;
         }
+        /* In the square, not beside it. A number hung outside the box
+           is a label on it; a number in it is the count of it, which
+           is the whole of what "count the spaces" asks for. */
+        nx = L + W / 2; ny = T + H / 2;
         c.box.setAttribute('x', L); c.box.setAttribute('y', T);
         c.box.setAttribute('width', W); c.box.setAttribute('height', H);
         c.num.setAttribute('x', nx); c.num.setAttribute('y', ny);
@@ -3992,6 +3996,26 @@
       }
       const self = this;
 
+      /* The plate, round the block the lines actually make: the widest
+         of them, the first baseline to the last, and enough air that no
+         glyph sits on a rule. */
+      if (this.workPlate) {
+        let wide = 0;
+        (lines || []).forEach(function (l) {
+          const t = (l.parts || [{ t: l.text || '' }])
+            .map(function (f) { return f.t; }).join('');
+          wide = Math.max(wide, self.textW(t, size));
+        });
+        const air = size * 0.62;
+        const p1 = this.workPlate;
+        p1.setAttribute('x', left - air);
+        p1.setAttribute('y', top - size * 0.86 - air);
+        p1.setAttribute('width', Math.min(wide, right - left) + air * 2);
+        p1.setAttribute('height', (lines.length - 1) * step + size * 1.3 + air * 2);
+        p1.setAttribute('rx', size * 0.5);
+        p1.classList.remove('on');
+      }
+
       this.workLines.forEach(function (L, i) {
         const spec = lines[i];
         L.t.classList.remove('on');
@@ -4027,6 +4051,10 @@
     showWorkLine: function (i, spec) {
       const L = this.workLines && this.workLines[i];
       if (!L) return;
+      /* The plate arrives with the first line, not before it: a card
+         sitting empty on the paper while she is still talking is a
+         panel waiting to be filled in. */
+      if (this.workPlate) this.workPlate.classList.add('on');
       L.t.classList.add('on');
       const W = C.GRID.work;
       const size = parseFloat(L.t.getAttribute('font-size')) || W.size;
@@ -4050,6 +4078,7 @@
     },
 
     clearWorkLines: function () {
+      if (this.workPlate) this.workPlate.classList.remove('on');
       (this.workLines || []).forEach(function (L) {
         L.t.classList.remove('on');
         L.bar.classList.remove('on');
@@ -4270,6 +4299,13 @@
     // the guess landed: leave it on the board, lit
     litMeasure: function () {
       if (this.measLine) this.measLine.classList.add('lit');
+    },
+
+    /* Is what is on the board a side the child has already measured,
+       rather than a stroke half-drawn on this screen? A found length
+       stays; a working line does not. */
+    measureIsLit: function () {
+      return !!(this.measLine && this.measLine.classList.contains('lit'));
     },
 
     runSegment: function (spec, later, done) {
@@ -4992,11 +5028,16 @@
          then one x at a time in the order the subtraction reads. The
          board is already up, so this is the whole of the screen's
          work — it lights what her line is about. */
+      /* Returns how long the light runs — the caller waits it out
+         before the next sentence, so a light never plays under one. */
+      const lit = entry.lineLights
+        ? function (n) { return self.lightAfterLine(entry, n); } : null;
+
       const spotlight = function () {
         /* She has just named the shape; the board agrees with her. Timed
            off her own recording so the light comes as she finishes,
            rather than under the words. */
-        if (entry.pulse) {
+        if (entry.pulse && !entry.lineLights) {
           /* A beat into her line, so the light comes as she gets to the
              words rather than on the first one — and the run of it plays
              out under the rest of what she says. */
@@ -5033,7 +5074,7 @@
 
         /* And a beat can name its sides one after the other: the two
            known ones, then the one it is about to ask after. */
-        if (entry.spotSeq) entry.spotSeq.forEach(function (k, n) {
+        if (entry.spotSeq && !entry.lineLights) entry.spotSeq.forEach(function (k, n) {
           self.later(function () { Board.spotlightPart(k); SFX.tick(n); },
                      700 + n * 900);
         });
@@ -5095,11 +5136,17 @@
           self.sayLines([entry.line, entry.line2].filter(Boolean), function () {
             if (gated) gated();
             derive();
-          });
+          }, lit);
         }
-        else if (entry.line && entry.voiceOnly) self.sayOnly(entry.line, gated);
-        else if (entry.line && entry.line2) self.speakBoth(entry.line, entry.line2, gated);
-        else if (entry.line) self.speak(entry.line, gated);
+        else if (entry.line && entry.voiceOnly) {
+          self.sayOnly(entry.line, function () { if (lit) lit(0); if (gated) gated(); });
+        }
+        else if (entry.line && entry.line2) {
+          self.speakBoth(entry.line, entry.line2, gated, lit);
+        }
+        else if (entry.line) {
+          self.speak(entry.line, function () { if (lit) lit(0); if (gated) gated(); });
+        }
         else if (entry.auto && i + 1 < C.SCRIPT.length) {
           self.later(function () { self.goTo(i + 1); }, 160);
         } else {
@@ -5418,11 +5465,27 @@
               /* She puts the question and stays, line and all — the
                  control arrives below her rather than in her place, so
                  there is no reason for her to leave. */
+              /* A measure screen says its own line here rather than
+                 through `after`, so a second line and its lights are
+                 honoured here too, and in the same order as everywhere
+                 else: each light waits for the sentence that introduces
+                 it, and the control waits for the last of them rather
+                 than landing on top of the thing being pointed at. */
               const speak = function () {
                 FX.sparkles(geom.aim.x, geom.aim.y, 7, 170 * geom.scale);
-                Bubble.open(entry.line, function () {
-                  self.later(opens, 700);
-                });
+                const lines = [entry.line, entry.line2].filter(Boolean);
+                const step = function (n) {
+                  if (n >= lines.length) return;
+                  Bubble.open(lines[n], function () {
+                    const run = self.lightAfterLine(entry, n);
+                    const last = n + 1 >= lines.length;
+                    /* Either way, the light finishes before anything
+                       else begins — the next sentence, or the control. */
+                    self.later(last ? opens : function () { step(n + 1); },
+                               Math.max(last ? 700 : C.AUTO.betweenLines, run + 260));
+                  });
+                };
+                step(0);
               };
 
               if (inherited) {
@@ -5493,7 +5556,14 @@
             // nothing to bring on; it never left, and it was reset above
           } else {
             revealControl(entry);      // she flies up, the control follows
-            Board.clearMeasure();
+            /* But not over a side they have already measured. AC is
+               found on 24 and left lit along its own leg, which is
+               correct; bringing 25's control on wiped it, and a moment
+               later 25 redrew the same side as a settled leg — so it
+               appeared, went, and came back. A length that has been
+               found stays on the board, and the settled leg takes it
+               over without a frame of nothing in between. */
+            if (!Board.measureIsLit()) Board.clearMeasure();
           }
           self.settle();
         }, 240);
@@ -5793,7 +5863,7 @@
        for one that goes on to write a derivation, because the screen
        would be carried off while the working was still being written.
        Whatever follows owns the hand-over. */
-    sayLines: function (list, then) {
+    sayLines: function (list, then, each) {
       const self = this;
       this.state = 'speaking';
       const g = this.geom || {};
@@ -5802,7 +5872,14 @@
       const step = function (i) {
         if (i >= list.length) { if (then) then(); return; }
         Bubble.open(list[i], function () {
-          self.later(function () { step(i + 1); }, C.AUTO.betweenLines);
+          /* Her line, then its light — and the NEXT line waits for that
+             light to finish. Two sides lit one after the other take
+             longer than the breath between two sentences, so the second
+             of them landed under the sentence about the third side. A
+             light belongs to the words that introduced it at both ends. */
+          const run = each ? (each(i) || 0) : 0;
+          self.later(function () { step(i + 1); },
+                     Math.max(C.AUTO.betweenLines, run + 260));
         });
       };
       step(0);
@@ -5816,14 +5893,17 @@
        talking, and a short hold would carry the screen off mid-sentence.
        So the first line is opened rather than spoken, and only the
        second one settles. */
-    speakBoth: function (a, b, then) {
+    speakBoth: function (a, b, then, each) {
       const self = this;
       this.state = 'speaking';
       const g = this.geom || {};
       const aim = g.aim || { x: C.ANCHOR.x, y: C.ANCHOR.y - 200 * C.CHAR_SCALE };
       FX.sparkles(aim.x, aim.y, 7, 170 * (g.scale || C.CHAR_SCALE));
       Bubble.open(a, function () {
-        self.later(function () { self.speak(b, then); }, C.AUTO.betweenLines);
+        const run = each ? (each(0) || 0) : 0;
+        self.later(function () {
+          self.speak(b, function () { if (each) each(1); if (then) then(); });
+        }, Math.max(C.AUTO.betweenLines, run + 260));
       });
     },
 
@@ -6175,16 +6255,42 @@
 
         const helping = fb.exhausted && !!t.spec.countLine;
         const msg = helping ? t.spec.countLine : fb.msg;
-        /* "Count the spaces between the two points" — so they are
-           counted, one at a time, with how many there are so far under
-           each, rather than shaded in one block and left to be worked
-           out. It plays twice: once to say what is happening, once to
-           be counted along with. */
-        let counting = 0;
+
+        /* "Count the spaces between the two points" — and then they
+           are counted. In that order.
+
+           The count used to be started first and the sentence 320ms
+           after it, so the first square was already lit while she was
+           still asking for it, and the count played twice to make up
+           for the words having arrived underneath the first pass.
+           Nothing on the board moves until she has finished the
+           sentence that introduces it.
+
+           And then the beat is over. This was the only branch of a
+           spent ladder that left the question armed, so a child who
+           had just been shown the answer was asked for it again. */
         if (helping) {
-          counting = Board.countUnits(pair.from, pair.to, self.later.bind(self));
-          self.later(function () { SFX.sparkle(); }, 700);
+          t.done = true;
+          if (Sel) Sel.lock();
+          const UC = C.GRID.unitBox.count;
+          self.later(function () {
+            Bubble.open(msg, function () {
+              self.closeAfterLine();
+              self.later(function () {
+                const counting =
+                  Board.countUnits(pair.from, pair.to, self.later.bind(self));
+                SFX.sparkle();
+                self.later(function () {
+                  Board.clearUnits();
+                  Board.clearMeasure();
+                  self.settle(C.AUTO.afterLine);
+                }, counting + UC.readMs);
+              }, Bubble.voiceTail + 260);
+            });
+          }, 320);
+          return;
         }
+
         self.later(function () {
           /* The count they asked for is on the board, short of the
              point or a unit past it, and that is the answer to what
@@ -6194,11 +6300,8 @@
              never come back. */
           self.finishWith(msg, C.AUTO.afterLine, function () {
             self.closeAfterLine();
-            /* The board is held for as long as the counting runs, so it
-               is never taken away mid-count — and for the ordinary hold
-               where there was no counting to do. */
             self.later(function () { self.clearWorking(); },
-                       Math.max(C.GRID.unitBox.holdMs, counting + 300));
+                       C.GRID.unitBox.holdMs);
           });
         }, 320);
       };
@@ -6219,7 +6322,7 @@
            line is walked out along AB; the verdict lands on its own. */
         if (t.spec.noCount) { verdict(); return; }
         Board.countOut(pair.from, pair.to, v, self.later.bind(self), verdict,
-                       t.spec.measureLeg);
+                       t.spec.measureLeg, right);
       };
       if (narrate) this.speak(narrate, function () {
         // wait out whatever is left of her voice, then a breath
@@ -6437,6 +6540,36 @@
       const d = Math.round(Math.hypot(s.b.x - s.a.x, s.b.y - s.a.y));
       Board.showSegResult(s, d + '\u00A0units');
       SFX.chime();
+    },
+
+    /* Nothing on the board starts until the sentence that introduces
+       it has finished.
+
+       A screen lists one entry per line it says, and each is played
+       the moment that line is done. What this replaces is three
+       parallel clocks: a count started 320ms before the sentence that
+       asks for it, two sides lit at a flat 700 and 1600ms whatever she
+       happened to be saying, and a third side timed off the length of
+       the FIRST line — so on the Pythagoras beat AB lit 324ms into "we
+       already know two of its sides", which is the sentence about the
+       other two. A light read off the sentence it belongs to cannot
+       land on a different one.
+
+       Returns how long the light runs, so whatever comes next can wait
+       it out rather than landing on top of it. */
+    lightAfterLine: function (entry, n) {
+      const L = ((entry || {}).lineLights || [])[n];
+      if (!L) return 0;
+      const later = this.later.bind(this), run = L.run || 1700;
+      let ms = 0;
+      if (L.points) ms = Math.max(ms, Board.pulsePoints(later, 0, [].concat(L.points), run));
+      if (L.pulse) ms = Math.max(ms, Board.pulseSides(later, 0, [].concat(L.pulse), run));
+      if (L.spots) [].concat(L.spots).forEach(function (k, m) {
+        const at = m * (L.step || 900);
+        later(function () { Board.spotlightPart(k); SFX.tick(m); }, at);
+        ms = Math.max(ms, at + (L.step || 900));
+      });
+      return ms;
     },
 
     /* The feedback ladder: each wrong attempt gets the next message,

@@ -84,10 +84,21 @@ window.TriangleOptions = (function () {
     let builtKeys = '';
     function build(list) {
       list = list || CHOICES;
-      // only rebuild when the answers actually differ
-      const keys = list.map(function (c) { return c.key; }).join('|');
-      if (keys === builtKeys) { clearStates(); return; }
-      builtKeys = keys;
+      /* Only rebuild when what is on the cards actually differs — and
+         that is everything a card is made of, not just its key.
+
+         It used to compare keys alone, so a screen supplying the same
+         three answers under different WORDS got the cards it happened
+         to have: screen 26 declared Scalene / Isosceles / Right-angled
+         and was shown the component's own defaults, which say
+         "Triangle" after each of them. Its `options` array had been
+         dead for as long as the keys had matched. */
+      const sig = list.map(function (c) {
+        return [c.key, c.label || '', c.cls || '',
+                c.marks == null ? '' : c.marks].join('\u0001');
+      }).join('|');
+      if (sig === builtKeys) { clearStates(); return; }
+      builtKeys = sig;
 
       buttons.forEach(function (b) { root.removeChild(b); });
       buttons = [];

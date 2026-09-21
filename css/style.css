@@ -1526,6 +1526,18 @@ html, body {
    the camera like every other label on this board, so it is the size it
    is meant to be on the stage whatever the board has pushed in to. */
 #gridAxes .work { opacity: 1; pointer-events: none; }
+/* The working is written on this rather than straight onto the ruling.
+   The paper's own cream, a soft edge, and no shadow: it is a surface to
+   read algebra off, not a panel competing with the drawing beside it. */
+#gridAxes .workplate {
+  fill: #FDFBF0;
+  stroke: rgba(150, 120, 60, .28);
+  stroke-width: 2;
+  opacity: 0;
+  transition: opacity .34s ease;
+}
+#gridAxes .workplate.on { opacity: .96; }
+
 #gridAxes .workline {
   opacity: 0;
   font-family: 'Nunito', system-ui, sans-serif;

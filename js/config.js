@@ -788,8 +788,18 @@ window.CFG = (function () {
          `coordFit` is the older, looser figure, kept for the one
          question it still answers: whether a row's labels have
          room beside their points at all. Deciding that on the new
-         air would move pairs that read properly today. */
-      coordGap: 3,
+         air would move pairs that read properly today.
+
+         Nine, not three. Three was chosen while the offset was
+         applied on each axis at once, so a DIAGONAL label — which is
+         the direction a label reaches for first, because it is the
+         one that keeps clear of the drawing — actually landed at
+         `gap × √2`, about nine past the painted edge. The cardinals
+         got the literal three and were rarely chosen, so nobody saw
+         it. Measuring to the ink made all eight honest and the
+         diagonals lost six pixels overnight, which is A sitting on
+         its own dot. This is the number they were really getting. */
+      coordGap: 9,
       /* The air between a point's letter and the coordinate under it.
          They are one block, so this is leading rather than a gap
          between two labels — tight enough that the two read as one
@@ -1008,9 +1018,14 @@ window.CFG = (function () {
         stepMs: 430,       // one square, then the next
         readMs: 900,       // the finished row, held to be read
         gapMs: 420,        // blank, before it goes again
-        passes: 2,         // said once, then counted along with
-        numSize: 30,
-        numDy: 34          // the number, under its own square
+        /* Once. It used to play twice, and the second pass was
+           doing the job the sentence should have been doing — the
+           first time through "says what is happening" only because
+           the sentence arrived underneath it. She says it and
+           finishes now, so there is nothing left for a second pass
+           to say. */
+        passes: 1,
+        numSize: 30
       },
       labelDy: -28,          // horizontal: just above the line
       /* A vertical count stacks its squares in a band one cell wide,
@@ -1535,8 +1550,13 @@ window.CFG = (function () {
 
     /* 7 — same again with a new point, and without the pulse: the first
        one showed how, so pointing at this one too would be doing it for
-       them rather than letting them try. */
-    { id: 7, line: 'Locate the point (6, 2).', entrance: 'stay', hint: false,
+       them rather than letting them try.
+
+       And she asks it shorter. Saying "locate the point" a second time
+       teaches the instruction over again, when the only new thing on
+       the screen is the point — so she says the point, and "now try"
+       carries the rest: same task, your turn. */
+    { id: 7, line: 'Now try (6, 2).', entrance: 'stay', hint: false,
       layout: 'grid', dots: true,
       task: {
         target: { x: 6, y: 2 },
@@ -1827,7 +1847,17 @@ window.CFG = (function () {
     /* The reason and the question in one breath. They used to be two
        beats — "can the grid help?", then "how far apart are A and C?" —
        which asked the child to hold a hint across a screen change. */
-    { id: 24, line: 'But look at A and C. Can you find AC?',
+    /* Two sentences, and a light each: the two points, then the line
+       between them. Naming the points and lighting the line in one
+       breath answers the question in the act of asking it.
+
+       It stays ONE screen. These were two beats once and were merged
+       because two beats asked the child to hold a hint across a screen
+       change; what splits here is the sentence and its highlighting,
+       not the beat. One board, one question, one control. */
+    { id: 24, line: 'But look at A and C.',
+      line2: 'Can you find AC?',
+      lineLights: [ { points: ['a', 'c'] }, { pulse: 'h' } ],
       entrance: 'none',
       layout: 'board', distance: true, intro: 'measure', keepSegment: true,
       view: 'triangle', quietBoard: true,
@@ -1889,10 +1919,15 @@ window.CFG = (function () {
        three as its own defaults and the game had stopped asking them. */
     { id: 26, line: 'Look! We\u2019ve made a triangle.',
       askFirst: true,
+      /* No "Triangle" on any of them. Every card on the screen is a
+         triangle, the word was in all three, and it told the child
+         nothing about any of them — while taking up the room that
+         kept the type at a size nobody could read from the back of a
+         classroom. The names are what is being chosen between. */
       options: [
-        { key: 'scalene',      cls: 'scalene',      label: 'Scalene Triangle' },
-        { key: 'isosceles',    cls: 'isosceles',    label: 'Isosceles Triangle' },
-        { key: 'right-angled', cls: 'right-angled', label: 'Right-angled Triangle' }
+        { key: 'scalene',      cls: 'scalene',      label: 'Scalene' },
+        { key: 'isosceles',    cls: 'isosceles',    label: 'Isosceles' },
+        { key: 'right-angled', cls: 'right-angled', label: 'Right-angled' }
       ],
       task: {
         kind: 'choice',
@@ -1951,10 +1986,13 @@ window.CFG = (function () {
       line: 'A right triangle! And we already know two of its sides.',
       line2: 'Pythagoras theorem can help us find the third!',
       entrance: 'stay', layout: 'board', keepSegment: true,
-      /* The two known sides named one after the other under the first
-         line, and the one she is about to find under the second. */
-      spotSeq: ['h', 'v'],
-      pulse: 'ab',
+      /* The two known sides under the first line, the one she is about
+         to find under the second — each played when its own sentence
+         finishes. It used to be two clocks running past the words:
+         `spotSeq` at a flat 700 and 1600ms, and `pulse` timed off the
+         length of the FIRST line and started a fifth of the way into
+         it, so AB lit 324ms into "we already know two of its sides". */
+      lineLights: [ { spots: ['h', 'v'] }, { pulse: 'ab' } ],
       derive: {
         /* The working, tagged to the board. Every part that names a
            length carries the side it belongs to — 'h' the horizontal,
@@ -1963,10 +2001,20 @@ window.CFG = (function () {
            off the leg lengths, so they arrive from them; 16, 9 and 25
            are arithmetic and simply appear. */
         formula: [
+          /* The theorem first, with no numbers in it at all. The
+             working used to open on `AB² = 4² + 3²` — already
+             substituted — so the one line the beat exists to teach
+             was never written, and the line that followed could not
+             read as a substitution because there was nothing above it
+             to substitute into. */
           { kind: 'lead', parts: [
               { t: 'AB\u00B2', lit: 'ab' }, { t: ' = ' },
+              { t: 'AC\u00B2', lit: 'h' }, { t: ' + ' },
+              { t: 'CB\u00B2', lit: 'v' } ] },
+          { kind: 'step', parts: [
+              { t: '= ' },
               { t: '4\u00B2', lit: 'h', from: { leg: 0 } }, { t: ' + ' },
-                    { t: '3\u00B2', lit: 'v', from: { leg: 1 } } ] },
+              { t: '3\u00B2', lit: 'v', from: { leg: 1 } } ] },
           { kind: 'step', parts: [
               { t: '= ' }, { t: '16', lit: 'h' }, { t: ' + ' }, { t: '9', lit: 'v' } ] },
           { kind: 'step', parts: [
