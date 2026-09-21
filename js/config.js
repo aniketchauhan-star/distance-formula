@@ -19,11 +19,6 @@ window.CFG = (function () {
     swiftyFly:   'assets/swifty fly.png',
     swiftyTalk:  'assets/swifty talk.png',
     swiftyStand: 'assets/normal stand swifty.png',
-    /* The title screen's arrival and departure. The filename's stray
-       space is the file's own — renaming art silently breaks the page
-       that asks for it, so the name is copied exactly. */
-    swiftyRocket: 'assets/rocket swifty.png',
-    swiftyHop:   'assets/get of swifty .png',
     leaf:        'assets/leaf.png',
     handNudge:   'assets/hand nudge.png'
   };
@@ -76,74 +71,10 @@ window.CFG = (function () {
   };
   const SHEET_W = 1448, SHEET_H = 1086;
 
-  /* -------------------------------------------------------------
-     THE ROCKET, on the title screen only.
-
-     Cut pose by pose, the way `fly` and `talk` are and for the same
-     reason: the drawings bleed past any cell you would divide the
-     sheet into. They were first wired as eight even 271.5px cells on
-     the evidence that the rocket sheet's gutters fell there — and the
-     get-off sheet's do not. Measured off the alpha, EVERY ONE of its
-     eight cells held part of a neighbour, and the sheet turns out to
-     hold ten drawings on a 217.2 pitch, not eight on 271.5.
-
-     `ax, ay` is the point pinned to the rig, and it is chosen per
-     frame for what has to hold still:
-
-       - the rocket sheet pins the PORTHOLE, so the craft is steady
-         and only she shifts about inside it;
-       - the get-off sheet pins the porthole too for as long as the
-         craft is in shot, so it does not slide while she climbs out
-         of it;
-       - and the frame she stands on pins her BELLY, which is what
-         the standing pose is pinned by — so the change to it moves
-         nothing at all.
-
-     `k` is how much bigger this sheet's art is than the talk sheet's,
-     so she comes out the same size in all of them. Her head is 246px
-     across standing and 147 in the last get-off frame, which fixes
-     that sheet exactly. The rocket sheet cannot match both her head
-     and the craft across its own handover — the two sheets draw them
-     in different proportions — so it splits the difference and each
-     is out by 3.6%, which is under what the eye catches on a single
-     frame change.
-
-     The two drawings left out are the sheet's 9th and 10th: the 9th
-     puts the craft back on screen 145px from where it had been
-     standing, and a rocket that teleports for one frame is worse than
-     one that is simply out of shot once she is clear of it. */
-  const SHEETS_ROCKET_FPS = 12, SHEETS_HOP_FPS = 10;
-  SHEETS.rocket = {
-    src: ART.swiftyRocket, fps: SHEETS_ROCKET_FPS,
-    sw: 2172, sh: 724, k: 1.3743,
-    frames: [
-        { x:   17, y: 232, w: 246, h: 277, ax:   132.2, ay:  402.0 },
-        { x:  289, y: 232, w: 243, h: 277, ax:   404.7, ay:  402.1 },
-        { x:  560, y: 233, w: 246, h: 280, ax:   673.8, ay:  401.6 },
-        { x:  819, y: 233, w: 259, h: 279, ax:   954.0, ay:  399.3 },
-        { x: 1080, y: 233, w: 268, h: 275, ax:  1227.5, ay:  396.7 },
-        { x: 1353, y: 233, w: 270, h: 276, ax:  1509.4, ay:  393.2 },
-        { x: 1639, y: 233, w: 252, h: 273, ax:  1773.0, ay:  393.6 },
-        { x: 1914, y: 233, w: 248, h: 276, ax:  2034.5, ay:  398.1 }
-    ]
-  };
-  SHEETS.hop = {
-    src: ART.swiftyHop, fps: SHEETS_HOP_FPS,
-    sw: 2172, sh: 724, k: 1.6735,
-    frames: [
-        { x:   14, y: 285, w: 211, h: 252, ax:   123.6, ay:  424.8 },
-        { x:  230, y: 275, w: 210, h: 263, ax:   333.1, ay:  425.9 },
-        { x:  443, y: 262, w: 206, h: 276, ax:   539.9, ay:  422.1 },
-        { x:  660, y: 256, w: 211, h: 281, ax:   762.6, ay:  420.0 },
-        { x:  880, y: 252, w: 222, h: 286, ax:   977.8, ay:  422.8 },
-        { x: 1124, y: 208, w: 199, h: 328, ax:  1221.1, ay:  418.5 },
-        { x: 1334, y: 186, w: 201, h: 352, ax:  1428.7, ay:  419.1 },
-        { x: 1560, y: 285, w: 167, h: 172, ax:  1631.4, ay:  451.6 },
-        { x: 1986, y: 352, w: 177, h: 186, ax:  2082.8, ay:  483.1 }
-    ]
-  };
-  /* The two original sheets, said the same way, so the sprite can ask
-     any sheet for its own size instead of assuming one. */
+  /* Each sheet says its own pixel size and its own scale, so the
+     sprite asks a sheet rather than assuming one size for all of
+     them. Both of these are the one size; the machinery that let them
+     differ is kept because it costs nothing and is already proven. */
   SHEETS.fly.sw = SHEET_W;  SHEETS.fly.sh = SHEET_H;  SHEETS.fly.k = 1;
   SHEETS.talk.sw = SHEET_W; SHEETS.talk.sh = SHEET_H; SHEETS.talk.k = 1;
 
@@ -430,10 +361,13 @@ window.CFG = (function () {
        lands it on the far shore and reads as part of the title rather
        than as something floating below it. Still 80px under the plate,
        well clear of the leaves hanging off its corners. */
-    /* Under the wordmark, centred on it. The lockup's plate ends at
-       y 587 and its middle is x 1336, both measured off the art, so the
-       button hangs below the title rather than beside it. */
-    box: { cx: 1336, cy: 760, w: 281, h: 267 },
+    /* Under the wordmark, centred on it. 1336 was wrong for the plate
+       it is meant to hang under: measured off the RENDERED page rather
+       than off the art file — the art is 1672 wide and the stage 1920,
+       so a number read straight off the picture is out by a seventh —
+       the cream plate of "Formula" spans stage x 702..1841 and its
+       middle is 1271. The button sat 65px right of it. */
+    box: { cx: 1271, cy: 760, w: 281, h: 267 },
     // Shrinks the briefed box about its centre — the button stays put,
     // it just gets smaller. 1 = the full 281 x 267 from the brief.
     sizeScale: 0.70

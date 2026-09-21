@@ -15,8 +15,7 @@
    'bubbleText', 'bubbleLine', 'nav', 'nextBtn', 'backBtn',
    'gridPanel', 'gridImg', 'gridAxes', 'standSwifty',
    'formulaBoard', 'leafLayer', 'fxLayer', 'sceneArt', 'startArt',
-   'startBird', 'startBirdWin', 'startFly', 'startTalk', 'startShadow', 'startSky',
-   'startRocket', 'startHop'
+   'startBird', 'startBirdWin', 'startFly', 'startTalk', 'startShadow', 'startSky'
   ].forEach(function (id) { el[id] = document.getElementById(id); });
 
   /* ---------------- responsive stage ---------------- */
@@ -39,10 +38,10 @@
     img: {},
 
     /* Any number of sheets, each with its own image, its own pixel
-       size and its own scale factor. It used to be exactly two of one
-       size; the rocket sheets are a different size and are drawn at a
-       different scale, and she has to come out the same size in all
-       of them. */
+       size and its own scale factor. It was exactly two of one size
+       once; both of hers are that size again, and the generality is
+       kept because it costs nothing and a sheet that states its own
+       dimensions is the honest way round. */
     setup: function (win, imgs, scale) {
       this.win = win;
       this.img = imgs || {};
@@ -4796,16 +4795,6 @@
       SFX.sparkle();
       el.playBtn.classList.add('pressed');
 
-      /* She leaves the way she came: back into the rocket and away.
-         The title screen is the only place this happens — inside the
-         game she still flies on her own wings. */
-      StartSprite.play('rocket', true);
-      el.startBird.classList.remove('flying');
-      void el.startBird.offsetWidth;
-      el.startBird.classList.add('leaving');
-      el.startShadow.classList.remove('down');
-      SFX.whoosh();
-
       const P = C.PLAY.box;
       FX.ring(P.cx, P.cy, 120, 'rgba(120,200,255,.95)');
       FX.starBurst(P.cx, P.cy, 18, 230);
@@ -7405,12 +7394,8 @@
       const S = C.START;
       el.startFly.src = C.ART.swiftyFly;
       el.startTalk.src = C.ART.swiftyTalk;
-      el.startRocket.src = C.ART.swiftyRocket;
-      el.startHop.src = C.ART.swiftyHop;
-      StartSprite.setup(el.startBirdWin, {
-        fly: el.startFly, talk: el.startTalk,
-        rocket: el.startRocket, hop: el.startHop
-      }, S.scale);
+      StartSprite.setup(el.startBirdWin,
+        { fly: el.startFly, talk: el.startTalk }, S.scale);
       // the rig origin is her belly anchor; the flight moves it
       el.startBird.style.left = S.anchor.x + 'px';
       el.startBird.style.top = S.anchor.y + 'px';
@@ -7422,19 +7407,16 @@
 
     arrive: function (done) {
       const S = C.START;
-      /* She arrives in the rocket, climbs out of it, and stands. Only
-         here: the game's own screens keep the wings. */
-      StartSprite.play('rocket', true);
+      StartSprite.play('fly', true);
       el.startBird.classList.remove('pre-flight');
       el.startBird.classList.add('flying');
 
-      /* No wingbeats: she is not flying, she is being flown. The
-         approach used to call SFX.flap() eleven times, which is the
-         one sound a rocket cannot make. There is no thruster in the
-         audio layer and adding one is out of scope, so the craft
-         arrives on the whoosh alone. */
-      const flapper = null;
-      SFX.whoosh();
+      // a wingbeat every few frames of the approach; she glides the last bit
+      let beats = 0;
+      const flapper = setInterval(function () {
+        SFX.flap();
+        if (++beats > 11) clearInterval(flapper);
+      }, 175);
       /* She calls once on her way in — around the point the arc brings
          her into frame — and again as she settles on the rock. */
       const calls = [setTimeout(function () { SFX.birdCall(1); }, 640),
@@ -7446,14 +7428,9 @@
         settled = true;
         el.startBird.removeEventListener('animationend', land);
         el.startScreen.removeEventListener('click', skip);
-        if (flapper) clearInterval(flapper);
+        clearInterval(flapper);
         calls.forEach(clearTimeout);        // a skipped flight loses its calls
-        /* Down, then out of it. The hop runs once and hands over to
-           the standing pose — the sheets are scaled to meet at that
-           moment, so she is the same size across the change. */
-        StartSprite.play('hop', false);
-        const hopMs = Math.round(C.SHEETS.hop.frames.length * 1000 / C.SHEETS.hop.fps);
-        setTimeout(function () { StartSprite.stopAt('talk', 0); }, hopMs);
+        StartSprite.stopAt('talk', 0);      // wings in, standing pose
         el.startShadow.classList.add('down');
         /* Dust off the crown as she puts her feet down. Heavier than a
            hop in the game: she has just come out of a long glide, and
@@ -7465,9 +7442,7 @@
            all of that and her whole arrival was silent. Remember it, so
            the first moment sound is allowed she is at least heard. */
         StartBird.arrivedSilent = !SFX.armed;
-        /* Play is offered once she is standing, not while she is still
-           climbing out — the button used to arrive over the animation. */
-        setTimeout(done, hopMs + S.buttonDelay);
+        setTimeout(done, S.buttonDelay);
       };
       /* Tapping through the arrival puts her straight on the perch: the
          keyframes are offsets from where the rig already sits, so
