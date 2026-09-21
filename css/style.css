@@ -91,6 +91,15 @@ html, body {
    before she has flown to it. */
 #startBird.pre-flight { opacity: 0; }
 #startBird.flying { animation: startFlyIn 2600ms linear forwards; }
+/* And out again, the way she came: up and away to the left, under the
+   rocket's own power. Shorter than the arrival — the screen is already
+   fading and nobody is watching a departure twice. */
+#startBird.leaving { animation: startFlyOut 820ms cubic-bezier(.4, 0, .75, .35) forwards; }
+@keyframes startFlyOut {
+  0%   { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 1; }
+  35%  { transform: translate(-40px, -120px) scale(.94) rotate(-6deg); opacity: 1; }
+  100% { transform: translate(-360px, -520px) scale(.58) rotate(-14deg); opacity: 0; }
+}
 #startBirdWin { position: absolute; overflow: hidden; }
 #startBirdWin img { position: absolute; display: block; }
 

@@ -19,6 +19,11 @@ window.CFG = (function () {
     swiftyFly:   'assets/swifty fly.png',
     swiftyTalk:  'assets/swifty talk.png',
     swiftyStand: 'assets/normal stand swifty.png',
+    /* The title screen's arrival and departure. The filename's stray
+       space is the file's own — renaming art silently breaks the page
+       that asks for it, so the name is copied exactly. */
+    swiftyRocket: 'assets/rocket swifty.png',
+    swiftyHop:   'assets/get of swifty .png',
     leaf:        'assets/leaf.png',
     handNudge:   'assets/hand nudge.png'
   };
@@ -70,6 +75,42 @@ window.CFG = (function () {
     }
   };
   const SHEET_W = 1448, SHEET_H = 1086;
+
+  /* -------------------------------------------------------------
+     THE ROCKET, on the title screen only.
+
+     Two more sheets, and they are a different kind of sheet: eight
+     frames in one row of even 271.5 x 724 cells, drawn consistently
+     inside those cells. So they are played as a plain strip — one
+     rect and one anchor for the whole sheet — rather than measured
+     pose by pose. The poses in `fly` and `talk` need that treatment
+     because they bleed past their cells and sit at two different
+     heights; these do not.
+
+     `k` is how much bigger this sheet's art is than the talk sheet's,
+     so that SHE comes out the same size in all four. She is drawn
+     smallest in the rocket and grows as she climbs out and steps
+     forward, which is the artist's own perspective and is kept: the
+     numbers below only line the four sheets up with each other at the
+     two places they hand over.
+
+     Measured off the alpha: her head is 246px across standing, 168 in
+     the last rocket frame, 229 in the first get-off frame and 262 in
+     the last. So the rocket is scaled to meet get-off's first frame,
+     and get-off is scaled to meet the standing pose at its last. */
+  const strip = function (src, n, sw, sh, k, fps, ax, ay) {
+    const cw = sw / n, out = [];
+    for (let i = 0; i < n; i++) {
+      out.push({ x: i * cw, y: 0, w: cw, h: sh, ax: i * cw + ax, ay: ay });
+    }
+    return { src: src, fps: fps, sw: sw, sh: sh, k: k, frames: out };
+  };
+  SHEETS.rocket = strip(ART.swiftyRocket, 8, 2172, 724, 1.280, 12, 108.1, 462.8);
+  SHEETS.hop    = strip(ART.swiftyHop,    8, 2172, 724, 0.939, 11, 138.0, 556.0);
+  /* The two original sheets, said the same way, so the sprite can ask
+     any sheet for its own size instead of assuming one. */
+  SHEETS.fly.sw = SHEET_W;  SHEETS.fly.sh = SHEET_H;  SHEETS.fly.k = 1;
+  SHEETS.talk.sw = SHEET_W; SHEETS.talk.sh = SHEET_H; SHEETS.talk.k = 1;
 
   /* -------------------------------------------------------------
      SWIFTY PLACEMENT

@@ -15,7 +15,8 @@
    'bubbleText', 'bubbleLine', 'nav', 'nextBtn', 'backBtn',
    'gridPanel', 'gridImg', 'gridAxes', 'standSwifty',
    'formulaBoard', 'leafLayer', 'fxLayer', 'sceneArt', 'startArt',
-   'startBird', 'startBirdWin', 'startFly', 'startTalk', 'startShadow', 'startSky'
+   'startBird', 'startBirdWin', 'startFly', 'startTalk', 'startShadow', 'startSky',
+   'startRocket', 'startHop'
   ].forEach(function (id) { el[id] = document.getElementById(id); });
 
   /* ---------------- responsive stage ---------------- */
@@ -35,12 +36,16 @@
     sheet: 'talk', frame: 0, playing: false, acc: 0, last: 0, loop: true,
     scale: 1,
     win: null,
-    img: { fly: null, talk: null },
+    img: {},
 
-    setup: function (win, flyImg, talkImg, scale) {
+    /* Any number of sheets, each with its own image, its own pixel
+       size and its own scale factor. It used to be exactly two of one
+       size; the rocket sheets are a different size and are drawn at a
+       different scale, and she has to come out the same size in all
+       of them. */
+    setup: function (win, imgs, scale) {
       this.win = win;
-      this.img.fly = flyImg;
-      this.img.talk = talkImg;
+      this.img = imgs || {};
       this.setScale(scale);
     },
 
@@ -48,9 +53,12 @@
        size beside the board — so the sheet is rescaled per screen. */
     setScale: function (S) {
       this.scale = S;
-      [this.img.fly, this.img.talk].forEach(function (im) {
-        im.style.width = C.SHEET_W * S + 'px';
-        im.style.height = C.SHEET_H * S + 'px';
+      const self = this;
+      Object.keys(this.img).forEach(function (name) {
+        const im = self.img[name], sh = C.SHEETS[name];
+        if (!im || !sh) return;
+        im.style.width = (sh.sw || C.SHEET_W) * S * (sh.k || 1) + 'px';
+        im.style.height = (sh.sh || C.SHEET_H) * S * (sh.k || 1) + 'px';
       });
       this.show(this.sheet, this.frame);
     },
@@ -59,8 +67,11 @@
        Every pose has its own opaque bounds and its own anchor, so
        all six numbers are recomputed per frame. */
     show: function (sheet, i) {
-      const S = this.scale;
-      const f = C.SHEETS[sheet].frames[i];
+      const spec = C.SHEETS[sheet];
+      const im = this.img[sheet];
+      if (!spec || !im) return;                 // a rig without this sheet
+      const S = this.scale * (spec.k || 1);
+      const f = spec.frames[i];
       this.sheet = sheet; this.frame = i;
 
       this.win.style.left = -(f.ax - f.x) * S + 'px';
@@ -68,11 +79,13 @@
       this.win.style.width = f.w * S + 'px';
       this.win.style.height = f.h * S + 'px';
 
-      const im = this.img[sheet], other = this.img[sheet === 'fly' ? 'talk' : 'fly'];
       im.style.left = -f.x * S + 'px';
       im.style.top = -f.y * S + 'px';
       im.style.visibility = 'visible';
-      other.style.visibility = 'hidden';
+      const self = this;
+      Object.keys(this.img).forEach(function (n) {
+        if (n !== sheet && self.img[n]) self.img[n].style.visibility = 'hidden';
+      });
     },
 
     play: function (sheet, loop) {
@@ -4783,6 +4796,16 @@
       SFX.sparkle();
       el.playBtn.classList.add('pressed');
 
+      /* She leaves the way she came: back into the rocket and away.
+         The title screen is the only place this happens — inside the
+         game she still flies on her own wings. */
+      StartSprite.play('rocket', true);
+      el.startBird.classList.remove('flying');
+      void el.startBird.offsetWidth;
+      el.startBird.classList.add('leaving');
+      el.startShadow.classList.remove('down');
+      SFX.whoosh();
+
       const P = C.PLAY.box;
       FX.ring(P.cx, P.cy, 120, 'rgba(120,200,255,.95)');
       FX.starBurst(P.cx, P.cy, 18, 230);
@@ -7382,7 +7405,12 @@
       const S = C.START;
       el.startFly.src = C.ART.swiftyFly;
       el.startTalk.src = C.ART.swiftyTalk;
-      StartSprite.setup(el.startBirdWin, el.startFly, el.startTalk, S.scale);
+      el.startRocket.src = C.ART.swiftyRocket;
+      el.startHop.src = C.ART.swiftyHop;
+      StartSprite.setup(el.startBirdWin, {
+        fly: el.startFly, talk: el.startTalk,
+        rocket: el.startRocket, hop: el.startHop
+      }, S.scale);
       // the rig origin is her belly anchor; the flight moves it
       el.startBird.style.left = S.anchor.x + 'px';
       el.startBird.style.top = S.anchor.y + 'px';
@@ -7394,7 +7422,9 @@
 
     arrive: function (done) {
       const S = C.START;
-      StartSprite.play('fly', true);
+      /* She arrives in the rocket, climbs out of it, and stands. Only
+         here: the game's own screens keep the wings. */
+      StartSprite.play('rocket', true);
       el.startBird.classList.remove('pre-flight');
       el.startBird.classList.add('flying');
 
@@ -7417,7 +7447,12 @@
         el.startScreen.removeEventListener('click', skip);
         clearInterval(flapper);
         calls.forEach(clearTimeout);        // a skipped flight loses its calls
-        StartSprite.stopAt('talk', 0);      // wings in, standing pose
+        /* Down, then out of it. The hop runs once and hands over to
+           the standing pose — the sheets are scaled to meet at that
+           moment, so she is the same size across the change. */
+        StartSprite.play('hop', false);
+        const hopMs = Math.round(C.SHEETS.hop.frames.length * 1000 / C.SHEETS.hop.fps);
+        setTimeout(function () { StartSprite.stopAt('talk', 0); }, hopMs);
         el.startShadow.classList.add('down');
         /* Dust off the crown as she puts her feet down. Heavier than a
            hop in the game: she has just come out of a long glide, and
@@ -7429,7 +7464,9 @@
            all of that and her whole arrival was silent. Remember it, so
            the first moment sound is allowed she is at least heard. */
         StartBird.arrivedSilent = !SFX.armed;
-        setTimeout(done, S.buttonDelay);
+        /* Play is offered once she is standing, not while she is still
+           climbing out — the button used to arrive over the animation. */
+        setTimeout(done, hopMs + S.buttonDelay);
       };
       /* Tapping through the arrival puts her straight on the perch: the
          keyframes are offsets from where the rig already sits, so
@@ -7486,7 +7523,7 @@
     stopWeather.push(FX.wind(el.startSky, C.START.wind),
                      FX.leafDrift(el.startSky, C.START.drift));
     fitStage();
-    Sprite.setup(el.birdWin, el.flySheet, el.talkSheet, C.CHAR_SCALE);
+    Sprite.setup(el.birdWin, { fly: el.flySheet, talk: el.talkSheet }, C.CHAR_SCALE);
     StartBird.setup();  // must precede layout(): layout seats the rig
     layout();
     bind();
