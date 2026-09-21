@@ -1,96 +1,163 @@
 /* =============================================================
-   Number selector — the combination-lock widget.
+   Number selector — the combination lock, drawn.
 
-   Built from the art sheet in assets/ui/ rather than drawn in CSS:
-   one frame with a window cut clean through it, three barrels turning
-   behind that window, a round arrow at each end and GO underneath.
+   Every surface here is CSS: gradients for the curve of a drum,
+   inset shadows for the well the drums turn in, and a solid colour
+   under each button for the thickness it stands on. No artwork, and
+   nothing the component has to load before it can be shown.
 
-   The markup is the component's own (js/number-selector.js) and has not
-   changed: .selector holds .reel (.seat + .lane of .cell) and the two
-   .side buttons, and .check sits under it. Only the skin is new, so
-   every behaviour the game already relies on — the roll, the buffers,
-   the correct and wrong states — still works exactly as it did.
+   The markup is the component's own (js/number-selector.js):
+   .selector holds the pointer, .reel (.seat + .lane of .cell) and the
+   two .side buttons; .check sits under it. Only the skin is new, so
+   every behaviour the game relies on — the roll, the two buffers off
+   either end, the correct and wrong states — works as it did.
 
-   Everything below is laid out at the widget's own natural size and
-   scaled as a whole by --k, so the proportions are the ones the art
-   was drawn at whatever the host does with it.
+   ONE LIGHT, FROM ABOVE. Every highlight is on a top edge and every
+   shadow falls below. The depth reads because the whole control
+   agrees about where the light is, not because any one piece is
+   clever.
+
+   Sizes are fixed pixels scaled as a whole by --k, never vw: the
+   stage is already transform-scaled to the viewport, so a
+   viewport-relative size would be scaled a second time and come out
+   different at every window width.
    ============================================================= */
 
 .number-control {
-  /* The art's own proportions, measured off the sheet. */
+  /* The housing: a rounded bar with room over it for the pointer and
+     under it for GO's foot. */
   --frame-w: 660px;
-  --frame-h: 400px;          /* 660 x 311/513 */
-  --frame-x: 78px;           /* room for the arrows to overhang — half
-                                an arrow, and a few px of air */
-  /* The window cut through the frame, as fractions of the art. */
-  --win-x:   calc(var(--frame-x) + var(--frame-w) * 0.2144);
-  --win-y:   calc(var(--frame-h) * 0.2283);
-  --win-w:   calc(var(--frame-w) * 0.5634);
-  --win-h:   calc(var(--frame-h) * 0.3762);
-  /* The middle of the round socket the art bulges out on each side, as
-     a fraction of the frame's height — measured off the sheet, not
-     guessed from the window, because the two are not quite level. */
-  --dial-y:  calc(var(--frame-h) * 0.4244);
-  /* One barrel, and how far apart the barrels sit. Three across the
-     window, with the two either side running on under the frame.
+  --frame-h: 400px;
+  --frame-x: 78px;           /* room for the dials to overhang */
+  --bar-top: 30px;
+  --bar-h:   330px;
 
-     The chosen barrel and its neighbours are two different drawings and
-     two different shapes: the gold one is 155 x 182 on the sheet and a
-     plain one is 144 x 155, so the gold one is both wider and a good
-     deal taller. Stretching them both into one box threw that away and
-     drew three identical drums. Sized from the art instead: the gold
-     one fills the slot top to bottom and the two beside it sit a little
-     short of it, which is what makes the chosen one read as chosen
-     before the colour does. */
-  --pitch:   calc(var(--win-w) / 3);
-  --barrel-h: var(--win-h);
-  --barrel-w: calc(var(--barrel-h) * 0.852);     /* 155/182 */
-  --side-h:   calc(var(--win-h) * 0.852);        /* 155/182 of the gold one */
-  --side-w:   calc(var(--side-h) * 0.929);       /* 144/155 */
+  /* The well the drums turn in, as fractions of the bar. */
+  --win-x:   calc(var(--frame-w) * 0.20);
+  --win-y:   calc(var(--bar-top) + var(--bar-h) * 0.23);
+  --win-w:   calc(var(--frame-w) * 0.60);
+  --win-h:   calc(var(--bar-h) * 0.54);
+
+  /* Three drums across the well, the next two running on behind it. */
+  --pitch:    calc(var(--win-w) / 3);
+  --barrel-w: calc(var(--pitch) * 0.94);
+  --barrel-h: calc(var(--win-h) * 0.80);   /* room in the well for its
+                                              own lower lip to show */
+  --side-w:   calc(var(--pitch) * 0.84);
+  --side-h:   calc(var(--win-h) * 0.64);
+
+  /* The dials sit on the bar's own middle line. */
+  --dial-y:  calc(var(--bar-top) + var(--bar-h) / 2);
   --arrow:   150px;
   --go:      168px;
 
+  /* The four golds, brightest on top. Gold is the accent that gives
+     the housing its thickness — it is not the fill. */
+  --g1: #FFD758;
+  --g2: #FFB51F;
+  --g3: #F28A08;
+  --g4: #C95B04;
+
   position: absolute;
-  /* frame-x + frame-w + half an arrow, and deep enough for GO's foot. */
   width: 816px;
   height: 520px;
   transform-origin: top left;
   transform: scale(var(--k, 1));
-  font-family: 'Nunito', system-ui, sans-serif;
+  font-family: 'Lilita One', 'Nunito', system-ui, sans-serif;
   user-select: none;
   -webkit-user-select: none;
   z-index: 6;
+  /* The scene. Shallow on purpose: the control is dimensional, not
+     tilted — a heavy camera angle makes a game UI hard to read and
+     hard to hit. */
+  perspective: 1000px;
+  perspective-origin: 50% 38%;
 }
 
-/* ---- the frame, with its own window cut through it ---------------- */
+/* ---- the housing ------------------------------------------------- */
 .number-control .selector {
   position: absolute;
   left: var(--frame-x);
   top: 0;
   width: var(--frame-w);
   height: var(--frame-h);
-  background: url('../assets/ui/frame.png') center / 100% 100% no-repeat;
+  transform-style: preserve-3d;
 }
 
-/* ---- the barrels, seen through the window ------------------------- */
+/* Its front face. */
+.number-control .selector::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--bar-top);
+  height: var(--bar-h);
+  border-radius: 52px;
+  /* The bevel, as three golds down one edge rather than a flat
+     outline: bright along the top where the light is, gold round the
+     sides, orange underneath. */
+  border: 5px solid transparent;
+  background:
+    linear-gradient(180deg, #FFFDF4 0%, #FFF8E8 48%, #F2E2C2 100%) padding-box,
+    linear-gradient(180deg, #FFE79A 0%, var(--g1) 34%, var(--g2) 68%, var(--g3) 100%) border-box;
+  /* `0 16px 0` is the thickness it stands on — a solid slab of orange
+     under the front face, clipped to the same radius, which is what
+     makes the bottom edge read deeper than the top. It was a
+     translateZ layer before and disappeared: a negative z-index inside
+     a 3D context put it behind the scene rather than behind the face. */
+  box-shadow:
+    inset 0 6px 6px rgba(255, 255, 255, .85),
+    inset 0 -10px 14px rgba(190, 110, 20, .16),
+    0 16px 0 #E88A0C,
+    0 20px 26px rgba(100, 55, 10, .26);
+  z-index: 0;
+}
+
+/* ---- the pointer over the chosen number -------------------------- */
+.number-control .pointer {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--bar-top) + 14px);
+  width: 58px;
+  height: 40px;
+  margin-left: -29px;
+  border-radius: 8px 8px 4px 4px;
+  background: linear-gradient(180deg, var(--g1), var(--g2) 60%, var(--g3));
+  clip-path: polygon(50% 100%, 100% 0, 0 0);
+  box-shadow:
+    0 5px 0 var(--g4),
+    0 8px 10px rgba(100, 50, 10, .20),
+    inset 0 3px 3px rgba(255, 255, 255, .55);
+  transform: translateZ(24px);
+  transition: transform 140ms cubic-bezier(.22, .68, .3, 1);
+  z-index: 5;
+}
+/* It dips as a number seats itself. */
+.number-control .seat.pop ~ .pointer,
+.number-control.is-seating .pointer { transform: translateZ(24px) translateY(2px); }
+
+/* ---- the well ---------------------------------------------------- */
 .number-control .reel {
   position: absolute;
-  left: calc(var(--win-x) - var(--frame-x));
+  left: var(--win-x);
   top: var(--win-y);
   width: var(--win-w);
   height: var(--win-h);
-  /* The window is a hole cut clean through the art, so the barrels are
-     clipped to it and read as carrying on behind the frame — and the
-     slot needs a floor of its own, or the scene shows through the gaps
-     between them. */
+  /* The drums run on behind the housing at both ends. */
   overflow: hidden;
-  border-radius: 14px;
-  background: linear-gradient(180deg, #0B4A4D 0%, #0E6265 52%, #0A4245 100%);
-  box-shadow: inset 0 6px 14px rgba(0, 0, 0, .38);
+  border-radius: 28px;
+  background: #F3E8D1;
+  box-shadow:
+    inset 0 12px 18px rgba(30, 20, 10, .30),
+    inset 0 -4px 6px rgba(255, 255, 255, .40),
+    0 0 0 6px #0A8884,
+    0 0 0 8px rgba(255, 255, 255, .55),
+    0 3px 0 rgba(255, 255, 255, .75);
+  transform: translateZ(6px);
+  z-index: 2;
 }
 
-/* The seat is only a hit area and a live region now — the gold barrel
-   behind the chosen number is the art's own. */
+/* The seat is a hit area and a live region; the chosen drum is a cell. */
 .number-control .seat {
   position: absolute;
   left: 50%; top: 50%;
@@ -99,20 +166,15 @@
   transform: translate(-50%, -50%);
   pointer-events: none;
 }
-.number-control .seat.pop { animation: selectedPop 280ms cubic-bezier(.2, .8, .25, 1) both; }
-@keyframes selectedPop {
-  0%   { transform: translate(-50%, -50%) scale(1); }
-  45%  { transform: translate(-50%, -50%) scale(1.08); }
-  100% { transform: translate(-50%, -50%) scale(1); }
-}
 
 .number-control .lane { position: absolute; inset: 0; }
 
-/* One barrel per cell: the art behind, the number on top of it. */
+/* ---- the drums --------------------------------------------------- */
+/* Bright along the middle and darker at both edges, which is what the
+   curve of a cylinder does to one light from above. */
 .number-control .cell {
   position: absolute;
   left: 50%; top: 50%;
-  /* Each kind takes its own size below; this is the fallback. */
   width: var(--side-w);
   height: var(--side-h);
   display: flex;
@@ -120,51 +182,73 @@
   justify-content: center;
   font-weight: 900;
   line-height: 1;
-  background: center / 100% 100% no-repeat;
+  border-radius: 16px;
+  background:
+    linear-gradient(90deg,
+      #B3A895 0%, #D6CAB4 14%, #FBF3E2 34%, #FFFDF5 50%,
+      #FBF3E2 66%, #D2C6B1 86%, #AFA491 100%);
+  box-shadow:
+    inset 0 8px 9px rgba(255, 255, 255, .55),
+    inset 0 -9px 13px rgba(120, 85, 45, .20),
+    0 3px 0 rgba(150, 120, 80, .35);
   transition: transform 280ms cubic-bezier(.22, .68, .3, 1),
-              color 200ms ease, opacity 200ms ease;
+              color 200ms ease, opacity 200ms ease,
+              background 200ms ease, box-shadow 200ms ease;
 }
+
+/* The chosen one is seated: gold, forward, and standing on a thicker
+   orange lip than anything else in the control. */
 .number-control .cell.on {
-  background-image: url('../assets/ui/roller-mid.png');
   width: var(--barrel-w);
   height: var(--barrel-h);
   color: #0754B8;
-  font-size: 92px;
-  z-index: 2;
+  font-size: 86px;
+  border-radius: 20px;
+  background: linear-gradient(180deg,
+      #FFF19A 0%, #FFD758 32%, #FFC62E 68%, #FFB51F 100%);
+  box-shadow:
+    inset 0 7px 8px rgba(255, 255, 255, .80),
+    inset 0 -8px 9px rgba(205, 100, 5, .22),
+    0 8px 0 #E98208,
+    0 13px 16px rgba(100, 55, 10, .28);
+  z-index: 4;
 }
+
 .number-control .cell.off {
-  background-image: url('../assets/ui/roller-side.png');
-  width: var(--side-w);
-  height: var(--side-h);
   color: #8F8374;
-  /* Set to its own barrel, not to the gold one's — the same share of a
-     smaller drum, so all three digits look like one row of type. */
-  font-size: 78px;
+  font-size: 66px;
+  opacity: .78;
   z-index: 1;
 }
-/* Past the end of the range there is no number to show — but the
-   barrel is still there. A lock's wheel does not have gaps in it, and
-   an empty third of the slot reads as something broken rather than as
-   the end of the counting. */
+
+/* Past the end of the range there is no number — but the drum is still
+   there. A lock's wheel has no gaps in it, and an empty third of the
+   well reads as broken rather than as the end of the counting. */
 .number-control .cell.empty { color: transparent; }
 /* A cell carried across the reel rather than along it must not be seen
    travelling — see seatCell() in the component. */
 .number-control .cell.jump { transition: none; }
 
-/* ---- the two round arrows ---------------------------------------- */
-/* ---- the two round arrows ----------------------------------------
+/* The seating click: forward, past, and settled. */
+.number-control .seat.pop { animation: none; }
+.number-control .cell.on { animation: lockIntoPlace 220ms cubic-bezier(.22,.68,.32,1); }
+@keyframes lockIntoPlace {
+  0%   { box-shadow: inset 0 6px 7px rgba(255,255,255,.70),
+                     inset 0 -7px 8px rgba(205,100,5,.18),
+                     0 4px 0 #E98208, 0 8px 10px rgba(100,55,10,.20); }
+  45%  { box-shadow: inset 0 6px 7px rgba(255,255,255,.70),
+                     inset 0 -7px 8px rgba(205,100,5,.18),
+                     0 10px 0 #E98208, 0 16px 20px rgba(100,55,10,.22); }
+  100% { box-shadow: inset 0 6px 7px rgba(255,255,255,.70),
+                     inset 0 -7px 8px rgba(205,100,5,.18),
+                     0 7px 0 #E98208, 0 12px 15px rgba(100,55,10,.20); }
+}
 
-   These are children of the FRAME, not of the widget, so every offset
-   here is measured from the frame's own top-left corner — not from the
-   widget's. Written as though they were the widget's, each arrow came
-   out one whole `--frame-x` to the right of its socket: the left one
-   sat inside the housing and the right one hung off past its own bulge,
-   with the cream lobe showing between. GO looks right because GO IS a
-   child of the widget.
-
-   Centred by folding the half-width into `left` and `top` rather than
-   by a negative margin or a translate, because :hover and :active both
-   put a transform on these and a centring transform would fight them. */
+/* ---- the two dials ----------------------------------------------
+   Children of the HOUSING, not of the widget, so every offset here is
+   measured from the housing's own top-left corner. Written as though
+   they were the widget's, each dial came out one whole --frame-x to
+   the right of where it belongs. */
 .number-control .side {
   position: absolute;
   top: calc(var(--dial-y) - var(--arrow) / 2);
@@ -172,77 +256,191 @@
   height: var(--arrow);
   padding: 0;
   border: 0;
-  background: center / 100% 100% no-repeat;
+  border-radius: 50%;
+  background: transparent;
   cursor: pointer;
-  transition: transform 120ms ease, opacity 160ms ease;
-  z-index: 3;
+  transform: translateZ(25px);
+  transition: transform 120ms cubic-bezier(.22,.68,.3,1),
+              box-shadow 120ms ease, opacity 160ms ease;
+  z-index: 6;
 }
-/* Each one centred on the outer tip of its own lobe, which is where the
-   art's bulge reaches the edge of the sheet. */
-.number-control .side.prev {
-  left: calc(var(--arrow) / -2);
-  background-image: url('../assets/ui/btn-left.png');
-}
-.number-control .side.next {
-  left: calc(var(--frame-w) - var(--arrow) / 2);
-  background-image: url('../assets/ui/btn-right.png');
-}
-/* The chevron is drawn into the art. */
-.number-control .chev { display: none; }
+.number-control .side.prev { left: calc(var(--arrow) / -2); }
+.number-control .side.next { left: calc(var(--frame-w) - var(--arrow) / 2); }
 
-.number-control .side:hover:not(:disabled) { transform: translateY(-3px); }
+/* Three layers: a gold rim, the orange face, and the chevron. */
+.number-control .side::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: linear-gradient(180deg, var(--g1) 0%, var(--g2) 40%, var(--g4) 100%);
+  box-shadow: 0 9px 0 var(--g4), 0 13px 16px rgba(100, 50, 10, .22);
+}
+.number-control .side::after {
+  content: "";
+  position: absolute;
+  inset: 9px;
+  border-radius: 50%;
+  background: linear-gradient(180deg,
+      #FFD758 0%, #FFB51F 24%, #F28A08 78%, #DF6906 100%);
+  box-shadow:
+    inset 0 5px 6px rgba(255, 255, 255, .55),
+    inset 0 -6px 7px rgba(145, 55, 0, .16);
+}
+
+/* The chevron, as two rounded bars. Not a play triangle: these turn a
+   reel, they do not start anything. */
+.number-control .chev {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 46px; height: 46px;
+  margin: -23px 0 0 -23px;
+  z-index: 2;
+}
+.number-control .chev::before,
+.number-control .chev::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  width: 16px;
+  height: 34px;
+  margin-left: -8px;
+  border-radius: 8px;
+  background: #FFF6E2;
+  box-shadow: 0 2px 0 rgba(150, 70, 5, .28);
+}
+.number-control .chev::before { top: -2px; transform-origin: 50% 100%; }
+.number-control .chev::after  { top: 24px; transform-origin: 50% 0%; }
+.number-control .prev .chev::before { transform: rotate(38deg)  translateY(-1px); }
+.number-control .prev .chev::after  { transform: rotate(-38deg) translateY(-8px); }
+.number-control .next .chev::before { transform: rotate(-38deg) translateY(-1px); }
+.number-control .next .chev::after  { transform: rotate(38deg)  translateY(-8px); }
+
+/* Pressed: it goes in, and the slab it stands on gets shorter. */
+.number-control .side:hover:not(:disabled) { transform: translateZ(28px) translateY(-2px); }
+.number-control .side:active:not(:disabled)::before,
+.number-control .side.is-pressed:not(:disabled)::before {
+  box-shadow: 0 2px 0 var(--g4), 0 4px 6px rgba(100, 50, 10, .16);
+}
 .number-control .side:active:not(:disabled),
-.number-control .side.is-pressed:not(:disabled) { transform: translateY(3px) scale(.96); }
+.number-control .side.is-pressed:not(:disabled) {
+  transform: translateZ(18px) translateY(5px) scale(.97);
+}
 .number-control .side:disabled { opacity: .45; cursor: default; }
 
-/* ---- GO, under the frame's own foot ------------------------------- */
+/* ---- GO ----------------------------------------------------------- */
 .number-control .check {
   position: absolute;
-  left: calc(var(--frame-x) + var(--frame-w) * 0.4932);
-  top: var(--frame-h);
+  left: calc(var(--frame-x) + var(--frame-w) * 0.50);
+  top: calc(var(--bar-top) + var(--bar-h));
   width: var(--go);
   height: var(--go);
   margin: calc(var(--go) * -0.34) 0 0 calc(var(--go) / -2);
   padding: 0;
   border: 0;
-  background: url('../assets/ui/btn-go.png') center / 100% 100% no-repeat;
-  /* The word is in the art. */
-  font-size: 0;
-  color: transparent;
+  border-radius: 50%;
+  background: transparent;
+  color: #FFFFFF;
+  font-family: inherit;
+  font-size: 54px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  line-height: var(--go);
+  text-align: center;
+  text-shadow: 0 2px 0 rgba(12, 90, 40, .45);
   cursor: pointer;
-  transition: transform 120ms ease, opacity 160ms ease, filter 200ms ease;
-  z-index: 4;
+  transform: translateZ(28px);
+  transition: transform 120ms cubic-bezier(.22,.68,.3,1),
+              box-shadow 140ms ease, opacity 160ms ease, filter 200ms ease;
+  z-index: 5;
+}
+/* A cream collar with a thin gold edge, so it belongs to the housing
+   rather than sitting in front of it. */
+.number-control .check::before {
+  content: "";
+  position: absolute;
+  inset: -9px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #FFFDF4, #F6E7C6);
+  border: 3px solid var(--g1);
+  box-shadow: 0 10px 0 #E1C489, 0 16px 20px rgba(60, 45, 10, .22);
+  z-index: -2;
+}
+.number-control .check::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: linear-gradient(180deg,
+      #63E45F 0%, #49D34F 22%, #20B33C 60%, #1AA134 100%);
+  box-shadow:
+    inset 0 7px 7px rgba(255, 255, 255, .60),
+    inset 0 -8px 9px rgba(0, 90, 35, .18),
+    0 9px 0 #1E8A38,
+    0 14px 18px rgba(20, 90, 35, .23);
+  z-index: -1;
 }
 .number-control .check-icon { display: none; }
-.number-control .check:hover:not(:disabled) { transform: translateY(-3px); }
+
+.number-control .check:hover:not(:disabled) { transform: translateZ(31px) translateY(-2px); }
 .number-control .check:active:not(:disabled),
-.number-control .check.is-pressed:not(:disabled) { transform: translateY(3px) scale(.96); }
+.number-control .check.is-pressed:not(:disabled) {
+  transform: translateZ(20px) translateY(6px) scale(.97);
+}
+.number-control .check:active:not(:disabled)::after,
+.number-control .check.is-pressed:not(:disabled)::after {
+  box-shadow:
+    inset 0 5px 6px rgba(255, 255, 255, .45),
+    inset 0 -6px 7px rgba(0, 90, 35, .16),
+    0 3px 0 #1E8A38,
+    0 6px 9px rgba(20, 90, 35, .20);
+}
 .number-control.locked .check { opacity: .55; cursor: default; }
-.number-control.locked .check:hover { transform: none; }
+.number-control.locked .check:hover { transform: translateZ(28px); }
 
-/* ---- right and wrong ---------------------------------------------
-   The art is one colour, so the verdict is told by what the art does
-   rather than by repainting it: GO brightens and lifts on a right
-   answer, and shakes on a wrong one. */
-.number-control.is-correct .check {
-  filter: brightness(1.12) saturate(1.15)
-          drop-shadow(0 0 18px rgba(46, 201, 90, .75));
+/* One soft highlight per button, from the same light as everything
+   else — a sheen on the upper third, not a glossy patch. */
+.number-control .side .chev::before,
+.number-control .check::after { pointer-events: none; }
+
+/* ---- right and wrong ---------------------------------------------- */
+.number-control.is-correct .check::after {
+  box-shadow:
+    inset 0 7px 7px rgba(255, 255, 255, .60),
+    inset 0 -8px 9px rgba(0, 90, 35, .18),
+    0 11px 0 #1E8A38,
+    0 16px 22px rgba(20, 90, 35, .26),
+    0 0 26px rgba(70, 225, 110, .85);
 }
-.number-control.is-correct .cell.on { color: #14853A; }
-.number-control.is-wrong .check {
-  filter: hue-rotate(-96deg) saturate(1.25);
-  animation: ncShake 420ms cubic-bezier(.36, .07, .19, .97) both;
+.number-control.is-correct .check { transform: translateZ(34px) translateY(-3px); }
+.number-control.is-correct .cell.on {
+  color: #14853A;
+  animation: goodPop 400ms cubic-bezier(.22, .68, .3, 1);
 }
-.number-control.is-wrong .cell.on { color: #C4503A; }
-@keyframes ncShake {
-  10%, 90% { transform: translateX(-4px); }
-  20%, 80% { transform: translateX(7px); }
-  30%, 50%, 70% { transform: translateX(-10px); }
-  40%, 60% { transform: translateX(10px); }
+@keyframes goodPop {
+  0%   { filter: brightness(1); }
+  40%  { filter: brightness(1.14); }
+  100% { filter: brightness(1); }
 }
 
-/* The tick the reel used to show on a right answer: the art carries
-   its own feedback now, so it stays out of the way. */
+/* A wrong answer wobbles the drum it was chosen on. Not the screen,
+   and not the whole control: the mistake is the number. */
+.number-control.is-wrong .cell.on {
+  color: #C4503A;
+  animation: drumWobble 340ms cubic-bezier(.36, .07, .19, .97);
+}
+@keyframes drumWobble {
+  20% { margin-left: -7px; }
+  45% { margin-left: 7px; }
+  70% { margin-left: -4px; }
+  100% { margin-left: 0; }
+}
+.number-control.is-wrong .check::after {
+  background: linear-gradient(180deg, #F79B86 0%, #EE7F68 40%, #D9614A 100%);
+}
+
+/* The tick the reel used to show on a right answer: GO carries its own
+   feedback, so it stays out of the way. */
 .number-control .tick { display: none; }
 
 .number-control.hidden { display: none !important; }
@@ -252,4 +450,18 @@
 @keyframes ncRise {
   from { opacity: 0; transform: scale(var(--k, 1)) translateY(38px); }
   to   { opacity: 1; transform: scale(var(--k, 1)) translateY(0); }
+}
+
+/* Only transform, opacity and filter are animated above; will-change
+   is put on for the roll and taken off again rather than left on. */
+.number-control .cell.rolling { will-change: transform; }
+
+@media (prefers-reduced-motion: reduce) {
+  .number-control .cell,
+  .number-control .side,
+  .number-control .check,
+  .number-control .pointer { transition-duration: 1ms; }
+  .number-control .cell.on { animation: none; }
+  .number-control.is-wrong .cell.on,
+  .number-control.is-correct .cell.on { animation: none; }
 }
