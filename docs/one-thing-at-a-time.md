@@ -541,7 +541,16 @@ fault the code's own comments already warned about.
 If the flicker was seen somewhere else, the screens and the answer
 given would pin it down.
 
-### One box in §10 that does not tick
+### That box now ticks — closed 21 Sep by the plates
+
+**Superseded.** Giving every point label the working's own plate closed
+this: a plate is a rectangle, so measuring to its edge gives the same
+distance in every one of the eight directions. The spread went from
+**16.3px to 0.3px** — A 8.9, B 8.6, C 8.8 — and the ink-versus-box
+question below is simply gone, because the thing being placed and the
+thing being measured are now the same shape. Kept for the reasoning.
+
+### One box in §10 that did not tick
 
 **"the gap is the same as B's and C's" is not true at the ink**, and
 saying so is better than quietly loosening the test. Measured on the

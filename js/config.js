@@ -792,8 +792,16 @@ window.CFG = (function () {
       dashColor: '#5B7AA8',
       dashWidth: 5,
       dashArray: '2 15',
-      coordSize: 34,
-      nameSize: 40,
+      coordSize: 26,
+      /* Air between the words and the edge of the plate they sit on. */
+      platePad: 7,
+    /* Down from 40 and 34. A point's letter was the loudest type on
+       the paper — larger than the axis NUMBERS the board is read
+       against (36) and a third larger than the working that is being
+       taught (30). Nothing about a label earns that. The working's 30
+       is the ceiling; the letter keeps a little over its coordinate so
+       the two still read as a name above an address. */
+      nameSize: 30,
       /* How far a length written on a pair keeps off the line it
          measures — the same air a coordinate keeps off its dot, so the
          three things written on a segment all sit the same distance

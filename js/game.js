@@ -1137,6 +1137,9 @@
         nm.setAttribute('fill', G.ink);
         nm.setAttribute('font-size', G.segment.nameSize);
 
+        const mp = document.createElementNS(NS, 'rect');
+        mp.setAttribute('class', 'labelplate');
+
         const lp = document.createElementNS(NS, 'rect');
         lp.setAttribute('class', 'legplate');
         lp.setAttribute('rx', 11);
@@ -1151,9 +1154,10 @@
         ln.id = i === 0 ? 'lineAC' : 'lineCB';     // first leg, then second
         ln.style.setProperty('--base-stroke-width', LG.width + 'px');
         ln.style.setProperty('--pulse-stroke-width', (LG.width + 4) + 'px');
-        [dg, ln, dt, co, nm, lp, lt].forEach(function (n) { lg.appendChild(n); });
+        [dg, ln, dt, mp, co, nm, lp, lt].forEach(function (n) { lg.appendChild(n); });
         svg.appendChild(lg);
         this.legSlots.push({ g: lg, line: ln, dot: dt, coord: co, name: nm,
+                             markPlate: mp,
                              plate: lp, len: lt, dash: dl, dashG: dg });
       }
 
@@ -1416,8 +1420,12 @@
         nm.setAttribute('class', 'segname');
         nm.setAttribute('fill', G.ink);
         nm.setAttribute('font-size', SG.nameSize);
-        seg.appendChild(c); seg.appendChild(co); seg.appendChild(nm);
-        self.segParts[key] = { dot: c, coord: co, name: nm };
+        /* The plate the pair reads off, the working's own. It goes in
+           BEFORE the words so it is behind them. */
+        const pl = document.createElementNS(NS, 'rect');
+        pl.setAttribute('class', 'labelplate');
+        seg.appendChild(c); seg.appendChild(pl); seg.appendChild(co); seg.appendChild(nm);
+        self.segParts[key] = { dot: c, coord: co, name: nm, plate: pl };
       });
       /* The answer written on the segment, on its own plate. */
       const rt = document.createElementNS(NS, 'text');
@@ -2137,6 +2145,18 @@
       });
       this.inked = list;
       this.inkLines = [];
+      /* The two axes. `inkLine` has only ever been called for the pair
+         and for the legs, so the two strongest strokes on the paper —
+         heavier than anything drawn on it — were invisible to the rule
+         that keeps labels off things, and a coordinate could be
+         written straight across one. */
+      (this.lines || []).forEach(function (l, i) {
+        const x1 = parseFloat(l.getAttribute('x1')), y1 = parseFloat(l.getAttribute('y1'));
+        const x2 = parseFloat(l.getAttribute('x2')), y2 = parseFloat(l.getAttribute('y2'));
+        if (isFinite(x1) && isFinite(x2)) {
+          self.inkLines.push({ x1: x1, y1: y1, x2: x2, y2: y2, what: 'an axis' });
+        }
+      });
       /* And the one obstacle that is never overridden: the inside of
          the shape. Worked out once for the pass, like the rest. */
       this.labelFace = this.shapeFace();
@@ -2431,7 +2451,11 @@
       const cw = cm ? cm.w : 0, ch = cm ? (SG.coordSize * tk) : 0;
       const nw = nm ? nm.w : 0, nh = nm ? (SG.nameSize * tk) : 0;
       const lead = (cm && nm) ? SG.stackGap * tk : 0;
-      const w = Math.max(cw, nw), h = nh + lead + ch;
+      /* The block is the PLATE, not the glyphs: the words sit inside it
+         with air all round, and the gap every label keeps from its own
+         dot is measured from the plate's edge. */
+      const pad = SG.platePad * tk;
+      const w = Math.max(cw, nw) + pad * 2, h = nh + lead + ch + pad * 2;
       if (!w || !h) return null;
       const gap = SG.dotR + SG.dotStrokeW / 2 + SG.coordGap * tk;
 
@@ -2444,14 +2468,22 @@
       const at = this.placeBlock(w, h, X, Y, gap, part.heldDir ? opt.away : (wasFound ?
                    { x: 0, y: -wasFound[1] } : opt.away), part.heldDir || wasFound);
       part.heldDir = at.dir;
-      /* Seated inside the block: letter on top, coordinate under it. */
+      /* The plate first, then the words seated inside it: letter on
+         top, coordinate under it. */
+      if (part.plate) {
+        part.plate.setAttribute('x', at.box.l);
+        part.plate.setAttribute('y', at.box.t);
+        part.plate.setAttribute('width', w);
+        part.plate.setAttribute('height', h);
+        part.plate.setAttribute('rx', Math.min(12 * tk, h / 3));
+      }
       if (nm) {
         part.name.setAttribute('x', at.x);
-        part.name.setAttribute('y', at.box.t + nh / 2);
+        part.name.setAttribute('y', at.box.t + pad + nh / 2);
       }
       if (cm) {
         part.coord.setAttribute('x', at.x);
-        part.coord.setAttribute('y', at.box.b - ch / 2);
+        part.coord.setAttribute('y', at.box.b - pad - ch / 2);
       }
       /* Owned by this label's own coordinate node, so placing it again
          supersedes where it was rather than adding a second obstacle. */
@@ -2537,7 +2569,8 @@
           return { x: x2 - mx, y: y2 - my };
         })(this);
         this.placePointLabel(
-          L.markLabel || (L.markLabel = { coord: L.coord, name: L.name }),
+          L.markLabel || (L.markLabel = { coord: L.coord, name: L.name,
+                                          plate: L.markPlate }),
           { name: spec.mark.name, coordText: L.coord.textContent },
           x2, y2, { ctext: L.coord.textContent, away: away });
         L.dot.style.display = L.coord.style.display = L.name.style.display = '';
@@ -2762,7 +2795,8 @@
           away = { x: x2 - mx, y: y2 - my };
         }
         self.placePointLabel(
-          L.markLabel || (L.markLabel = { coord: L.coord, name: L.name }),
+          L.markLabel || (L.markLabel = { coord: L.coord, name: L.name,
+                                          plate: L.markPlate }),
           { name: spec.mark.name, coordText: L.coord.textContent },
           x2, y2, { ctext: L.coord.textContent, away: away });
       });
