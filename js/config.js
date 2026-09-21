@@ -361,13 +361,19 @@ window.CFG = (function () {
        lands it on the far shore and reads as part of the title rather
        than as something floating below it. Still 80px under the plate,
        well clear of the leaves hanging off its corners. */
-    /* Under the wordmark, centred on it. 1336 was wrong for the plate
-       it is meant to hang under: measured off the RENDERED page rather
-       than off the art file — the art is 1672 wide and the stage 1920,
-       so a number read straight off the picture is out by a seventh —
-       the cream plate of "Formula" spans stage x 702..1841 and its
-       middle is 1271. The button sat 65px right of it. */
-    box: { cx: 1271, cy: 760, w: 281, h: 267 },
+    /* Under the wordmark, centred on the WHOLE lockup — which is not
+       the same as centred on the plate it hangs under, and that is
+       what two goes at this kept missing.
+
+       Measured off the rendered page (the art is 1672 wide against a
+       1920 stage, so a number read straight off the picture is out by
+       a seventh): the "Formula" plate's middle is stage 1273, but the
+       "Distance" plank above it is 90px wider and reaches further
+       left, and the two together span x 615..1855 with their middle
+       at 1234. The eye centres the button under the pair, not under
+       the lower one, so 1273 read as 39px right of where it belongs
+       and 1336 before that as 100px. */
+    box: { cx: 1234, cy: 760, w: 281, h: 267 },
     // Shrinks the briefed box about its centre — the button stays put,
     // it just gets smaller. 1 = the full 281 x 267 from the brief.
     sizeScale: 0.70
