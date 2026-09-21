@@ -623,12 +623,7 @@ window.CFG = (function () {
     },
 
     ink: '#213258',                 // axes, arrowheads and numbers
-    /* Rendered width, not drawn width: Board.restroke divides this by
-       the camera so it comes out the same on a pushed-in board as on
-       a full one. Six rather than seven because thin is what a ruled
-       sheet wants — the axes are the paper's own furniture, not part
-       of the drawing on it. */
-    axisWidth: 6,
+    axisWidth: 7,
     /* How long a half-axis takes to draw itself outward from the
        origin. The stylesheet reads it from a custom property set in
        Board.build(), so the numbers riding the sweep and the sweep
@@ -681,9 +676,17 @@ window.CFG = (function () {
       /* Slimmed: the frame used to be 34px of stacked rings, which at
          this board size read as a heavy border around the work rather
          than a edge to it. */
-      edgeW: 2,
-      frameW: 13,
-      hiW: 3,               // the pale ring just inside the frame
+      edgeW:     1.5,
+      /* The band round the board, thinner than it was. 13 plus its own
+         2px edge put 15px of dark border round a cream sheet — heavy
+         enough to read as a picture frame rather than as the edge of a
+         page. Seven is a rule, not a moulding.
+
+         This does NOT follow the camera: `place` scales the frame by
+         the panel's own scale rather than the view's, so a board that
+         pushes in does not thicken its border. */
+      frameW:    7,
+      hiW:       2,               // the pale ring just inside the frame
       /* Whole cells only. Running the ruling past the frame and
          trimming it to the cream left a sliver of a cell down every
          side and a curved scrap in each rounded corner — the grid read

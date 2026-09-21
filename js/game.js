@@ -1642,27 +1642,8 @@
        Only the placing is redone: nothing is cleared, nothing pops
        again, and a label whose words have not changed keeps the very
        nodes it had, so a highlight lit on one of its halves survives. */
-    /* The axes are drawn INSIDE the board's own SVG, so the camera
-       magnifies them: 7 comes out at 6.9px on the full board and 12.5
-       on a push-in, and that doubling is what reads as a heavy grid.
-       The ruling has never had the problem — it is a DOM layer in
-       stage pixels and stays at its 2px whatever the camera does — so
-       only the axes need saying.
-
-       The type already solves this: every typographic offset is
-       multiplied by `typeScale()` so the rendered size is constant
-       under the camera. The axes now do the same, which is why this
-       is a division rather than a smaller number. */
-    restroke: function () {
-      const G = C.GRID, k = this.typeScale();
-      (this.lines || []).forEach(function (l) {
-        l.setAttribute('stroke-width', G.axisWidth * k);
-      });
-    },
-
     relabel: function () {
       const self = this;
-      this.restroke();
       if (this.lastPlotted) this.placeSegment(this.lastPlotted);
       (this.legPlaced || []).forEach(function (s, i) {
         if (s && self.legSlots && self.legSlots[i]) self.placeLeg(i, s);
@@ -1673,10 +1654,6 @@
     place: function (box) {
       const G = C.GRID, P = G.paper;
       this.box = box;
-      /* The camera has moved, so the axes are redrawn at a width that
-         cancels it — every layout, not only the ones that have a
-         drawing on them to relabel. */
-      this.restroke();
       el.gridPanel.style.left = box.x + 'px';
       el.gridPanel.style.top = box.y + 'px';
       el.gridPanel.style.width = box.w + 'px';

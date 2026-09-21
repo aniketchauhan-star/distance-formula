@@ -346,9 +346,9 @@ html, body {
   border-radius: var(--radius, 46px);
   background: var(--paper-inner, #FFFDF1);
   box-shadow:
-    inset 0 0 0 var(--edgeW,  3px) var(--paper-edge,  #141930),
-    inset 0 0 0 var(--frameW, 26px) var(--paper-frame, #252C47),
-    inset 0 0 0 var(--hiW,    31px) var(--paper-hi,    #FFF2A8),
+    inset 0 0 0 var(--edgeW,  2px) var(--paper-edge,  #141930),
+    inset 0 0 0 var(--frameW, 14px) var(--paper-frame, #252C47),
+    inset 0 0 0 var(--hiW,    16px) var(--paper-hi,    #FFF2A8),
     0 8px 22px rgba(16, 20, 40, .30);
 }
 
