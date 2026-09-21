@@ -623,7 +623,12 @@ window.CFG = (function () {
     },
 
     ink: '#213258',                 // axes, arrowheads and numbers
-    axisWidth: 7,
+    /* Rendered width, not drawn width: Board.restroke divides this by
+       the camera so it comes out the same on a pushed-in board as on
+       a full one. Six rather than seven because thin is what a ruled
+       sheet wants — the axes are the paper's own furniture, not part
+       of the drawing on it. */
+    axisWidth: 6,
     /* How long a half-axis takes to draw itself outward from the
        origin. The stylesheet reads it from a custom property set in
        Board.build(), so the numbers riding the sweep and the sweep
