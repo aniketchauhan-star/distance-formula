@@ -166,14 +166,15 @@ html, body {
 /* ---------------- scene ---------------- */
 #scene { position: absolute; inset: 0; z-index: 1; opacity: 0; }
 
-/* The scene behind the game is set back a little so the eye goes to the
-   board, Swifty and her line rather than to the trees. Scaled a touch
-   past the frame because a blur samples beyond its own edges and would
-   otherwise leave a soft rim all round. */
+/* The scene behind the game is left sharp. It used to carry a 4px
+   blur to push it back behind the board and the line — and the 1.02
+   scale with it, which existed only to hide the soft rim a blur
+   leaves at its own edges. The painting is meant to be seen.
+
+   What is left is a breath of tone off it, far too little to read as
+   haze: the board and her line still have to come first. */
 #sceneArt {
-  filter: blur(4px) saturate(.94) brightness(.97);
-  transform: scale(1.02);
-  transform-origin: center center;
+  filter: saturate(.96) brightness(.98);
 }
 #scene.fade-in { animation: fadeIn .6s ease forwards; }
 

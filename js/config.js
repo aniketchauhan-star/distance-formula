@@ -136,7 +136,15 @@ window.CFG = (function () {
      so changing `height` or the centre moves the whole rig together. */
   const SWIFTY = {
     cx: 960,       // centred horizontally on the background
-    cy: 600,       // a little below centre, so she stands down on the grass
+    /* Her feet come out at cy + height/2, so this number is really
+       "where she stands". The new painting puts the shoreline at
+       y 956 under her — measured off the art, not guessed — and 600
+       left her feet at 720, which is two hundred pixels out over the
+       water. 855 puts them at 975, a little way into the grass and
+       above the board screens' own 1000, which is right: she is
+       smaller here, so she is further away and stands higher up the
+       slope. */
+    cy: 855,
     height: 240    // rendered height in stage px (width follows at 222)
   };
 
