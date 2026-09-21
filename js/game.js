@@ -7428,12 +7428,13 @@
       el.startBird.classList.remove('pre-flight');
       el.startBird.classList.add('flying');
 
-      // a wingbeat every few frames of the approach; she glides the last bit
-      let beats = 0;
-      const flapper = setInterval(function () {
-        SFX.flap();
-        if (++beats > 11) clearInterval(flapper);
-      }, 175);
+      /* No wingbeats: she is not flying, she is being flown. The
+         approach used to call SFX.flap() eleven times, which is the
+         one sound a rocket cannot make. There is no thruster in the
+         audio layer and adding one is out of scope, so the craft
+         arrives on the whoosh alone. */
+      const flapper = null;
+      SFX.whoosh();
       /* She calls once on her way in — around the point the arc brings
          her into frame — and again as she settles on the rock. */
       const calls = [setTimeout(function () { SFX.birdCall(1); }, 640),
@@ -7445,7 +7446,7 @@
         settled = true;
         el.startBird.removeEventListener('animationend', land);
         el.startScreen.removeEventListener('click', skip);
-        clearInterval(flapper);
+        if (flapper) clearInterval(flapper);
         calls.forEach(clearTimeout);        // a skipped flight loses its calls
         /* Down, then out of it. The hop runs once and hands over to
            the standing pose — the sheets are scaled to meet at that
