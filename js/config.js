@@ -222,12 +222,24 @@ window.CFG = (function () {
        drawn as a border rather than as stacked inset rings. */
     edgeW: 5,
 
-    /* The field's own colours, two steps apart so the box still reads
-       as a thing in front of the scene: a pale warm peach taken off the
-       light in the sky, an amber edge out of the tree and the grass,
-       and a deep warm brown for the letters. */
-    fill:   '#FFF1E2',
-    edge:   '#E09A55',
+    /* Near-white on a deep indigo edge, and the reasoning is measured
+       rather than felt. Sampled off the painted page, the scene behind
+       her runs from the lake at luminance 0.10 to the lit mountain at
+       0.45 — mid-tone everywhere, with no dark and no light to hide
+       against. Contrast against that whole range:
+
+         the old tan edge #E09A55   worst 1.11   (invisible, and it was)
+         a teal edge                worst 1.20
+         this indigo #232A44        worst 2.45
+
+       So the answer is value, not hue: the surface goes brighter than
+       anything in the picture and the edge darker than anything in it.
+       The peach and the amber were taken off the OLD field's own light,
+       which is exactly why they disappeared when the field changed. The
+       indigo also gives 17:1 against its own fill, which is what makes
+       the shape crisp rather than merely present. */
+    fill:   '#FFFDF7',
+    edge:   '#232A44',
     ink_:   '#7C3B12',            // the text
     sheen:  'rgba(255, 255, 255, .92)',   // the catch-light in the corner
     size:   32,                   // the size every line is set at
@@ -240,12 +252,12 @@ window.CFG = (function () {
     pad: { x: 32, y: 20 },        // .62em over 1em, off the line's size
     lineH: 40,                    // 1.2 line-height, with room to sit in
 
-    /* Two coloured halos and one cast, the way the shared bubble is
-       lifted: the glow is what makes it read as sitting in front of the
-       field rather than printed on it. */
-    glow: 'rgba(224, 154, 85, .34)',
-    glowWide: 'rgba(224, 154, 85, .18)',
-    cast: 'rgba(120, 62, 14, .24)',
+    /* Lifted by a shadow rather than by a warm halo. A glow the colour
+       of the old edge was doing nothing against a sunset of the same
+       colour; a cool shadow under it does the separating. */
+    glow: 'rgba(24, 28, 48, .30)',
+    glowWide: 'rgba(24, 28, 48, .16)',
+    cast: 'rgba(16, 20, 40, .34)',
 
     leaf: 62,                     // the corner decorations
 
@@ -650,8 +662,13 @@ window.CFG = (function () {
        gain — one more would run right up against the frame. */
     paper: {
       inner:     '#FFF9E8',
-      frame:     '#FFC93D',
-      edge:      '#DF8A0A',
+      /* A dark slate, not gold. Gold scored worst 1.38 against this
+         scene — the same value as the sunset it sits in front of —
+         where the slate scores 2.45. It also leaves gold to mean one
+         thing: gold is what you can touch (the dials, GO, Back and
+         Next). This is a surface to read. */
+      frame:     '#252C47',
+      edge:      '#141930',
       highlight: 'rgba(255, 255, 255, .65)',
       line:      'rgba(120, 135, 135, .55)',
       lineW: 2,             // stage px, the same weight at every size
@@ -1152,12 +1169,18 @@ window.CFG = (function () {
      and give the whole right of the frame to the board. */
   /* Where she stands to talk: down on the grass, front of frame. */
   const STAND = standAt(1, 60, 700);
-  /* And where she moves to when a control arrives: standing on its top
-     edge, feet at 688 against a panel whose top is 680, and a little
-     smaller — she is further away up there, and the control is what
-     should hold the eye once it has arrived. The move animates, so the
-     size settles with the travel rather than snapping. */
-  const STAND_UP = standAt(0.88, 60, 424);
+  /* And where she moves to when a control arrives: standing ON its top
+     edge, and a little smaller — she is further away up there, and the
+     control is what should hold the eye once it has arrived. The move
+     animates, so the size settles with the travel rather than snapping.
+
+     Her feet land at 713. 688 was right while the selector was a
+     drawing whose frame began at the top of its own box; rebuilt in
+     CSS the housing starts 30 units in, which at the widget's 0.665
+     puts its painted top at 711 — so she had been standing 23px above
+     it, in the air. Measured off the rendered page, because the art is
+     no longer where this number comes from. */
+  const STAND_UP = standAt(0.88, 60, 449);
 
   /* And a perch on ONE of the answers rather than on the panel's middle.
      The closing question puts its two cafes side by side and she lands

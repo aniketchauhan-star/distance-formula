@@ -256,9 +256,9 @@ html, body {
      rather than the drawn outline, so these are filters: they follow
      the silhouette, tail and all. */
   filter:
-    drop-shadow(0 0 10px var(--glow,     rgba(224, 154, 85, .34)))
-    drop-shadow(0 0 24px var(--glowWide, rgba(224, 154, 85, .18)))
-    drop-shadow(0 9px 18px var(--cast,   rgba(120, 62, 14, .24)));
+    drop-shadow(0 0 10px var(--glow,     rgba(24, 28, 48, .30)))
+    drop-shadow(0 0 24px var(--glowWide, rgba(24, 28, 48, .16)))
+    drop-shadow(0 9px 18px var(--cast,   rgba(16, 20, 40, .34)));
   /* the catch-light is sized in em off the line's own size, so it holds
      its proportion at any scale */
   font-size: var(--bubSize, 32px);
@@ -282,8 +282,8 @@ html, body {
   pointer-events: none;
 }
 #bubbleBody {
-  fill: var(--fill, #FFF1E2);
-  stroke: var(--edge, #E09A55);
+  fill: var(--fill, #FFFDF7);
+  stroke: var(--edge, #232A44);
   stroke-width: var(--e1, 5px);
   stroke-linejoin: round;
 }
@@ -346,10 +346,10 @@ html, body {
   border-radius: var(--radius, 46px);
   background: var(--paper-inner, #FFFDF1);
   box-shadow:
-    inset 0 0 0 var(--edgeW,  3px) var(--paper-edge,  #D88912),
-    inset 0 0 0 var(--frameW, 26px) var(--paper-frame, #F8C73A),
+    inset 0 0 0 var(--edgeW,  3px) var(--paper-edge,  #141930),
+    inset 0 0 0 var(--frameW, 26px) var(--paper-frame, #252C47),
     inset 0 0 0 var(--hiW,    31px) var(--paper-hi,    #FFF2A8),
-    0 5px 12px rgba(120, 80, 20, .14);
+    0 8px 22px rgba(16, 20, 40, .30);
 }
 
 /* The grid itself: one line every cell, laid down from the origin out,
