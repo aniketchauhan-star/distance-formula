@@ -2105,10 +2105,27 @@
       const push = function (l, t, r, b, what) {
         if (r > l && b > t) list.push({ l: l, t: t, r: r, b: b, what: what });
       };
-      /* The two runs of axis numbers. */
+      /* The two runs of axis numbers — taken from the numbers
+         THEMSELVES rather than from a band drawn where they ought to
+         be. The band started exactly at the axis and the glyphs do
+         not: they are centred a little below it and reach above its
+         line, so a label could sit on the top of a 5 while clearing
+         the band that was supposed to describe it. */
       const nh = G.labelSize;
-      push(0, G.originY, G.w, G.originY + G.labelGap + nh, 'x numbers');
-      push(G.originX - G.yLabelGap - nh, 0, G.originX, G.h, 'y numbers');
+      let anyNum = false;
+      (this.labels || []).forEach(function (n) {
+        if (!n || !n.textContent) return;
+        const x = parseFloat(n.getAttribute('x')), y = parseFloat(n.getAttribute('y'));
+        if (!isFinite(x) || !isFinite(y)) return;
+        const w = self.textW(n.textContent, nh);
+        push(x - w / 2 - 2, y - nh * 0.62, x + w / 2 + 2, y + nh * 0.62, 'a number');
+        anyNum = true;
+      });
+      if (!anyNum) {
+        /* Before they exist, the bands they will occupy. */
+        push(0, G.originY, G.w, G.originY + G.labelGap + nh, 'x numbers');
+        push(G.originX - G.yLabelGap - nh, 0, G.originX, G.h, 'y numbers');
+      }
       /* And the two letters that name the axes — which nothing has ever
          kept clear of, and which is what `(6, 1)` was written into. */
       (this.axisNames || []).forEach(function (n) {
@@ -2123,7 +2140,88 @@
       /* And the one obstacle that is never overridden: the inside of
          the shape. Worked out once for the pass, like the rest. */
       this.labelFace = this.shapeFace();
+      /* The lengths go in BEFORE any label is placed. A length belongs
+         to a side and has almost nowhere else to go; a label has eight
+         directions and can be asked to move. So the length is the one
+         that gets its place first and the label reads it as an
+         obstacle — which is the whole of why "C" and "3 units" were
+         being written through each other. */
+      this.inkLengths();
       return list;
+    },
+
+    /* Every length the board is showing right now, as a box. Called at
+       the top of a pass, and again whenever one lands. */
+    inkLengths: function () {
+      const G = C.GRID, LG = G.leg, SG = G.segment, self = this;
+      const tk = this.typeScale();
+      (this.legSlots || []).forEach(function (L, i) {
+        if (!L || !L.len || !L.len.textContent) return;
+        if (L.len.style.display === 'none') return;
+        const x = parseFloat(L.len.getAttribute('x'));
+        const y = parseFloat(L.len.getAttribute('y'));
+        if (!isFinite(x) || !isFinite(y)) return;
+        const w = self.textW(L.len.textContent, LG.lenSize * tk);
+        const h = LG.lenSize * tk;
+        self.inkBox(x - w / 2, y - h / 2, x + w / 2, y + h / 2,
+                    'leg ' + i + ' length', L.len);
+      });
+      const R = this.segRes;
+      if (R && R.textContent && R.classList.contains('pop')) {
+        const x = parseFloat(R.getAttribute('x')), y = parseFloat(R.getAttribute('y'));
+        if (isFinite(x) && isFinite(y)) {
+          const size = (SG.resSize || SG.coordSize) * tk;
+          const w = this.textW(R.textContent, size);
+          this.inkBox(x - w / 2, y - size / 2, x + w / 2, y + size / 2,
+                      'the length', R);
+        }
+      }
+    },
+
+    /* What a box would cost where it is: the same reckoning placeBlock
+       does, so "is this position free?" and "which position is best?"
+       can never answer differently. */
+    costAt: function (box) {
+      const self = this;
+      let over = 0;
+      (this.inked || []).forEach(function (o) {
+        if (o.owner && o.owner === box.owner) return;   // itself
+        const ox = Math.min(box.r, o.r) - Math.max(box.l, o.l);
+        const oy = Math.min(box.b, o.b) - Math.max(box.t, o.t);
+        if (ox > 0 && oy > 0) over += ox * oy;
+      });
+      (this.inkLines || []).forEach(function (L) {
+        if (self.boxHitsLine(box, L)) over += 400;
+      });
+      return over;
+    },
+
+    /* A length asks for the place its own arithmetic chose. If that is
+       clear it keeps it — which is what leaves every length that reads
+       properly today exactly where it is, the count-out's included.
+       Only a blocked one is handed to the rule, from the middle of its
+       own side and pointing out of the shape. */
+    seatLength: function (node, X, Y, w, h, away, owner, mid) {
+      const box = { l: X - w / 2, t: Y - h / 2, r: X + w / 2, b: Y + h / 2,
+                    owner: owner };
+      let fx = X, fy = Y;
+      if (this.costAt(box)) {
+        /* Blocked. The search starts from the MIDDLE OF ITS OWN SIDE,
+           not from the place it was hoping for — a bad position is a
+           bad place to look outward from, and starting there put the
+           two legs' lengths on top of each other. From the middle, one
+           gap out, pointing away from the shape, is where a length
+           belongs. */
+        const ax = (mid && mid.x != null) ? mid.x : X;
+        const ay = (mid && mid.y != null) ? mid.y : Y;
+        const at = this.placeBlock(w, h, ax, ay, Math.max(10, h * 0.55), away, null);
+        fx = at.x; fy = at.y;
+      }
+      node.setAttribute('x', fx);
+      node.setAttribute('y', fy);
+      this.inkBox(fx - w / 2, fy - h / 2, fx + w / 2, fy + h / 2,
+                  'a length', owner);
+      return { x: fx, y: fy };
     },
 
     /* A line of the drawing: labels keep off these too. */
@@ -2289,7 +2387,14 @@
           /* Nor is inside the shape, however bad the alternatives. */
           if (face && this.boxHitsFace(box, face)) continue;
           const over = cost(box);
-          if (!over) return { x: at.x, y: at.y, box: box, dir: d };
+          /* A few square pixels is a graze, not a collision. The dots
+             are inked at their radius plus four, so a label hugging
+             its own point at the measured gap clips the NEXT point's
+             box by a pixel or two — and demanding a dead-zero score
+             threw away every direction over that, fell through to the
+             least-bad, and put C's coordinates on the axis numbering
+             with clear paper one step to the left. */
+          if (over <= 12) return { x: at.x, y: at.y, box: box, dir: d };
           if (!best || over < best.over) {
             best = { x: at.x, y: at.y, box: box, over: over, dir: d };
           }
@@ -2569,9 +2674,20 @@
             }
           }
         }
-        L.len.setAttribute('x', fx);
-        L.len.setAttribute('y', fy);
+        /* And then the one rule has the last word. Everything above
+           says where this length would LIKE to be; `seatLength` keeps
+           that place when it is free — which is every length that
+           reads properly today, the count-out's included — and only
+           hands a blocked one to the solver, out of the middle of its
+           own side and away from the shape. It was this step's absence
+           that let "3 units" be written across the x-axis letter and
+           through the corner's own C. */
         L.len.textContent = txt;
+        const outX = horiz ? 0 : (inner >= 0 ? 1 : -1);
+        const outY = horiz ? (vSide >= 0 ? 1 : -1) : 0;
+        this.seatLength(L.len, fx, fy, lw2, LG.lenSize * tk,
+                        { x: outX, y: outY }, L.len,
+                        { x: (x1 + x2) / 2, y: (y1 + y2) / 2 });
       }
     },
 
@@ -3966,9 +4082,21 @@
         X = this.clampX(X, m.w);
         Y = this.clampY(Y, band);
       } else { X += (dx || 0); Y += (dy || 0); }
-      T.segRes.setAttribute('x', X);
-      T.segRes.setAttribute('y', Y);
       T.segRes.textContent = text;
+      /* The pair's own length goes through the rule too. An example
+         slot is a picture of its own and is laid out against nothing,
+         so only the board's own is seated. */
+      if (!into) {
+        const size2 = (SG.resSize || SG.coordSize) * this.typeScale();
+        const m2 = this.textMetrics(text, size2);
+        const perp = (ax === bx) ? { x: (spec.a.x >= 0 ? 1 : -1), y: 0 }
+                                 : { x: 0, y: -1 };
+        this.seatLength(T.segRes, X, Y, m2.w, Math.max(m2.h, size2),
+                        perp, T.segRes, { x: (ax + bx) / 2, y: (ay + by) / 2 });
+      } else {
+        T.segRes.setAttribute('x', X);
+        T.segRes.setAttribute('y', Y);
+      }
       T.segRes.classList.add('pop');
       /* No plate behind it: the text carries its own paper halo, the
          same as every other measurement written on the board. A drawn
