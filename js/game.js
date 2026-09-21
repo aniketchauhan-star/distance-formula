@@ -2130,8 +2130,24 @@
     inkLine: function (x1, y1, x2, y2, what) {
       (this.inkLines || []).push({ x1: x1, y1: y1, x2: x2, y2: y2, what: what });
     },
-    inkBox: function (l, t, r, b, what) {
-      if (this.inked && r > l && b > t) this.inked.push({ l: l, t: t, r: r, b: b, what: what });
+    /* `owner` is the thing the box belongs to — a label's own node.
+       Given one, this REPLACES that owner's previous box rather than
+       adding a second.
+
+       A corner's label is placed twice: once as its leg is drawn, and
+       again once every leg is down and the lengths are known. Without
+       an owner the first box stays in the list, and the second pass
+       then reads its own ghost as an obstacle and shoves the label out
+       of the very place it had just chosen. That is why C's label sat
+       above its point with clear paper underneath. */
+    inkBox: function (l, t, r, b, what, owner) {
+      if (!this.inked || r <= l || b <= t) return;
+      if (owner) {
+        for (let i = this.inked.length - 1; i >= 0; i--) {
+          if (this.inked[i].owner === owner) this.inked.splice(i, 1);
+        }
+      }
+      this.inked.push({ l: l, t: t, r: r, b: b, what: what, owner: owner });
     },
 
     /* Does a box cross a line segment? Cheap and exact enough: the
@@ -2332,8 +2348,10 @@
         part.coord.setAttribute('x', at.x);
         part.coord.setAttribute('y', at.box.b - ch / 2);
       }
+      /* Owned by this label's own coordinate node, so placing it again
+         supersedes where it was rather than adding a second obstacle. */
       this.inkBox(at.box.l, at.box.t, at.box.r, at.box.b,
-                  (ntext || ctext) + ' label');
+                  (ntext || ctext) + ' label', part.coord || part.name);
       return at;
     },
 
