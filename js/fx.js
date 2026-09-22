@@ -504,9 +504,21 @@ window.FX = (function () {
     };
     put(from.x, from.y, from.size);
     const t0 = performance.now();
-    /* cubic-bezier(.3, .8, .35, 1) — the arc everything else on this
-       board travels on. */
-    const ease = function (t) { return 1 - Math.pow(1 - t, 3); };
+    /* cubic-bezier(.22, .61, .36, 1) — the camera's own curve, solved
+       the way `viewTo` solves it, so a glyph crossing the board moves
+       the way the board itself moves. It was a plain ease-out cubic,
+       which leaves faster than the board ever does: a number lifted
+       off a side should be carried, not flicked. */
+    const ease = function (t) {
+      let lo = 0, hi = 1, u = t;
+      for (let i = 0; i < 14; i++) {
+        u = (lo + hi) / 2;
+        const x = 3 * (1-u) * (1-u) * u * 0.22 +
+                  3 * (1-u) * u * u * 0.36 + u*u*u;
+        if (x < t) lo = u; else hi = u;
+      }
+      return 3 * (1-u) * (1-u) * u * 0.61 + 3 * (1-u) * u * u + u*u*u;
+    };
     const stop = function () {
       if (!live) return;
       live = false;

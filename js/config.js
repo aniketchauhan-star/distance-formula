@@ -971,15 +971,23 @@ window.CFG = (function () {
          the subject of the screen, so it is the largest type on the
          board. */
       size: 30,
-      lineGap: 1.25,     // cells between one line and the next
+      /* Close enough that the five lines read as ONE piece of working.
+         It was 1.25 — 80px between baselines on 24px of type, 3.3x,
+         further apart than they are tall — and five statements sitting
+         near each other is not a calculation. The gap is
+         `lineGap x stepY x typeScale`, so 0.62 puts it at 39px, about
+         1.6x the type, which is how algebra is set. It only reads as
+         continuation rather than crowding because every line hangs
+         from its own equals sign: the two belong together. */
+      lineGap: 0.62,     // cells between one line and the next
       pad: 0.45,         // cells of air inside the writing column
       /* How much room the working needs beside the drawing, as a
          multiple of the drawing's own width. One means "as much again",
          which puts the triangle in one half and the writing in the
          other. */
       room: 1.15,
-      lineMs: 1500,      // one line, read, before the next
-      beatMs: 820,       // and one named part after the last
+      lineMs: 1700,      // one line, read, before the next
+      beatMs: 980,       // and one named part after the last
       barW: 3,           // the radical's overbar
       barGap: 0.30       // and how far above the digits it sits, in ems
     },
@@ -989,8 +997,13 @@ window.CFG = (function () {
        the same two beats, for the flights that have to cross from the
        board into the panel. */
     fly: {
-      pickMs: 340,       // it lights where it is, before it is lifted
-      ms: 760            // and travels
+      /* Slower on purpose. `pickMs` is the pause in which the side
+         lights WHERE IT IS, before anything moves — without it the
+         flight is a thing arriving rather than a thing being taken off
+         the board, and the whole point of the beat is that the symbol
+         was already there. */
+      pickMs: 460,       // it lights where it is, before it is lifted
+      ms: 980            // and travels
     },
 
     zoom: {
@@ -2126,10 +2139,14 @@ window.CFG = (function () {
              was never written, and the line that followed could not
              read as a substitution because there was nothing above it
              to substitute into. */
+          /* Every name is lifted off the side it names. The bracket
+             says "the whole of this side, and THEN squared" — which is
+             exactly what a child gets wrong the first time they meet
+             AB² and read it as A times B squared. */
           { kind: 'lead', parts: [
-              { t: 'AB\u00B2', lit: 'ab' }, { t: ' = ' },
-              { t: 'AC\u00B2', lit: 'h' }, { t: ' + ' },
-              { t: 'CB\u00B2', lit: 'v' } ] },
+              { t: '(AB)\u00B2', lit: 'ab', from: { side: 'ab' } }, { t: ' = ' },
+              { t: '(AC)\u00B2', lit: 'h',  from: { side: 'h'  } }, { t: ' + ' },
+              { t: '(CB)\u00B2', lit: 'v',  from: { side: 'v'  } } ] },
           { kind: 'step', parts: [
               { t: '= ' },
               { t: '(4)\u00B2', lit: 'h', from: { leg: 0 } }, { t: ' + ' },
@@ -2188,7 +2205,7 @@ window.CFG = (function () {
                  lights it. */
               formula: [
                 { kind: 'lead', parts: [
-                    { t: 'AB\u00B2', lit: 'ab' }, { t: ' = ' },
+                    { t: '(AB)\u00B2', lit: 'ab', from: { side: 'ab' } }, { t: ' = ' },
                     { t: '(4)\u00B2', lit: 'h', from: { leg: 0 } }, { t: ' + ' },
                     { t: '(3)\u00B2', lit: 'v', from: { leg: 1 } } ] },
                 { kind: 'step', parts: [
@@ -2233,7 +2250,7 @@ window.CFG = (function () {
                  lights it. */
               formula: [
                 { kind: 'lead', parts: [
-                    { t: 'AB\u00B2', lit: 'ab' }, { t: ' = ' },
+                    { t: '(AB)\u00B2', lit: 'ab', from: { side: 'ab' } }, { t: ' = ' },
                     { t: '(8)\u00B2', lit: 'h', from: { leg: 0 } }, { t: ' + ' },
                     { t: '(6)\u00B2', lit: 'v', from: { leg: 1 } } ] },
                 { kind: 'step', parts: [
@@ -2798,7 +2815,7 @@ window.CFG = (function () {
               showWorking: true,
               formula: [
                 { kind: 'lead', parts: [
-                    { t: 'AB\u00B2', lit: 'ab' }, { t: ' = ' },
+                    { t: '(AB)\u00B2', lit: 'ab', from: { side: 'ab' } }, { t: ' = ' },
                     { t: '(6)\u00B2', lit: 'h', from: { leg: 0 } }, { t: ' + ' },
                     { t: '(8)\u00B2', lit: 'v', from: { leg: 1 } } ] },
                 { kind: 'step', parts: [
@@ -2874,7 +2891,7 @@ window.CFG = (function () {
               showWorking: true,
               formula: [
                 { kind: 'lead', parts: [
-                    { t: 'SR\u00B2', lit: 'ab' }, { t: ' = ' },
+                    { t: '(SR)\u00B2', lit: 'ab', from: { side: 'ab' } }, { t: ' = ' },
                     { t: '(5)\u00B2', lit: 'h', from: { leg: 0 } }, { t: ' + ' },
                     { t: '(12)\u00B2', lit: 'v', from: { leg: 1 } } ] },
                 { kind: 'step', parts: [
@@ -2965,8 +2982,8 @@ window.CFG = (function () {
               showWorking: true,
               formula: [
                 { kind: 'lead', parts: [
-                    { t: 'AB\u00B2', lit: 'ab' }, { t: ' = ' },
-                    { t: '12\u00B2' }, { t: ' + ' }, { t: '5\u00B2' } ] },
+                    { t: '(AB)\u00B2', lit: 'ab', from: { side: 'ab' } }, { t: ' = ' },
+                    { t: '(12)\u00B2' }, { t: ' + ' }, { t: '(5)\u00B2' } ] },
                 { kind: 'step', parts: [
                     { t: '= ' }, { t: '144' }, { t: ' + ' }, { t: '25' } ] },
                 { kind: 'step', parts: [ { t: '= ' }, { t: '169', lit: 'ab' } ] },
@@ -3017,8 +3034,8 @@ window.CFG = (function () {
               showWorking: true,
               formula: [
                 { kind: 'lead', parts: [
-                    { t: 'CA\u00B2', lit: 'v' }, { t: ' = ' },
-                    { t: '12\u00B2' }, { t: ' + ' }, { t: '9\u00B2' } ] },
+                    { t: '(CA)\u00B2', lit: 'v', from: { side: 'v' } }, { t: ' = ' },
+                    { t: '(12)\u00B2' }, { t: ' + ' }, { t: '(9)\u00B2' } ] },
                 { kind: 'step', parts: [
                     { t: '= ' }, { t: '144' }, { t: ' + ' }, { t: '81' } ] },
                 { kind: 'step', parts: [ { t: '= ' }, { t: '225', lit: 'v' } ] },

@@ -784,10 +784,31 @@ html, body {
 /* The working and the board saying the same thing at once: the side
    being named comes forward, the others step back. Opacity and a glow
    only — the geometry never moves, so nothing can drift out of place. */
-#gridAxes .segres, #gridAxes .leglen, #gridAxes .segline, #gridAxes .legline {
-  transition: opacity 300ms ease, filter 300ms ease;
+#gridAxes .segres, #gridAxes .leglen, #gridAxes .segline, #gridAxes .legline,
+#gridAxes .segdot, #gridAxes .legdot,
+#gridAxes .segname, #gridAxes .legname,
+#gridAxes .segcoord, #gridAxes .legcoord,
+#gridAxes .trifill, #gridAxes .rightangle {
+  transition: opacity 420ms ease, filter 420ms ease;
 }
-#gridAxes .hush { opacity: .28; }
+/* `!important` is not shouting here, it is the only thing in the
+   cascade that beats an ANIMATION.
+
+   Almost everything this dims — a length, a coordinate, a letter, a
+   dot — is painted by a filled animation (`labelPop`, `segDotIn`,
+   both with `both`), and a filled animation outranks any ordinary
+   declaration however specific. So `.hush` was being set on the two
+   leg lengths and doing nothing at all: they carried the class and
+   stayed at opacity 1 while the line beside them dimmed.
+
+   `animation: none` would also win, and was the obvious fix, but it
+   releases the animation rather than outranking it — and the moment
+   the hush comes off, `labelPop` and `segDotIn` are live again and
+   restart from their first keyframe. Every dot and every label on the
+   board would pop again each time the spotlight moved. Important
+   declarations lose only to transitions, which is exactly right: the
+   dimming still eases over its 420ms. */
+#gridAxes .hush { opacity: .28 !important; }
 #gridAxes .spot { filter: drop-shadow(0 0 7px rgba(255, 196, 74, .95)); }
 
 @keyframes partBeat {

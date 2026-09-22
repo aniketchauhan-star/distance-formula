@@ -3184,32 +3184,95 @@
        comes forward and the rest step back, so a child reading "4\u00B2"
        can see at once which line it means. `which` is 'h', 'v' or 'ab';
        anything else puts the board back the way it was. */
+    /* The two ends of one side of the drawing, in grid coordinates.
+       'ab' is the pair itself; 'h' and 'v' are the two legs, in the
+       order the screen's `legs` gives them. */
+    sideEnds: function (which) {
+      if (which === 'ab') {
+        const d = this.lastPlotted;
+        return (d && d.a && d.b) ? { from: d.a, to: d.b } : null;
+      }
+      const i = which === 'h' ? 0 : which === 'v' ? 1 : -1;
+      const L = (this.legPlaced || [])[i];
+      return (L && L.from && L.to) ? { from: L.from, to: L.to } : null;
+    },
+
     spotlightPart: function (which) {
       if (!this.segLine) return;
-      const self = this;
-      const part = {
+      const A = this.segParts && this.segParts.a;
+      const B = this.segParts && this.segParts.b;
+      const L0 = this.legSlots && this.legSlots[0];
+      const L1 = this.legSlots && this.legSlots[1];
+      /* A corner is its dot, its letter and its coordinate. They are
+         one thing on the paper, so they light as one. `legSlots[0]`'s
+         mark is the corner the two legs share — `rightAngle` reads it
+         the same way. */
+      const corner = function (o) { return o ? [o.dot, o.name, o.coord] : []; };
+      /* The stroke of a side, and the length written along it. */
+      const stroke = {
         ab: [this.segLine, this.segRes],
-        h:  [this.legSlots[0] && this.legSlots[0].line, this.legSlots[0] && this.legSlots[0].len],
-        v:  [this.legSlots[1] && this.legSlots[1].line, this.legSlots[1] && this.legSlots[1].len]
+        h:  [L0 && L0.line, L0 && L0.len],
+        v:  [L1 && L1.line, L1 && L1.len]
       };
-      /* `lit` is spoken for — it is what makes a reached segment pulse —
-         so these carry their own names. */
-      Object.keys(part).forEach(function (k) {
-        part[k].forEach(function (n) {
-          if (!n) return;
-          const on = !!which && k === which;
-          n.classList.toggle('spot', on);
-          n.classList.toggle('hush', !!which && !on);
-          n.classList.remove('spotbeat');
-          if (on) n.classList.add('spotbeat');
-        });
+      /* But a side is not a stroke. It is the stroke, its length, and
+         the two corners it runs between — letters and coordinates and
+         all. That is what the working means when it writes (AC)², and
+         lighting only the line left the rest of the drawing at full
+         strength while the child was being told to look at one side
+         of it. */
+      const part = {
+        ab: stroke.ab.concat(corner(A), corner(B)),
+        h:  stroke.h.concat(corner(A), corner(L0)),
+        v:  stroke.v.concat(corner(L0), corner(B))
+      };
+      /* Nobody's own. The face the three sides close and the square in
+         the corner belong to the shape rather than to any one side, so
+         they step back whenever one is singled out and come back when
+         nothing is. */
+      const shape = [this.triFill, this.rightMark];
+
+      /* Only what is actually ON the board. `hush` now carries enough
+         weight to beat the animation painting a label, which means it
+         is also heavy enough to paint one that was never up: a leg
+         with no mark, a length not yet written, a face on a screen
+         with no triangle. Anything sitting at nothing stays at
+         nothing. */
+      const shown = function (n) {
+        if (!n || n.style.display === 'none') return false;
+        return +getComputedStyle(n).opacity > .05;
+      };
+      const lit = (which && part[which]) ? part[which].filter(shown) : [];
+      const all = [];
+      const add = function (n) {
+        if (shown(n) && all.indexOf(n) < 0) all.push(n);
+      };
+      Object.keys(part).forEach(function (k) { part[k].forEach(add); });
+      shape.forEach(add);
+
+      /* Union, not last-write. A corner belongs to whichever side is
+         lit — C is on both legs — so it is hushed only when neither of
+         them is. The old map walked one key after another and a shared
+         node took whatever the last pass happened to say about it. */
+      all.forEach(function (n) {
+        const on = lit.indexOf(n) >= 0;
+        n.classList.toggle('spot', on);
+        n.classList.toggle('hush', !!which && !on);
       });
+
+      /* The beat is the side swelling, so it goes on the stroke and its
+         length and nothing else. On a dot or a letter it would name an
+         animation on an element whose visibility IS the fill of another
+         one, and take it off the board — the trap this file has fallen
+         into four times already. */
+      const beat = (which && stroke[which]) ? stroke[which].filter(shown) : [];
+      Object.keys(stroke).forEach(function (k) {
+        stroke[k].forEach(function (n) { if (n) n.classList.remove('spotbeat'); });
+      });
+      beat.forEach(function (n) { n.classList.add('spotbeat'); });
       clearTimeout(this.beatOff);
       if (which) this.beatOff = setTimeout(function () {
-        Object.keys(part).forEach(function (k) {
-          part[k].forEach(function (n) { if (n) n.classList.remove('spotbeat'); });
-        });
-      }, 520);
+        beat.forEach(function (n) { n.classList.remove('spotbeat'); });
+      }, 720);
     },
 
     /* The square in the corner, drawn from the two legs rather than
@@ -6462,6 +6525,21 @@
        label; `from: { leg: 0|1 }` — a leg's own written length. */
     sourceSpot: function (from) {
       if (!from) return null;
+      /* A SIDE of the drawing, named rather than measured. It comes
+         from the middle of its own span, because that is what the name
+         refers to — not a number sitting at one end of it but the
+         whole run from one corner to the other. */
+      if (from.side) {
+        const ends = Board.sideEnds(from.side);
+        if (!ends) return null;
+        const G = C.GRID;
+        const mx = G.originX + (ends.from.x + ends.to.x) / 2 * G.stepX;
+        const my = G.originY - (ends.from.y + ends.to.y) / 2 * G.stepY;
+        const s = Board.boardToStage(mx, my);
+        return { x: s.x, y: s.y,
+                 size: C.GRID.segment.nameSize * Board.typeScale() * s.k,
+                 side: from.side };
+      }
       if (from.leg != null) {
         const L = Board.legSlots && Board.legSlots[from.leg];
         if (!L || !L.len || !L.len.textContent) return null;
@@ -6494,6 +6572,17 @@
          the leg is not up yet. The number simply appears, which is what
          every working did before this existed. */
       if (!src || !node) return 0;
+      /* A side brings no text of its own, so it carries what is written
+         in the slot it is flying into, with the brackets and the square
+         left behind: `(AB)²` flies as `AB`, the same way a leg's
+         `4 units` flies as `4`. Taken from the part rather than read
+         off the corners so the glyph can never say one thing while the
+         slot it lands in says another. */
+      if (!src.text) {
+        const t = (part.t || '').replace(/\u00A0/g, ' ');
+        const inner = t.match(/\(([^)]*)\)/);
+        src.text = inner ? inner[1] : t.replace(/[\u00B2\u00B3\s]+$/, '');
+      }
       const F = C.GRID.fly;
       const st = el.stage.getBoundingClientRect();
       const k = st.width / C.STAGE_W || 1;
@@ -6502,7 +6591,12 @@
                    y: (r.y + r.height / 2 - st.y) / k,
                    size: parseFloat(getComputedStyle(node).fontSize) / 1 || 34 };
       const self = this;
+      /* Lit WHERE IT IS, before it moves. For a coordinate half that is
+         the half glowing; for a side it is the side coming forward and
+         the rest of the drawing stepping back — which is the answer to
+         "where did that come from", given before the question. */
       if (src.p) Board.glowPart(src.half, true, src.p);
+      else if (src.side) Board.spotlightPart(src.side);
       SFX.tick(2);
       this.later(function () {
         FX.flyGlyph(src.text, src, to, F.ms, function () {
@@ -7158,6 +7252,14 @@
                     if (p.from) {
                       const t0 = beat;
                       self.later(function () {
+                        /* The side lights BEFORE the glyph leaves it,
+                           and is still lit when it lands. It used to
+                           light only on arrival, so the child saw a
+                           symbol appear in the panel and a line come
+                           forward on the board as two separate events
+                           — and the whole beat is the claim that they
+                           are one thing. */
+                        if (p.lit) Board.spotlightPart(p.lit);
                         self.flyInto(p, (Board.workLines[i] || {}).spans[k]);
                       }, t0);
                       self.later(land, t0 + fly);
