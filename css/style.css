@@ -4,6 +4,33 @@
    scaled by JS so the 16:9 frame fits any screen and letterboxes.
    ============================================================= */
 
+/* The design space, declared once.
+
+   Every length in this project is written in these units, and the
+   whole frame is scaled as one thing to whatever room the browser
+   gives it. That is the entire responsive system: there is no second
+   layout for a smaller screen, because a smaller screen gets the same
+   layout at a smaller scale.
+
+   Which means a viewport unit is always a bug here. `vw` and `vh`
+   measure the real window; everything inside #stage measures the
+   design. The two are the same number only at exactly 1920x1080, so a
+   `vw` inside the stage is a length that silently changes shape with
+   the device — the one thing this system exists to prevent. When a
+   rule needs to know how much room the whole frame has, it asks
+   --stage-w / --stage-h, not the window.
+
+   `fitStage()` writes these from C.STAGE_W / C.STAGE_H at boot, so the
+   config stays the one place the design's size is decided and these
+   two lines are the fallback that keeps the first paint right. It also
+   writes --stage-k, the scale in force, for anything that ever needs
+   to undo it. */
+:root {
+  --stage-w: 1920px;
+  --stage-h: 1080px;
+  --stage-k: 1;
+}
+
 *, *::before, *::after { box-sizing: border-box; }
 
 html, body {
@@ -24,7 +51,7 @@ html, body {
 
 #stage {
   position: absolute; left: 50%; top: 50%;
-  width: 1920px; height: 1080px;
+  width: var(--stage-w); height: var(--stage-h);
   transform: translate(-50%, -50%) scale(1);
   transform-origin: center center;
   overflow: hidden;
@@ -32,9 +59,13 @@ html, body {
   box-shadow: 0 30px 90px rgba(0, 0, 0, .55);
 }
 
+/* Full-frame art: the background plates, which are drawn at the design
+   size and so fill it exactly. Sized from the design space rather than
+   from 100%/100% so a plate can never be stretched by a parent that
+   has been given some other height. */
 .full {
   position: absolute; left: 0; top: 0;
-  width: 1920px; height: 1080px;
+  width: var(--stage-w); height: var(--stage-h);
   display: block;
   pointer-events: none;
 }

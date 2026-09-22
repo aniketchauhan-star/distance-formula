@@ -32,12 +32,96 @@
   const numText = function (v) { return String(v).replace('-', '\u2212'); };
 
   /* ---------------- responsive stage ---------------- */
-  function fitStage() {
-    const s = Math.min(window.innerWidth / C.STAGE_W, window.innerHeight / C.STAGE_H);
-    el.stage.style.transform = 'translate(-50%,-50%) scale(' + s + ')';
+  /* The whole responsive system, in one function.
+
+     The game is authored at one size and scaled as a single object, so
+     every screen gets the same layout rather than a layout of its own:
+     nothing reflows, nothing is repositioned per device, and the only
+     thing that changes between a 1366 laptop and a 2560 desktop is the
+     number below. `min` of the two ratios is what keeps it honest —
+     one scale for both axes, so the aspect is preserved and a screen
+     that is not 16:9 gets bars rather than a stretched picture.
+
+     It measures #viewport, not the window. Those are usually the same
+     number and sometimes not, and every time they differ the window is
+     the wrong one:
+
+       - `innerWidth` includes the classic scrollbar gutter, so a
+         stylesheet that failed to load, or any future overflow, makes
+         the stage ~15px wider than the room it has and clips it;
+       - on a tablet or phone with a collapsing URL bar, the window can
+         still be reporting the old height at the moment `resize` fires,
+         while the fixed box has already been re-laid-out;
+       - and a container can change size with no window event at all —
+         fullscreen, devtools docking, split view or Stage Manager on an
+         iPad, or the page running inside an iframe that resizes.
+
+     #viewport is `position: fixed; inset: 0`, so its box IS the room
+     available, whatever caused it to change. Measuring the thing we
+     have to fit into, and watching that same thing, answers all four. */
+
+  /* The design space, published to CSS once, so a stylesheet that needs
+     to know how much room the whole frame has can ask for it instead of
+     reaching for `vw`. The config is where the size is decided; the
+     stylesheet's own :root values are the fallback that keeps the first
+     paint right before this runs. Written once rather than on every fit
+     because a custom property on :root invalidates everything that
+     reads it, and these two never change. */
+  function declareStage() {
+    const r = document.documentElement.style;
+    r.setProperty('--stage-w', C.STAGE_W + 'px');
+    r.setProperty('--stage-h', C.STAGE_H + 'px');
   }
-  window.addEventListener('resize', fitStage);
-  window.addEventListener('orientationchange', fitStage);
+
+  let lastK = null;
+  function fitStage() {
+    const box = el.viewport.getBoundingClientRect();
+    const doc = document.documentElement;
+    const w = box.width  || doc.clientWidth  || window.innerWidth;
+    const h = box.height || doc.clientHeight || window.innerHeight;
+    const s = Math.min(w / C.STAGE_W, h / C.STAGE_H);
+    /* Nothing useful to do with a box that has no size yet — a hidden
+       tab, or a fit that beat the first layout. Leaving lastK alone
+       means the next real measurement is not mistaken for a repeat. */
+    if (!(s > 0) || !isFinite(s)) return;
+    if (s === lastK) return;              // a drag that has not moved a pixel
+    lastK = s;
+    el.stage.style.transform = 'translate(-50%,-50%) scale(' + s + ')';
+    /* The scale in force, for anything that ever needs to undo it.
+       Guarded by the same comparison: during a drag this changes every
+       frame, and writing it is a style invalidation for every rule that
+       reads it. */
+    doc.style.setProperty('--stage-k', String(s));
+  }
+
+  /* Resizing a window fires `resize` for every pixel of the drag, and
+     each one of those would be a synchronous measure-and-write. One per
+     frame is all a transform can show. */
+  let fitPending = 0;
+  function scheduleFit() {
+    if (fitPending) return;
+    fitPending = requestAnimationFrame(function () { fitPending = 0; fitStage(); });
+  }
+
+  window.addEventListener('resize', scheduleFit);
+  /* iOS reports the old size for a moment after this fires, so it is a
+     trigger rather than the measurement; the observer below catches the
+     box actually changing. */
+  window.addEventListener('orientationchange', scheduleFit);
+  /* Pinch-zoom and the mobile URL bar move the visual viewport without
+     always moving the layout one. Harmless when nothing really changed:
+     the measurement still comes from #viewport, so a zoom re-measures
+     the same box, finds the same scale and writes nothing — the game
+     zooms with the page instead of fighting it. */
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', scheduleFit);
+  }
+  /* The one that catches everything else — fullscreen, devtools, split
+     view, an iframe resizing — because it watches the box instead of
+     waiting to be told the window moved. */
+  if (window.ResizeObserver) {
+    new ResizeObserver(scheduleFit).observe(el.viewport);
+  }
 
   /* ---------------- sprite player ---------------- */
   /* Built per rig rather than as a singleton: the title screen runs its
@@ -8086,6 +8170,7 @@
     // the title screen blows its own weather, on its own layer
     stopWeather.push(FX.wind(el.startSky, C.START.wind),
                      FX.leafDrift(el.startSky, C.START.drift));
+    declareStage();
     fitStage();
     Sprite.setup(el.birdWin, { fly: el.flySheet, talk: el.talkSheet }, C.CHAR_SCALE);
     StartBird.setup();  // must precede layout(): layout seats the rig
