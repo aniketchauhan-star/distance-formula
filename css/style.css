@@ -836,34 +836,14 @@ html, body {
   font-family: 'Nunito', system-ui, sans-serif;
   font-weight: 600;
   text-anchor: middle; dominant-baseline: middle;
+  /* The halo, so a label reads over the ruling. It was briefly a
+     rounded plate like the working's; the panel behind the FORMULA is
+     the only panel this board wants, and a plate on every coordinate
+     made five of them. Five, at the size the type is now. */
+  paint-order: stroke fill;
+  stroke: #FDFBF0; stroke-width: 5;
   transform-box: fill-box; transform-origin: center;
 }
-/* The plate a point's label reads off — the working's own, borrowed.
-   It replaces the 6px cream halo that used to be painted under the
-   glyphs: that was a plate in all but name, and because it followed
-   the letterforms it was a smudge rather than a shape. This is what
-   lets a label cross the ruling and still read, so the ruling stays
-   the one thing a label may sit on. */
-#gridAxes .labelplate {
-  fill: #FDFBF0;
-  stroke: rgba(150, 120, 60, .28);
-  stroke-width: 2;
-  opacity: 0;
-}
-/* It shows exactly when the words it is under show. The plate sits
-   BEFORE them in the group so it paints behind, so this reads forward
-   to them rather than back — which is what `:has` is for. Tying it to
-   the words themselves means it can never be left on over an empty
-   corner or missed on a screen that reveals its labels some other
-   way. */
-#gridAxes .labelplate:has(~ .segcoord.pop),
-#gridAxes .labelplate:has(~ .segcoord.set),
-#gridAxes .labelplate:has(~ .segname.pop),
-#gridAxes .labelplate:has(~ .segname.set),
-#gridAxes .labelplate:has(~ .legcoord.pop),
-#gridAxes .labelplate:has(~ .legname.pop) { opacity: .96; }
-/* And never over a corner with nothing written on it. */
-#gridAxes .labelplate:has(~ .segcoord.empty) { opacity: 0; }
 #gridAxes .segcoord.pop, #gridAxes .segname.pop {
   animation: labelPop .56s cubic-bezier(.22, .68, .3, 1) both;
 }

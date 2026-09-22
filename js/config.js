@@ -793,8 +793,6 @@ window.CFG = (function () {
       dashWidth: 5,
       dashArray: '2 15',
       coordSize: 26,
-      /* Air between the words and the edge of the plate they sit on. */
-      platePad: 7,
     /* Down from 40 and 34. A point's letter was the loudest type on
        the paper — larger than the axis NUMBERS the board is read
        against (36) and a third larger than the working that is being
