@@ -288,35 +288,29 @@
     inset 0 -6px 7px rgba(145, 55, 0, .16);
 }
 
-/* The chevron, as two rounded bars. Not a play triangle: these turn a
-   reel, they do not start anything. */
+/* The chevron: ONE box showing two of its borders, turned 45°. Not a
+   play triangle — these turn a reel, they do not start anything.
+
+   It was two rounded bars rotated towards each other, and at the
+   weight these buttons want the two overlapped into a blob with no
+   point on it. A corner cannot overlap itself, so the apex is always
+   an apex and the two arms are always the same length. */
 .number-control .chev {
   position: absolute;
   left: 50%; top: 50%;
-  width: 46px; height: 46px;
-  margin: -23px 0 0 -23px;
+  width: 26px; height: 26px;
+  border: solid #FFF6E2;
+  border-width: 0 0 9px 9px;
+  border-bottom-left-radius: 4px;
+  filter: drop-shadow(0 2px 0 rgba(150, 70, 5, .30));
   z-index: 2;
 }
-.number-control .chev::before,
-.number-control .chev::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  width: 16px;
-  height: 34px;
-  margin-left: -8px;
-  border-radius: 8px;
-  background: #FFF6E2;
-  box-shadow: 0 2px 0 rgba(150, 70, 5, .28);
-}
-.number-control .chev::before { top: -2px; transform-origin: 50% 100%; }
-.number-control .chev::after  { top: 24px; transform-origin: 50% 0%; }
-.number-control .prev .chev::before { transform: rotate(38deg)  translateY(-1px); }
-.number-control .prev .chev::after  { transform: rotate(-38deg) translateY(-8px); }
-.number-control .next .chev::before { transform: rotate(-38deg) translateY(-1px); }
-.number-control .next .chev::after  { transform: rotate(38deg)  translateY(-8px); }
+/* Turned to point, and nudged back along the way it points: an L's
+   weight sits in its corner, so centring its BOX leaves the apex off
+   centre. */
+.number-control .prev .chev { transform: translate(-38%, -50%) rotate(45deg); }
+.number-control .next .chev { transform: translate(-62%, -50%) rotate(-135deg); }
 
-/* Pressed: it goes in, and the slab it stands on gets shorter. */
 .number-control .side:hover:not(:disabled) { transform: translateZ(28px) translateY(-2px); }
 .number-control .side:active:not(:disabled)::before,
 .number-control .side.is-pressed:not(:disabled)::before {
