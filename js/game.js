@@ -5420,7 +5420,7 @@
                            this.controlKind === wantKind;
       this.raised = keepsControl;
       this.controlKind = wantKind;
-      const geom = keepsControl ? controlGeom() : geomFor(i);
+      const geom = keepsControl ? controlGeom(wantKind) : geomFor(i);
       this.geom = geom;
       standPose = !!geom.stand;
       /* Reseating the rig also resizes the speech bubble, and a screen
@@ -7794,8 +7794,14 @@
   /* Where she stands once a control is up: on its top edge, a little
      smaller, with no ground shadow. A screen that inherits the control
      inherits this too, so it is written once. */
-  function controlGeom() {
-    return standGeom(C.BOARD.standUp, {
+  function controlGeom(kind) {
+    /* Whichever control is actually under her. They are not all built
+       the same: the reel's painted top and the answers' are 30 units
+       apart, so one seat for both left her standing inside one of
+       them. A control that carries its own `stand` is trusted over
+       the general one. */
+    const own = kind && C.BOARD[kind] && C.BOARD[kind].stand;
+    return standGeom(own || C.BOARD.standUp, {
       noShadow: true,        // she is standing on the control, not on grass
       panelBox: { x: C.BOARD.panel.pos.x, y: C.BOARD.panel.pos.y,
                   w: C.BOARD.panel.w, h: C.BOARD.panel.h }
@@ -7813,7 +7819,7 @@
   }
 
   function revealControl(entry) {
-    const g = controlGeom();
+    const g = controlGeom(entry && entry.options ? 'options' : null);
     /* Where she is now, before the new rig overwrites it: the flight
        starts from her feet rather than from wherever the last screen
        happened to leave the rig. */

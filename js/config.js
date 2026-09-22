@@ -1240,6 +1240,22 @@ window.CFG = (function () {
      that — move one and the other has to follow. */
   const STAND_WORK = standAt(0.88, 60, 134);
 
+  /* And a seat on the ANSWERS, which is not the selector's seat even
+     though the two panels used to share a slot.
+
+     Measured off the rendered page: the answers' painted top edge —
+     the outer edge of its gold border — sat at 680 and her feet at
+     713, so she was standing 33px inside the panel, on the cream,
+     with the stroke behind her ankles. The selector's own painted top
+     is at 711, which is why 713 is right there and wrong here: the
+     two controls are built differently and only looked alike.
+
+     Her feet are 264 below this pose's own top (300 x 0.88), so this
+     is the answers' y less that, plus the 2px of overlap the selector
+     already has — enough that she is standing ON the line rather than
+     hovering a pixel above it. Move the panel and this has to follow. */
+  const STAND_OPTIONS = standAt(0.88, 90, 388);
+
   /* -------------------------------------------------------------
      SCREEN 8 — board on its own, the question in her bubble
 
@@ -1316,13 +1332,17 @@ window.CFG = (function () {
        on the same footprint so the left column stays put. */
     /* Below her, like the selector — its natural height is about 432,
        so it is scaled to clear the bottom of the frame. */
-    /* The same slot the number selector takes: top edge at 680, so she
-       stands on it at exactly the height she stands on that one. Three
-       stacked buttons is a taller shape than a row of tiles, so it is
-       scaled to land its foot near the selector's rather than to match
-       its width. h is its real built height — 9px borders, 28/32
-       padding, three 108px buttons and two 24px gaps. */
-    options: { pos: { x: 34, y: 680 }, w: 520, h: 450, scale: 0.73 },
+    /* Its own slot, not the selector's. Three stacked buttons is a
+       taller shape than a row of tiles and a differently built one, so
+       sharing a top edge with the reel only ever meant they started at
+       the same number — it never put her feet on both. It sits a
+       little in from the frame's edge and a little higher than the
+       reel, which gives the tallest control on the screen room under
+       it, and it carries the seat she stands on so the two can never
+       drift apart again. h is its real built height — 9px borders,
+       28/32 padding, three 108px buttons and two 24px gaps. */
+    options: { pos: { x: 64, y: 650 }, w: 520, h: 450, scale: 0.73,
+               stand: STAND_OPTIONS },
 
     /* The ruler, in the same column as the reel and at the same width
        as the answers. It is shorter than the reel's housing, so it sits
