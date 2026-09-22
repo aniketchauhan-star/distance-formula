@@ -20,6 +20,12 @@ window.CFG = (function () {
     swiftyTalk:  'assets/swifty talk.png',
     swiftyStand: 'assets/normal stand swifty.png',
     townSheet:   'assets/sheet.png',
+    /* The number selector, drawn. Every piece of the control is a crop
+       of this one sheet, so `preload` waiting for it is the whole of
+       the loading story: it is about 940KB, and a control that rises
+       un-skinned and then dresses itself is worse than the CSS it
+       replaced. */
+    buttons:     'assets/buttons.png',
     leaf:        'assets/leaf.png',
     handNudge:   'assets/hand nudge.png'
   };
@@ -1323,8 +1329,13 @@ window.CFG = (function () {
          12px, and her feet are at 700. */
       /* x is pulled back by the extra overhang the widget now reserves
          for its left arrow, so the frame itself has not moved. */
-      pos: { x: 29, y: 688 },
-      w: 816, h: 520,
+      /* y follows the bar. The drawn bar is shorter than the one the
+         CSS invented — 794 x 307 rather than 660 x 330 — so the whole
+         widget sits three units lower to put the gold's painted top
+         back under her feet at 713, which is where `STAND_UP` has
+         always expected it. */
+      pos: { x: 29, y: 691 },
+      w: 816, h: 460,
       scale: 0.665
     },
 

@@ -1,77 +1,114 @@
 /* =============================================================
-   Number selector — the combination lock, drawn.
+   Number selector — the combination lock, wearing its own art.
 
-   Every surface here is CSS: gradients for the curve of a drum,
-   inset shadows for the well the drums turn in, and a solid colour
-   under each button for the thickness it stands on. No artwork, and
-   nothing the component has to load before it can be shown.
+   Every surface here is `assets/buttons.png`. It used to be CSS:
+   gradients for the curve of a drum, inset shadows for the well, a
+   chevron built from two borders on a rotated box, four golds declared
+   as custom properties. That was written because there was no artwork.
+   There is artwork now, so the reconstruction is gone and the drawing
+   is in its place.
 
-   The markup is the component's own (js/number-selector.js):
-   .selector holds the pointer, .reel (.seat + .lane of .cell) and the
-   two .side buttons; .check sits under it. Only the skin is new, so
-   every behaviour the game relies on — the roll, the two buffers off
-   either end, the correct and wrong states — works as it did.
+   The markup is the component's own (js/number-selector.js) and has
+   not changed: .selector holds the pointer, .reel (.seat + .lane of
+   .cell) and the two .side buttons; .check sits under it. Only the
+   skin is new, so every behaviour the game relies on — the roll, the
+   two buffers off either end, the correct and wrong states — works as
+   it did.
 
-   ONE LIGHT, FROM ABOVE. Every highlight is on a top edge and every
-   shadow falls below. The depth reads because the whole control
-   agrees about where the light is, not because any one piece is
-   clever.
+   NOTHING STRETCHES. Every piece — the housing, the well, the dials,
+   GO, the pointer and the two tiles — is a plain crop of the sheet at
+   the aspect it was drawn at.
 
-   Sizes are fixed pixels scaled as a whole by --k, never vw: the
-   stage is already transform-scaled to the viewport, so a
-   viewport-relative size would be scaled a second time and come out
-   different at every window width.
+   The housing and the well were going to be nine-sliced, because the
+   layout's bar was 2.0 wide to 1 tall where the drawn one is 2.59.
+   Slicing worked, and left a faint seam across the cream at each
+   region boundary: the control is scaled twice over, by --k and by the
+   stage, so those boundaries land between device pixels. The fix was
+   not a better slice. It was to stop asking the bar to be a shape it
+   was not drawn as — the bar takes the drawing's own proportion now,
+   and a piece that is never stretched cannot seam.
+
+   Sizes are fixed pixels scaled as a whole by --k, never vw: the stage
+   is already transform-scaled to the viewport, so a viewport-relative
+   size would be scaled a second time and come out different at every
+   window width.
    ============================================================= */
 
 .number-control {
-  /* The housing: a rounded bar with room over it for the pointer and
-     under it for GO's foot. */
+  --sheet: url('../assets/buttons.png');
+
+  /* ---- the layout ------------------------------------------------
+     Unchanged. The dials overhang the housing's ends, the pointer sits
+     in the gold band over the well, GO stands under the bar's middle:
+     those relationships ARE the control, and only the skin is being
+     replaced. */
   --frame-w: 660px;
-  --frame-h: 400px;
   --frame-x: 78px;           /* room for the dials to overhang */
   --bar-top: 30px;
-  --bar-h:   330px;
+  /* The bar is 794 x 307 on the sheet, so it is that shape here. It
+     used to be 660 x 330 — a description of a drawing nobody had. */
+  --bar-h:   calc(var(--frame-w) * 307 / 794);
+  --frame-h: calc(var(--bar-top) + var(--bar-h));
 
-  /* The well the drums turn in, as fractions of the bar. */
-  --win-x:   calc(var(--frame-w) * 0.20);
-  --win-y:   calc(var(--bar-top) + var(--bar-h) * 0.23);
-  --win-w:   calc(var(--frame-w) * 0.60);
-  --win-h:   calc(var(--bar-h) * 0.54);
+  /* The well the drums turn in: wide enough to fill the bar between
+     the two dials, and 758 x 258 of shape, which is the drawing's. */
+  --win-w:   calc(var(--frame-w) * 0.74);
+  --win-h:   calc(var(--win-w) * 258 / 758);
+  --win-x:   calc((var(--frame-w) - var(--win-w)) / 2);
+  --win-y:   calc(var(--bar-top) + var(--bar-h) * 0.24);
 
-  /* Three drums across the well, the next two running on behind it. */
-  --pitch:    calc(var(--win-w) / 3);
-  --barrel-w: calc(var(--pitch) * 0.94);
-  --barrel-h: calc(var(--win-h) * 0.80);   /* room in the well for its
-                                              own lower lip to show */
-  --side-w:   calc(var(--pitch) * 0.84);
-  --side-h:   calc(var(--win-h) * 0.64);
+  /* Its trough, measured off the art: within the well's 758 x 258 the
+     cream starts 25px in at the sides, 42 down from the top and 23 up
+     from the foot — the top rim is the thicker one because the trough
+     is sunk. The drums clip against the TROUGH, not the well's outside,
+     so a number slides behind the rim rather than across it. */
+  --rim-x:   calc(var(--win-w) * 0.0330);
+  --rim-t:   calc(var(--win-h) * 0.1628);
+  --rim-b:   calc(var(--win-h) * 0.0891);
 
-  /* The dials sit on the bar's own middle line. */
+  --reel-x:  calc(var(--win-x) + var(--rim-x));
+  --reel-y:  calc(var(--win-y) + var(--rim-t));
+  --reel-w:  calc(var(--win-w) - var(--rim-x) * 2);
+  --reel-h:  calc(var(--win-h) - var(--rim-t) - var(--rim-b));
+
+  /* Three drums across the trough, the next two running on behind it. */
+  --pitch:    calc(var(--reel-w) / 3);
+  /* Each tile at the aspect it was DRAWN at — 215 x 213 unselected,
+     225 x 217 selected. Both are within a hair of square, and the old
+     rule built them at 0.87 and 0.97, which is what made the drums
+     read as ovals. */
+  --barrel-w: calc(var(--pitch) * 0.80);
+  --barrel-h: calc(var(--barrel-w) * 217 / 225);
+  --side-w:   calc(var(--pitch) * 0.74);
+  --side-h:   calc(var(--side-w) * 213 / 215);
+
+  /* The dials sit on the bar's own middle line, at the art's own
+     242 x 240 — square, near enough. */
   --dial-y:  calc(var(--bar-top) + var(--bar-h) / 2);
   --arrow:   150px;
-  --go:      168px;
+  --arrow-h: calc(var(--arrow) * 240 / 242);
 
-  /* The four golds, brightest on top. Gold is the accent that gives
-     the housing its thickness — it is not the fill. */
-  --g1: #FFD758;
-  --g2: #FFB51F;
-  --g3: #F28A08;
-  --g4: #C95B04;
+  /* GO is a PILL, not a disc: 604 x 200 on the sheet, and 604 of the
+     housing's 794 across, so it keeps that share of the bar. It was
+     drawn as a circle because a circle was all the CSS had. */
+  --go-w:    calc(var(--frame-w) * 604 / 794);
+  --go-h:    calc(var(--go-w) * 200 / 604);
+
+  /* And the pointer at 193 x 129, sized to the gold band it sits in
+     rather than to the sheet — the band is the layout's, not the
+     artist's. */
+  --pt-h:    48px;
+  --pt-w:    calc(var(--pt-h) * 193 / 129);
 
   position: absolute;
   width: 816px;
-  height: 520px;
+  height: 460px;
   transform-origin: top left;
   transform: scale(var(--k, 1));
   font-family: 'Lilita One', 'Nunito', system-ui, sans-serif;
   user-select: none;
   -webkit-user-select: none;
   z-index: 6;
-  /* The scene. Shallow on purpose: the control is dimensional, not
-     tilted — a heavy camera angle makes a game UI hard to read and
-     hard to hit. */
-  perspective: 1000px;
-  perspective-origin: 50% 38%;
 }
 
 /* ---- the housing ------------------------------------------------- */
@@ -81,10 +118,8 @@
   top: 0;
   width: var(--frame-w);
   height: var(--frame-h);
-  transform-style: preserve-3d;
 }
 
-/* Its front face. */
 .number-control .selector::before {
   content: "";
   position: absolute;
@@ -92,86 +127,87 @@
   right: 0;
   top: var(--bar-top);
   height: var(--bar-h);
-  border-radius: 52px;
-  /* The bevel, as three golds down one edge rather than a flat
-     outline: bright along the top where the light is, gold round the
-     sides, orange underneath. */
-  border: 5px solid transparent;
-  background:
-    linear-gradient(180deg, #FFFDF4 0%, #FFF8E8 48%, #F2E2C2 100%) padding-box,
-    linear-gradient(180deg, #FFE79A 0%, var(--g1) 34%, var(--g2) 68%, var(--g3) 100%) border-box;
-  /* `0 16px 0` is the thickness it stands on — a solid slab of orange
-     under the front face, clipped to the same radius, which is what
-     makes the bottom edge read deeper than the top. It was a
-     translateZ layer before and disappeared: a negative z-index inside
-     a 3D context put it behind the scene rather than behind the face. */
-  box-shadow:
-    inset 0 6px 6px rgba(255, 255, 255, .85),
-    inset 0 -10px 14px rgba(190, 110, 20, .16),
-    0 16px 0 #E88A0C,
-    0 20px 26px rgba(100, 55, 10, .26);
+  background-image: var(--sheet);
+  background-repeat: no-repeat;
+  /* (73, 33, 794, 307) of 1774 x 887 */
+  background-size: 223.426% 288.925%;
+  background-position: 7.449% 5.690%;
   z-index: 0;
+}
+
+/* The well, on the bar. */
+.number-control .selector::after {
+  content: "";
+  position: absolute;
+  left: var(--win-x);
+  top: var(--win-y);
+  width: var(--win-w);
+  height: var(--win-h);
+  background-image: var(--sheet);
+  background-repeat: no-repeat;
+  /* (928, 71, 758, 258) */
+  background-size: 234.037% 343.798%;
+  background-position: 91.339% 11.288%;
+  z-index: 1;
 }
 
 /* ---- the pointer over the chosen number -------------------------- */
 .number-control .pointer {
   position: absolute;
   left: 50%;
-  top: calc(var(--bar-top) + 14px);
-  width: 58px;
-  height: 40px;
-  margin-left: -29px;
-  border-radius: 8px 8px 4px 4px;
-  background: linear-gradient(180deg, var(--g1), var(--g2) 60%, var(--g3));
-  clip-path: polygon(50% 100%, 100% 0, 0 0);
-  box-shadow:
-    0 5px 0 var(--g4),
-    0 8px 10px rgba(100, 50, 10, .20),
-    inset 0 3px 3px rgba(255, 255, 255, .55);
-  transform: translateZ(24px);
+  top: calc(var(--bar-top) + 10px);
+  width: var(--pt-w);
+  height: var(--pt-h);
+  margin-left: calc(var(--pt-w) / -2);
+  background-image: var(--sheet);
+  background-repeat: no-repeat;
+  /* (1414, 426, 193, 129) of 1774 x 887 */
+  background-size: 919.17% 687.60%;
+  background-position: 89.437% 56.201%;
   transition: transform 140ms cubic-bezier(.22, .68, .3, 1);
   z-index: 5;
 }
 /* It dips as a number seats itself. */
 .number-control .seat.pop ~ .pointer,
-.number-control.is-seating .pointer { transform: translateZ(24px) translateY(2px); }
+.number-control.is-seating .pointer { transform: translateY(2px); }
 
-/* ---- the well ---------------------------------------------------- */
+/* ---- the trough the drums turn in --------------------------------
+   No skin of its own — the well above is the skin. This is the window
+   they are seen through, inset to the trough so a drum leaving the
+   middle disappears behind the rim. */
 .number-control .reel {
   position: absolute;
-  left: var(--win-x);
-  top: var(--win-y);
-  width: var(--win-w);
-  height: var(--win-h);
-  /* The drums run on behind the housing at both ends. */
+  left: var(--reel-x);
+  top: var(--reel-y);
+  width: var(--reel-w);
+  height: var(--reel-h);
   overflow: hidden;
-  border-radius: 28px;
-  background: #F3E8D1;
-  box-shadow:
-    inset 0 12px 18px rgba(30, 20, 10, .30),
-    inset 0 -4px 6px rgba(255, 255, 255, .40),
-    0 0 0 6px #0A8884,
-    0 0 0 8px rgba(255, 255, 255, .55),
-    0 3px 0 rgba(255, 255, 255, .75);
-  transform: translateZ(6px);
   z-index: 2;
 }
 
-/* The seat is a hit area and a live region; the chosen drum is a cell. */
+/* The seat is the SELECTED TILE. It used to be a hit area with nothing
+   on it, and the gold drum was painted on .cell.on — which rotates, so
+   the tile the child is looking at was a different element from one
+   press to the next. Drawn here it stays put and the numbers roll
+   through it, which is what the drawing shows. */
 .number-control .seat {
   position: absolute;
   left: 50%; top: 50%;
   width: var(--barrel-w);
-  height: 100%;
+  height: var(--barrel-h);
   transform: translate(-50%, -50%);
   pointer-events: none;
+  background-image: var(--sheet);
+  background-repeat: no-repeat;
+  /* (494, 645, 225, 217) */
+  background-size: 788.44% 408.76%;
+  background-position: 31.891% 96.269%;
+  z-index: 3;
 }
 
 .number-control .lane { position: absolute; inset: 0; }
 
 /* ---- the drums --------------------------------------------------- */
-/* Bright along the middle and darker at both edges, which is what the
-   curve of a cylinder does to one light from above. */
 .number-control .cell {
   position: absolute;
   left: 50%; top: 50%;
@@ -180,44 +216,35 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  color: #5E5145;
+  font-size: calc(var(--side-h) * 0.56);
   font-weight: 900;
   line-height: 1;
-  border-radius: 16px;
-  background:
-    linear-gradient(90deg,
-      #B3A895 0%, #D6CAB4 14%, #FBF3E2 34%, #FFFDF5 50%,
-      #FBF3E2 66%, #D2C6B1 86%, #AFA491 100%);
-  box-shadow:
-    inset 0 8px 9px rgba(255, 255, 255, .55),
-    inset 0 -9px 13px rgba(120, 85, 45, .20),
-    0 3px 0 rgba(150, 120, 80, .35);
+  background-image: var(--sheet);
+  background-repeat: no-repeat;
+  /* (184, 646, 215, 213) */
+  background-size: 825.12% 416.43%;
+  background-position: 11.802% 95.846%;
   transition: transform 280ms cubic-bezier(.22, .68, .3, 1),
-              color 200ms ease, opacity 200ms ease,
-              background 200ms ease, box-shadow 200ms ease;
+              color 200ms ease, opacity 200ms ease;
 }
 
-/* The chosen one is seated: gold, forward, and standing on a thicker
-   orange lip than anything else in the control. */
+/* The chosen one carries NO tile: the one under it is .seat, which the
+   sheet draws as the selected tile already. Painting a second tile
+   here would be two tiles in one place. It keeps its size, because the
+   inline transform written by the component scales against it, and it
+   keeps the blue the sheet's own "7" is set in. */
 .number-control .cell.on {
   width: var(--barrel-w);
   height: var(--barrel-h);
-  color: #0754B8;
-  font-size: 86px;
-  border-radius: 20px;
-  background: linear-gradient(180deg,
-      #FFF19A 0%, #FFD758 32%, #FFC62E 68%, #FFB51F 100%);
-  box-shadow:
-    inset 0 7px 8px rgba(255, 255, 255, .80),
-    inset 0 -8px 9px rgba(205, 100, 5, .22),
-    0 8px 0 #E98208,
-    0 13px 16px rgba(100, 55, 10, .28);
+  color: #0042C1;
+  font-size: calc(var(--barrel-h) * 0.66);
+  background-image: none;
   z-index: 4;
 }
 
 .number-control .cell.off {
-  color: #8F8374;
-  font-size: 66px;
-  opacity: .78;
+  opacity: .92;
   z-index: 1;
 }
 
@@ -229,99 +256,55 @@
    travelling — see seatCell() in the component. */
 .number-control .cell.jump { transition: none; }
 
-/* The seating click: forward, past, and settled. */
-.number-control .seat.pop { animation: none; }
+/* The seating click: the number settles into its tile. */
 .number-control .cell.on { animation: lockIntoPlace 220ms cubic-bezier(.22,.68,.32,1); }
 @keyframes lockIntoPlace {
-  0%   { box-shadow: inset 0 6px 7px rgba(255,255,255,.70),
-                     inset 0 -7px 8px rgba(205,100,5,.18),
-                     0 4px 0 #E98208, 0 8px 10px rgba(100,55,10,.20); }
-  45%  { box-shadow: inset 0 6px 7px rgba(255,255,255,.70),
-                     inset 0 -7px 8px rgba(205,100,5,.18),
-                     0 10px 0 #E98208, 0 16px 20px rgba(100,55,10,.22); }
-  100% { box-shadow: inset 0 6px 7px rgba(255,255,255,.70),
-                     inset 0 -7px 8px rgba(205,100,5,.18),
-                     0 7px 0 #E98208, 0 12px 15px rgba(100,55,10,.20); }
+  0%   { letter-spacing: 0; }
+  45%  { letter-spacing: .5px; }
+  100% { letter-spacing: 0; }
 }
 
 /* ---- the two dials ----------------------------------------------
    Children of the HOUSING, not of the widget, so every offset here is
-   measured from the housing's own top-left corner. Written as though
-   they were the widget's, each dial came out one whole --frame-x to
-   the right of where it belongs. */
+   measured from the housing's own top-left corner. */
 .number-control .side {
   position: absolute;
-  top: calc(var(--dial-y) - var(--arrow) / 2);
+  top: calc(var(--dial-y) - var(--arrow-h) / 2);
   width: var(--arrow);
-  height: var(--arrow);
+  height: var(--arrow-h);
   padding: 0;
   border: 0;
-  border-radius: 50%;
-  background: transparent;
+  background-color: transparent;
+  background-image: var(--sheet);
+  background-repeat: no-repeat;
   cursor: pointer;
-  transform: translateZ(25px);
   transition: transform 120ms cubic-bezier(.22,.68,.3,1),
-              box-shadow 120ms ease, opacity 160ms ease;
+              filter 120ms ease, opacity 160ms ease;
   z-index: 6;
 }
-.number-control .side.prev { left: calc(var(--arrow) / -2); }
-.number-control .side.next { left: calc(var(--frame-w) - var(--arrow) / 2); }
-
-/* Three layers: a gold rim, the orange face, and the chevron. */
-.number-control .side::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: linear-gradient(180deg, var(--g1) 0%, var(--g2) 40%, var(--g4) 100%);
-  box-shadow: 0 9px 0 var(--g4), 0 13px 16px rgba(100, 50, 10, .22);
+.number-control .side.prev {
+  left: calc(var(--arrow) / -2);
+  /* (104, 380, 242, 240) */
+  background-size: 733.06% 369.58%;
+  background-position: 6.788% 58.733%;
 }
-.number-control .side::after {
-  content: "";
-  position: absolute;
-  inset: 9px;
-  border-radius: 50%;
-  background: linear-gradient(180deg,
-      #FFD758 0%, #FFB51F 24%, #F28A08 78%, #DF6906 100%);
-  box-shadow:
-    inset 0 5px 6px rgba(255, 255, 255, .55),
-    inset 0 -6px 7px rgba(145, 55, 0, .16);
+.number-control .side.next {
+  left: calc(var(--frame-w) - var(--arrow) / 2);
+  /* (390, 380, 241, 240) */
+  background-size: 736.10% 369.58%;
+  background-position: 25.440% 58.733%;
 }
 
-/* The chevron: ONE box showing two of its borders, turned 45°. Not a
-   play triangle — these turn a reel, they do not start anything.
+/* The arrowhead is drawn into the disc, so the span that used to draw
+   it has nothing left to do. It carries no text — the button's
+   aria-label is what a screen reader reads — so it simply goes. */
+.number-control .chev { display: none; }
 
-   It was two rounded bars rotated towards each other, and at the
-   weight these buttons want the two overlapped into a blob with no
-   point on it. A corner cannot overlap itself, so the apex is always
-   an apex and the two arms are always the same length. */
-.number-control .chev {
-  position: absolute;
-  left: 50%; top: 50%;
-  /* Big enough to be the button. The dial's face is about 132px
-     across, and a 35px mark in it read as a detail on a disc rather
-     than as the thing you press. This one takes a little over half. */
-  width: 40px; height: 40px;
-  border: solid #FFF6E2;
-  border-width: 0 0 13px 13px;
-  border-bottom-left-radius: 5px;
-  filter: drop-shadow(0 2px 0 rgba(150, 70, 5, .30));
-  z-index: 2;
-}
-/* Turned to point, and nudged back along the way it points: an L's
-   weight sits in its corner, so centring its BOX leaves the apex off
-   centre. */
-.number-control .prev .chev { transform: translate(-38%, -50%) rotate(45deg); }
-.number-control .next .chev { transform: translate(-62%, -50%) rotate(-135deg); }
-
-.number-control .side:hover:not(:disabled) { transform: translateZ(28px) translateY(-2px); }
-.number-control .side:active:not(:disabled)::before,
-.number-control .side.is-pressed:not(:disabled)::before {
-  box-shadow: 0 2px 0 var(--g4), 0 4px 6px rgba(100, 50, 10, .16);
-}
+.number-control .side:hover:not(:disabled) { transform: translateY(-2px); }
 .number-control .side:active:not(:disabled),
 .number-control .side.is-pressed:not(:disabled) {
-  transform: translateZ(18px) translateY(5px) scale(.97);
+  transform: translateY(5px) scale(.97);
+  filter: brightness(.90);
 }
 .number-control .side:disabled { opacity: .45; cursor: default; }
 
@@ -329,87 +312,46 @@
 .number-control .check {
   position: absolute;
   left: calc(var(--frame-x) + var(--frame-w) * 0.50);
-  top: calc(var(--bar-top) + var(--bar-h));
-  width: var(--go);
-  height: var(--go);
-  margin: calc(var(--go) * -0.34) 0 0 calc(var(--go) / -2);
+  top: calc(var(--bar-top) + var(--bar-h) - var(--go-h) * 0.12);
+  width: var(--go-w);
+  height: var(--go-h);
+  margin-left: calc(var(--go-w) / -2);
   padding: 0;
   border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: #FFFFFF;
-  font-family: inherit;
-  font-size: 54px;
-  font-weight: 900;
-  letter-spacing: 1px;
-  line-height: var(--go);
-  text-align: center;
-  text-shadow: 0 2px 0 rgba(12, 90, 40, .45);
+  background-color: transparent;
+  background-image: var(--sheet);
+  background-repeat: no-repeat;
+  /* (716, 400, 604, 200) */
+  background-size: 293.71% 443.50%;
+  background-position: 61.197% 58.224%;
+  /* The word is in the drawing. The text stays in the DOM — taking it
+     out is how a screen reader ended up reading a label that said
+     something the button did not — it simply stops being drawn twice. */
+  color: transparent;
+  font-size: 0;
   cursor: pointer;
-  transform: translateZ(28px);
   transition: transform 120ms cubic-bezier(.22,.68,.3,1),
-              box-shadow 140ms ease, opacity 160ms ease, filter 200ms ease;
+              filter 160ms ease, opacity 160ms ease;
   z-index: 5;
-}
-/* A cream collar with a thin gold edge, so it belongs to the housing
-   rather than sitting in front of it. */
-.number-control .check::before {
-  content: "";
-  position: absolute;
-  inset: -9px;
-  border-radius: 50%;
-  background: linear-gradient(180deg, #FFFDF4, #F6E7C6);
-  border: 3px solid var(--g1);
-  box-shadow: 0 10px 0 #E1C489, 0 16px 20px rgba(60, 45, 10, .22);
-  z-index: -2;
-}
-.number-control .check::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: linear-gradient(180deg,
-      #63E45F 0%, #49D34F 22%, #20B33C 60%, #1AA134 100%);
-  box-shadow:
-    inset 0 7px 7px rgba(255, 255, 255, .60),
-    inset 0 -8px 9px rgba(0, 90, 35, .18),
-    0 9px 0 #1E8A38,
-    0 14px 18px rgba(20, 90, 35, .23);
-  z-index: -1;
 }
 .number-control .check-icon { display: none; }
 
-.number-control .check:hover:not(:disabled) { transform: translateZ(31px) translateY(-2px); }
+.number-control .check:hover:not(:disabled) { transform: translateY(-2px); }
 .number-control .check:active:not(:disabled),
 .number-control .check.is-pressed:not(:disabled) {
-  transform: translateZ(20px) translateY(6px) scale(.97);
-}
-.number-control .check:active:not(:disabled)::after,
-.number-control .check.is-pressed:not(:disabled)::after {
-  box-shadow:
-    inset 0 5px 6px rgba(255, 255, 255, .45),
-    inset 0 -6px 7px rgba(0, 90, 35, .16),
-    0 3px 0 #1E8A38,
-    0 6px 9px rgba(20, 90, 35, .20);
+  transform: translateY(6px) scale(.98);
+  filter: brightness(.90);
 }
 .number-control.locked .check { opacity: .55; cursor: default; }
-.number-control.locked .check:hover { transform: translateZ(28px); }
+.number-control.locked .check:hover { transform: none; }
 
-/* One soft highlight per button, from the same light as everything
-   else — a sheen on the upper third, not a glossy patch. */
-.number-control .side .chev::before,
-.number-control .check::after { pointer-events: none; }
-
-/* ---- right and wrong ---------------------------------------------- */
-.number-control.is-correct .check::after {
-  box-shadow:
-    inset 0 7px 7px rgba(255, 255, 255, .60),
-    inset 0 -8px 9px rgba(0, 90, 35, .18),
-    0 11px 0 #1E8A38,
-    0 16px 22px rgba(20, 90, 35, .26),
-    0 0 26px rgba(70, 225, 110, .85);
+/* ---- right and wrong ----------------------------------------------
+   No artwork for either — the sheet gives one frame per piece — so both
+   are said over the drawing rather than by swapping it. */
+.number-control.is-correct .check {
+  transform: translateY(-3px);
+  filter: brightness(1.08) drop-shadow(0 0 20px rgba(70, 225, 110, .85));
 }
-.number-control.is-correct .check { transform: translateZ(34px) translateY(-3px); }
 .number-control.is-correct .cell.on {
   color: #14853A;
   animation: goodPop 400ms cubic-bezier(.22, .68, .3, 1);
@@ -432,9 +374,7 @@
   70% { margin-left: -4px; }
   100% { margin-left: 0; }
 }
-.number-control.is-wrong .check::after {
-  background: linear-gradient(180deg, #F79B86 0%, #EE7F68 40%, #D9614A 100%);
-}
+.number-control.is-wrong .check { filter: saturate(.45) brightness(.92); }
 
 /* The tick the reel used to show on a right answer: GO carries its own
    feedback, so it stays out of the way. */
