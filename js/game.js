@@ -1151,10 +1151,18 @@
         ln.id = i === 0 ? 'lineAC' : 'lineCB';     // first leg, then second
         ln.style.setProperty('--base-stroke-width', LG.width + 'px');
         ln.style.setProperty('--pulse-stroke-width', (LG.width + 4) + 'px');
-        [dg, ln, dt, co, nm, lp, lt].forEach(function (n) { lg.appendChild(n); });
+        /* The length hangs in a group of its own so it can be TURNED.
+           Its own `pop` is a filled animation, and a filled animation
+           beats a transform attribute on the same element — so the
+           rotation has to sit on something the animation does not
+           touch. */
+        const lturn = document.createElementNS(NS, 'g');
+        lturn.appendChild(lt);
+        [dg, ln, dt, co, nm, lp, lturn].forEach(function (n) { lg.appendChild(n); });
         svg.appendChild(lg);
         this.legSlots.push({ g: lg, line: ln, dot: dt, coord: co, name: nm,
-                             plate: lp, len: lt, dash: dl, dashG: dg });
+                             plate: lp, len: lt, lenTurn: lturn,
+                             dash: dl, dashG: dg });
       }
 
       /* Three spare lines that do nothing but pulse, laid over the real
@@ -2672,13 +2680,24 @@
           else inner = (mx <= x1) ? 1 : -1;         // pair to its left: write right
         }
         const face = this.shapeFace();
-        let lx = horiz ? (x1 + x2) / 2 : (x1 + inner * LG.lenGapV * tk);
+        /* A vertical leg's length is TURNED and set along its own
+           line, just outside it. Laid across, "3 units" had to stand
+           78px off the leg to clear it and still read as a caption
+           floating beside the drawing; turned, it is a label ON the
+           side it measures and sits a line's width away. */
+        const turn = !horiz;
+        const off = turn ? (LG.lenSize * tk * 0.62 + LG.width) : 0;
+        let lx = horiz ? (x1 + x2) / 2 : (x1 + inner * off);
         const ly = horiz ? y1 + vSide * LG.lenGap * tk
                          : (y1 + y2) / 2 + towardCorner * LG.lenBiasV * tk;
         /* A leg centred on the origin writes its length straight down
            the y-axis, so it slides along its own leg towards the corner
            until it is clear of the axis and the numbers beside it. */
         const lw2 = this.textW(txt, LG.lenSize * tk);
+        /* Turned, its footprint is on its side: as wide as the type is
+           tall, and as tall as the words are long. */
+        const bw = turn ? (LG.lenSize * tk) : lw2;
+        const bh = turn ? lw2 : (LG.lenSize * tk);
         if (horiz) lx = this.clearOfYAxis(lx, lw2);
         else if (Math.abs(this.clampX(lx, lw2) - lx) > 0.5) {
           /* No room on that side after all: take the other one whole —
@@ -2704,7 +2723,7 @@
         /* A vertical leg on the outermost column writes its length past
            the frame — 78px beside x=6 is off the cream once a cell is
            78px wide. */
-        let fx = this.clampX(lx, lw2), fy = this.clampY(lyOut, LG.lenSize * tk);
+        let fx = this.clampX(lx, bw), fy = this.clampY(lyOut, bh);
         /* And out of the face, which the outer side cannot always
            manage: beside the outermost column there are 53px of paper
            and "3 units" is 136 wide, so the clamp does not decline, it
@@ -2714,9 +2733,9 @@
            side is where a length belongs; inside the face is the one
            place beside that side it may not be. */
         if (face) {
-          const bw = lw2 / 2, bh = LG.lenSize * tk / 2;
+          const hw = bw / 2, hh = bh / 2;
           const hits = function (X, Y) {
-            return self2.boxHitsFace({ l: X - bw, t: Y - bh, r: X + bw, b: Y + bh }, face);
+            return self2.boxHitsFace({ l: X - hw, t: Y - hh, r: X + hw, b: Y + hh }, face);
           };
           if (hits(fx, fy)) {
             const ux = x2 - x1, uy = y2 - y1, m = Math.hypot(ux, uy) || 1;
@@ -2724,8 +2743,8 @@
             for (let n = 1; n <= 60; n++) {
               let done = false;
               for (let s2 = 1; s2 >= -1 && !done; s2 -= 2) {
-                const X = this.clampX(fx + (ux / m) * step * n * s2, lw2);
-                const Y = this.clampY(fy + (uy / m) * step * n * s2, LG.lenSize * tk);
+                const X = this.clampX(fx + (ux / m) * step * n * s2, bw);
+                const Y = this.clampY(fy + (uy / m) * step * n * s2, bh);
                 if (!hits(X, Y)) { fx = X; fy = Y; done = true; }
               }
               if (done) break;
@@ -2743,9 +2762,17 @@
         L.len.textContent = txt;
         const outX = horiz ? 0 : (inner >= 0 ? 1 : -1);
         const outY = horiz ? (vSide >= 0 ? 1 : -1) : 0;
-        this.seatLength(L.len, fx, fy, lw2, LG.lenSize * tk,
+        const seat = this.seatLength(L.len, fx, fy, bw, bh,
                         { x: outX, y: outY }, L.len,
                         { x: (x1 + x2) / 2, y: (y1 + y2) / 2 });
+        /* Turned about wherever it ended up, so the words run up the
+           side rather than across it. */
+        const tn = L.lenTurn;
+        if (tn) {
+          if (turn) tn.setAttribute('transform',
+                      'rotate(-90 ' + seat.x + ' ' + seat.y + ')');
+          else tn.removeAttribute('transform');
+        }
       }
     },
 
@@ -4493,7 +4520,22 @@
     /* The line itself, from a point to a point. Everything that lays it
        down goes through here so there is one place it is drawn. */
     drawMeasure: function (from, ex, ey) {
-      const G = C.GRID;
+      const G = C.GRID, LG = G.leg;
+      /* In the colour of the side it is measuring. It was always the
+         measure's own blue, so walking out CB — a green side — drew a
+         blue line along it and the change of colour read as a second,
+         different connection arriving. A measurement is the side being
+         found, not a thing of its own. */
+      const horiz = Math.abs(ey - from.y) < 1e-6;
+      const vert = Math.abs(ex - from.x) < 1e-6;
+      const col = horiz ? (LG.hColor || LG.color)
+                : vert ? (LG.vColor || LG.color)
+                : G.measure.color;
+      if (this.measLine) {
+        this.measLine.setAttribute('stroke', col);
+        this.measLine.style.color = col;
+      }
+      if (this.measCap) this.measCap.setAttribute('fill', col);
       const px = function (v) { return G.originX + v * G.stepX; };
       const py = function (v) { return G.originY - v * G.stepY; };
       this.measLine.setAttribute('x1', px(from.x));
