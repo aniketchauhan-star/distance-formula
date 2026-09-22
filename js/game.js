@@ -18,6 +18,19 @@
    'startBird', 'startBirdWin', 'startFly', 'startTalk', 'startShadow', 'startSky'
   ].forEach(function (id) { el[id] = document.getElementById(id); });
 
+  /* Every number the board writes, with a real MINUS SIGN in front of
+     it rather than a hyphen.
+
+     `String(-6)` gives "-6", and the hyphen-minus is a word-joining
+     dash: short, sitting low, and cut to the width of a letter. Beside
+     a 32px numeral it reads as a speck of dirt rather than as part of
+     the number, which is what made the negative numbering look wrong
+     along the bottom of the board. U+2212 is the arithmetic sign — the
+     width of a digit, on the same line as the bar of a plus, which is
+     what the eye is looking for. The subtraction the board writes
+     already uses it; this brings the numbers themselves into line. */
+  const numText = function (v) { return String(v).replace('-', '\u2212'); };
+
   /* ---------------- responsive stage ---------------- */
   function fitStage() {
     const s = Math.min(window.innerWidth / C.STAGE_W, window.innerHeight / C.STAGE_H);
@@ -1016,11 +1029,11 @@
       const step = G.labelEvery || 1;
       for (let x = G.xFrom; x <= G.xTo; x++) {
         if (x === 0 || x % step) continue;
-        label(String(x), ox + x * G.stepX, oy + G.labelGap + G.labelSize * 0.42, 0, 'x', x);
+        label(numText(x), ox + x * G.stepX, oy + G.labelGap + G.labelSize * 0.42, 0, 'x', x);
       }
       for (let y = G.yFrom; y <= G.yTo; y++) {
         if (y === 0 || y % step) continue;
-        label(String(y), ox - G.yLabelGap - G.labelSize * 0.30, oy - y * G.stepY, 0, 'y', y);
+        label(numText(y), ox - G.yLabelGap - G.labelSize * 0.30, oy - y * G.stepY, 0, 'y', y);
       }
       // at the origin, so it lights as the sweep sets off
       label('0', ox - G.zeroGap, oy + G.labelGap + G.labelSize * 0.42, 0, 'x', 0);
@@ -1160,6 +1173,7 @@
         lturn.appendChild(lt);
         [dg, ln, dt, co, nm, lp, lturn].forEach(function (n) { lg.appendChild(n); });
         svg.appendChild(lg);
+        this.commitDraw(ln);
         this.legSlots.push({ g: lg, line: ln, dot: dt, coord: co, name: nm,
                              plate: lp, len: lt, lenTurn: lturn,
                              dash: dl, dashG: dg });
@@ -1352,9 +1366,15 @@
         exr.setAttribute('class', 'segres');
         exr.setAttribute('fill', G.ink);
         exr.setAttribute('font-size', 34);
-        exg.appendChild(exr);
+        /* In a group of its own so a column's length can be turned
+           along its line — `segres.pop` is a filled animation and
+           would beat a transform on the text itself. */
+        const ext = document.createElementNS(NS, 'g');
+        ext.appendChild(exr);
+        exg.appendChild(ext);
         svg.appendChild(exg);
-        this.exSlots.push({ g: exg, segParts: exParts, segLine: exl, segRes: exr });
+        this.exSlots.push({ g: exg, segParts: exParts, segLine: exl,
+                            segRes: exr, segResTurn: ext });
       }
 
       /* A plotted segment: two named points joined by a line. Built
@@ -1394,6 +1414,7 @@
       segLine.style.setProperty('--pulse-stroke-width', (SG.lineWidth + 4) + 'px');
       seg.appendChild(segLine);
       this.segLine = segLine;
+      this.commitDraw(segLine);
 
       /* The player's own line, laid down with the slider. It sits in
          the same group as the segment so it is cleared alongside it. */
@@ -1432,8 +1453,11 @@
       rt.setAttribute('class', 'segres');
       rt.setAttribute('fill', G.ink);
       rt.setAttribute('font-size', 34);
-      seg.appendChild(rt);
+      const rtt = document.createElementNS(NS, 'g');
+      rtt.appendChild(rt);
+      seg.appendChild(rtt);
       this.segRes = rt;
+      this.segResTurn = rtt;
 
       svg.appendChild(seg);
       this.segGroup = seg;
@@ -1817,6 +1841,59 @@
         x: b.x + (G.originX + gx * G.stepX) * (b.w / G.w),
         y: b.y + (G.originY - gy * G.stepY) * (b.h / G.h)
       };
+    },
+
+    /* Writes a finished draw down, so nothing can take it away again.
+
+       `drawOut` ends at stroke-dashoffset 0 and holds it there with
+       `forwards` — the animation's FILL is the only thing keeping the
+       line at full length. `animation` is one property, so anything
+       that puts its own on the element replaces that fill and the line
+       springs back to the offset underneath, which is nothing at all.
+       That is what emptied AC on the Pythagoras beats: the working
+       lights the side it names, the highlight's animation displaced the
+       draw's, and the side the whole screen is about went off the board
+       under its own written length.
+
+       Committing the offset the moment the draw lands ends the argument
+       for good — a later animation may do as it likes, the line is
+       drawn because its own style says so, not because an animation is
+       still holding it. */
+    commitDraw: function (node) {
+      if (!node || node.__committed) return;
+      node.__committed = true;
+      node.addEventListener('animationend', function (e) {
+        if (e.animationName === 'drawOut') node.style.strokeDashoffset = 0;
+      });
+    },
+
+    /* Where a thing on the board sits on the STAGE — measured off what
+       is painted rather than worked out from attributes, so a length
+       that has been turned on its side is found where it is read and
+       the camera's push-in is already in it. */
+    spotOf: function (node) {
+      if (!node) return null;
+      const r = node.getBoundingClientRect();
+      if (!r.width && !r.height) return null;
+      const s = el.stage.getBoundingClientRect();
+      const k = C.STAGE_W / (s.width || C.STAGE_W);
+      return { x: (r.left + r.width / 2 - s.left) * k,
+               y: (r.top + r.height / 2 - s.top) * k };
+    },
+
+    /* The number they have just found, wherever the board wrote it:
+       against a leg, along the segment, or on the board's own label.
+       Null if nothing was written — a screen that counts without
+       writing a total has nothing for this to point at. */
+    totalSpot: function (leg) {
+      const shown = function (n) {
+        if (!n || !n.textContent) return null;
+        if (n.style.display === 'none') return null;
+        return (+getComputedStyle(n).opacity > .05) ? n : null;
+      };
+      const L = (leg != null && this.legSlots) ? this.legSlots[leg] : null;
+      return this.spotOf(shown(L && L.len) || shown(this.unitLabel) ||
+                         shown(this.segRes));
     },
 
     /* Brings back pairs that were finished with screens ago, in the
@@ -2581,14 +2658,33 @@
       L.line.setAttribute('x2', x2); L.line.setAttribute('y2', y2);
       const len = Math.hypot(x2 - x1, y2 - y1);
       L.line.setAttribute('stroke-dasharray', len);
-      L.line.style.strokeDashoffset = len;
+      /* Wound back to nothing, so the leg can draw itself on. A side
+         the board is CARRYING OVER is already there and goes down at
+         full length instead — and both that and the `set` mark are
+         done here, in the one place that winds a leg back, because
+         this runs again every time the board is laid out.
+
+         `set` has to be taken OFF as well as put on. A leg slot is
+         reused screen after screen: left on from the screen that
+         carried the side over, it switched off the draw on the next
+         screen that wanted one, and a side that should have been
+         drawing sat wound back to nothing under its own written
+         length. It follows the spec now, every time. */
+      /* `draw` still on the line means nothing has cleared this board
+         since it drew — `clearLegs` is what takes the class off — so
+         the side is already down and winding it back would take it off
+         the screen. Only a side that has yet to draw gets wound back. */
+      const held = !!spec.settled || L.line.classList.contains('draw');
+      L.line.style.strokeDashoffset = held ? 0 : len;
+      L.line.classList.toggle('set', !!spec.settled);
+      if (L.dashG) L.dashG.classList.toggle('set', !!spec.settled);
 
       if (spec.mark) {
         L.dot.setAttribute('cx', x2); L.dot.setAttribute('cy', y2);
         // the corner can be drawn as a plotted point rather than a leg end
         L.dot.setAttribute('fill', spec.mark.fill || side);
         L.coord.textContent = spec.mark.coordText ||
-                              ('(' + t.x + ',\u00A0' + t.y + ')');
+                              ('(' + numText(t.x) + ',\u00A0' + numText(t.y) + ')');
         L.name.textContent = spec.mark.name || '';
         /* The corner's letter and its coordinate are one block, placed
            by the same rule every other point's are — out of the shape,
@@ -2887,7 +2983,16 @@
         if (i === specs.length - 1) { self.relabel(); self.markCrossing(); }
 
         if (spec.settled) {
-          // already on the board; only its length is new
+          /* Already on the board; only its length is new — so it goes
+             down DRAWN, not drawing. `placeLeg` has just wound this
+             line back to nothing (every leg is seated undrawn so the
+             ones that do arrive can arrive), and adding `draw` alone
+             set it animating from zero: the side the child had just
+             measured came off the board and joined itself a second
+             time, in front of them, one screen after they found it.
+             `set` is the line's version of `.segdot.set` — the same
+             hand-over, made invisible. It keeps `draw` so everything
+             that asks what is on the board still counts it. */
           if (!spec.noLine) (spec.dash ? L.dashG : L.line).classList.add('draw');
           /* And this is the hand-over: the side the child measured is
              now drawn in its own colour with its own length, so the
@@ -3295,6 +3400,11 @@
       if (uy < 0) reach = Math.min(reach, (P.gyFrom - from.y) / uy);
       const steps = Math.max(1, Math.min(units, Math.floor(reach + 1e-9)));
 
+      /* Their number is walked out, right or wrong. The line IS the
+         answer they gave: short of the point, on it, or a unit past
+         it, and seeing where it stops is the whole of the feedback.
+         Taking it away the moment it was wrong read as the board
+         deleting their answer. */
       for (let n = 1; n <= steps; n++) {
         (function (k) {
           later(function () {
@@ -3302,6 +3412,29 @@
             SFX.tick(k);
           }, (k - 1) * U.stepMs);
         })(n);
+      }
+
+      /* And a wrong one is walked BACK. It is held at its wrong length
+         long enough to be read, then travels home to the point it
+         started from — quicker going back than coming out, because it
+         is not being counted, it is being cleared — and only then does
+         the beat hand over to the squares. The number is never
+         written: the line may show a wrong length, but the board must
+         not assert one. */
+      if (!keep) {
+        const out = steps * U.stepMs;
+        const back = U.missStepMs == null ? 110 : U.missStepMs;
+        const hold = U.missHoldMs == null ? 620 : U.missHoldMs;
+        for (let n = steps - 1; n >= 0; n--) {
+          (function (k) {
+            later(function () {
+              if (k === 0) self.clearMeasure();
+              else self.drawMeasure(from, from.x + ux * k, from.y + uy * k);
+            }, out + hold + (steps - 1 - k) * back);
+          })(n);
+        }
+        later(done, out + hold + steps * back + 160);
+        return;
       }
 
       later(function () {
@@ -3738,7 +3871,7 @@
          line free for the count-out to hang its squares in. */
       const label = function (p) {
         return p.coordParts ? p.coordParts.map(function (f) { return f.t; }).join('')
-                            : (p.coordText || ('(' + p.x + ',\u00A0' + p.y + ')'));
+                            : (p.coordText || ('(' + numText(p.x) + ',\u00A0' + numText(p.y) + ')'));
       };
       let stacked = false;
       if (!vertical && spec.coordSide) {
@@ -3784,7 +3917,7 @@
            screen's words at this point. */
         const ctext = p.coordParts
           ? p.coordParts.map(function (f) { return f.t; }).join('')
-          : (p.coordText || ('(' + p.x + ',\u00A0' + p.y + ')'));
+          : (p.coordText || ('(' + numText(p.x) + ',\u00A0' + numText(p.y) + ')'));
 
         /* The words go in before the block is placed, so what is
            measured is what will be read.
@@ -3900,8 +4033,8 @@
          never "2 − -3". The copy that travels out of the label carries
          just the number; the brackets are the sum's own and appear when
          it lands. */
-      const loTxt = lo < 0 ? '(' + lo + ')' : String(lo);
-      const text = [String(hi), '\u2212', loTxt, '=', String(units)];
+      const loTxt = lo < 0 ? '(' + numText(lo) + ')' : numText(lo);
+      const text = [numText(hi), '\u2212', loTxt, '=', numText(units)];
       /* textW's flat width per character is fine for digits, but brackets
          and the minus are narrow glyphs — at a flat width "(-3)" claims
          half again the room it fills and the sum reads with holes round
@@ -4171,16 +4304,38 @@
       /* The pair's own length goes through the rule too. An example
          slot is a picture of its own and is laid out against nothing,
          so only the board's own is seated. */
+      /* A column's length is TURNED and set along its own line, the
+         way a vertical leg's is. Laid across, "5 units" is written
+         through the very line it measures — which is what the second
+         picture shows, on the board's own pair AND on the example
+         beside it. An example is laid out against nothing, so it needs
+         this more than the board's own does, not less. */
+      const upright = (ax === bx);
+      const size2 = (SG.resSize || SG.coordSize) * this.typeScale();
+      const m2 = this.textMetrics(text, size2);
+      const bw2 = upright ? Math.max(m2.h, size2) : m2.w;
+      const bh2 = upright ? m2.w : Math.max(m2.h, size2);
+      if (upright) {
+        /* Beside the line, a line's width out, on the side away from
+           the y-axis so it does not land on the numbering. */
+        X = ax + (spec.a.x >= 0 ? 1 : -1) * (SG.lineWidth / 2 + bw2 * 0.62);
+        Y = (ay + by) / 2;
+      }
+      let seat2 = { x: X, y: Y };
       if (!into) {
-        const size2 = (SG.resSize || SG.coordSize) * this.typeScale();
-        const m2 = this.textMetrics(text, size2);
-        const perp = (ax === bx) ? { x: (spec.a.x >= 0 ? 1 : -1), y: 0 }
-                                 : { x: 0, y: -1 };
-        this.seatLength(T.segRes, X, Y, m2.w, Math.max(m2.h, size2),
+        const perp = upright ? { x: (spec.a.x >= 0 ? 1 : -1), y: 0 }
+                             : { x: 0, y: -1 };
+        seat2 = this.seatLength(T.segRes, X, Y, bw2, bh2,
                         perp, T.segRes, { x: (ax + bx) / 2, y: (ay + by) / 2 });
       } else {
         T.segRes.setAttribute('x', X);
         T.segRes.setAttribute('y', Y);
+      }
+      const tw = T.segResTurn;
+      if (tw) {
+        if (upright) tw.setAttribute('transform',
+                       'rotate(-90 ' + seat2.x + ' ' + seat2.y + ')');
+        else tw.removeAttribute('transform');
       }
       T.segRes.classList.add('pop');
       /* No plate behind it: the text carries its own paper halo, the
@@ -4239,15 +4394,41 @@
       }
       const self = this;
 
+      /* Every line hangs from its own EQUALS SIGN, not from the left
+         edge of the column.
+
+         A worked calculation is read down the equals: the first line
+         states the thing, and each line after it is another way of
+         writing the same right-hand side. Flush left, those signs sat
+         in the corner of the plate with nothing over them — four lines
+         each starting with a stray `=` — and the eye had nothing to run
+         down. Hung under the sign above, the block reads as one
+         continued sentence, which is what it is.
+
+         The column is whichever line needs the most room before its
+         sign; each line is then pushed right by what it is short of.
+         A line with no sign in it keeps the left edge. */
+      const full = (lines || []).map(function (l) {
+        return (l.parts || [{ t: l.text || '' }])
+          .map(function (f) { return f.t; }).join('');
+      });
+      let col = 0;
+      const before = full.map(function (t) {
+        const at = t.indexOf('=');
+        if (at < 0) return null;
+        const w = self.textW(t.slice(0, at), size);
+        col = Math.max(col, w);
+        return w;
+      });
+      const indent = before.map(function (w) { return w == null ? 0 : col - w; });
+
       /* The plate, round the block the lines actually make: the widest
          of them, the first baseline to the last, and enough air that no
          glyph sits on a rule. */
       if (this.workPlate) {
         let wide = 0;
-        (lines || []).forEach(function (l) {
-          const t = (l.parts || [{ t: l.text || '' }])
-            .map(function (f) { return f.t; }).join('');
-          wide = Math.max(wide, self.textW(t, size));
+        full.forEach(function (t, n) {
+          wide = Math.max(wide, indent[n] + self.textW(t, size));
         });
         const air = size * 0.62;
         const p1 = this.workPlate;
@@ -4266,7 +4447,7 @@
         L.spans = [];
         while (L.t.firstChild) L.t.removeChild(L.t.firstChild);
         if (!spec) { L.t.textContent = ''; return; }
-        L.t.setAttribute('x', left);
+        L.t.setAttribute('x', left + indent[i]);
         L.t.setAttribute('y', top + i * step);
         L.t.setAttribute('font-size', size);
         (spec.parts || [{ t: spec.text || '' }]).forEach(function (f) {
@@ -4281,9 +4462,8 @@
          does not, the framing asked for too little room — say so rather
          than letting a line run into the drawing. */
       let widest = 0;
-      lines.forEach(function (l) {
-        const txt = (l.parts || [{ t: l.text || '' }]).map(function (f) { return f.t; }).join('');
-        widest = Math.max(widest, self.textW(txt, size));
+      full.forEach(function (txt, n) {
+        widest = Math.max(widest, indent[n] + self.textW(txt, size));
       });
       return widest <= (right - left);
     },
@@ -4621,7 +4801,7 @@
          off. Centred is also what a segment does with the pair later,
          so a point the child locates keeps its label exactly where they
          first saw it rather than shuffling when the pair is joined. */
-      const ctext = '(' + gx + ',\u00A0' + gy + ')';
+      const ctext = '(' + numText(gx) + ',\u00A0' + numText(gy) + ')';
       const cw = this.textW(ctext, F.labelSize);
       t.setAttribute('x', this.clampLabel(px, cw));
       /* And remembered, so the pair this point is about to become is
@@ -6441,11 +6621,17 @@
           // nothing was walked out on the Pythagoras screens, so there
           // is no line from A to B to leave lit
           if (!t.spec.noCount) Board.litMeasure();
-          /* Out of the far point — the end of the line they just drew,
-             which is the thing that was got right and where they are
-             already looking. */
-          const at = Board.stagePos(pair.to.x, pair.to.y);
+          /* Out of the number they just found. It used to come out of
+             the far point — the end of the line — which is where the
+             drawing finishes, not where the answer is: the child is
+             looking at "4 units", and that is the thing that was got
+             right. Worked out inside the beat rather than before it,
+             so a length still arriving has landed by the time the
+             confetti comes out of it; a screen that writes no total
+             still gets the far point. */
           self.later(function () {
+            const at = Board.totalSpot(t.spec.measureLeg) ||
+                       Board.stagePos(pair.to.x, pair.to.y);
             SFX.cheer();
             SFX.confettiPop();
             FX.pop(at.x, at.y, 18);
@@ -6539,9 +6725,27 @@
                   Board.countUnits(pair.from, pair.to, self.later.bind(self));
                 SFX.sparkle();
                 self.later(function () {
+                  /* The squares go first. Then, on the empty line, the
+                     number they came to — so the count is read as a
+                     count and its answer arrives as an answer, rather
+                     than the two being on the board at once. */
                   Board.clearUnits();
                   Board.clearMeasure();
-                  self.settle(C.AUTO.afterLine);
+                  self.later(function () {
+                    const real = Math.round(Math.hypot(
+                      pair.to.x - pair.from.x, pair.to.y - pair.from.y));
+                    const txt = real + '\u00A0unit' + (real === 1 ? '' : 's');
+                    const ent = C.SCRIPT[self.index] || {};
+                    if (t.spec.measureLeg != null) {
+                      Board.showLegTotal(t.spec.measureLeg, real,
+                                         pair.from, pair.to);
+                    } else if (ent.segment) {
+                      Board.showSegResult(ent.segment, txt);
+                    }
+                    SFX.chime();
+                    self.later(function () { self.settle(C.AUTO.afterLine); },
+                               C.GRID.unitBox.holdMs);
+                  }, 420);
                 }, counting + UC.readMs);
               }, Bubble.voiceTail + 260);
             });

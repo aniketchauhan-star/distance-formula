@@ -1054,6 +1054,15 @@ window.CFG = (function () {
       /* One beat per unit as the line walks out. Slow enough to count
          along with, quick enough that twelve of them is not a wait. */
       stepMs: 240,
+      /* A wrong guess is WALKED BACK. The line goes out to the number
+         they chose — short of the point or a unit past it, which is
+         the feedback — waits long enough to be seen there, and then
+         travels back to the point it started from, quicker than it
+         went out, leaving the board clear for the squares. It used to
+         simply stop existing, which read as the game deleting their
+         answer rather than as the answer coming back. */
+      missHoldMs: 620,   // the wrong length, held to be read
+      missStepMs: 110,   // and then walked back, one unit at a time
       /* How long the finished count stays up before the board is handed
          back. It is a hint, not a caption: it says how long a unit is
          and how many fit, and then gets out of the way so the next try
@@ -1792,7 +1801,7 @@ window.CFG = (function () {
       segment: {
         a: { x: 1, y: -3,
              coordParts: [{ t: '(' }, { t: '1', glow: 'x' }, { t: ',\u00A0' },
-                          { t: '-3', glow: 'y' }, { t: ')' }] },
+                          { t: '\u22123', glow: 'y' }, { t: ')' }] },
         b: { x: 1, y: 2,
              coordParts: [{ t: '(' }, { t: '1', glow: 'x' }, { t: ',\u00A0' },
                           { t: '2', glow: 'y' }, { t: ')' }] }
@@ -2009,7 +2018,18 @@ window.CFG = (function () {
 
        The panel was built for this: `triangle-options.js` carries these
        three as its own defaults and the game had stopped asking them. */
-    { id: 26, line: 'Look! We\u2019ve made a triangle.',
+    /* The balloon asks it. It used to say "Look! We've made a
+       triangle." with the three names already up on the panel —
+       an observation beside three buttons, so the child had to
+       work out from the buttons alone that a question was being
+       put to them. The beat has a question in it; the line is it.
+
+       Unvoiced for now: the recording says "What kind of triangle
+       is IT?" and the balloon must never read one thing while she
+       says another — the same call screen 7 made. Re-record, or
+       change the word here, and 17-what-kind-of-triangle-is-it.mp3
+       comes back. */
+    { id: 26, line: 'What kind of triangle is this?',
       askFirst: true,
       /* No "Triangle" on any of them. Every card on the screen is a
          triangle, the word was in all three, and it told the child
@@ -2049,7 +2069,7 @@ window.CFG = (function () {
          same triangle on the same board, so lighting it on both made
          one moment look like it was happening twice. It belongs to the
          question — move `pulse: 'triangle'` up here and off screen 25
-         to have it land on "Look! We made a triangle." instead. */
+         to have it land on the question instead. */
       hold: 3400,
       segment: { a: { x: 2, y: 1, name: 'A' },
                  b: { x: 6, y: 4, name: 'B' } },
@@ -2077,7 +2097,14 @@ window.CFG = (function () {
       stage: 'working',
       line: 'A right triangle! And we already know two of its sides.',
       line2: 'Pythagoras theorem can help us find the third!',
-      entrance: 'stay', layout: 'board', keepSegment: true,
+      entrance: 'stay', layout: 'board',
+      /* The working is about the drawing, so the paper steps back:
+         the ruling, the axes and their numbering fade and the triangle
+         and its lengths are what is left at full strength. The screens
+         that write a solution on the board all do this now — it was on
+         only the last two of them, so the same beat came up loud on one
+         screen and quiet on the next. */
+      quietBoard: true, keepSegment: true,
       /* The two known sides under the first line, the one she is about
          to find under the second — each played when its own sentence
          finishes. It used to be two clocks running past the words:
@@ -2127,7 +2154,14 @@ window.CFG = (function () {
          board comes to the middle, pushes in on the drawing and the
          room the working needs, and writes it there. */
       stage: 'working', line: 'Use the right triangle to find AB.', range: { min: 0, max: 12 }, entrance: 'none',
-      layout: 'board', transition: 'leaves', intro: 'measure', entry: true,
+      layout: 'board',
+      /* The working is about the drawing, so the paper steps back:
+         the ruling, the axes and their numbering fade and the triangle
+         and its lengths are what is left at full strength. The screens
+         that write a solution on the board all do this now — it was on
+         only the last two of them, so the same beat came up loud on one
+         screen and quiet on the next. */
+      quietBoard: true, transition: 'leaves', intro: 'measure', entry: true,
       segment: { a: { x: -2, y: 2, name: 'A' },
                  b: { x:  2, y: 5, name: 'B' } , dash: true},
       legs: [
@@ -2170,7 +2204,14 @@ window.CFG = (function () {
          board comes to the middle, pushes in on the drawing and the
          room the working needs, and writes it there. */
       stage: 'working', line: 'What is the distance between two points?', range: { min: 0, max: 12 }, entrance: 'none',
-      layout: 'board', transition: 'leaves', intro: 'measure', entry: true,
+      layout: 'board',
+      /* The working is about the drawing, so the paper steps back:
+         the ruling, the axes and their numbering fade and the triangle
+         and its lengths are what is left at full strength. The screens
+         that write a solution on the board all do this now — it was on
+         only the last two of them, so the same beat came up loud on one
+         screen and quiet on the next. */
+      quietBoard: true, transition: 'leaves', intro: 'measure', entry: true,
       segment: { a: { x: -3, y:  3, name: 'A' },
                  b: { x:  5, y: -3, name: 'B' } , dash: true},
       legs: [
@@ -2415,7 +2456,14 @@ window.CFG = (function () {
          board comes to the middle, pushes in on the drawing and the
          room the working needs, and writes it there. */
       stage: 'working', line: 'How far is it from the house to Caf\u00E9 A?',
-      entrance: 'none', layout: 'board', intro: 'measure', entry: true,
+      entrance: 'none', layout: 'board',
+      /* The working is about the drawing, so the paper steps back:
+         the ruling, the axes and their numbering fade and the triangle
+         and its lengths are what is left at full strength. The screens
+         that write a solution on the board all do this now — it was on
+         only the last two of them, so the same beat came up loud on one
+         screen and quiet on the next. */
+      quietBoard: true, intro: 'measure', entry: true,
       keepSegment: true, town: true,
       /* As far as the paper goes along this walk and no further:
          a miss is counted out on the board, and a number the line
@@ -2532,15 +2580,22 @@ window.CFG = (function () {
          board comes to the middle, pushes in on the drawing and the
          room the working needs, and writes it there. */
       stage: 'working', line: 'Now this one. Maya walks from the school to the park. How far is that?',
-      entrance: 'fly', layout: 'board', transition: 'leaves',
+      entrance: 'fly', layout: 'board',
+      /* The working is about the drawing, so the paper steps back:
+         the ruling, the axes and their numbering fade and the triangle
+         and its lengths are what is left at full strength. The screens
+         that write a solution on the board all do this now — it was on
+         only the last two of them, so the same beat came up loud on one
+         screen and quiet on the next. */
+      quietBoard: true, transition: 'leaves',
       intro: 'measure', entry: true, town: true,
       /* Same rule as 45: twelve is where this walk leaves the
          paper, and the answer is ten. */
       range: { min: 0, max: 12 },
       // in halves, so the working can lift them out — see screen 42
       segment: { a: { x: 5, y: -4, coordParts: [ { t: '(' }, { t: '5', glow: 'x' },
-                      { t: ',\u00A0' }, { t: '-4', glow: 'y' }, { t: ')' } ] },
-                 b: { x: -3, y: 2, coordParts: [ { t: '(' }, { t: '-3', glow: 'x' },
+                      { t: ',\u00A0' }, { t: '\u22124', glow: 'y' }, { t: ')' } ] },
+                 b: { x: -3, y: 2, coordParts: [ { t: '(' }, { t: '\u22123', glow: 'x' },
                       { t: ',\u00A0' }, { t: '2', glow: 'y' }, { t: ')' } ] },
                  coordSide: 'under' },
       /* Held back from the question, as on screen 45: a right-angled
@@ -2567,13 +2622,13 @@ window.CFG = (function () {
                    this line is the whole reason the beat exists. */
                 { kind: 'step', small: true, parts: [
                     { t: 'd = \u221A((' },
-                    { t: '-3', lit: 'h', from: { p: 'b', half: 'x' } },
+                    { t: '\u22123', lit: 'h', from: { p: 'b', half: 'x' } },
                     { t: ' - ' },
                     { t: '5', lit: 'h', from: { p: 'a', half: 'x' } },
                     { t: ')\u00B2 + (' },
                     { t: '2', lit: 'v', from: { p: 'b', half: 'y' } },
                     { t: ' - ' },
-                    { t: '(-4)', lit: 'v', from: { p: 'a', half: 'y' } },
+                    { t: '(\u22124)', lit: 'v', from: { p: 'a', half: 'y' } },
                     { t: ')\u00B2)' } ] },
                 { kind: 'step', parts: [
                     { t: 'd = \u221A(' }, { t: '8\u00B2', lit: 'h' }, { t: ' + ' },
@@ -2663,7 +2718,14 @@ window.CFG = (function () {
        which is the whole reason it is written here and not in a panel
        of its own. */
     { id: 51, line: 'Start with the Distance Formula.',
-      entrance: 'stay', layout: 'board', keepSegment: true,
+      entrance: 'stay', layout: 'board',
+      /* The working is about the drawing, so the paper steps back:
+         the ruling, the axes and their numbering fade and the triangle
+         and its lengths are what is left at full strength. The screens
+         that write a solution on the board all do this now — it was on
+         only the last two of them, so the same beat came up loud on one
+         screen and quiet on the next. */
+      quietBoard: true, keepSegment: true,
       /* Written on the paper beside the two towers, not in a panel of
          its own: the formula and the thing it is about have to be one
          picture, or the child has to choose which to look at. The
@@ -2706,7 +2768,14 @@ window.CFG = (function () {
        shown it. */
     { id: 53, line: 'Now calculate.',
       stage: 'working',
-      entrance: 'stay', layout: 'board', keepSegment: true,
+      entrance: 'stay', layout: 'board',
+      /* The working is about the drawing, so the paper steps back:
+         the ruling, the axes and their numbering fade and the triangle
+         and its lengths are what is left at full strength. The screens
+         that write a solution on the board all do this now — it was on
+         only the last two of them, so the same beat came up loud on one
+         screen and quiet on the next. */
+      quietBoard: true, keepSegment: true,
       intro: 'measure', entry: true, range: { min: 0, max: 12 },
       hint: 'The two sides are 6 and 8.',
       segment: { a: { x: -2, y: 5, name: 'A', coordSide: 'under' },
@@ -2763,6 +2832,13 @@ window.CFG = (function () {
          drawing, the way every other one in this lesson does. */
       stage: 'working',
       transition: 'leaves', entrance: 'fly', layout: 'board',
+      /* The working is about the drawing, so the paper steps back:
+         the ruling, the axes and their numbering fade and the triangle
+         and its lengths are what is left at full strength. The screens
+         that write a solution on the board all do this now — it was on
+         only the last two of them, so the same beat came up loud on one
+         screen and quiet on the next. */
+      quietBoard: true,
       board: 'wide', control: 'slider',
       intro: 'measure', entry: true, legsLater: true,
       range: { min: 0, max: 15 },

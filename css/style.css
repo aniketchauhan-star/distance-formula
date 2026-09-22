@@ -567,6 +567,11 @@ html, body {
 }
 #gridAxes .legdash { fill: none; }
 #gridAxes .legline.draw { animation: drawOut .6s cubic-bezier(.3, .85, .35, 1) forwards; }
+/* A side carried over from the screen before is not arriving: it is
+   simply still there. `set` says so — drawn, with no drawing. */
+#gridAxes .legline.draw.set,
+#gridAxes .segline.draw.set,
+#gridAxes .segdash-g.draw.set { animation: none; stroke-dashoffset: 0; }
 #gridAxes .legcoord, #gridAxes .legname {
   opacity: 0;
   font-family: 'Nunito', system-ui, sans-serif;
@@ -1445,7 +1450,18 @@ html, body {
    is all of them. The class is doubled here to match that weight, and
    the block sits last so source order settles the tie.
    ============================================================= */
-#gridAxes .spotbeat.spotbeat { animation: partBeat .5s ease; }
+#gridAxes .spotbeat.spotbeat { animation: partPulse .62s ease; }
+
+/* The beat itself: the side SWELLS. It used to dip to .45 opacity and
+   come back — a flicker, which reads as the line failing rather than
+   as the line being pointed at. A glow that grows out of the one
+   `.spot` is already wearing and settles back into it says "this one"
+   without ever taking the line away. */
+@keyframes partPulse {
+  0%, 100% { filter: drop-shadow(0 0 7px rgba(255, 196, 74, .95)); }
+  50%      { filter: drop-shadow(0 0 13px rgba(255, 196, 74, 1))
+                     drop-shadow(0 0 24px rgba(255, 196, 74, .72)); }
+}
 
 /* The triangle pulsing, done with an overlay rather than by arguing
    with the lines themselves.
@@ -1483,8 +1499,19 @@ html, body {
   }
 }
 
-/* and the three corners, on the same clock */
+/* and the three corners, on the same clock.
+
+   `opacity: 1` is not decoration — it is what keeps the corner ON the
+   board. A dot rests at opacity 0 and is painted by `segDotIn ... both`:
+   the animation's fill IS its visibility. Naming an animation here
+   REPLACES that one, fill and all, so the dot fell back to its own
+   resting opacity and went out for exactly as long as she was pointing
+   at it — the two corners she names being the only two that vanish.
+   The same trap as a filled animation beating a transform attribute:
+   whatever a `both` animation is holding, a second `animation:` on the
+   same element drops. Hold it here instead. */
 #gridAxes.triangle-question-active .triangle-point {
+  opacity: 1;
   animation: trianglePointPulse 900ms ease-in-out infinite;
   transform-box: fill-box;
   transform-origin: center;
