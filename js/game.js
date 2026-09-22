@@ -2624,6 +2624,10 @@
       const G = C.GRID, LG = G.leg, L = this.legSlots[i];
       /* Kept so the camera can frame what is actually drawn. */
       this.legPlaced = this.legPlaced || [];
+      /* What was in this slot a moment ago, before it is overwritten:
+         the same side, still on the board, is a side being HANDED OVER
+         rather than one arriving. */
+      const was = this.legPlaced[i];
       this.legPlaced[i] = spec;
       const px = function (v) { return G.originX + v * G.stepX; };
       const py = function (v) { return G.originY - v * G.stepY; };
@@ -2670,14 +2674,33 @@
          screen that wanted one, and a side that should have been
          drawing sat wound back to nothing under its own written
          length. It follows the spec now, every time. */
-      /* `draw` still on the line means nothing has cleared this board
-         since it drew — `clearLegs` is what takes the class off — so
-         the side is already down and winding it back would take it off
-         the screen. Only a side that has yet to draw gets wound back. */
-      const held = !!spec.settled || L.line.classList.contains('draw');
+      /* Wound back only if it has yet to be on the board at all.
+
+         Three ways a side is already there. It says `settled`. Or it
+         still carries `draw`, which means nothing has cleared this
+         board since it drew — `clearLegs` is what takes that class off.
+         Or the slot held this very side a moment ago and the group is
+         still up: a dotted guide going solid, which is the same two
+         points and the same span, drawn differently. That last one is
+         what made CB vanish and draw itself again one screen after the
+         guide had already shown the child where it ran — the hand-over
+         from guide to found side should be a change of dress, not a
+         second arrival. */
+      const shownAlready = !!(was && was.from && was.to &&
+        was.from.x === f.x && was.from.y === f.y &&
+        was.to.x === t.x && was.to.y === t.y &&
+        L.g.classList.contains('on') &&
+        (L.line.classList.contains('draw') ||
+         (L.dashG && L.dashG.classList.contains('draw'))));
+      const held = !!spec.settled || L.line.classList.contains('draw') ||
+                   shownAlready;
       L.line.style.strokeDashoffset = held ? 0 : len;
-      L.line.classList.toggle('set', !!spec.settled);
-      if (L.dashG) L.dashG.classList.toggle('set', !!spec.settled);
+      const quietly = !!spec.settled || shownAlready;
+      /* Read back by `placeLegs`, which decides whether this side
+         arrives on a clock or is simply on. */
+      L.handedOver = shownAlready;
+      L.line.classList.toggle('set', quietly);
+      if (L.dashG) L.dashG.classList.toggle('set', quietly);
 
       if (spec.mark) {
         L.dot.setAttribute('cx', x2); L.dot.setAttribute('cy', y2);
@@ -3018,10 +3041,17 @@
            where the third point comes from. The line takes 600ms, so
            the dot lands as it gets there. */
         if (!spec.noLine) {
-          later(function () {
-            (spec.dash ? L.dashG : L.line).classList.add('draw');
-            SFX.draw();
-          }, base + 120);
+          /* Handed over rather than arriving: it goes on at once, with
+             no stroke sound, because nothing is being drawn — the line
+             the child is already looking at is simply solid now. */
+          if (L.handedOver) {
+            (spec.dash ? L.dashG : L.line).classList.add('draw', 'set');
+          } else {
+            later(function () {
+              (spec.dash ? L.dashG : L.line).classList.add('draw');
+              SFX.draw();
+            }, base + 120);
+          }
         }
         // the dots take 900ms to reach the far end where the line takes 600
         const lands = base + (spec.dash ? 980 : 760);

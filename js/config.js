@@ -2132,8 +2132,8 @@ window.CFG = (function () {
               { t: 'CB\u00B2', lit: 'v' } ] },
           { kind: 'step', parts: [
               { t: '= ' },
-              { t: '4\u00B2', lit: 'h', from: { leg: 0 } }, { t: ' + ' },
-              { t: '3\u00B2', lit: 'v', from: { leg: 1 } } ] },
+              { t: '(4)\u00B2', lit: 'h', from: { leg: 0 } }, { t: ' + ' },
+              { t: '(3)\u00B2', lit: 'v', from: { leg: 1 } } ] },
           { kind: 'step', parts: [
               { t: '= ' }, { t: '16', lit: 'h' }, { t: ' + ' }, { t: '9', lit: 'v' } ] },
           { kind: 'step', parts: [
@@ -2189,8 +2189,8 @@ window.CFG = (function () {
               formula: [
                 { kind: 'lead', parts: [
                     { t: 'AB\u00B2', lit: 'ab' }, { t: ' = ' },
-                    { t: '4\u00B2', lit: 'h', from: { leg: 0 } }, { t: ' + ' },
-                    { t: '3\u00B2', lit: 'v', from: { leg: 1 } } ] },
+                    { t: '(4)\u00B2', lit: 'h', from: { leg: 0 } }, { t: ' + ' },
+                    { t: '(3)\u00B2', lit: 'v', from: { leg: 1 } } ] },
                 { kind: 'step', parts: [
                     { t: '= ' }, { t: '16', lit: 'h' }, { t: ' + ' }, { t: '9', lit: 'v' } ] },
                 { kind: 'step', parts: [
@@ -2234,8 +2234,8 @@ window.CFG = (function () {
               formula: [
                 { kind: 'lead', parts: [
                     { t: 'AB\u00B2', lit: 'ab' }, { t: ' = ' },
-                    { t: '8\u00B2', lit: 'h', from: { leg: 0 } }, { t: ' + ' },
-                    { t: '6\u00B2', lit: 'v', from: { leg: 1 } } ] },
+                    { t: '(8)\u00B2', lit: 'h', from: { leg: 0 } }, { t: ' + ' },
+                    { t: '(6)\u00B2', lit: 'v', from: { leg: 1 } } ] },
                 { kind: 'step', parts: [
                     { t: '= ' }, { t: '64', lit: 'h' }, { t: ' + ' }, { t: '36', lit: 'v' } ] },
                 { kind: 'step', parts: [
@@ -2503,11 +2503,11 @@ window.CFG = (function () {
                 { kind: 'step', parts: [
                     { t: 'd = \u221A((' },
                     { t: '5', lit: 'h', from: { p: 'b', half: 'x' } },
-                    { t: ' - ' },
+                    { t: ' \u2212 ' },
                     { t: '1', lit: 'h', from: { p: 'a', half: 'x' } },
                     { t: ')\u00B2 + (' },
                     { t: '4', lit: 'v', from: { p: 'b', half: 'y' } },
-                    { t: ' - ' },
+                    { t: ' \u2212 ' },
                     { t: '1', lit: 'v', from: { p: 'a', half: 'y' } },
                     { t: ')\u00B2)' } ] },
                 { kind: 'step', parts: [
@@ -2623,11 +2623,11 @@ window.CFG = (function () {
                 { kind: 'step', small: true, parts: [
                     { t: 'd = \u221A((' },
                     { t: '\u22123', lit: 'h', from: { p: 'b', half: 'x' } },
-                    { t: ' - ' },
+                    { t: ' \u2212 ' },
                     { t: '5', lit: 'h', from: { p: 'a', half: 'x' } },
                     { t: ')\u00B2 + (' },
                     { t: '2', lit: 'v', from: { p: 'b', half: 'y' } },
-                    { t: ' - ' },
+                    { t: ' \u2212 ' },
                     { t: '(\u22124)', lit: 'v', from: { p: 'a', half: 'y' } },
                     { t: ')\u00B2)' } ] },
                 { kind: 'step', parts: [
@@ -2799,8 +2799,8 @@ window.CFG = (function () {
               formula: [
                 { kind: 'lead', parts: [
                     { t: 'AB\u00B2', lit: 'ab' }, { t: ' = ' },
-                    { t: '6\u00B2', lit: 'h', from: { leg: 0 } }, { t: ' + ' },
-                    { t: '8\u00B2', lit: 'v', from: { leg: 1 } } ] },
+                    { t: '(6)\u00B2', lit: 'h', from: { leg: 0 } }, { t: ' + ' },
+                    { t: '(8)\u00B2', lit: 'v', from: { leg: 1 } } ] },
                 { kind: 'step', parts: [
                     { t: '= ' }, { t: '36', lit: 'h' }, { t: ' + ' }, { t: '64', lit: 'v' } ] },
                 { kind: 'step', parts: [
@@ -2875,8 +2875,8 @@ window.CFG = (function () {
               formula: [
                 { kind: 'lead', parts: [
                     { t: 'SR\u00B2', lit: 'ab' }, { t: ' = ' },
-                    { t: '5\u00B2', lit: 'h', from: { leg: 0 } }, { t: ' + ' },
-                    { t: '12\u00B2', lit: 'v', from: { leg: 1 } } ] },
+                    { t: '(5)\u00B2', lit: 'h', from: { leg: 0 } }, { t: ' + ' },
+                    { t: '(12)\u00B2', lit: 'v', from: { leg: 1 } } ] },
                 { kind: 'step', parts: [
                     { t: '= ' }, { t: '25', lit: 'h' }, { t: ' + ' }, { t: '144', lit: 'v' } ] },
                 { kind: 'step', parts: [
