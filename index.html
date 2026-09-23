@@ -115,6 +115,13 @@
           <svg id="bubbleShape" aria-hidden="true">
             <path id="bubbleBody" d=""></path>
             <ellipse id="bubbleSheen"></ellipse>
+            <!-- Two short strokes outside each edge, converging on the
+                 box, the way a comic panel marks a raised voice. They
+                 are drawn inside the silhouette's own svg so they take
+                 its halo with it; it is `overflow: visible`, so sitting
+                 outside the balloon costs the layout nothing. -->
+            <path id="bubbleMarkL" class="bub-mark" d=""></path>
+            <path id="bubbleMarkR" class="bub-mark" d=""></path>
           </svg>
           <div id="bubbleText"><span id="bubbleLine"></span></div>
         </div>
