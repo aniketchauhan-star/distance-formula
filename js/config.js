@@ -1968,28 +1968,47 @@ window.CFG = (function () {
        distance." cannot be read on its own, which is what keeps them
        from reading as two separate recollections. */
     { id: 20,
+      /* The two ways they already know, on one board, one sentence
+         each. It was two screens — a row on the first, a column on the
+         second — and they were saying one thing between them: that both
+         of these are solved and the next one will not be. Said in a
+         single breath it is one fact; said across a screen change it is
+         two, and the child has to carry the first over the join.
+
+         Two lines, and a pair each. The row is the board's own segment
+         and arrives with her first sentence; the column is carried as a
+         recalled pair and is held back until the second names it — see
+         `lineLights` below and `lightAfterLine`. So each line draws the
+         thing it is talking about, rather than both being up while she
+         works through them.
+
+         One of each is enough. The pair of rows and pair of columns the
+         two screens carried were making the same point twice over. */
       line: 'We know how to find horizontal distance.',
-      /* It says nothing, so nothing paces it but this: a spoken beat is
-         held for as long as the words take and then some, and without
-         them the rows would be up and gone before they had been looked
-         at. */
+      line2: 'And vertical distance.',
+      /* Neither line has a recording, so nothing paces them but this: a
+         beat is held for as long as the words take and then some, and
+         there are two sets of words and two pairs to look at now. */
       entrance: 'stay', layout: 'board', hold: EXAMPLE_HOLD + 1600,
       /* Two pairs on one board: the furniture steps back so they read as
          the subject rather than as more lines among the ruling. */
       quietBoard: true,
-      /* The same row the argument worked, laid out the way it laid it
-         out: the coordinates under their points, and the length over
-         the line, where the working left it. */
+      /* The row, laid out the way the argument laid it out: the
+         coordinates under their points, and the length over the line,
+         where the working left it. */
       segment: { a: { x: 3, y: 2 }, b: { x: 6, y: 2 },
                  coordSide: 'under',
                  result: { text: '3\u00A0units' } },
-      /* The other row they measured — screen 13's question, with the
-         answer they gave it. No offsets on either: a length goes in the
-         middle of the span it measures, and the board steps this one
-         aside far enough to clear the y-axis numbering its own middle
-         falls on — see showSegResult. */
-      examples: [ { a: { x: 4, y: 3 }, b: { x: -3, y: 3 },
-                    result: { text: '7\u00A0units' } } ] },
+      /* And the column they measured on 19, with the answer they gave
+         it. No offsets: a length goes in the middle of the span it
+         measures, and the board steps one aside itself if its middle
+         lands on the axis numbering — see showSegResult. */
+      examples: [ { a: { x: -2, y: 3 }, b: { x: -2, y: 1 },
+                    result: { text: '2\u00A0units' } } ],
+      /* The first line brings nothing of its own — the row is already
+         being drawn as the board's segment. The second brings the
+         column. */
+      lineLights: [ {}, { examples: true } ] },
 
     /* Both lengths go where every length goes: the middle of the span
        it measures, out to the side of the line by the same air a
@@ -1997,13 +2016,6 @@ window.CFG = (function () {
        so its own middle is the row the axis numbers live in — the
        board slides it down its own line until it is clear of them, and
        no further. */
-    { id: 21, line: 'And vertical distance.',
-      entrance: 'stay', layout: 'board', hold: EXAMPLE_HOLD, quietBoard: true,
-      segment: { a: { x: 1, y: -3 }, b: { x: 1, y: 2 },
-                 result: { text: '5\u00A0units' } },
-      // the other column they measured — screen 19's question
-      examples: [ { a: { x: -2, y: 3 }, b: { x: -2, y: 1 },
-                    result: { text: '2\u00A0units' } } ] },
 
     /* 12 — leaves sweep again and the scene goes back to the field
        layout of screen 5: board on the right, Swifty standing on the

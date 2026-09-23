@@ -6088,7 +6088,14 @@
           }, 260);
           /* Pairs recalled beside this one come up under her line, not
              before it — the screen is no slower for carrying them. */
-          if (entry.examples) Board.runExamples(entry.examples, self.later.bind(self));
+          /* Unless a line has claimed them — see lightAfterLine. Then
+             they belong to that sentence, not to the board arriving. */
+          const linedUp = (entry.lineLights || []).some(function (L) {
+            return L && L.examples;
+          });
+          if (entry.examples && !linedUp) {
+            Board.runExamples(entry.examples, self.later.bind(self));
+          }
           if (entry.legs) Board.runLegs(entry.legs, self.later.bind(self), next);
           else next();
         };
@@ -7520,6 +7527,15 @@
       if (!L) return 0;
       const later = this.later.bind(this), run = L.run || 1700;
       let ms = 0;
+      /* A line can bring the screen's recalled pair on with it, so a
+         beat that names two things one after the other draws each as
+         it is named rather than putting both up at the start. */
+      if (L.examples && (entry.examples || []).length) {
+        const EX = C.GRID.example;
+        Board.runExamples(entry.examples, later);
+        ms = Math.max(ms, (entry.examples.length - 1) * EX.stagger +
+                          EX.resultMs + 300);
+      }
       if (L.points) ms = Math.max(ms, Board.pulsePoints(later, 0, [].concat(L.points), run));
       if (L.pulse) ms = Math.max(ms, Board.pulseSides(later, 0, [].concat(L.pulse), run));
       /* A pulse brings its own sound with it. When a line both pulses a
