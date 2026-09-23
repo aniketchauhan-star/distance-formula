@@ -5480,6 +5480,57 @@
       }, 900);
     },
 
+    /* What a screen expects to find already drawn.
+
+       Most screens do not carry a pair of their own. They say
+       `keepSegment` and go on arguing about whatever the screen before
+       them left on the paper. That holds for every route through the
+       script and stops holding the moment the picker drops a child in
+       from somewhere else — which is why a jumped-to board arrived
+       with no pair on it, no points and no letters.
+
+       So a screen that inherits is given what it would have inherited:
+       the nearest earlier screen that actually draws a pair, replayed
+       on an instantaneous clock. `runSegment` and `runLegs` both take
+       the clock they schedule against, so handing them one that fires
+       at once puts up the finished drawing through the same code that
+       draws it normally — rather than a second way of drawing the same
+       thing, which is how the two would drift apart.
+
+       Its sides come over `settled`, because they were drawn on a
+       screen this child did not watch; drawing them again here would
+       be the board doing work whose point has passed.
+
+       Played in order this never fires: the board is already holding
+       the pair, and the first thing it checks is whether it is. */
+    seedInherited: function (i) {
+      const entry = C.SCRIPT[i] || {};
+      if (entry.segment || !entry.keepSegment) return;
+      if (Board.shown && Board.lastPlotted) return;
+      let src = null;
+      for (let n = i - 1; n >= 0; n--) {
+        const s = C.SCRIPT[n] || {};
+        if (s.segment) { src = s; break; }
+      }
+      if (!src) return;
+      /* The paper first, and the furniture on it. `settleFurniture` is
+         what finishes a sweep the screen before did not get to, and it
+         is guarded on the board being up — which it is not here, so a
+         seeded board arrived with its pair drawn on blank paper: no
+         axes, no arrowheads and no numbering. */
+      Board.build();
+      Board.settleFurniture();
+      const now = function (fn) { fn(); };
+      const nothing = function () {};
+      Board.runSegment(src.segment, now, nothing);
+      if (src.legs && src.legs.length) {
+        Board.runLegs(src.legs.map(function (l) {
+          return Object.assign({}, l, { settled: true });
+        }), now, nothing);
+      }
+      Board.shown = true;
+    },
+
     goTo: function (i) {
       /* A branch belongs to the answer that set it and to nothing
          else: arriving anywhere clears it, so Back and Next can never
@@ -5533,6 +5584,10 @@
       if (Board.shown) Board.settleFurniture();
 
       const entry = C.SCRIPT[i];
+      /* Before anything is dressed: if this screen expects a drawing to
+         already be there and there is none, put up the one it would
+         have inherited. Nothing to do on the way through the script. */
+      this.seedInherited(i);
       /* A question that follows straight on from one answered on the
          control keeps the whole arrangement: she stays up on the panel,
          the control stays under her, and only the board changes. Taking
@@ -5849,7 +5904,15 @@
         if (entry.entrance === 'fly') self.flyIn(after);
         else if (entry.entrance === 'flyOut') self.flyOut(after);
         else if (entry.entrance === 'hop') self.hop(after);
-        else if (entry.entrance === 'none') after();     // nobody to bring on
+        /* Nobody to bring on — because she is already standing where
+           the screen before left her. That is true on the way through
+           and false after a jump, which arrives with her still in the
+           flying rig she was drawn in on the title screen. `stay` was
+           given this job once already, for the same reason, and this
+           is the branch that skips it: so if the rig is what is up,
+           put the standing artwork up instead, with no flight. She was
+           meant to have been here all along. */
+        else if (entry.entrance === 'none') { self.assertStanding(); after(); }
         else self.stay(after);
       };
 
@@ -6471,6 +6534,23 @@
         Sprite.stopAt('talk', 0);
       };
       el.birdRig.addEventListener('animationend', finish);
+    },
+
+    /* Her standing artwork, put up without a flight.
+
+       Only when the flying rig is what is showing — which is the state
+       a jump arrives in, and never the state a screen reaches on the
+       way through. If she is fully hidden she is meant to be off the
+       screen, and a beat that has sent her away is not second-guessed
+       here. */
+    assertStanding: function () {
+      if (!this.geom || !this.geom.stand) return;
+      if (!el.standSwifty.classList.contains('hidden')) return;
+      if (el.birdWin.classList.contains('hidden')) return;
+      el.birdRig.classList.remove('fly-in', 'hop', 'pre-entrance');
+      el.shadow.classList.remove('lifted');
+      el.birdWin.classList.add('hidden');
+      el.standSwifty.classList.remove('hidden');
     },
 
     /* Talking only: she is already standing where she landed, so the
