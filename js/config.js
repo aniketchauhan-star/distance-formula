@@ -1682,7 +1682,7 @@ window.CFG = (function () {
   const SCRIPT = [
     { id: 1, line: 'Hey there!',                                         entrance: 'fly'  },
     { id: 2, line: 'Ready to explore distance on the coordinate plane?', entrance: 'stay' },
-    { id: 3, line: 'Let’s start with something familiar.',               entrance: 'stay' },
+    { id: 3, line: 'Let’s do a quick warm-up.',                          entrance: 'stay' },
 
     // 4 — no dialogue: she simply flies back out the way she came in,
     //     then the screen hands over on its own.

@@ -26,6 +26,13 @@ window.Voice = (function () {
       ['01-hey-there.mp3', 0.78],
     'Ready to explore distance on the coordinate plane?':
       ['02-ready-to-explore-distance-on-the-coordinate-pl.mp3', 3.19],
+    /* Screen 3 says "Let’s do a quick warm-up." now, and no recording
+       says that. The entry stays because the clip does: the reader said
+       these words, the file is still in sfx/voices, and the key is what
+       would hook it back up if the line ever goes back to them. Until
+       there is a cut of the new words under a matching key, that screen
+       plays no voice — which the header above says is the quiet
+       failure, not the broken one. */
     'Let’s start with something familiar.':
       ['03-let-s-start-with-something-familiar.mp3', 2.25],
     'Locate the point (3, 2).':
