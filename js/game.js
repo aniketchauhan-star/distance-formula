@@ -2943,6 +2943,40 @@
           if (horiz) vSide = (my <= y1) ? -1 : 1;   // pair above it: write below
           else inner = (mx <= x1) ? 1 : -1;         // pair to its left: write right
         }
+        /* A side that runs neither along a row nor down a column.
+
+           Every leg in this lesson was one or the other, so there were
+           two cases and "not horizontal" meant vertical. The closing
+           triangle has an ordinary diagonal for its third side, and it
+           went through the vertical branch: turned on its end and set
+           against x1 — which is the column the OTHER side runs down.
+           So the park's 15 units was written up the same line as its
+           14, two lengths stacked on one side and neither of them
+           beside the side it measures.
+
+           A diagonal is written along itself, the way a vertical one
+           is, but at its own angle: laid on the midpoint, turned to
+           the line, and pushed off it along the normal that points
+           away from the rest of the drawing. */
+        const vert = (f.x === t.x);
+        const diag = !horiz && !vert;
+        let ang = 0, nx = 0, ny = 0;
+        if (diag) {
+          const ux = x2 - x1, uy = y2 - y1, m = Math.hypot(ux, uy) || 1;
+          ang = Math.atan2(uy, ux) * 180 / Math.PI;
+          /* Never upside down: a label reads left to right whichever
+             way its side happens to run. */
+          if (ang > 90) ang -= 180;
+          if (ang < -90) ang += 180;
+          nx = -uy / m; ny = ux / m;
+          if (drawn && drawn.a && drawn.b) {
+            const cx0 = (px(drawn.a.x) + px(drawn.b.x)) / 2;
+            const cy0 = (py(drawn.a.y) + py(drawn.b.y)) / 2;
+            if (((x1 + x2) / 2 - cx0) * nx + ((y1 + y2) / 2 - cy0) * ny < 0) {
+              nx = -nx; ny = -ny;
+            }
+          }
+        }
         const face = this.shapeFace();
         /* A vertical leg's length is TURNED and set along its own
            line, just outside it. Laid across, "3 units" had to stand
@@ -2952,18 +2986,28 @@
         const turn = !horiz;
         const off = turn ? (LG.lenSize * tk * 0.62 + LG.width) : 0;
         let lx = horiz ? (x1 + x2) / 2 : (x1 + inner * off);
-        const ly = horiz ? y1 + vSide * LG.lenGap * tk
-                         : (y1 + y2) / 2 + towardCorner * LG.lenBiasV * tk;
+        let ly = horiz ? y1 + vSide * LG.lenGap * tk
+                       : (y1 + y2) / 2 + towardCorner * LG.lenBiasV * tk;
+        if (diag) {
+          lx = (x1 + x2) / 2 + nx * off;
+          ly = (y1 + y2) / 2 + ny * off;
+        }
         /* A leg centred on the origin writes its length straight down
            the y-axis, so it slides along its own leg towards the corner
            until it is clear of the axis and the numbers beside it. */
         const lw2 = this.textW(txt, LG.lenSize * tk);
         /* Turned, its footprint is on its side: as wide as the type is
            tall, and as tall as the words are long. */
-        const bw = turn ? (LG.lenSize * tk) : lw2;
-        const bh = turn ? lw2 : (LG.lenSize * tk);
+        const lh2 = LG.lenSize * tk;
+        /* Turned, its footprint is on its side: as wide as the type is
+           tall, and as tall as the words are long. At an angle it is
+           neither, so it is measured as the box actually covers. */
+        const ca = Math.abs(Math.cos(ang * Math.PI / 180));
+        const sa = Math.abs(Math.sin(ang * Math.PI / 180));
+        const bw = diag ? (lw2 * ca + lh2 * sa) : (turn ? lh2 : lw2);
+        const bh = diag ? (lw2 * sa + lh2 * ca) : (turn ? lw2 : lh2);
         if (horiz) lx = this.clearOfYAxis(lx, lw2);
-        else if (Math.abs(this.clampX(lx, lw2) - lx) > 0.5) {
+        else if (!diag && Math.abs(this.clampX(lx, lw2) - lx) > 0.5) {
           /* No room on that side after all: take the other one whole —
              unless the other one is the inside of the shape, which it
              may not have at any price. Then it comes in against the
@@ -2977,7 +3021,7 @@
            courtesy showSegResult already does for a pair's own length,
            and the same row it measures against. */
         let lyOut = ly;
-        if (!horiz) {
+        if (!horiz && !diag) {
           const band = LG.lenSize * tk;
           let guard = 0;
           while (this.onXAxisRow(lyOut, band) && guard++ < 12) {
@@ -3024,8 +3068,8 @@
            that let "3 units" be written across the x-axis letter and
            through the corner's own C. */
         L.len.textContent = txt;
-        const outX = horiz ? 0 : (inner >= 0 ? 1 : -1);
-        const outY = horiz ? (vSide >= 0 ? 1 : -1) : 0;
+        const outX = diag ? nx : (horiz ? 0 : (inner >= 0 ? 1 : -1));
+        const outY = diag ? ny : (horiz ? (vSide >= 0 ? 1 : -1) : 0);
         const seat = this.seatLength(L.len, fx, fy, bw, bh,
                         { x: outX, y: outY }, L.len,
                         { x: (x1 + x2) / 2, y: (y1 + y2) / 2 });
@@ -3033,7 +3077,9 @@
            side rather than across it. */
         const tn = L.lenTurn;
         if (tn) {
-          if (turn) tn.setAttribute('transform',
+          if (diag) tn.setAttribute('transform',
+                      'rotate(' + ang.toFixed(2) + ' ' + seat.x + ' ' + seat.y + ')');
+          else if (turn) tn.setAttribute('transform',
                       'rotate(-90 ' + seat.x + ' ' + seat.y + ')');
           else tn.removeAttribute('transform');
         }
