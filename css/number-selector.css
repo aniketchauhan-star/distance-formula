@@ -101,10 +101,19 @@
   --arrow:   150px;
   --arrow-h: calc(var(--arrow) * 240 / 242);
 
-  /* GO is a PILL, not a disc: 604 x 200 on the sheet, and 604 of the
-     housing's 794 across, so it keeps that share of the bar. It was
-     drawn as a circle because a circle was all the CSS had. */
-  --go-w:    calc(var(--frame-w) * 604 / 794);
+  /* GO is a PILL, not a disc: 604 x 200 on the sheet. It was drawn as a
+     circle here once, because a circle was all the CSS had.
+
+     It used to take 604 of the housing's 794 across, which is the share
+     the two have on the sheet — and at that share it comes out almost
+     as wide as the bar standing above it, so the control reads as two
+     stacked bars rather than as a button under a panel. Narrowed to
+     three fifths of the frame.
+
+     The height still follows the WIDTH at the drawing's own 604 x 200,
+     so the pill keeps its shape however wide it is set; the change
+     spends less of the row on it, it does not squash it. */
+  --go-w:    calc(var(--frame-w) * 0.60);
   --go-h:    calc(var(--go-w) * 200 / 604);
 
   /* And the pointer at 193 x 129, sized to the gold band it sits in
