@@ -43,13 +43,62 @@ window.TriangleOptions = (function () {
       });
     }
 
+    /* The three shapes, drawn rather than described. Each is the same
+       size and sits on the same baseline, so the cards read as three of
+       one thing; what differs between them is the marks. */
+    const NS = 'http://www.w3.org/2000/svg';
+    function triangleIcon(marks) {
+      const svg = document.createElementNS(NS, 'svg');
+      svg.setAttribute('class', 'opt-icon');
+      svg.setAttribute('viewBox', '0 0 120 84');
+      svg.setAttribute('aria-hidden', 'true');
+      /* Scalene leans and has no two sides alike; the other two are
+         symmetric, because a child should be able to see the symmetry
+         the marks are claiming. */
+      const pts = marks === 0 ? [[8, 76], [112, 76], [78, 14]]
+                              : [[10, 76], [110, 76], [60, 12]];
+      const poly = document.createElementNS(NS, 'polygon');
+      poly.setAttribute('points', pts.map(function (p) { return p.join(','); }).join(' '));
+      poly.setAttribute('class', 'opt-tri');
+      svg.appendChild(poly);
+
+      /* A hash across the middle of a side, at right angles to it. The
+         sides that get one: two for isosceles (the two that are equal),
+         three for equilateral, none for scalene. */
+      const sides = [[pts[0], pts[2]], [pts[1], pts[2]], [pts[0], pts[1]]];
+      for (let i = 0; i < marks; i++) {
+        const a = sides[i][0], b = sides[i][1];
+        const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
+        const dx = b[0] - a[0], dy = b[1] - a[1];
+        const L = Math.hypot(dx, dy) || 1;
+        const nx = -dy / L * 7, ny = dx / L * 7;
+        const tick = document.createElementNS(NS, 'line');
+        tick.setAttribute('x1', mx - nx); tick.setAttribute('y1', my - ny);
+        tick.setAttribute('x2', mx + nx); tick.setAttribute('y2', my + ny);
+        tick.setAttribute('class', 'opt-tick');
+        svg.appendChild(tick);
+      }
+      return svg;
+    }
+
     let builtKeys = '';
     function build(list) {
       list = list || CHOICES;
-      // only rebuild when the answers actually differ
-      const keys = list.map(function (c) { return c.key; }).join('|');
-      if (keys === builtKeys) { clearStates(); return; }
-      builtKeys = keys;
+      /* Only rebuild when what is on the cards actually differs — and
+         that is everything a card is made of, not just its key.
+
+         It used to compare keys alone, so a screen supplying the same
+         three answers under different WORDS got the cards it happened
+         to have: screen 26 declared Scalene / Isosceles / Right-angled
+         and was shown the component's own defaults, which say
+         "Triangle" after each of them. Its `options` array had been
+         dead for as long as the keys had matched. */
+      const sig = list.map(function (c) {
+        return [c.key, c.label || '', c.cls || '',
+                c.marks == null ? '' : c.marks].join('\u0001');
+      }).join('|');
+      if (sig === builtKeys) { clearStates(); return; }
+      builtKeys = sig;
 
       buttons.forEach(function (b) { root.removeChild(b); });
       buttons = [];
@@ -60,8 +109,24 @@ window.TriangleOptions = (function () {
         b.classList.add('opt-' + (i + 1));        // positional colour
         b.style.order = '1';                      // answers first, hint under
         if (c.cls) b.classList.add(c.cls);
-        b.textContent = c.label;
         b.dataset.key = c.key;
+
+        /* A choice can carry a drawing of itself. `marks` is how many
+           of the triangle's sides are the same length — 0, 2 or 3 — and
+           the drawing wears that many hash marks, which is the notation
+           mathematics itself uses for "these are equal". It is not
+           decoration: a question about which sides match is answered by
+           reading exactly those marks, so a card that carries them
+           stops being a word to recognise and becomes a definition to
+           check what you measured against. */
+        if (c.marks != null) {
+          b.appendChild(triangleIcon(c.marks));
+          b.classList.add('with-icon');
+        }
+        const cap = document.createElement('span');
+        cap.className = 'opt-label';
+        cap.textContent = c.label;
+        b.appendChild(cap);
 
         b.addEventListener('click', function (e) {
           e.stopPropagation();        // a tap here must never skip the screen
@@ -216,6 +281,9 @@ window.TriangleOptions = (function () {
          The panel lays them out in a row on request; anything else it
          holds — the hint row — takes a line of its own beneath. */
       setRow: function (on) { root.classList.toggle('pair', !!on); },
+      /* Three side by side rather than stacked — for answers that are
+         three of one kind of thing rather than a list to work down. */
+      setTrio: function (on) { root.classList.toggle('trio', !!on); },
       setAnswer: function (k) { answerKey = k; },
       reset: function () {
         hideFormula(); clearStates(); locked = false;

@@ -19,6 +19,13 @@ window.CFG = (function () {
     swiftyFly:   'assets/swifty fly.png',
     swiftyTalk:  'assets/swifty talk.png',
     swiftyStand: 'assets/normal stand swifty.png',
+    townSheet:   'assets/sheet.png',
+    /* The number selector, drawn. Every piece of the control is a crop
+       of this one sheet, so `preload` waiting for it is the whole of
+       the loading story: it is about 940KB, and a control that rises
+       un-skinned and then dresses itself is worse than the CSS it
+       replaced. */
+    buttons:     'assets/buttons.png',
     leaf:        'assets/leaf.png',
     handNudge:   'assets/hand nudge.png'
   };
@@ -71,6 +78,13 @@ window.CFG = (function () {
   };
   const SHEET_W = 1448, SHEET_H = 1086;
 
+  /* Each sheet says its own pixel size and its own scale, so the
+     sprite asks a sheet rather than assuming one size for all of
+     them. Both of these are the one size; the machinery that let them
+     differ is kept because it costs nothing and is already proven. */
+  SHEETS.fly.sw = SHEET_W;  SHEETS.fly.sh = SHEET_H;  SHEETS.fly.k = 1;
+  SHEETS.talk.sw = SHEET_W; SHEETS.talk.sh = SHEET_H; SHEETS.talk.k = 1;
+
   /* -------------------------------------------------------------
      SWIFTY PLACEMENT
      ------------------------------------------------------------- */
@@ -95,7 +109,15 @@ window.CFG = (function () {
      so changing `height` or the centre moves the whole rig together. */
   const SWIFTY = {
     cx: 960,       // centred horizontally on the background
-    cy: 600,       // a little below centre, so she stands down on the grass
+    /* Her feet come out at cy + height/2, so this number is really
+       "where she stands". The new painting puts the shoreline at
+       y 956 under her — measured off the art, not guessed — and 600
+       left her feet at 720, which is two hundred pixels out over the
+       water. 855 puts them at 975, a little way into the grass and
+       above the board screens' own 1000, which is right: she is
+       smaller here, so she is further away and stands higher up the
+       slope. */
+    cy: 855,
     height: 240    // rendered height in stage px (width follows at 222)
   };
 
@@ -207,13 +229,29 @@ window.CFG = (function () {
        drawn as a border rather than as stacked inset rings. */
     edgeW: 5,
 
-    /* The field's own colours, two steps apart so the box still reads
-       as a thing in front of the scene: a pale warm peach taken off the
-       light in the sky, an amber edge out of the tree and the grass,
-       and a deep warm brown for the letters. */
-    fill:   '#FFF1E2',
-    edge:   '#E09A55',
-    ink_:   '#7C3B12',            // the text
+    /* Near-white on a deep indigo edge, and the reasoning is measured
+       rather than felt. Sampled off the painted page, the scene behind
+       her runs from the lake at luminance 0.10 to the lit mountain at
+       0.45 — mid-tone everywhere, with no dark and no light to hide
+       against. Contrast against that whole range:
+
+         the old tan edge #E09A55   worst 1.11   (invisible, and it was)
+         a teal edge                worst 1.20
+         this indigo #232A44        worst 2.45
+
+       So the answer is value, not hue: the surface goes brighter than
+       anything in the picture and the edge darker than anything in it.
+       The peach and the amber were taken off the OLD field's own light,
+       which is exactly why they disappeared when the field changed. The
+       indigo also gives 17:1 against its own fill, which is what makes
+       the shape crisp rather than merely present. */
+    fill:   '#FFFDF7',
+    edge:   '#232A44',
+    /* The words are the same ink as the outline. A warm brown was the
+       right colour for a bubble edged in amber; edged in indigo it
+       read as two different inks in one box. One colour, and the
+       letters sit at about 15:1 on the near-white fill. */
+    ink_:   '#232A44',            // the text, and the edge
     sheen:  'rgba(255, 255, 255, .92)',   // the catch-light in the corner
     size:   32,                   // the size every line is set at
 
@@ -225,12 +263,12 @@ window.CFG = (function () {
     pad: { x: 32, y: 20 },        // .62em over 1em, off the line's size
     lineH: 40,                    // 1.2 line-height, with room to sit in
 
-    /* Two coloured halos and one cast, the way the shared bubble is
-       lifted: the glow is what makes it read as sitting in front of the
-       field rather than printed on it. */
-    glow: 'rgba(224, 154, 85, .34)',
-    glowWide: 'rgba(224, 154, 85, .18)',
-    cast: 'rgba(120, 62, 14, .24)',
+    /* Lifted by a shadow rather than by a warm halo. A glow the colour
+       of the old edge was doing nothing against a sunset of the same
+       colour; a cool shadow under it does the separating. */
+    glow: 'rgba(24, 28, 48, .30)',
+    glowWide: 'rgba(24, 28, 48, .16)',
+    cast: 'rgba(16, 20, 40, .34)',
 
     leaf: 62,                     // the corner decorations
 
@@ -346,10 +384,19 @@ window.CFG = (function () {
        lands it on the far shore and reads as part of the title rather
        than as something floating below it. Still 80px under the plate,
        well clear of the leaves hanging off its corners. */
-    /* Under the wordmark, centred on it. The lockup's plate ends at
-       y 587 and its middle is x 1336, both measured off the art, so the
-       button hangs below the title rather than beside it. */
-    box: { cx: 1336, cy: 760, w: 281, h: 267 },
+    /* Under the wordmark, centred on the WHOLE lockup — which is not
+       the same as centred on the plate it hangs under, and that is
+       what two goes at this kept missing.
+
+       Measured off the rendered page (the art is 1672 wide against a
+       1920 stage, so a number read straight off the picture is out by
+       a seventh): the "Formula" plate's middle is stage 1273, but the
+       "Distance" plank above it is 90px wider and reaches further
+       left, and the two together span x 615..1855 with their middle
+       at 1234. The eye centres the button under the pair, not under
+       the lower one, so 1273 read as 39px right of where it belongs
+       and 1336 before that as 100px. */
+    box: { cx: 1234, cy: 760, w: 281, h: 267 },
     // Shrinks the briefed box about its centre — the button stays put,
     // it just gets smaller. 1 = the full 281 x 267 from the brief.
     sizeScale: 0.70
@@ -571,6 +618,15 @@ window.CFG = (function () {
                every: 1, labelSize: 36, overshoot: 58,
                arrow: { len: 34, halfW: 20 },
                gxFrom: -7, gxTo: 7, gyFrom: -6, gyTo: 6 },
+      /* Between the two, for a shape that is too big for the lesson's
+         own plane and too small to be lost on the rescue's. Still
+         numbered every unit — at 53px a cell there is room for all
+         twenty-one numbers, and a board a child can count on is worth
+         more than a tidy axis. */
+      mid:   { k: 0.6, xFrom: -10, xTo: 10, yFrom: -8,  yTo: 8,
+               every: 1, labelSize: 30, overshoot: 40,
+               arrow: { len: 26, halfW: 15 },
+               gxFrom: -11, gxTo: 11, gyFrom: -10, gyTo: 10 },
       wide:  { k: 0.4, xFrom: -15, xTo: 15, yFrom: -13, yTo: 13,
                every: 5, labelSize: 26, overshoot: 30,
                arrow: { len: 22, halfW: 13 },
@@ -617,8 +673,13 @@ window.CFG = (function () {
        gain — one more would run right up against the frame. */
     paper: {
       inner:     '#FFF9E8',
-      frame:     '#FFC93D',
-      edge:      '#DF8A0A',
+      /* A dark slate, not gold. Gold scored worst 1.38 against this
+         scene — the same value as the sunset it sits in front of —
+         where the slate scores 2.45. It also leaves gold to mean one
+         thing: gold is what you can touch (the dials, GO, Back and
+         Next). This is a surface to read. */
+      frame:     '#252C47',
+      edge:      '#141930',
       highlight: 'rgba(255, 255, 255, .65)',
       line:      'rgba(120, 135, 135, .55)',
       lineW: 2,             // stage px, the same weight at every size
@@ -626,9 +687,17 @@ window.CFG = (function () {
       /* Slimmed: the frame used to be 34px of stacked rings, which at
          this board size read as a heavy border around the work rather
          than a edge to it. */
-      edgeW: 2,
-      frameW: 13,
-      hiW: 3,               // the pale ring just inside the frame
+      edgeW:     1.5,
+      /* The band round the board, thinner than it was. 13 plus its own
+         2px edge put 15px of dark border round a cream sheet — heavy
+         enough to read as a picture frame rather than as the edge of a
+         page. Seven is a rule, not a moulding.
+
+         This does NOT follow the camera: `place` scales the frame by
+         the panel's own scale rather than the view's, so a board that
+         pushes in does not thicken its border. */
+      frameW:    7,
+      hiW:       2,               // the pale ring just inside the frame
       /* Whole cells only. Running the ruling past the frame and
          trimming it to the cream left a sliver of a cell down every
          side and a curved scrap in each rounded corner — the grid read
@@ -729,8 +798,14 @@ window.CFG = (function () {
       dashColor: '#5B7AA8',
       dashWidth: 5,
       dashArray: '2 15',
-      coordSize: 34,
-      nameSize: 40,
+      coordSize: 26,
+    /* Down from 40 and 34. A point's letter was the loudest type on
+       the paper — larger than the axis NUMBERS the board is read
+       against (36) and a third larger than the working that is being
+       taught (30). Nothing about a label earns that. The working's 30
+       is the ceiling; the letter keeps a little over its coordinate so
+       the two still read as a name above an address. */
+      nameSize: 30,
       /* How far a length written on a pair keeps off the line it
          measures — the same air a coordinate keeps off its dot, so the
          three things written on a segment all sit the same distance
@@ -779,8 +854,23 @@ window.CFG = (function () {
          `coordFit` is the older, looser figure, kept for the one
          question it still answers: whether a row's labels have
          room beside their points at all. Deciding that on the new
-         air would move pairs that read properly today. */
-      coordGap: 3,
+         air would move pairs that read properly today.
+
+         Nine, not three. Three was chosen while the offset was
+         applied on each axis at once, so a DIAGONAL label — which is
+         the direction a label reaches for first, because it is the
+         one that keeps clear of the drawing — actually landed at
+         `gap × √2`, about nine past the painted edge. The cardinals
+         got the literal three and were rarely chosen, so nobody saw
+         it. Measuring to the ink made all eight honest and the
+         diagonals lost six pixels overnight, which is A sitting on
+         its own dot. This is the number they were really getting. */
+      coordGap: 9,
+      /* The air between a point's letter and the coordinate under it.
+         They are one block, so this is leading rather than a gap
+         between two labels — tight enough that the two read as one
+         thing and loose enough that the descenders clear. */
+      stackGap: 2,
       coordFit: 8,
       vNameDy: 32
     },
@@ -887,15 +977,23 @@ window.CFG = (function () {
          the subject of the screen, so it is the largest type on the
          board. */
       size: 30,
-      lineGap: 1.25,     // cells between one line and the next
+      /* Close enough that the five lines read as ONE piece of working.
+         It was 1.25 — 80px between baselines on 24px of type, 3.3x,
+         further apart than they are tall — and five statements sitting
+         near each other is not a calculation. The gap is
+         `lineGap x stepY x typeScale`, so 0.62 puts it at 39px, about
+         1.6x the type, which is how algebra is set. It only reads as
+         continuation rather than crowding because every line hangs
+         from its own equals sign: the two belong together. */
+      lineGap: 0.62,     // cells between one line and the next
       pad: 0.45,         // cells of air inside the writing column
       /* How much room the working needs beside the drawing, as a
          multiple of the drawing's own width. One means "as much again",
          which puts the triangle in one half and the writing in the
          other. */
       room: 1.15,
-      lineMs: 1500,      // one line, read, before the next
-      beatMs: 820,       // and one named part after the last
+      lineMs: 1700,      // one line, read, before the next
+      beatMs: 980,       // and one named part after the last
       barW: 3,           // the radical's overbar
       barGap: 0.30       // and how far above the digits it sits, in ems
     },
@@ -905,8 +1003,13 @@ window.CFG = (function () {
        the same two beats, for the flights that have to cross from the
        board into the panel. */
     fly: {
-      pickMs: 340,       // it lights where it is, before it is lifted
-      ms: 760            // and travels
+      /* Slower on purpose. `pickMs` is the pause in which the side
+         lights WHERE IT IS, before anything moves — without it the
+         flight is a thing arriving rather than a thing being taken off
+         the board, and the whole point of the beat is that the symbol
+         was already there. */
+      pickMs: 460,       // it lights where it is, before it is lifted
+      ms: 980            // and travels
     },
 
     zoom: {
@@ -970,6 +1073,15 @@ window.CFG = (function () {
       /* One beat per unit as the line walks out. Slow enough to count
          along with, quick enough that twelve of them is not a wait. */
       stepMs: 240,
+      /* A wrong guess is WALKED BACK. The line goes out to the number
+         they chose — short of the point or a unit past it, which is
+         the feedback — waits long enough to be seen there, and then
+         travels back to the point it started from, quicker than it
+         went out, leaving the board clear for the squares. It used to
+         simply stop existing, which read as the game deleting their
+         answer rather than as the answer coming back. */
+      missHoldMs: 620,   // the wrong length, held to be read
+      missStepMs: 110,   // and then walked back, one unit at a time
       /* How long the finished count stays up before the board is handed
          back. It is a hint, not a caption: it says how long a unit is
          and how many fit, and then gets out of the way so the next try
@@ -994,9 +1106,14 @@ window.CFG = (function () {
         stepMs: 430,       // one square, then the next
         readMs: 900,       // the finished row, held to be read
         gapMs: 420,        // blank, before it goes again
-        passes: 2,         // said once, then counted along with
-        numSize: 30,
-        numDy: 34          // the number, under its own square
+        /* Once. It used to play twice, and the second pass was
+           doing the job the sentence should have been doing — the
+           first time through "says what is happening" only because
+           the sentence arrived underneath it. She says it and
+           finishes now, so there is nothing left for a second pass
+           to say. */
+        passes: 1,
+        numSize: 30
       },
       labelDy: -28,          // horizontal: just above the line
       /* A vertical count stacks its squares in a band one cell wide,
@@ -1099,12 +1216,18 @@ window.CFG = (function () {
      and give the whole right of the frame to the board. */
   /* Where she stands to talk: down on the grass, front of frame. */
   const STAND = standAt(1, 60, 700);
-  /* And where she moves to when a control arrives: standing on its top
-     edge, feet at 688 against a panel whose top is 680, and a little
-     smaller — she is further away up there, and the control is what
-     should hold the eye once it has arrived. The move animates, so the
-     size settles with the travel rather than snapping. */
-  const STAND_UP = standAt(0.88, 60, 424);
+  /* And where she moves to when a control arrives: standing ON its top
+     edge, and a little smaller — she is further away up there, and the
+     control is what should hold the eye once it has arrived. The move
+     animates, so the size settles with the travel rather than snapping.
+
+     Her feet land at 713. 688 was right while the selector was a
+     drawing whose frame began at the top of its own box; rebuilt in
+     CSS the housing starts 30 units in, which at the widget's 0.665
+     puts its painted top at 711 — so she had been standing 23px above
+     it, in the air. Measured off the rendered page, because the art is
+     no longer where this number comes from. */
+  const STAND_UP = standAt(0.88, 60, 449);
 
   /* And a perch on ONE of the answers rather than on the panel's middle.
      The closing question puts its two cafes side by side and she lands
@@ -1122,6 +1245,22 @@ window.CFG = (function () {
      256 below the pose's own top, so this is the working panel's y less
      that — move one and the other has to follow. */
   const STAND_WORK = standAt(0.88, 60, 134);
+
+  /* And a seat on the ANSWERS, which is not the selector's seat even
+     though the two panels used to share a slot.
+
+     Measured off the rendered page: the answers' painted top edge —
+     the outer edge of its gold border — sat at 680 and her feet at
+     713, so she was standing 33px inside the panel, on the cream,
+     with the stroke behind her ankles. The selector's own painted top
+     is at 711, which is why 713 is right there and wrong here: the
+     two controls are built differently and only looked alike.
+
+     Her feet are 264 below this pose's own top (300 x 0.88), so this
+     is the answers' y less that, plus the 2px of overlap the selector
+     already has — enough that she is standing ON the line rather than
+     hovering a pixel above it. Move the panel and this has to follow. */
+  const STAND_OPTIONS = standAt(0.88, 90, 388);
 
   /* -------------------------------------------------------------
      SCREEN 8 — board on its own, the question in her bubble
@@ -1190,8 +1329,13 @@ window.CFG = (function () {
          12px, and her feet are at 700. */
       /* x is pulled back by the extra overhang the widget now reserves
          for its left arrow, so the frame itself has not moved. */
-      pos: { x: 29, y: 688 },
-      w: 816, h: 520,
+      /* y follows the bar. The drawn bar is shorter than the one the
+         CSS invented — 794 x 307 rather than 660 x 330 — so the whole
+         widget sits three units lower to put the gold's painted top
+         back under her feet at 713, which is where `STAND_UP` has
+         always expected it. */
+      pos: { x: 29, y: 691 },
+      w: 816, h: 460,
       scale: 0.665
     },
 
@@ -1199,13 +1343,17 @@ window.CFG = (function () {
        on the same footprint so the left column stays put. */
     /* Below her, like the selector — its natural height is about 432,
        so it is scaled to clear the bottom of the frame. */
-    /* The same slot the number selector takes: top edge at 680, so she
-       stands on it at exactly the height she stands on that one. Three
-       stacked buttons is a taller shape than a row of tiles, so it is
-       scaled to land its foot near the selector's rather than to match
-       its width. h is its real built height — 9px borders, 28/32
-       padding, three 108px buttons and two 24px gaps. */
-    options: { pos: { x: 34, y: 680 }, w: 520, h: 450, scale: 0.73 },
+    /* Its own slot, not the selector's. Three stacked buttons is a
+       taller shape than a row of tiles and a differently built one, so
+       sharing a top edge with the reel only ever meant they started at
+       the same number — it never put her feet on both. It sits a
+       little in from the frame's edge and a little higher than the
+       reel, which gives the tallest control on the screen room under
+       it, and it carries the seat she stands on so the two can never
+       drift apart again. h is its real built height — 9px borders,
+       28/32 padding, three 108px buttons and two 24px gaps. */
+    options: { pos: { x: 64, y: 650 }, w: 520, h: 450, scale: 0.73,
+               stand: STAND_OPTIONS },
 
     /* The ruler, in the same column as the reel and at the same width
        as the answers. It is shorter than the reel's housing, so it sits
@@ -1309,6 +1457,32 @@ window.CFG = (function () {
        In cells, for the same reason. */
     liftCells: 0.16,
     fadeMs: 420
+  };
+
+  /* The town's art: one sheet, cut by these rects.
+
+     Measured off the alpha rather than assumed. The sheet came back
+     1774 x 887 with the seven drawings placed freely — different
+     sizes, different gaps — rather than on the even grid that was
+     asked for, so there is no cell to divide by and every rect here
+     is the drawing's own opaque bounds.
+
+     They are also different shapes: the café is 1.21 wide to tall,
+     the station 1.90, the tower 0.53. So a place is sized by its
+     HEIGHT and takes its own width from its own ratio — asking them
+     all to fill one box would squash the van and stretch the tower.
+     `tall` is that height in cells. */
+  TOWN.sheet = { src: ART.townSheet, w: 1774, h: 887 };
+  TOWN.sprites = {
+    cafe:    { x:   52, y:  99, w: 346, h: 285, tall: 1.05 },
+    house:   { x:  484, y: 110, w: 356, h: 274, tall: 1.05 },
+    school:  { x:  912, y: 101, w: 397, h: 283, tall: 1.05 },
+    park:    { x: 1380, y: 129, w: 336, h: 271, tall: 1.05 },
+    /* Not placed on any screen yet — screens 49 to 54 do not use this
+       layer. Cut and ready for when they do. */
+    tower:   { x:  139, y: 470, w: 171, h: 324, tall: 1.55 },
+    station: { x:  468, y: 578, w: 396, h: 208, tall: 0.95 },
+    van:     { x:  927, y: 618, w: 363, h: 173, tall: 0.78 }
   };
   TOWN.places = [
     { key: 'cafeB',  x: TOWN.cafeB.x,  y: TOWN.cafeB.y,
@@ -1521,8 +1695,13 @@ window.CFG = (function () {
 
     /* 7 — same again with a new point, and without the pulse: the first
        one showed how, so pointing at this one too would be doing it for
-       them rather than letting them try. */
-    { id: 7, line: 'Locate the point (6, 2).', entrance: 'stay', hint: false,
+       them rather than letting them try.
+
+       And she asks it shorter. Saying "locate the point" a second time
+       teaches the instruction over again, when the only new thing on
+       the screen is the point — so she says the point, and "now try"
+       carries the rest: same task, your turn. */
+    { id: 7, line: 'Now try (6, 2).', entrance: 'stay', hint: false,
       layout: 'grid', dots: true,
       task: {
         target: { x: 6, y: 2 },
@@ -1666,7 +1845,7 @@ window.CFG = (function () {
       segment: {
         a: { x: 1, y: -3,
              coordParts: [{ t: '(' }, { t: '1', glow: 'x' }, { t: ',\u00A0' },
-                          { t: '-3', glow: 'y' }, { t: ')' }] },
+                          { t: '\u22123', glow: 'y' }, { t: ')' }] },
         b: { x: 1, y: 2,
              coordParts: [{ t: '(' }, { t: '1', glow: 'x' }, { t: ',\u00A0' },
                           { t: '2', glow: 'y' }, { t: ')' }] }
@@ -1813,7 +1992,17 @@ window.CFG = (function () {
     /* The reason and the question in one breath. They used to be two
        beats — "can the grid help?", then "how far apart are A and C?" —
        which asked the child to hold a hint across a screen change. */
-    { id: 24, line: 'But look at A and C. Can you find AC?',
+    /* Two sentences, and a light each: the two points, then the line
+       between them. Naming the points and lighting the line in one
+       breath answers the question in the act of asking it.
+
+       It stays ONE screen. These were two beats once and were merged
+       because two beats asked the child to hold a hint across a screen
+       change; what splits here is the sentence and its highlighting,
+       not the beat. One board, one question, one control. */
+    { id: 24, line: 'But look at A and C.',
+      line2: 'Can you find AC?',
+      lineLights: [ { points: ['a', 'c'] }, { pulse: 'h' } ],
       entrance: 'none',
       layout: 'board', distance: true, intro: 'measure', keepSegment: true,
       view: 'triangle', quietBoard: true,
@@ -1873,12 +2062,28 @@ window.CFG = (function () {
 
        The panel was built for this: `triangle-options.js` carries these
        three as its own defaults and the game had stopped asking them. */
-    { id: 26, line: 'Look! We\u2019ve made a triangle.',
+    /* The balloon asks it. It used to say "Look! We've made a
+       triangle." with the three names already up on the panel —
+       an observation beside three buttons, so the child had to
+       work out from the buttons alone that a question was being
+       put to them. The beat has a question in it; the line is it.
+
+       Unvoiced for now: the recording says "What kind of triangle
+       is IT?" and the balloon must never read one thing while she
+       says another — the same call screen 7 made. Re-record, or
+       change the word here, and 17-what-kind-of-triangle-is-it.mp3
+       comes back. */
+    { id: 26, line: 'What kind of triangle is this?',
       askFirst: true,
+      /* No "Triangle" on any of them. Every card on the screen is a
+         triangle, the word was in all three, and it told the child
+         nothing about any of them — while taking up the room that
+         kept the type at a size nobody could read from the back of a
+         classroom. The names are what is being chosen between. */
       options: [
-        { key: 'scalene',      cls: 'scalene',      label: 'Scalene Triangle' },
-        { key: 'isosceles',    cls: 'isosceles',    label: 'Isosceles Triangle' },
-        { key: 'right-angled', cls: 'right-angled', label: 'Right-angled Triangle' }
+        { key: 'scalene',      cls: 'scalene',      label: 'Scalene' },
+        { key: 'isosceles',    cls: 'isosceles',    label: 'Isosceles' },
+        { key: 'right-angled', cls: 'right-angled', label: 'Right-angled' }
       ],
       task: {
         kind: 'choice',
@@ -1908,7 +2113,7 @@ window.CFG = (function () {
          same triangle on the same board, so lighting it on both made
          one moment look like it was happening twice. It belongs to the
          question — move `pulse: 'triangle'` up here and off screen 25
-         to have it land on "Look! We made a triangle." instead. */
+         to have it land on the question instead. */
       hold: 3400,
       segment: { a: { x: 2, y: 1, name: 'A' },
                  b: { x: 6, y: 4, name: 'B' } },
@@ -1936,11 +2141,28 @@ window.CFG = (function () {
       stage: 'working',
       line: 'A right triangle! And we already know two of its sides.',
       line2: 'Pythagoras theorem can help us find the third!',
-      entrance: 'stay', layout: 'board', keepSegment: true,
-      /* The two known sides named one after the other under the first
-         line, and the one she is about to find under the second. */
-      spotSeq: ['h', 'v'],
-      pulse: 'ab',
+      entrance: 'stay', layout: 'board',
+      /* The working is about the drawing, so the paper steps back:
+         the ruling, the axes and their numbering fade and the triangle
+         and its lengths are what is left at full strength. The screens
+         that write a solution on the board all do this now — it was on
+         only the last two of them, so the same beat came up loud on one
+         screen and quiet on the next. */
+      quietBoard: true, keepSegment: true,
+      /* The two known sides under the first line, the one she is about
+         to find under the second — each played when its own sentence
+         finishes. It used to be two clocks running past the words:
+         `spotSeq` at a flat 700 and 1600ms, and `pulse` timed off the
+         length of the FIRST line and started a fifth of the way into
+         it, so AB lit 324ms into "we already know two of its sides".
+
+         The second line spots as well as pulses. A spotlight is one
+         side at a time, so the first line ends with the light on the
+         LAST of its two — the vertical — and a pulse does not move it.
+         AC had stepped back and CB was still burning beside the side
+         she was naming. The third side is the subject now, so both of
+         the known ones step back. */
+      lineLights: [ { spots: ['h', 'v'] }, { pulse: 'ab', spots: ['ab'] } ],
       derive: {
         /* The working, tagged to the board. Every part that names a
            length carries the side it belongs to — 'h' the horizontal,
@@ -1949,10 +2171,24 @@ window.CFG = (function () {
            off the leg lengths, so they arrive from them; 16, 9 and 25
            are arithmetic and simply appear. */
         formula: [
+          /* The theorem first, with no numbers in it at all. The
+             working used to open on `AB² = 4² + 3²` — already
+             substituted — so the one line the beat exists to teach
+             was never written, and the line that followed could not
+             read as a substitution because there was nothing above it
+             to substitute into. */
+          /* Every name is lifted off the side it names. The bracket
+             says "the whole of this side, and THEN squared" — which is
+             exactly what a child gets wrong the first time they meet
+             AB² and read it as A times B squared. */
           { kind: 'lead', parts: [
-              { t: 'AB\u00B2', lit: 'ab' }, { t: ' = ' },
-              { t: '4\u00B2', lit: 'h', from: { leg: 0 } }, { t: ' + ' },
-                    { t: '3\u00B2', lit: 'v', from: { leg: 1 } } ] },
+              { t: '(AB)\u00B2', lit: 'ab', from: { side: 'ab' } }, { t: ' = ' },
+              { t: '(AC)\u00B2', lit: 'h',  from: { side: 'h'  } }, { t: ' + ' },
+              { t: '(CB)\u00B2', lit: 'v',  from: { side: 'v'  } } ] },
+          { kind: 'step', parts: [
+              { t: '= ' },
+              { t: '(4)\u00B2', lit: 'h', from: { leg: 0 } }, { t: ' + ' },
+              { t: '(3)\u00B2', lit: 'v', from: { leg: 1 } } ] },
           { kind: 'step', parts: [
               { t: '= ' }, { t: '16', lit: 'h' }, { t: ' + ' }, { t: '9', lit: 'v' } ] },
           { kind: 'step', parts: [
@@ -1973,11 +2209,25 @@ window.CFG = (function () {
          board comes to the middle, pushes in on the drawing and the
          room the working needs, and writes it there. */
       stage: 'working', line: 'Use the right triangle to find AB.', range: { min: 0, max: 12 }, entrance: 'none',
-      layout: 'board', transition: 'leaves', intro: 'measure', entry: true,
+      layout: 'board',
+      /* The working is about the drawing, so the paper steps back:
+         the ruling, the axes and their numbering fade and the triangle
+         and its lengths are what is left at full strength. The screens
+         that write a solution on the board all do this now — it was on
+         only the last two of them, so the same beat came up loud on one
+         screen and quiet on the next. */
+      quietBoard: true, transition: 'leaves', intro: 'measure', entry: true,
       segment: { a: { x: -2, y: 2, name: 'A' },
                  b: { x:  2, y: 5, name: 'B' } , dash: true},
       legs: [
-        { from: { x: -2, y: 2 }, to: { x: 2, y: 2 }, mark: { name: 'C' } },
+        /* C sits beside its dot, not above it. The vertical leg leaves
+           this corner going up, so the worked-out "away" — which this
+           board gets wrong anyway, seating the mark before the segment
+           it measures from is its own — put the letter and the
+           coordinate alongside that line. Out to the right is the one
+           direction here with nothing in it. */
+        { from: { x: -2, y: 2 }, to: { x: 2, y: 2 },
+          mark: { name: 'C', away: { x: 1, y: 0 } } },
         { from: { x:  2, y: 2 }, to: { x: 2, y: 5 } }
       ],
       task: { kind: 'entry', pair: 'AB', answer: 5,
@@ -2000,9 +2250,9 @@ window.CFG = (function () {
                  lights it. */
               formula: [
                 { kind: 'lead', parts: [
-                    { t: 'AB\u00B2', lit: 'ab' }, { t: ' = ' },
-                    { t: '4\u00B2', lit: 'h', from: { leg: 0 } }, { t: ' + ' },
-                    { t: '3\u00B2', lit: 'v', from: { leg: 1 } } ] },
+                    { t: '(AB)\u00B2', lit: 'ab', from: { side: 'ab' } }, { t: ' = ' },
+                    { t: '(4)\u00B2', lit: 'h', from: { leg: 0 } }, { t: ' + ' },
+                    { t: '(3)\u00B2', lit: 'v', from: { leg: 1 } } ] },
                 { kind: 'step', parts: [
                     { t: '= ' }, { t: '16', lit: 'h' }, { t: ' + ' }, { t: '9', lit: 'v' } ] },
                 { kind: 'step', parts: [
@@ -2016,7 +2266,14 @@ window.CFG = (function () {
          board comes to the middle, pushes in on the drawing and the
          room the working needs, and writes it there. */
       stage: 'working', line: 'What is the distance between two points?', range: { min: 0, max: 12 }, entrance: 'none',
-      layout: 'board', transition: 'leaves', intro: 'measure', entry: true,
+      layout: 'board',
+      /* The working is about the drawing, so the paper steps back:
+         the ruling, the axes and their numbering fade and the triangle
+         and its lengths are what is left at full strength. The screens
+         that write a solution on the board all do this now — it was on
+         only the last two of them, so the same beat came up loud on one
+         screen and quiet on the next. */
+      quietBoard: true, transition: 'leaves', intro: 'measure', entry: true,
       segment: { a: { x: -3, y:  3, name: 'A' },
                  b: { x:  5, y: -3, name: 'B' } , dash: true},
       legs: [
@@ -2038,9 +2295,9 @@ window.CFG = (function () {
                  lights it. */
               formula: [
                 { kind: 'lead', parts: [
-                    { t: 'AB\u00B2', lit: 'ab' }, { t: ' = ' },
-                    { t: '8\u00B2', lit: 'h', from: { leg: 0 } }, { t: ' + ' },
-                    { t: '6\u00B2', lit: 'v', from: { leg: 1 } } ] },
+                    { t: '(AB)\u00B2', lit: 'ab', from: { side: 'ab' } }, { t: ' = ' },
+                    { t: '(8)\u00B2', lit: 'h', from: { leg: 0 } }, { t: ' + ' },
+                    { t: '(6)\u00B2', lit: 'v', from: { leg: 1 } } ] },
                 { kind: 'step', parts: [
                     { t: '= ' }, { t: '64', lit: 'h' }, { t: ' + ' }, { t: '36', lit: 'v' } ] },
                 { kind: 'step', parts: [
@@ -2261,7 +2518,14 @@ window.CFG = (function () {
          board comes to the middle, pushes in on the drawing and the
          room the working needs, and writes it there. */
       stage: 'working', line: 'How far is it from the house to Caf\u00E9 A?',
-      entrance: 'none', layout: 'board', intro: 'measure', entry: true,
+      entrance: 'none', layout: 'board',
+      /* The working is about the drawing, so the paper steps back:
+         the ruling, the axes and their numbering fade and the triangle
+         and its lengths are what is left at full strength. The screens
+         that write a solution on the board all do this now — it was on
+         only the last two of them, so the same beat came up loud on one
+         screen and quiet on the next. */
+      quietBoard: true, intro: 'measure', entry: true,
       keepSegment: true, town: true,
       /* As far as the paper goes along this walk and no further:
          a miss is counted out on the board, and a number the line
@@ -2301,11 +2565,11 @@ window.CFG = (function () {
                 { kind: 'step', parts: [
                     { t: 'd = \u221A((' },
                     { t: '5', lit: 'h', from: { p: 'b', half: 'x' } },
-                    { t: ' - ' },
+                    { t: ' \u2212 ' },
                     { t: '1', lit: 'h', from: { p: 'a', half: 'x' } },
                     { t: ')\u00B2 + (' },
                     { t: '4', lit: 'v', from: { p: 'b', half: 'y' } },
-                    { t: ' - ' },
+                    { t: ' \u2212 ' },
                     { t: '1', lit: 'v', from: { p: 'a', half: 'y' } },
                     { t: ')\u00B2)' } ] },
                 { kind: 'step', parts: [
@@ -2378,15 +2642,22 @@ window.CFG = (function () {
          board comes to the middle, pushes in on the drawing and the
          room the working needs, and writes it there. */
       stage: 'working', line: 'Now this one. Maya walks from the school to the park. How far is that?',
-      entrance: 'fly', layout: 'board', transition: 'leaves',
+      entrance: 'fly', layout: 'board',
+      /* The working is about the drawing, so the paper steps back:
+         the ruling, the axes and their numbering fade and the triangle
+         and its lengths are what is left at full strength. The screens
+         that write a solution on the board all do this now — it was on
+         only the last two of them, so the same beat came up loud on one
+         screen and quiet on the next. */
+      quietBoard: true, transition: 'leaves',
       intro: 'measure', entry: true, town: true,
       /* Same rule as 45: twelve is where this walk leaves the
          paper, and the answer is ten. */
       range: { min: 0, max: 12 },
       // in halves, so the working can lift them out — see screen 42
       segment: { a: { x: 5, y: -4, coordParts: [ { t: '(' }, { t: '5', glow: 'x' },
-                      { t: ',\u00A0' }, { t: '-4', glow: 'y' }, { t: ')' } ] },
-                 b: { x: -3, y: 2, coordParts: [ { t: '(' }, { t: '-3', glow: 'x' },
+                      { t: ',\u00A0' }, { t: '\u22124', glow: 'y' }, { t: ')' } ] },
+                 b: { x: -3, y: 2, coordParts: [ { t: '(' }, { t: '\u22123', glow: 'x' },
                       { t: ',\u00A0' }, { t: '2', glow: 'y' }, { t: ')' } ] },
                  coordSide: 'under' },
       /* Held back from the question, as on screen 45: a right-angled
@@ -2413,13 +2684,13 @@ window.CFG = (function () {
                    this line is the whole reason the beat exists. */
                 { kind: 'step', small: true, parts: [
                     { t: 'd = \u221A((' },
-                    { t: '-3', lit: 'h', from: { p: 'b', half: 'x' } },
-                    { t: ' - ' },
+                    { t: '\u22123', lit: 'h', from: { p: 'b', half: 'x' } },
+                    { t: ' \u2212 ' },
                     { t: '5', lit: 'h', from: { p: 'a', half: 'x' } },
                     { t: ')\u00B2 + (' },
                     { t: '2', lit: 'v', from: { p: 'b', half: 'y' } },
-                    { t: ' - ' },
-                    { t: '(-4)', lit: 'v', from: { p: 'a', half: 'y' } },
+                    { t: ' \u2212 ' },
+                    { t: '(\u22124)', lit: 'v', from: { p: 'a', half: 'y' } },
                     { t: ')\u00B2)' } ] },
                 { kind: 'step', parts: [
                     { t: 'd = \u221A(' }, { t: '8\u00B2', lit: 'h' }, { t: ' + ' },
@@ -2509,7 +2780,14 @@ window.CFG = (function () {
        which is the whole reason it is written here and not in a panel
        of its own. */
     { id: 51, line: 'Start with the Distance Formula.',
-      entrance: 'stay', layout: 'board', keepSegment: true,
+      entrance: 'stay', layout: 'board',
+      /* The working is about the drawing, so the paper steps back:
+         the ruling, the axes and their numbering fade and the triangle
+         and its lengths are what is left at full strength. The screens
+         that write a solution on the board all do this now — it was on
+         only the last two of them, so the same beat came up loud on one
+         screen and quiet on the next. */
+      quietBoard: true, keepSegment: true,
       /* Written on the paper beside the two towers, not in a panel of
          its own: the formula and the thing it is about have to be one
          picture, or the child has to choose which to look at. The
@@ -2552,7 +2830,14 @@ window.CFG = (function () {
        shown it. */
     { id: 53, line: 'Now calculate.',
       stage: 'working',
-      entrance: 'stay', layout: 'board', keepSegment: true,
+      entrance: 'stay', layout: 'board',
+      /* The working is about the drawing, so the paper steps back:
+         the ruling, the axes and their numbering fade and the triangle
+         and its lengths are what is left at full strength. The screens
+         that write a solution on the board all do this now — it was on
+         only the last two of them, so the same beat came up loud on one
+         screen and quiet on the next. */
+      quietBoard: true, keepSegment: true,
       intro: 'measure', entry: true, range: { min: 0, max: 12 },
       hint: 'The two sides are 6 and 8.',
       segment: { a: { x: -2, y: 5, name: 'A', coordSide: 'under' },
@@ -2575,9 +2860,9 @@ window.CFG = (function () {
               showWorking: true,
               formula: [
                 { kind: 'lead', parts: [
-                    { t: 'AB\u00B2', lit: 'ab' }, { t: ' = ' },
-                    { t: '6\u00B2', lit: 'h', from: { leg: 0 } }, { t: ' + ' },
-                    { t: '8\u00B2', lit: 'v', from: { leg: 1 } } ] },
+                    { t: '(AB)\u00B2', lit: 'ab', from: { side: 'ab' } }, { t: ' = ' },
+                    { t: '(6)\u00B2', lit: 'h', from: { leg: 0 } }, { t: ' + ' },
+                    { t: '(8)\u00B2', lit: 'v', from: { leg: 1 } } ] },
                 { kind: 'step', parts: [
                     { t: '= ' }, { t: '36', lit: 'h' }, { t: ' + ' }, { t: '64', lit: 'v' } ] },
                 { kind: 'step', parts: [
@@ -2609,6 +2894,13 @@ window.CFG = (function () {
          drawing, the way every other one in this lesson does. */
       stage: 'working',
       transition: 'leaves', entrance: 'fly', layout: 'board',
+      /* The working is about the drawing, so the paper steps back:
+         the ruling, the axes and their numbering fade and the triangle
+         and its lengths are what is left at full strength. The screens
+         that write a solution on the board all do this now — it was on
+         only the last two of them, so the same beat came up loud on one
+         screen and quiet on the next. */
+      quietBoard: true,
       board: 'wide', control: 'slider',
       intro: 'measure', entry: true, legsLater: true,
       range: { min: 0, max: 15 },
@@ -2620,23 +2912,16 @@ window.CFG = (function () {
          away from the vehicle and clear of both axes; the vehicle,
          down in the third quadrant with nothing near it, keeps the
          ordinary treatment. */
-      /* Both points have to be told where their labels go, and for
-         once it is not about each other.
-
-         The station is ON the origin — the first point in this game
-         that is — so underneath it is the x numbering and to its left
-         is the y numbering. Its coordinate goes up and to the right,
-         far enough that its left edge clears the y-axis, and its
-         letter goes up and to the left, so the two are on opposite
-         sides of the axis rather than stacked on it.
-
-         The vehicle has nothing near it but the line it is an end of,
-         so its coordinate goes under it and its letter out to the
-         side, off that line. */
-      segment: { a: { x: 0, y: 0, name: 'S',
-                      coordDx: 2.6, coordDy: 1.4, nameDx: -46, nameDy: -30 },
-                 b: { x: -5, y: -12, name: 'R',
-                      coordDx: 0, coordDy: -1.5, nameDx: -54, nameDy: 10 },
+      /* The station is ON the origin — the first point in this game
+         that is — so underneath it is the x numbering, to its left is
+         the y numbering, and the two axis letters are the nearest
+         things on the board to it. Both points used to be told where
+         their labels went, the station's pushed two and a half cells
+         off its own dot to clear all of that. Nothing is told now:
+         the rule keeps clear of the numbering and the letters both,
+         and it puts a label against its point rather than near it. */
+      segment: { a: { x: 0, y: 0, name: 'S' },
+                 b: { x: -5, y: -12, name: 'R' },
                  dash: true },
       legs: [
         { from: { x: 0, y: 0 }, to: { x: -5, y: 0 }, mark: { name: 'C' } },
@@ -2651,9 +2936,9 @@ window.CFG = (function () {
               showWorking: true,
               formula: [
                 { kind: 'lead', parts: [
-                    { t: 'SR\u00B2', lit: 'ab' }, { t: ' = ' },
-                    { t: '5\u00B2', lit: 'h', from: { leg: 0 } }, { t: ' + ' },
-                    { t: '12\u00B2', lit: 'v', from: { leg: 1 } } ] },
+                    { t: '(SR)\u00B2', lit: 'ab', from: { side: 'ab' } }, { t: ' = ' },
+                    { t: '(5)\u00B2', lit: 'h', from: { leg: 0 } }, { t: ' + ' },
+                    { t: '(12)\u00B2', lit: 'v', from: { leg: 1 } } ] },
                 { kind: 'step', parts: [
                     { t: '= ' }, { t: '25', lit: 'h' }, { t: ' + ' }, { t: '144', lit: 'v' } ] },
                 { kind: 'step', parts: [
@@ -2661,6 +2946,207 @@ window.CFG = (function () {
                 { kind: 'result', parts: [
                     { t: 'SR = ' }, { t: '13\u00A0units', lit: 'ab', home: true } ] }
               ] },
+      hold: 6000 },
+
+    /* ================= what kind of triangle is this park? =========
+       The last beat, and the first one where the distance formula is
+       not the question but the tool. Three sides, measured, compared,
+       and a name put to the shape.
+
+       The triangle is 13-14-15 — the only near-equilateral triangle
+       with whole, unequal sides that fits on a lattice this size. That
+       is the whole design: it LOOKS equilateral, so a child who answers
+       by eye is wrong, and the only way through is to measure. Drawn as
+       a pair (A–B) with two legs (B→C, C→A), which is how the board
+       already holds three sides: `ab`, `h` and `v`.
+       ============================================================== */
+
+    /* 55 — the question. */
+    { id: 55, line: 'What kind of triangle is this park?',
+      transition: 'leaves', entrance: 'fly', layout: 'board',
+      board: 'mid', askFirst: true, optionTrio: true,
+      quietBoard: true, fillTriangle: true,
+      hint: 'Measure all three. Looking is not enough.',
+      segment: { a: { x: -6, y: -2, name: 'A', coordSide: 'under' },
+                 b: { x:  6, y: -7, name: 'B', coordSide: 'under' } },
+      legs: [
+        { from: { x:  6, y: -7 }, to: { x: 6, y: 7 }, mark: { name: 'C' } },
+        { from: { x:  6, y:  7 }, to: { x: -6, y: -2 } }
+      ],
+      options: [
+        { key: 'scalene',     cls: 'scalene',     label: 'Scalene',     marks: 0 },
+        { key: 'isosceles',   cls: 'isosceles',   label: 'Isosceles',   marks: 2 },
+        { key: 'equilateral', cls: 'right-angled', label: 'Equilateral', marks: 3 }
+      ],
+      task: {
+        kind: 'choice',
+        answer: 'scalene',
+        /* One rung, and it points at the work rather than the answer. */
+        feedback: ['Have another look at the three sides.'],
+        voiceOnly: true,
+        correctLine: 'Scalene — no two sides the same.',
+        /* Right, and the six beats that measure it are stepped over:
+           they are for a child who guessed. */
+        rightAt: 'end',
+        teachAt: 56
+      },
+      hold: 3000 },
+
+    /* 56 — a beat to stop being wrong in. The cards go, the triangle
+       stays exactly where it was. Screens 43 and 50 do the same job for
+       the same reason. */
+    { id: 56, line: 'Oops! Let\u2019s check the sides.',
+      entrance: 'stay', layout: 'board', board: 'mid', keepSegment: true,
+      quietBoard: true, fillTriangle: true,
+      segment: { a: { x: -6, y: -2, name: 'A', coordSide: 'under' },
+                 b: { x:  6, y: -7, name: 'B', coordSide: 'under' } },
+      legs: [
+        { from: { x:  6, y: -7 }, to: { x: 6, y: 7 }, mark: { name: 'C' }, settled: true },
+        { from: { x:  6, y:  7 }, to: { x: -6, y: -2 }, settled: true }
+      ],
+      hold: 1500 },
+
+    /* 57, 58, 59 — one shape three times: the side being asked about is
+       the loud one, the sides already found keep their lengths and step
+       back, and the board fills up in front of them. */
+    { id: 57, line: 'First, find AB.', focus: 'ab',
+      entrance: 'stay', layout: 'board', board: 'mid', keepSegment: true,
+      quietBoard: true, fillTriangle: true,
+      intro: 'measure', entry: true, range: { min: 0, max: 18 },
+      hint: 'Twelve across and five up.',
+      segment: { a: { x: -6, y: -2, name: 'A', coordSide: 'under' },
+                 b: { x:  6, y: -7, name: 'B', coordSide: 'under' } },
+      legs: [
+        { from: { x:  6, y: -7 }, to: { x: 6, y: 7 }, mark: { name: 'C' }, settled: true },
+        { from: { x:  6, y:  7 }, to: { x: -6, y: -2 }, settled: true }
+      ],
+      task: { kind: 'entry', pair: 'AB', answer: 13, noCount: true,
+              keepLength: true,
+              correctLine: 'Thirteen. That one stays.',
+              feedback: ['Square them, add, then take the root.'],
+              showWorking: true,
+              formula: [
+                { kind: 'lead', parts: [
+                    { t: '(AB)\u00B2', lit: 'ab', from: { side: 'ab' } }, { t: ' = ' },
+                    { t: '(12)\u00B2' }, { t: ' + ' }, { t: '(5)\u00B2' } ] },
+                { kind: 'step', parts: [
+                    { t: '= ' }, { t: '144' }, { t: ' + ' }, { t: '25' } ] },
+                { kind: 'step', parts: [ { t: '= ' }, { t: '169', lit: 'ab' } ] },
+                { kind: 'result', parts: [
+                    { t: 'AB = ' }, { t: '13\u00A0units', lit: 'ab', home: true } ] }
+              ] } },
+
+    /* The one side of this triangle that runs straight up the grid — so
+       it is the one a child can COUNT, and counting a side you can count
+       is knowing which tool a job needs, not cheating. It is asked as a
+       distance rather than as a typed answer for exactly that reason. */
+    { id: 58, line: 'Now find BC.', focus: 'h',
+      entrance: 'none', layout: 'board', board: 'mid', keepSegment: true,
+      /* The board stays at full strength here, alone of the seven: this
+         is the beat that asks a child to COUNT, and counting squares
+         needs the squares. */
+      fillTriangle: true,
+      intro: 'measure', distance: true, range: { min: 0, max: 18 },
+      hint: 'This one runs straight up. You can count it.',
+      segment: { a: { x: -6, y: -2, name: 'A', coordSide: 'under' },
+                 b: { x:  6, y: -7, name: 'B', coordSide: 'under' },
+                 result: { text: '13\u00A0units' } },
+      legs: [
+        { from: { x:  6, y: -7 }, to: { x: 6, y: 7 }, mark: { name: 'C' }, settled: true },
+        { from: { x:  6, y:  7 }, to: { x: -6, y: -2 }, settled: true }
+      ],
+      task: { kind: 'distance', measureLeg: 0, keepLength: true,
+              correctLine: 'Fourteen.',
+              feedback: ['Count the squares from B up to C.'],
+              countLine: 'Count the spaces between the two points.' } },
+
+    { id: 59, line: 'One more. Find CA.', focus: 'v',
+      entrance: 'none', layout: 'board', board: 'mid', keepSegment: true,
+      quietBoard: true, fillTriangle: true,
+      intro: 'measure', entry: true, range: { min: 0, max: 18 },
+      hint: 'Twelve across and nine down.',
+      segment: { a: { x: -6, y: -2, name: 'A', coordSide: 'under' },
+                 b: { x:  6, y: -7, name: 'B', coordSide: 'under' },
+                 result: { text: '13\u00A0units' } },
+      legs: [
+        { from: { x:  6, y: -7 }, to: { x: 6, y: 7 }, mark: { name: 'C' }, settled: true, length: true },
+        { from: { x:  6, y:  7 }, to: { x: -6, y: -2 }, settled: true }
+      ],
+      task: { kind: 'entry', measureLeg: 1, answer: 15, noCount: true,
+              keepLength: true,
+              correctLine: 'Fifteen. All three are down.',
+              feedback: ['Square them, add, then take the root.'],
+              showWorking: true,
+              formula: [
+                { kind: 'lead', parts: [
+                    { t: '(CA)\u00B2', lit: 'v', from: { side: 'v' } }, { t: ' = ' },
+                    { t: '(12)\u00B2' }, { t: ' + ' }, { t: '(9)\u00B2' } ] },
+                { kind: 'step', parts: [
+                    { t: '= ' }, { t: '144' }, { t: ' + ' }, { t: '81' } ] },
+                { kind: 'step', parts: [ { t: '= ' }, { t: '225', lit: 'v' } ] },
+                { kind: 'result', parts: [
+                    { t: 'CA = ' }, { t: '15\u00A0units', lit: 'v', home: true } ] }
+              ] } },
+
+    /* 60 — the screen the whole repair is for. Three numbers become a
+       property here, and a child who computed all three perfectly can
+       still not have noticed what they MEAN. It is also where 13 and 14
+       being close has to be decided out loud: about-the-same is not the
+       same. */
+    { id: 60, line: 'What do you notice about the side lengths?',
+      entrance: 'stay', layout: 'board', board: 'mid', keepSegment: true,
+      askFirst: true, optionRow: false, quietBoard: true, fillTriangle: true,
+      pulse: 'triangle',
+      hint: 'Are any two of them the same number?',
+      segment: { a: { x: -6, y: -2, name: 'A', coordSide: 'under' },
+                 b: { x:  6, y: -7, name: 'B', coordSide: 'under' },
+                 result: { text: '13\u00A0units' } },
+      legs: [
+        { from: { x:  6, y: -7 }, to: { x: 6, y: 7 }, mark: { name: 'C' }, settled: true, length: true },
+        { from: { x:  6, y:  7 }, to: { x: -6, y: -2 }, settled: true, length: true }
+      ],
+      options: [
+        { key: 'all-equal',  cls: 'scalene',      label: 'All equal' },
+        { key: 'two-equal',  cls: 'isosceles',    label: 'Two equal' },
+        { key: 'all-diff',   cls: 'right-angled', label: 'All different' }
+      ],
+      task: {
+        kind: 'choice',
+        answer: 'all-diff',
+        feedback: ['Are any two of them the same number?'],
+        voiceOnly: true,
+        correctLine: 'All different — 13, 14 and 15.',
+        spentLine: 'Thirteen, fourteen, fifteen — all different.'
+      },
+      hold: 2600 },
+
+    /* 61 — and back to the question they opened. Same three cards, same
+       triangle, three lengths on the board now. The loop a child opened
+       by getting it wrong is closed by them getting it right. */
+    { id: 61, line: 'So, which triangle is it?',
+      entrance: 'stay', layout: 'board', board: 'mid', keepSegment: true,
+      askFirst: true, optionTrio: true, quietBoard: true, fillTriangle: true,
+      hint: 'No two sides are the same length.',
+      segment: { a: { x: -6, y: -2, name: 'A', coordSide: 'under' },
+                 b: { x:  6, y: -7, name: 'B', coordSide: 'under' },
+                 result: { text: '13\u00A0units' } },
+      legs: [
+        { from: { x:  6, y: -7 }, to: { x: 6, y: 7 }, mark: { name: 'C' }, settled: true, length: true },
+        { from: { x:  6, y:  7 }, to: { x: -6, y: -2 }, settled: true, length: true }
+      ],
+      options: [
+        { key: 'scalene',     cls: 'scalene',     label: 'Scalene',     marks: 0 },
+        { key: 'isosceles',   cls: 'isosceles',   label: 'Isosceles',   marks: 2 },
+        { key: 'equilateral', cls: 'right-angled', label: 'Equilateral', marks: 3 }
+      ],
+      task: {
+        kind: 'choice',
+        answer: 'scalene',
+        feedback: ['All three lengths are different. Which name is that?'],
+        voiceOnly: true,
+        correctLine: 'That\u2019s right — a scalene triangle.',
+        spentLine: 'All different means scalene.'
+      },
       hold: 6000 }
   ];
 

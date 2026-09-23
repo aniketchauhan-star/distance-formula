@@ -50,7 +50,21 @@
   position: absolute;
   left: 0; top: 78px;
   width: 720px;
-  max-width: calc(100vw - 68px);
+  /* The room left in the FRAME, not in the window.
+
+     This was `calc(100vw - 68px)`, which is the only viewport unit that
+     ever got inside the stage. It reads as "don't run off the screen,
+     keep the 34px #nav sits at on either side" and it is the right
+     intent measured against the wrong thing: `vw` is the real window,
+     and this panel lives in the 1920-wide design space the stage scales
+     as a whole. Below a 788px window the two stop agreeing and the
+     panel starts narrowing — measured at 700px on an iPad in portrait,
+     532px at 600, 412px at 480 — while the frame it is drawn in still
+     has 1852px of room. The design changed shape with the device, which
+     is exactly what the scaling system is there to stop.
+
+     Same intent, in the space the panel is actually in. */
+  max-width: calc(var(--stage-w) - 68px);
   display: none;
   flex-direction: column;
 

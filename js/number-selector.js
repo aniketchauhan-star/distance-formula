@@ -85,16 +85,24 @@ window.NumberSelector = (function () {
     });
 
     const tick = mk('span', 'tick', '✓');
+    /* The pointer over the chosen number. It was painted into the
+       frame while the frame was a drawing; drawn in CSS it has to be
+       a node of its own, so it can dip as a number locks in. */
+    const pointer = mk('span', 'pointer');
 
+    selector.appendChild(pointer);
     selector.appendChild(reel);
     selector.appendChild(tick);
     selector.appendChild(left);
     selector.appendChild(right);
 
-    const check = mk('button', 'check', 'Check');
+    /* GO, and it says so. The word used to live in the artwork with
+       the button's own text set to nothing, which left the label a
+       screen reader read ("Check answer") saying something the button
+       did not. */
+    const check = mk('button', 'check', 'GO');
     check.type = 'button';
-    check.setAttribute('aria-label', 'Check answer');
-    check.appendChild(mk('span', 'check-icon', '✓'));
+    check.setAttribute('aria-label', 'Go — check this answer');
 
     root.appendChild(selector);
     root.appendChild(check);
@@ -117,8 +125,20 @@ window.NumberSelector = (function () {
       cell.classList.toggle('empty', v < min || v > max);
       cell.classList.toggle('on', mid);
       cell.classList.toggle('off', !mid);
+      /* Where the drum sits. Nothing but a slide along the trough.
+
+         It used to carry `perspective(520px)` and turn the two either
+         side by 7 degrees, so they curved away as the surface of a
+         barrel does. That was right while a drum was a CSS gradient
+         pretending to be round. The drum is a drawn TILE now, and
+         turning a flat drawing in perspective does not round it — it
+         makes a trapezoid of it, and the tile's own corners stop being
+         the corners the artist drew. The position stays an inline
+         transform because an inline transform wins, which is the whole
+         reason it was written here. */
       cell.style.transform =
-        'translate(calc(-50% + ' + off + ' * var(--pitch)), -50%) scale(' + scale + ')';
+        'translate(calc(-50% + ' + off + ' * var(--pitch)), -50%)' +
+        ' scale(' + scale + ')';
       if (jump) {
         void cell.offsetWidth;           // land it before transitions come back
         cell.classList.remove('jump');

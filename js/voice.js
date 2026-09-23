@@ -48,8 +48,11 @@ window.Voice = (function () {
       ['06b-try-again.mp3', 1.18],
     'Here it is — (3, 2).':
       ['07-here-it-is-3-2.mp3', 2.30],
-    'Locate the point (6, 2).':
-      ['08-locate-the-point-6-2.mp3', 2.40],
+    /* Screen 7 asks it as "Now try (6, 2)." now, and the recording
+       says "Locate the point (6, 2)" — so it is cut loose rather than
+       left to say something the balloon does not. The line is quiet
+       until it is re-recorded; 08-locate-the-point-6-2.mp3 stays in
+       the master cut. */
     'Here it is — (6, 2).':
       ['09-here-it-is-6-2.mp3', 2.35],
     'What is the distance between two points?':

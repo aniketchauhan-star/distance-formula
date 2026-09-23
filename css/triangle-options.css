@@ -48,10 +48,15 @@
   font-family: 'Lilita One', 'Nunito', 'Arial Rounded MT Bold', Arial, sans-serif;
   /* Fixed, not a vw clamp: the whole stage is transform-scaled to the
      viewport, so a viewport-relative size would be scaled a second
-     time and come out different at every window width. The longest
-     label, "Right-angled Triangle", needs about 416px of the 446px a
-     button has inside it. */
-  font-size: 36px;
+     time and come out different at every window width.
+
+     36 was set against "Right-angled Triangle", which needed 416 of
+     the 446px a button has inside it. The word "Triangle" is gone from
+     all three — every card on the screen is one — and the longest name
+     left is "Right-angled" at about half that, so the type takes the
+     room the word was holding. The panel is scaled to 0.73 on the
+     stage, so this reads at about 38px rather than 26. */
+  font-size: 52px;
   font-weight: 400;
   letter-spacing: -0.4px;
   color: #FFFFFF;
@@ -293,6 +298,74 @@
      it — "Café A" still sits on one line with room to spare. */
   font-size: 40px;
 }
+
+/* =============================================================
+   Three cards, each carrying a drawing of itself.
+
+   A question about which sides of a triangle are equal is answered by
+   reading hash marks, so the cards that name the three answers carry
+   them: none on the scalene, a pair on the isosceles, three on the
+   equilateral. Side by side rather than stacked, because they are three
+   of one kind of thing and a column would make them a ranked list —
+   the same argument the pair layout above makes for two.
+   ============================================================= */
+.triangle-options-panel.trio {
+  flex-flow: row wrap;
+  gap: 18px;
+  align-items: stretch;
+  /* Three names side by side need three names' worth of width. At the
+     panel's stacked 520 each card had 129px inside it, which is why
+     the type was at 26 and "Equilateral" still filled its card edge to
+     edge — the type was small because the card was narrow, not because
+     the name is long. There is better than 600px of empty field
+     between this panel and the board; this takes the part of it the
+     names need and leaves the rest. */
+  width: 740px;
+}
+.triangle-options-panel.trio .triangle-option {
+  flex: 1 1 calc(33.333% - 12px);
+  width: auto;
+  min-width: 0;
+  height: auto;
+  padding: 18px 8px 16px;
+  flex-direction: column;
+  gap: 10px;
+  border-radius: 26px;
+  /* Three words across a third of the panel, and "Equilateral" is the
+     one that has to fit.
+
+     26 inside a panel scaled to 0.665 rendered at about 17px on a
+     1920 stage — the smallest type anywhere in the game, and the
+     answer being chosen. The card gives the drawing a little of its
+     height back so the name can have it: the icon is the evidence,
+     the name is the answer. */
+  font-size: 34px;
+  letter-spacing: -0.3px;
+}
+.triangle-option .opt-label { display: block; }
+.triangle-option .opt-icon {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 86px;
+}
+/* Drawn in the card's own ink, so each shape belongs to its card rather
+   than to a separate diagram sitting on one. */
+.triangle-option .opt-tri {
+  fill: rgba(255, 255, 255, .30);
+  stroke: #FFFFFF;
+  stroke-width: 5;
+  stroke-linejoin: round;
+}
+.triangle-option .opt-tick {
+  stroke: #FFFFFF;
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+/* A card that has given way keeps its drawing readable — the shape is
+   still the thing being talked about. */
+.triangle-option.spent .opt-tri,
+.triangle-option.spent .opt-tick { opacity: .9; }
 
 /* Their own two colours rather than the positional ones: each carries
    the colour of its own pill on the map, so a child can pair a button

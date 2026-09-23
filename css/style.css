@@ -4,6 +4,33 @@
    scaled by JS so the 16:9 frame fits any screen and letterboxes.
    ============================================================= */
 
+/* The design space, declared once.
+
+   Every length in this project is written in these units, and the
+   whole frame is scaled as one thing to whatever room the browser
+   gives it. That is the entire responsive system: there is no second
+   layout for a smaller screen, because a smaller screen gets the same
+   layout at a smaller scale.
+
+   Which means a viewport unit is always a bug here. `vw` and `vh`
+   measure the real window; everything inside #stage measures the
+   design. The two are the same number only at exactly 1920x1080, so a
+   `vw` inside the stage is a length that silently changes shape with
+   the device — the one thing this system exists to prevent. When a
+   rule needs to know how much room the whole frame has, it asks
+   --stage-w / --stage-h, not the window.
+
+   `fitStage()` writes these from C.STAGE_W / C.STAGE_H at boot, so the
+   config stays the one place the design's size is decided and these
+   two lines are the fallback that keeps the first paint right. It also
+   writes --stage-k, the scale in force, for anything that ever needs
+   to undo it. */
+:root {
+  --stage-w: 1920px;
+  --stage-h: 1080px;
+  --stage-k: 1;
+}
+
 *, *::before, *::after { box-sizing: border-box; }
 
 html, body {
@@ -24,7 +51,7 @@ html, body {
 
 #stage {
   position: absolute; left: 50%; top: 50%;
-  width: 1920px; height: 1080px;
+  width: var(--stage-w); height: var(--stage-h);
   transform: translate(-50%, -50%) scale(1);
   transform-origin: center center;
   overflow: hidden;
@@ -32,9 +59,13 @@ html, body {
   box-shadow: 0 30px 90px rgba(0, 0, 0, .55);
 }
 
+/* Full-frame art: the background plates, which are drawn at the design
+   size and so fill it exactly. Sized from the design space rather than
+   from 100%/100% so a plate can never be stretched by a parent that
+   has been given some other height. */
 .full {
   position: absolute; left: 0; top: 0;
-  width: 1920px; height: 1080px;
+  width: var(--stage-w); height: var(--stage-h);
   display: block;
   pointer-events: none;
 }
@@ -157,14 +188,15 @@ html, body {
 /* ---------------- scene ---------------- */
 #scene { position: absolute; inset: 0; z-index: 1; opacity: 0; }
 
-/* The scene behind the game is set back a little so the eye goes to the
-   board, Swifty and her line rather than to the trees. Scaled a touch
-   past the frame because a blur samples beyond its own edges and would
-   otherwise leave a soft rim all round. */
+/* The scene behind the game is left sharp. It used to carry a 4px
+   blur to push it back behind the board and the line — and the 1.02
+   scale with it, which existed only to hide the soft rim a blur
+   leaves at its own edges. The painting is meant to be seen.
+
+   What is left is a breath of tone off it, far too little to read as
+   haze: the board and her line still have to come first. */
 #sceneArt {
-  filter: blur(4px) saturate(.94) brightness(.97);
-  transform: scale(1.02);
-  transform-origin: center center;
+  filter: saturate(.96) brightness(.98);
 }
 #scene.fade-in { animation: fadeIn .6s ease forwards; }
 
@@ -255,9 +287,9 @@ html, body {
      rather than the drawn outline, so these are filters: they follow
      the silhouette, tail and all. */
   filter:
-    drop-shadow(0 0 10px var(--glow,     rgba(224, 154, 85, .34)))
-    drop-shadow(0 0 24px var(--glowWide, rgba(224, 154, 85, .18)))
-    drop-shadow(0 9px 18px var(--cast,   rgba(120, 62, 14, .24)));
+    drop-shadow(0 0 10px var(--glow,     rgba(24, 28, 48, .30)))
+    drop-shadow(0 0 24px var(--glowWide, rgba(24, 28, 48, .16)))
+    drop-shadow(0 9px 18px var(--cast,   rgba(16, 20, 40, .34)));
   /* the catch-light is sized in em off the line's own size, so it holds
      its proportion at any scale */
   font-size: var(--bubSize, 32px);
@@ -281,8 +313,8 @@ html, body {
   pointer-events: none;
 }
 #bubbleBody {
-  fill: var(--fill, #FFF1E2);
-  stroke: var(--edge, #E09A55);
+  fill: var(--fill, #FFFDF7);
+  stroke: var(--edge, #232A44);
   stroke-width: var(--e1, 5px);
   stroke-linejoin: round;
 }
@@ -345,10 +377,10 @@ html, body {
   border-radius: var(--radius, 46px);
   background: var(--paper-inner, #FFFDF1);
   box-shadow:
-    inset 0 0 0 var(--edgeW,  3px) var(--paper-edge,  #D88912),
-    inset 0 0 0 var(--frameW, 26px) var(--paper-frame, #F8C73A),
-    inset 0 0 0 var(--hiW,    31px) var(--paper-hi,    #FFF2A8),
-    0 5px 12px rgba(120, 80, 20, .14);
+    inset 0 0 0 var(--edgeW,  2px) var(--paper-edge,  #141930),
+    inset 0 0 0 var(--frameW, 14px) var(--paper-frame, #252C47),
+    inset 0 0 0 var(--hiW,    16px) var(--paper-hi,    #FFF2A8),
+    0 8px 22px rgba(16, 20, 40, .30);
 }
 
 /* The grid itself: one line every cell, laid down from the origin out,
@@ -400,6 +432,25 @@ html, body {
    are and come earlier in the file. */
 #gridPanel.quiet #gridAxes .arrow.pop { opacity: .3; }
 #gridPanel.quiet #gridAxes .glabel.pop { opacity: .5; }
+
+/* The other reason the board steps back, and it is not the same reason.
+
+   `quiet` is a beat saying "this one is about the drawing, not about
+   counting", and it takes the ruling down with everything else.
+   `crossed` is the BOARD saying "a side of this drawing runs over an
+   axis" — the paper giving way to the subject where the two meet — and
+   it leaves the ruling alone. Screen 58 is why the two are separate: it
+   asks a child to count fourteen squares up a side that crosses the
+   x-axis, so the axis has to get out of the way and the squares have to
+   stay countable.
+
+   The numbers do not go as far down as the lines. A child reads
+   coordinates off them on every screen in this game, and a number at .3
+   is a number they have to squint at; the lines carry less here, so the
+   lines can go further. */
+#gridPanel.crossed #gridAxes .axis { opacity: .3; }
+#gridPanel.crossed #gridAxes .arrow.pop { opacity: .3; }
+#gridPanel.crossed #gridAxes .glabel.pop { opacity: .5; }
 
 /* Pushed in, the axes are lines only. At that range the child is reading
    the drawing and its own labels, not counting along an axis, and the
@@ -547,6 +598,11 @@ html, body {
 }
 #gridAxes .legdash { fill: none; }
 #gridAxes .legline.draw { animation: drawOut .6s cubic-bezier(.3, .85, .35, 1) forwards; }
+/* A side carried over from the screen before is not arriving: it is
+   simply still there. `set` says so — drawn, with no drawing. */
+#gridAxes .legline.draw.set,
+#gridAxes .segline.draw.set,
+#gridAxes .segdash-g.draw.set { animation: none; stroke-dashoffset: 0; }
 #gridAxes .legcoord, #gridAxes .legname {
   opacity: 0;
   font-family: 'Nunito', system-ui, sans-serif;
@@ -759,10 +815,31 @@ html, body {
 /* The working and the board saying the same thing at once: the side
    being named comes forward, the others step back. Opacity and a glow
    only — the geometry never moves, so nothing can drift out of place. */
-#gridAxes .segres, #gridAxes .leglen, #gridAxes .segline, #gridAxes .legline {
-  transition: opacity 300ms ease, filter 300ms ease;
+#gridAxes .segres, #gridAxes .leglen, #gridAxes .segline, #gridAxes .legline,
+#gridAxes .segdot, #gridAxes .legdot,
+#gridAxes .segname, #gridAxes .legname,
+#gridAxes .segcoord, #gridAxes .legcoord,
+#gridAxes .trifill, #gridAxes .rightangle {
+  transition: opacity 420ms ease, filter 420ms ease;
 }
-#gridAxes .hush { opacity: .28; }
+/* `!important` is not shouting here, it is the only thing in the
+   cascade that beats an ANIMATION.
+
+   Almost everything this dims — a length, a coordinate, a letter, a
+   dot — is painted by a filled animation (`labelPop`, `segDotIn`,
+   both with `both`), and a filled animation outranks any ordinary
+   declaration however specific. So `.hush` was being set on the two
+   leg lengths and doing nothing at all: they carried the class and
+   stayed at opacity 1 while the line beside them dimmed.
+
+   `animation: none` would also win, and was the obvious fix, but it
+   releases the animation rather than outranking it — and the moment
+   the hush comes off, `labelPop` and `segDotIn` are live again and
+   restart from their first keyframe. Every dot and every label on the
+   board would pop again each time the spotlight moved. Important
+   declarations lose only to transitions, which is exactly right: the
+   dimming still eases over its 420ms. */
+#gridAxes .hush { opacity: .28 !important; }
 #gridAxes .spot { filter: drop-shadow(0 0 7px rgba(255, 196, 74, .95)); }
 
 @keyframes partBeat {
@@ -816,8 +893,12 @@ html, body {
   font-family: 'Nunito', system-ui, sans-serif;
   font-weight: 600;
   text-anchor: middle; dominant-baseline: middle;
+  /* The halo, so a label reads over the ruling. It was briefly a
+     rounded plate like the working's; the panel behind the FORMULA is
+     the only panel this board wants, and a plate on every coordinate
+     made five of them. Five, at the size the type is now. */
   paint-order: stroke fill;
-  stroke: #FDFBF0; stroke-width: 6;     /* halo, so labels read over the grid */
+  stroke: #FDFBF0; stroke-width: 5;
   transform-box: fill-box; transform-origin: center;
 }
 #gridAxes .segcoord.pop, #gridAxes .segname.pop {
@@ -1421,7 +1502,18 @@ html, body {
    is all of them. The class is doubled here to match that weight, and
    the block sits last so source order settles the tie.
    ============================================================= */
-#gridAxes .spotbeat.spotbeat { animation: partBeat .5s ease; }
+#gridAxes .spotbeat.spotbeat { animation: partPulse .62s ease; }
+
+/* The beat itself: the side SWELLS. It used to dip to .45 opacity and
+   come back — a flicker, which reads as the line failing rather than
+   as the line being pointed at. A glow that grows out of the one
+   `.spot` is already wearing and settles back into it says "this one"
+   without ever taking the line away. */
+@keyframes partPulse {
+  0%, 100% { filter: drop-shadow(0 0 7px rgba(255, 196, 74, .95)); }
+  50%      { filter: drop-shadow(0 0 13px rgba(255, 196, 74, 1))
+                     drop-shadow(0 0 24px rgba(255, 196, 74, .72)); }
+}
 
 /* The triangle pulsing, done with an overlay rather than by arguing
    with the lines themselves.
@@ -1459,8 +1551,19 @@ html, body {
   }
 }
 
-/* and the three corners, on the same clock */
+/* and the three corners, on the same clock.
+
+   `opacity: 1` is not decoration — it is what keeps the corner ON the
+   board. A dot rests at opacity 0 and is painted by `segDotIn ... both`:
+   the animation's fill IS its visibility. Naming an animation here
+   REPLACES that one, fill and all, so the dot fell back to its own
+   resting opacity and went out for exactly as long as she was pointing
+   at it — the two corners she names being the only two that vanish.
+   The same trap as a filled animation beating a transform attribute:
+   whatever a `both` animation is holding, a second `animation:` on the
+   same element drops. Hold it here instead. */
 #gridAxes.triangle-question-active .triangle-point {
+  opacity: 1;
   animation: trianglePointPulse 900ms ease-in-out infinite;
   transform-box: fill-box;
   transform-origin: center;
@@ -1507,6 +1610,18 @@ html, body {
    the camera like every other label on this board, so it is the size it
    is meant to be on the stage whatever the board has pushed in to. */
 #gridAxes .work { opacity: 1; pointer-events: none; }
+/* The working is written on this rather than straight onto the ruling.
+   The paper's own cream, a soft edge, and no shadow: it is a surface to
+   read algebra off, not a panel competing with the drawing beside it. */
+#gridAxes .workplate {
+  fill: #FDFBF0;
+  stroke: rgba(150, 120, 60, .28);
+  stroke-width: 2;
+  opacity: 0;
+  transition: opacity .34s ease;
+}
+#gridAxes .workplate.on { opacity: .96; }
+
 #gridAxes .workline {
   opacity: 0;
   font-family: 'Nunito', system-ui, sans-serif;

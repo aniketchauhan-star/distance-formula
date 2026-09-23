@@ -109,6 +109,10 @@ triangle is — and know that looking at it was never going to be enough.
 | A | **(−8, −1)** |
 | B | **(4, −6)** |
 | C | **(4, 8)** |
+
+*(Built at `A(−6, −2)`, `B(6, −7)`, `C(6, 7)` — the same 13-14-15,
+translated so it is centred on the origin with clear rows past each
+apex. See §10.2.)*
 | AB | **13** |
 | BC | **14** |
 | CA | **15** |
@@ -274,7 +278,7 @@ fourteen small cells tall in a large empty sheet.
 | board | x | y | numbered every | cell |
 |---|---|---|---|---|
 | `close` | −6..6 | −5..5 | 1 | 88 |
-| **`mid` (new)** | **−10..10** | **−9..9** | **1** | **~53** |
+| **`mid` (new)** | **−10..10** | **−8..8** | **1** | **~53** |
 | `wide` | −15..15 | −13..13 | 5 | 35 |
 
 `setRange` already does this — `towers-and-the-rescue.md` §11 built it,
@@ -364,3 +368,121 @@ counted to, which is the rule that matters.
 - [ ] the board is the new `mid` one, numbered every unit, with all
       three corners on intersections
 - [ ] every screen from 1 to 54 is unchanged
+
+---
+
+## 10. Built — 19 Sep 2026
+
+Every box in §9 ticks, watched in headless Chrome as well as checked in
+the Node harness. Screens **55 to 61**, and the game ends on 61.
+
+### 10.1 The beat, as it plays
+
+```
+[55]  "What kind of triangle is this park?"   A(-6,-2) B(6,-7) C(6,7)
+      Scalene · Isosceles · Equilateral        each card drawn, with its marks
+      right -> the game ends        two wrong -> the repair
+[56]  "Oops! Let's check the sides."           the cards go, the triangle stays
+[57]  "First, find AB."      AB lights alone   13 -> stays on AB
+[58]  "Now find BC."         BC lights alone   14 -> stays on BC
+[59]  "One more. Find CA."   CA lights alone   15 -> stays on CA
+[60]  "What do you notice about the side lengths?"
+      All equal · Two equal · All different
+[61]  "So, which triangle is it?"              the same three cards, and Scalene
+```
+
+### 10.2 What the spec did not anticipate
+
+**The triangle moved, and the sides did not.** §3's `A(−8, −1)`,
+`B(4, −6)`, `C(4, 8)` is 13-14-15 but it is not centred — it leans two
+cells left and one down, and its apex has three cells of headroom on one
+side and none to spare on the other. Translating a triangle changes no
+distance, so it is placed at **`A(−6, −2)`, `B(6, −7)`, `C(6, 7)`**:
+the same 13-14-15, centred on the origin, with three clear rows past
+each apex for its label.
+
+**A right answer on the last question has nowhere to branch to.**
+`task.rightAt` names the screen to step to, and on 55 that is "past the
+beats that teach it" — of which there are none, because they are the end
+of the game. `rightAt: 'end'` says so; `nextIndex` returns one past the
+last screen and both Next and the hand-over already stop there. Written
+as a number it would have fallen through to the next screen, which is
+the first beat of the repair.
+
+**Screen 58 must NOT step the board back.** Every other beat here reads
+the board, and `quietBoard` is right for them. 58 asks a child to
+*count* the vertical side — and counting squares needs the squares.
+`qa-examples` caught it, which is the probe doing exactly the job its
+own comment claims.
+
+### 10.3 Four things the board had never been asked to do
+
+The board has drawn two-legged right-angled paths for the whole lesson.
+A triangle with three ordinary sides asks four new things of it, and
+each was wrong in the same way: a shortcut that is exact while a leg
+runs along a row or a column.
+
+1. **A leg's length was `|dx| + |dy|`.** Identical to the real length
+   for every leg that had ever existed, and 21 for a side of length 15.
+   Measured properly now; an axis-parallel leg is unchanged, one of the
+   two terms being zero.
+2. **A typed answer was always checked against the pair.** `checkEntry`
+   derived the answer from the screen's segment, so a question about a
+   *side* was marked against the length of a different side. It now asks
+   which two points the question is about — the named leg, or the pair.
+3. **A changed range left the board with no axes.** `setRange` makes new
+   axis lines the way the board makes them at the start of a screen:
+   dashed out of sight, waiting for the sweep. A screen that changes
+   range without being rebuilt gets no sweep, so the `mid` board came up
+   as bare paper with no axes and no numbers at all. They are put into
+   the state the ones they replaced were in.
+4. **A vertical side's length wrote across the x-axis numbering.** BC's
+   middle is level with the axis, so "14 units" landed on the 3, 4 and
+   5. It slides along its own side until it is out of that row — the
+   same courtesy `showSegResult` already does for a pair.
+
+And one thing that is new rather than broken: **`task.keepLength`**,
+which writes a measured length on the side it measures and leaves it
+there. Three sides found one at a time only make an argument if the
+board fills up in front of the child.
+
+### 10.4 The cards
+
+`marks: 0 | 2 | 3` on a choice draws a triangle on its card with that
+many hash marks. Scalene leans and carries none; the other two are
+symmetric, because a child should be able to see the symmetry the marks
+are claiming. `optionTrio` puts the three side by side rather than
+stacked, for the same reason the pair layout exists: three of one kind
+of thing are not a list to work down.
+
+Screen 60's three answers are about the numbers, not the shapes, so they
+carry no drawings — which is checked, because a card that drew a
+triangle there would be answering its own question.
+
+### 10.5 Probes
+
+New: **`qa-park`** — the three sides whole, all different and within
+15% of each other (so the eye is fooled), the three of them closing into
+one triangle with each corner named once, every corner on an
+intersection of the `mid` board, the cards and their marks, the branch
+both ways, the lengths accumulating one per screen, and 60 asking about
+numbers while 61 asks about names.
+
+Taught: `qa-onelen` and `qa-pyth2` (a leg's length, not its perimeter),
+`qa-dashleg` (a side the question *introduces* is laid down dotted; a
+side of a shape already drawn is measured where it is — `settled` says
+which), `qa-examples` (the park beats read the board, all but 58),
+`qa-typedwork` (as many lit parts as the screen's own working has,
+rather than the seven the Pythagoras screens happen to carry),
+`qa-typedwork` and `qa-pyth2` and `qa-tripulse` (a walk that answers
+everything correctly steps over the screens it is hunting, now that a
+branch can end the game), and `qa-towers` (54 is no longer the last
+beat — what is claimed now is that nothing after it re-teaches the
+method).
+
+Suite: **92 green, 4 red** — `qa-sel`, `qa-tap2`, `qa-tap3`, `qa-taps`,
+the standing four.
+
+Browser capture: `cdp-park.js`.
+
+**Still to record:** every line on all seven screens.

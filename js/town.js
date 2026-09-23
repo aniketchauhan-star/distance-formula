@@ -34,11 +34,15 @@ window.TownMap = (function () {
     let built = '';
     const nodes = [];
 
-    /* One building, in shapes. A cafe is a striped awning over a shop
-       front with a cup on its board; a house is a pitched roof over a
-       door. Deliberately simple — these are markers on a grid, and a
-       storybook drawn at a cell and a half would swamp the ruling the
-       child is meant to be counting on. */
+    /* One place: its name pill, and a crop of the town sheet under it.
+
+       These used to be drawn here in CSS — an awning of repeating
+       stripes, a roof clipped out of a triangle, windows and a door
+       per building. That is gone: one picture, cut by the rect its
+       kind names. Deliberately still simple at the size it is shown —
+       these are markers on a grid, and a storybook drawn at a cell and
+       a half would swamp the ruling the child is meant to be counting
+       on. */
     function draw(p) {
       const wrap = document.createElement('div');
       wrap.className = 'town-place town-' + p.kind;
@@ -50,16 +54,7 @@ window.TownMap = (function () {
 
       const b = document.createElement('div');
       b.className = 'town-build';
-      /* Roof, then the face under it. The cafe's roof is the awning and
-         carries its stripes; the house's is a pitch. */
-      b.innerHTML =
-        '<div class="t-roof"></div>' +
-        (p.kind === 'cafe' ? '<div class="t-sign"></div>' : '') +
-        '<div class="t-body">' +
-          '<div class="t-win"></div>' +
-          '<div class="t-door"></div>' +
-          '<div class="t-win"></div>' +
-        '</div>';
+      b.style.backgroundImage = 'url("' + window.CFG.TOWN.sheet.src + '")';
 
       wrap.appendChild(pill);
       wrap.appendChild(b);
@@ -97,8 +92,27 @@ window.TownMap = (function () {
           /* Its foot sits a little above the dot, so neither the dot
              nor the coordinates written under it are ever covered. */
           n.style.top = (s.y - T.liftCells * ch) + 'px';
-          n.style.setProperty('--w', (T.wCells * cw) + 'px');
-          n.style.setProperty('--h', (T.hCells * ch) + 'px');
+          /* Sized by its own height in cells, with its width taken
+             from its own drawing so nothing is squashed — and the
+             sheet behind it scaled so exactly that drawing fills the
+             box. */
+          const sp = (T.sprites || {})[p.kind];
+          const sheet = T.sheet;
+          if (sp && sheet) {
+            const bh = (sp.tall != null ? sp.tall : T.hCells) * ch;
+            const bw = bh * (sp.w / sp.h);
+            const k = bh / sp.h;
+            n.style.setProperty('--w', bw + 'px');
+            n.style.setProperty('--h', bh + 'px');
+            const b = n.querySelector('.town-build');
+            if (b) {
+              b.style.backgroundSize = (sheet.w * k) + 'px ' + (sheet.h * k) + 'px';
+              b.style.backgroundPosition = (-sp.x * k) + 'px ' + (-sp.y * k) + 'px';
+            }
+          } else {
+            n.style.setProperty('--w', (T.wCells * cw) + 'px');
+            n.style.setProperty('--h', (T.hCells * ch) + 'px');
+          }
           n.style.setProperty('--cell', ch + 'px');
         });
       },
