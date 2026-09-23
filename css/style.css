@@ -773,6 +773,17 @@ html, body {
    lagging line would feel disconnected from it. */
 #gridAxes .measline, #gridAxes .mescap { opacity: 0; }
 #gridAxes .measline.on, #gridAxes .mescap.on { opacity: 1; }
+/* Except on its way out after a wrong guess, where it does ease.
+
+   The line has no transition of its own because the slider's does not
+   want one; this is the one moment it is not following a hand. It is
+   written after `.on` deliberately — the two weigh the same, so the
+   later rule is the one that wins while both classes are on the
+   element. */
+#gridAxes .measline.fade, #gridAxes .mescap.fade {
+  opacity: 0;
+  transition: opacity var(--measFade, 380ms) ease;
+}
 #gridAxes .mescap {
   transform-box: fill-box; transform-origin: center;
 }

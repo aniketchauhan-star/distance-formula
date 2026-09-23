@@ -3727,26 +3727,29 @@
         })(n);
       }
 
-      /* And a wrong one is walked BACK. It is held at its wrong length
-         long enough to be read, then travels home to the point it
-         started from — quicker going back than coming out, because it
-         is not being counted, it is being cleared — and only then does
-         the beat hand over to the squares. The number is never
-         written: the line may show a wrong length, but the board must
-         not assert one. */
+      /* And a wrong one LETS GO. It is held at the length that was
+         given, long enough to be read against the point it was meant
+         to reach, and then it fades where it stands.
+
+         It used to walk home, unit by unit, the way it had come. That
+         reads as the board taking the answer back — the same gesture
+         as giving it, run in reverse, so the eye follows the line all
+         the way to the start and the wrong length is the last thing it
+         was still being shown. Fading leaves the length where it was
+         drawn and simply stops showing it, which is the difference
+         between withdrawing an answer and letting one go.
+
+         The number is never written either way: the line may show a
+         wrong length, but the board must not assert one. */
       if (!keep) {
         const out = steps * U.stepMs;
-        const back = U.missStepMs == null ? 110 : U.missStepMs;
         const hold = U.missHoldMs == null ? 620 : U.missHoldMs;
-        for (let n = steps - 1; n >= 0; n--) {
-          (function (k) {
-            later(function () {
-              if (k === 0) self.clearMeasure();
-              else self.drawMeasure(from, from.x + ux * k, from.y + uy * k);
-            }, out + hold + (steps - 1 - k) * back);
-          })(n);
-        }
-        later(done, out + hold + steps * back + 160);
+        const fade = U.missFadeMs == null ? 380 : U.missFadeMs;
+        later(function () { self.fadeMeasure(fade); }, out + hold);
+        /* Cleared only once it is invisible: clearMeasure takes the
+           fade off with everything else, and taking it off early would
+           snap the line back to full strength for a frame. */
+        later(function () { self.clearMeasure(); done(); }, out + hold + fade + 90);
         return;
       }
 
@@ -5036,14 +5039,28 @@
       this.measLine.setAttribute('y2', py(ey));
       this.measCap.setAttribute('cx', px(ex));
       this.measCap.setAttribute('cy', py(ey));
+      /* A line being drawn is never a line going out: whatever the
+         last guess left fading, this one starts solid. */
+      this.measLine.classList.remove('fade');
+      this.measCap.classList.remove('fade');
       this.measLine.classList.add('on');
       this.measCap.classList.add('on');
     },
 
+    /* A wrong guess lets go where it stands. */
+    fadeMeasure: function (ms) {
+      if (!this.measLine) return;
+      const t = (ms || 380) + 'ms';
+      this.measLine.style.setProperty('--measFade', t);
+      this.measCap.style.setProperty('--measFade', t);
+      this.measLine.classList.add('fade');
+      this.measCap.classList.add('fade');
+    },
+
     clearMeasure: function () {
       if (!this.measLine) return;
-      this.measLine.classList.remove('on', 'lit');
-      this.measCap.classList.remove('on');
+      this.measLine.classList.remove('on', 'lit', 'fade');
+      this.measCap.classList.remove('on', 'fade');
     },
 
     // the guess landed: leave it on the board, lit

@@ -1099,15 +1099,20 @@ window.CFG = (function () {
       /* One beat per unit as the line walks out. Slow enough to count
          along with, quick enough that twelve of them is not a wait. */
       stepMs: 240,
-      /* A wrong guess is WALKED BACK. The line goes out to the number
-         they chose — short of the point or a unit past it, which is
-         the feedback — waits long enough to be seen there, and then
-         travels back to the point it started from, quicker than it
-         went out, leaving the board clear for the squares. It used to
-         simply stop existing, which read as the game deleting their
-         answer rather than as the answer coming back. */
+      /* A wrong guess is HELD, then LET GO. The line goes out to the
+         number they chose — short of the point or a unit past it,
+         which is the feedback — waits long enough to be read against
+         the point it was meant to reach, and then fades where it
+         stands, leaving the board clear for the squares.
+
+         It walked back, once, unit by unit the way it had come. That
+         is the gesture of giving the answer run in reverse, so the eye
+         follows the line home and the wrong length is the last thing
+         it is still being shown. Fading leaves the length where it was
+         drawn and stops showing it, which is the difference between
+         withdrawing an answer and letting one go. */
       missHoldMs: 620,   // the wrong length, held to be read
-      missStepMs: 110,   // and then walked back, one unit at a time
+      missFadeMs: 380,   // and then let go where it stands
       /* How long the finished count stays up before the board is handed
          back. It is a hint, not a caption: it says how long a unit is
          and how many fit, and then gets out of the way so the next try
