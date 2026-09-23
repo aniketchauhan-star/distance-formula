@@ -588,6 +588,18 @@
           return { x: (G.originX + gx * G.stepX) * (b.w / G.w),
                    y: (G.originY - gy * G.stepY) * (b.h / G.h) };
         }, cell.w, cell.h);
+
+        /* And what the town now covers, in board units, so the label
+           placer can keep clear of it the way it keeps clear of the
+           axis numbers. The panel is stretched to its box, so the two
+           axes scale by different amounts and each has to be undone
+           with its own. */
+        const G = C.GRID, b = Board.box || G.box;
+        const kx = (b.w / G.w) || 1, ky = (b.h / G.h) || 1;
+        Board.townInk = (Town.boxes() || []).map(function (o) {
+          return { l: o.l / kx, t: o.t / ky, r: o.r / kx, b: o.b / ky,
+                   what: o.what };
+        });
       };
     }
 
@@ -2303,6 +2315,12 @@
         const w = self.textW(n.textContent, G.axisName.size);
         push(x - w / 2, y - G.axisName.size / 2, x + w / 2, y + G.axisName.size / 2,
              'the ' + n.textContent);
+      });
+      /* The town, when one is standing on the board. Five pictures with
+         their name pills, which are the biggest things on the paper and
+         were the only ones the placer could not see. */
+      (this.townInk || []).forEach(function (o) {
+        push(o.l, o.t, o.r, o.b, o.what);
       });
       this.inked = list;
       this.inkLines = [];
@@ -5944,7 +5962,10 @@
       const dressTown = function (e) {
         if (Town) {
           if (e.town) { Town.set(C.TOWN.places); Board.onPlaced(); Town.show(); }
-          else Town.hide();
+          /* A town that has gone takes its footprint with it, or the
+             next board keeps its labels clear of buildings that are no
+             longer standing there. */
+          else { Town.hide(); Board.townInk = null; }
         }
         if (Opts) Opts.setRow(!!e.optionRow);
         if (Opts && Opts.setTrio) Opts.setTrio(!!e.optionTrio);
