@@ -2220,7 +2220,14 @@ window.CFG = (function () {
       segment: { a: { x: -2, y: 2, name: 'A' },
                  b: { x:  2, y: 5, name: 'B' } , dash: true},
       legs: [
-        { from: { x: -2, y: 2 }, to: { x: 2, y: 2 }, mark: { name: 'C' } },
+        /* C sits beside its dot, not above it. The vertical leg leaves
+           this corner going up, so the worked-out "away" — which this
+           board gets wrong anyway, seating the mark before the segment
+           it measures from is its own — put the letter and the
+           coordinate alongside that line. Out to the right is the one
+           direction here with nothing in it. */
+        { from: { x: -2, y: 2 }, to: { x: 2, y: 2 },
+          mark: { name: 'C', away: { x: 1, y: 0 } } },
         { from: { x:  2, y: 2 }, to: { x: 2, y: 5 } }
       ],
       task: { kind: 'entry', pair: 'AB', answer: 5,

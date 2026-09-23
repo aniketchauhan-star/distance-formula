@@ -2622,8 +2622,21 @@
          mark used — and the pair it becomes keeps it, so the label does
          not shuffle the moment the two are joined. */
       const wasFound = (this.foundSide || {})[opt.at];
-      const at = this.placeBlock(w, h, X, Y, gap, part.heldDir ? opt.away : (wasFound ?
-                   { x: 0, y: -wasFound[1] } : opt.away), part.heldDir || wasFound);
+      /* A side the board was TOLD to use outranks both of those.
+
+         The rule works out which way is "away" from the centroid of
+         what is drawn, which is right nearly everywhere — but it reads
+         `lastPlotted`, and on a screen that inherits its board the
+         mark can be seated while that is still the previous screen's
+         pair. The direction it picks then is frozen by heldDir, and
+         nothing re-places a leg's mark once the camera has settled, so
+         an early guess is final. Where that goes wrong the board can
+         say where the label belongs and be believed. */
+      const pin = opt.pin ? [opt.pin.x, opt.pin.y] : null;
+      const at = this.placeBlock(w, h, X, Y, gap,
+                   pin ? opt.away : (part.heldDir ? opt.away : (wasFound ?
+                     { x: 0, y: -wasFound[1] } : opt.away)),
+                   pin || part.heldDir || wasFound);
       part.heldDir = at.dir;
 
       /* And now measured to the INK.
@@ -2805,10 +2818,13 @@
           const my = (py(drawn.a.y) + py(drawn.b.y) + y2) / 3;
           return { x: x2 - mx, y: y2 - my };
         })(this);
+        /* `mark.away` is the board naming the side itself, for the
+           corners where the worked-out one comes out wrong. */
+        const pin = spec.mark.away || null;
         this.placePointLabel(
           L.markLabel || (L.markLabel = { coord: L.coord, name: L.name }),
           { name: spec.mark.name, coordText: L.coord.textContent },
-          x2, y2, { ctext: L.coord.textContent, away: away });
+          x2, y2, { ctext: L.coord.textContent, away: pin || away, pin: pin });
         L.dot.style.display = L.coord.style.display = L.name.style.display = '';
       } else {
         L.dot.style.display = L.coord.style.display = L.name.style.display = 'none';
