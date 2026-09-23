@@ -1435,26 +1435,34 @@
       for (let u = 0; u < UC.slots; u++) {
         const cg = document.createElementNS(NS, 'g');
         cg.setAttribute('class', 'ucell');
-        const cr = document.createElementNS(NS, 'rect');
-        cr.setAttribute('class', 'ucell-box');
-        cr.setAttribute('fill', U.band.fill);
-        cr.setAttribute('stroke', U.band.edge);
-        cr.setAttribute('stroke-width', U.band.edgeW);
-        cr.setAttribute('rx', 6);
-        /* The step taken across this square, drawn in it. Built here
-           and pointed by drawCountCells, which is the only thing that
-           knows which way the count is running. */
+        /* The step taken across this space, and the count of it. No
+           box: the square used to be drawn as a filled, stroked tile
+           and the two marks sat on it, which made the tile the thing
+           on the board and the count a caption on the tile. The space
+           is already ruled on the paper — an arrow across it and a
+           number under that is the whole of what there is to say.
+
+           Pointed by countUnits, which is the only thing that knows
+           which way the count is running. */
         const ca = document.createElementNS(NS, 'path');
         ca.setAttribute('class', 'ucell-arrow');
-        ca.setAttribute('stroke', U.band.edge);
+        /* The board's own ink, the same as the number under it, so the
+           step and the count of it read as one mark.
+
+           It was the band's edge colour — a blue at 55% alpha, chosen
+           to outline a tile without dominating it. With the tile gone
+           that alpha left the arrow the faintest thing on the paper,
+           fainter than the number beside it, when the arrow IS the
+           step being counted. */
+        ca.setAttribute('stroke', G.ink);
         ca.setAttribute('stroke-width', (UC.arrow && UC.arrow.w) || 4);
         const ct = document.createElementNS(NS, 'text');
         ct.setAttribute('class', 'ucell-n');
         ct.setAttribute('fill', G.ink);
         ct.setAttribute('font-size', UC.numSize);
-        cg.appendChild(cr); cg.appendChild(ca); cg.appendChild(ct);
+        cg.appendChild(ca); cg.appendChild(ct);
         ug.appendChild(cg);
-        this.countCells.push({ g: cg, box: cr, arrow: ca, num: ct });
+        this.countCells.push({ g: cg, arrow: ca, num: ct });
       }
 
       const SG = G.segment;
@@ -3574,7 +3582,7 @@
     clearUnits: function () {
       if (this.segGroup) this.segGroup.classList.remove('counting');
       (this.countCells || []).forEach(function (c) {
-        c.g.classList.remove('on', 'lit');
+        c.g.classList.remove('on');
         c.g.style.display = 'none';
       });
       if (this.unitBand) this.unitBand.classList.remove('on');
@@ -4048,9 +4056,9 @@
       if (this.segGroup) this.segGroup.classList.add('counting');
 
       this.countCells.forEach(function (c, i) {
-        if (i >= n) { c.g.classList.remove('on', 'lit'); c.g.style.display = 'none'; return; }
+        if (i >= n) { c.g.classList.remove('on'); c.g.style.display = 'none'; return; }
         c.g.style.display = '';
-        c.g.classList.remove('on', 'lit');
+        c.g.classList.remove('on');
         let L, T, W, H, nx, ny;
         if (row) {
           const a = from.x + step * i, b = a + step;
@@ -4068,9 +4076,6 @@
            And above the number, the step itself: an arrow pointing the
            way the count runs. The square says there is a space here;
            the arrow says this is the move across it. */
-        c.box.setAttribute('x', L); c.box.setAttribute('y', T);
-        c.box.setAttribute('width', W); c.box.setAttribute('height', H);
-
         const A = UC.arrow;
         nx = L + W / 2;
         ny = A ? (T + H * A.numY) : (T + H / 2);
@@ -4109,13 +4114,13 @@
           (function (k) {
             later(function () {
               const c = self.countCells[k];
-              c.g.classList.add('on', 'lit');
+              c.g.classList.add('on');
               SFX.tick(k);
             }, t + k * UC.stepMs);
           })(k);
         }
         later(function () {
-          self.countCells.forEach(function (c) { c.g.classList.remove('on', 'lit'); });
+          self.countCells.forEach(function (c) { c.g.classList.remove('on'); });
         }, t + n * UC.stepMs + UC.readMs);
         t += cycle;
       }

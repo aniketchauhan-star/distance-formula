@@ -651,8 +651,11 @@ html, body {
   55%  { opacity: 1; }
   100% { opacity: 1; }
 }
-#gridAxes .ucell-box { transition: fill .2s ease; }
-#gridAxes .ucell.lit .ucell-box { fill: rgba(120, 170, 225, .42); }
+/* The tile each of these was drawn on is gone, and `lit` with it — it
+   existed only to tint that tile as the count reached it, and with no
+   tile to tint it was state that painted nothing. The count still
+   reads: each step's arrow and number arrive on their own beat, which
+   is what `.on` has always done. */
 /* The step across the square, above its number. Drawn by the same hand
    as the square's own edge — it belongs to the box, not to the board —
    and given round ends so two short strokes meeting at the tip read as
