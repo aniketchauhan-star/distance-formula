@@ -872,6 +872,10 @@
         const w = self.words[self.shown];
         const sp = self.spans[self.shown++];
         if (sp) sp.classList.add('in');
+        /* And says which word that was. A beat can hang something on a
+           word — draw the row as she says "horizontally" — and the word
+           arriving is the only moment that knows. */
+        if (self.onWord) self.onWord(w, self.shown - 1);
         // her own voice where there is one; the little notes where not
         if (!voiced) SFX.chirp(/[.!?]\s*$/.test(w) ? 0.7 : 1);
       }, beat);
@@ -881,8 +885,15 @@
     skip: function () {
       if (!this.typing) return false;
       if (window.Voice) window.Voice.stop();
+      const from = this.shown;
       this.shown = this.words.length;
       this.spans.forEach(function (sp) { sp.classList.add('in'); });
+      /* Everything the rest of the line would have triggered still
+         happens: a child who taps through the words has still been
+         shown them, and must not be left looking at half a board. */
+      if (this.onWord) {
+        for (let n = from; n < this.words.length; n++) this.onWord(this.words[n], n);
+      }
       this.finish();
       return true;
     },
@@ -1919,7 +1930,11 @@
       gs2.setProperty('--coordFs', (SGt.coordSize * tk) + 'px');
       gs2.setProperty('--nameFs',  (SGt.nameSize  * tk) + 'px');
       gs2.setProperty('--lenFs',   (LGt.lenSize   * tk) + 'px');
-      gs2.setProperty('--resFs',   (34 * tk) + 'px');
+      /* From the config, like its three neighbours above. It was a 34
+         written here, which no other label's size is, and which the
+         code that PLACES these labels never saw — it reads resSize and
+         got coordSize's 26 instead. */
+      gs2.setProperty('--resFs',   ((SGt.resSize || SGt.coordSize) * tk) + 'px');
       gs2.setProperty('--workFs',  (G.work.size * tk) + 'px');
 
       el.gridAxes.style.clipPath = this.view
@@ -2046,14 +2061,17 @@
        their coordinates, then what the child measured. It runs under
        her line rather than before it, the way the worked subtraction
        does, so a recall never costs the screen a silent pause. */
-    runExamples: function (list, later, done) {
+    /* `base` is which slot the first of them goes into, so a screen can
+       draw one recalled pair now and another later without the second
+       landing on top of the first. */
+    runExamples: function (list, later, done, base) {
       const self = this, EX = C.GRID.example;
       if (!list || !list.length || !this.exSlots || !this.exSlots.length) {
         if (done) done(); return;
       }
       let t = 0;
       list.forEach(function (spec, i) {
-        const slot = self.exSlots[i];
+        const slot = self.exSlots[(base || 0) + i];
         if (!slot) return;
         /* Placed by placeSegment itself, so the labels fall exactly
            where they fell on the screen this pair came from — beside a
@@ -6092,7 +6110,9 @@
              they belong to that sentence, not to the board arriving. */
           const linedUp = (entry.lineLights || []).some(function (L) {
             return L && L.examples;
-          });
+          }) || ((entry.wordCues || []).some(function (c) {
+            return c && c.example != null;
+          }));
           if (entry.examples && !linedUp) {
             Board.runExamples(entry.examples, self.later.bind(self));
           }
@@ -6747,8 +6767,38 @@
     /* `then` runs once the line has finished — a screen with a control
        uses it to move her aside and bring the control in, so the two
        happen after she has spoken rather than while she is speaking. */
+    /* What a screen hangs on the words of its line.
+
+       `wordCues: [{ word: 'horizontally', example: 0 }, ...]` draws that
+       recalled pair as that word goes up. A beat whose sentence names
+       two things in turn can then show each as it is named, inside one
+       line, rather than splitting the sentence across two screens to
+       get two moments out of it.
+
+       Matched on the word with its punctuation and case taken off, so
+       "vertically." at the end of a sentence is still "vertically", and
+       fired once: the cue is spent when it goes, whether the words
+       arrived at their own pace or a tap brought them all at once. */
+    armWordCues: function (entry) {
+      const self = this, cues = (entry && entry.wordCues) || null;
+      if (!cues || !cues.length) { Bubble.onWord = null; return; }
+      const spent = [];
+      Bubble.onWord = function (w) {
+        const bare = String(w || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        cues.forEach(function (c, n) {
+          if (spent[n] || bare !== String(c.word || '').toLowerCase()) return;
+          spent[n] = 1;
+          if (c.example != null && (entry.examples || [])[c.example]) {
+            Board.runExamples([entry.examples[c.example]],
+                              self.later.bind(self), null, c.example);
+          }
+        });
+      };
+    },
+
     speak: function (line, then) {
       const self = this;
+      this.armWordCues(C.SCRIPT[this.index] || {});
       this.state = 'speaking';
       /* Over her head wherever she is standing — the default anchor is
          only right on the screens she has not moved from. */

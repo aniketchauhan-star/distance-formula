@@ -825,6 +825,21 @@ window.CFG = (function () {
       dashWidth: 5,
       dashArray: '2 15',
       coordSize: 26,
+      /* "N units", written on a pair.
+
+         It had no figure at all. Four places in the code asked for
+         `SG.resSize || SG.coordSize` and got 26, while the stylesheet
+         was handed a hardcoded 34 — so every one of these was MEASURED
+         at 26 and DRAWN at 34, and each one was a third bigger than
+         the code placing it believed. It was also the loudest type on
+         the paper: larger than the coordinates it sits among, larger
+         than the working being taught at 30, and level with the axis
+         numbering the whole board is read against.
+
+         28 — a shade over a coordinate, because it is the answer and
+         they are the address, and under everything else. One number
+         now, read by the placing and by the painting alike. */
+      resSize: 28,
     /* Down from 40 and 34. A point's letter was the loudest type on
        the paper — larger than the axis NUMBERS the board is read
        against (36) and a third larger than the working that is being
@@ -1049,7 +1064,7 @@ window.CFG = (function () {
        segment's own, tightened: the pair being recalled is not news, so
        it arrives at a glance rather than being introduced. */
     example: {
-      slots: 1,          // the most any one screen recalls
+      slots: 2,          // the most any one screen recalls
       dotAMs: 100,       // its two points
       dotBMs: 240,
       lineMs: 420,       // the line that joins them
@@ -1968,47 +1983,38 @@ window.CFG = (function () {
        distance." cannot be read on its own, which is what keeps them
        from reading as two separate recollections. */
     { id: 20,
-      /* The two ways they already know, on one board, one sentence
-         each. It was two screens — a row on the first, a column on the
-         second — and they were saying one thing between them: that both
-         of these are solved and the next one will not be. Said in a
-         single breath it is one fact; said across a screen change it is
-         two, and the child has to carry the first over the join.
+      /* One sentence, and the board follows it word by word.
 
-         Two lines, and a pair each. The row is the board's own segment
-         and arrives with her first sentence; the column is carried as a
-         recalled pair and is held back until the second names it — see
-         `lineLights` below and `lightAfterLine`. So each line draws the
-         thing it is talking about, rather than both being up while she
-         works through them.
+         It was two screens — a row on one, a column on the next — and
+         then one screen saying both in two lines. Both were spending
+         beats on a single fact: that these two are solved, and the
+         pair after them will be neither. It is one sentence, so it is
+         one line, and the two pairs are drawn as the words for them go
+         up: the row on "horizontally", the column on "vertically".
+         See `wordCues` and armWordCues.
 
-         One of each is enough. The pair of rows and pair of columns the
-         two screens carried were making the same point twice over. */
-      line: 'We know how to find horizontal distance.',
-      line2: 'And vertical distance.',
-      /* Neither line has a recording, so nothing paces them but this: a
-         beat is held for as long as the words take and then some, and
-         there are two sets of words and two pairs to look at now. */
+         Neither pair is the board's own segment. Both are carried as
+         recalled ones, because neither is the subject of the screen —
+         the sentence is, and they are what it points at. It also means
+         the board draws nothing until she starts talking, which is the
+         whole of the effect asked for. */
+      line: 'So far, the points were lined up horizontally or vertically.',
       entrance: 'stay', layout: 'board', hold: EXAMPLE_HOLD + 1600,
       /* Two pairs on one board: the furniture steps back so they read as
          the subject rather than as more lines among the ruling. */
       quietBoard: true,
-      /* The row, laid out the way the argument laid it out: the
-         coordinates under their points, and the length over the line,
-         where the working left it. */
-      segment: { a: { x: 3, y: 2 }, b: { x: 6, y: 2 },
-                 coordSide: 'under',
-                 result: { text: '3\u00A0units' } },
-      /* And the column they measured on 19, with the answer they gave
-         it. No offsets: a length goes in the middle of the span it
-         measures, and the board steps one aside itself if its middle
-         lands on the axis numbering — see showSegResult. */
-      examples: [ { a: { x: -2, y: 3 }, b: { x: -2, y: 1 },
-                    result: { text: '2\u00A0units' } } ],
-      /* The first line brings nothing of its own — the row is already
-         being drawn as the board's segment. The second brings the
-         column. */
-      lineLights: [ {}, { examples: true } ] },
+      examples: [
+        /* The row, laid out the way the argument laid it out: the
+           coordinates under their points, the length over the line. */
+        { a: { x: 3, y: 2 }, b: { x: 6, y: 2 },
+          coordSide: 'under', result: { text: '3\u00A0units' } },
+        /* And the column they measured on 19, with the answer they
+           gave it. */
+        { a: { x: -2, y: 3 }, b: { x: -2, y: 1 },
+          result: { text: '2\u00A0units' } }
+      ],
+      wordCues: [ { word: 'horizontally', example: 0 },
+                  { word: 'vertically',   example: 1 } ] },
 
     /* Both lengths go where every length goes: the middle of the span
        it measures, out to the side of the line by the same air a
