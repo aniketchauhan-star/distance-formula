@@ -35,6 +35,19 @@
    ============================================================= */
 
 .number-control {
+  /* The path is relative to THIS FILE, and it has to stay that way.
+
+     A relative url() inside a custom property is resolved against the
+     stylesheet where the var() is SUBSTITUTED — not where the value was
+     set. So handing this property a document-relative path from JS
+     (`--sheet: url("assets/buttons.png")`, the form every other asset
+     in the game uses) does not do what it looks like: it is resolved
+     against css/ and asks for css/assets/buttons.png, which is not
+     there. Every surface cut from the sheet then comes up empty while
+     the live digits drawn on them carry on rendering — the control is
+     there and invisible. Tried, measured, reverted.
+
+     If this ever needs to move, change the path here. */
   --sheet: url('../assets/buttons.png');
 
   /* ---- the layout ------------------------------------------------
