@@ -1441,13 +1441,20 @@
         cr.setAttribute('stroke', U.band.edge);
         cr.setAttribute('stroke-width', U.band.edgeW);
         cr.setAttribute('rx', 6);
+        /* The step taken across this square, drawn in it. Built here
+           and pointed by drawCountCells, which is the only thing that
+           knows which way the count is running. */
+        const ca = document.createElementNS(NS, 'path');
+        ca.setAttribute('class', 'ucell-arrow');
+        ca.setAttribute('stroke', U.band.edge);
+        ca.setAttribute('stroke-width', (UC.arrow && UC.arrow.w) || 4);
         const ct = document.createElementNS(NS, 'text');
         ct.setAttribute('class', 'ucell-n');
         ct.setAttribute('fill', G.ink);
         ct.setAttribute('font-size', UC.numSize);
-        cg.appendChild(cr); cg.appendChild(ct);
+        cg.appendChild(cr); cg.appendChild(ca); cg.appendChild(ct);
         ug.appendChild(cg);
-        this.countCells.push({ g: cg, box: cr, num: ct });
+        this.countCells.push({ g: cg, box: cr, arrow: ca, num: ct });
       }
 
       const SG = G.segment;
@@ -4007,6 +4014,18 @@
     countUnits: function (from, to, later) {
       const G = C.GRID, U = G.unitBox, UC = U.count;
       if (!this.countCells || !this.countCells.length) return 0;
+      /* Counted the way it is read — left to right across a row, bottom
+         to top up a column — which is the rule `countOut` states and
+         follows for the measuring line, and which this had never been
+         given. It is handed the pair as the screen names it, and on a
+         column named top-down it laid its squares out downward and
+         numbered them 1 to 5 going DOWN, while the line measuring the
+         same span walked up. Nobody had noticed because the only sign
+         of it was which end the numbering started at; the arrows made
+         it plain. */
+      if (to.x < from.x || (to.x === from.x && to.y < from.y)) {
+        const swap = from; from = to; to = swap;
+      }
       const px = function (v) { return G.originX + v * G.stepX; };
       const py = function (v) { return G.originY - v * G.stepY; };
       const self = this;
@@ -4044,12 +4063,41 @@
         }
         /* In the square, not beside it. A number hung outside the box
            is a label on it; a number in it is the count of it, which
-           is the whole of what "count the spaces" asks for. */
-        nx = L + W / 2; ny = T + H / 2;
+           is the whole of what "count the spaces" asks for.
+
+           And above the number, the step itself: an arrow pointing the
+           way the count runs. The square says there is a space here;
+           the arrow says this is the move across it. */
         c.box.setAttribute('x', L); c.box.setAttribute('y', T);
         c.box.setAttribute('width', W); c.box.setAttribute('height', H);
+
+        const A = UC.arrow;
+        nx = L + W / 2;
+        ny = A ? (T + H * A.numY) : (T + H / 2);
         c.num.setAttribute('x', nx); c.num.setAttribute('y', ny);
         c.num.textContent = String(i + 1);
+
+        if (A && c.arrow) {
+          /* Which way, on the SCREEN. Along the row as the count runs;
+             up the column when the count climbs, because the board's y
+             grows upward and the screen's grows down. */
+          const dx = row ? step : 0, dy = row ? 0 : -step;
+          const half = Math.min(W, H) * A.len / 2;
+          const ax = L + W / 2, ay = T + H * A.y;
+          const tipX = ax + dx * half, tipY = ay + dy * half;
+          const tailX = ax - dx * half, tailY = ay - dy * half;
+          /* The barbs: back along the shaft and out to either side. */
+          const b = half * 2 * A.head, sx = -dy, sy = dx;
+          const p1x = tipX - dx * b + sx * b * 0.62;
+          const p1y = tipY - dy * b + sy * b * 0.62;
+          const p2x = tipX - dx * b - sx * b * 0.62;
+          const p2y = tipY - dy * b - sy * b * 0.62;
+          const f = function (v) { return v.toFixed(1); };
+          c.arrow.setAttribute('d',
+            'M' + f(tailX) + ' ' + f(tailY) + 'L' + f(tipX) + ' ' + f(tipY) +
+            'M' + f(p1x) + ' ' + f(p1y) + 'L' + f(tipX) + ' ' + f(tipY) +
+            'L' + f(p2x) + ' ' + f(p2y));
+        }
       });
 
       /* Played more than once on purpose: the first time through says

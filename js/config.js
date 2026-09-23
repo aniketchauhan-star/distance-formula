@@ -1144,7 +1144,29 @@ window.CFG = (function () {
            finishes now, so there is nothing left for a second pass
            to say. */
         passes: 1,
-        numSize: 30
+        numSize: 26,
+        /* An arrow in each square, pointing the way the count is
+           running, with its number under it.
+
+           A square on its own says "here is a space"; an arrow in it
+           says "and this is the step you just took across it", which
+           is the thing being counted. It turns with the count rather
+           than always pointing right: along the row on a horizontal
+           span, up the column on a vertical one, and reversed on
+           either if the count runs the other way.
+
+           All three are fractions of the SMALLER side of the square,
+           so the arrow keeps its shape on a board whose cells are not
+           square, and the two heights are fractions of the square's
+           own, so the pair sits the same way in a tall cell as in a
+           squat one. */
+        arrow: {
+          len:  0.46,        // tip to tail, across the smaller side
+          head: 0.32,        // the barbs, as a share of that length
+          w:    4,           // its line weight
+          y:    0.36,        // where it sits down the square
+          numY: 0.71         // and where the number sits under it
+        }
       },
       labelDy: -28,          // horizontal: just above the line
       /* A vertical count stacks its squares in a band one cell wide,
