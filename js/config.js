@@ -619,12 +619,25 @@ window.CFG = (function () {
                arrow: { len: 34, halfW: 20 },
                gxFrom: -7, gxTo: 7, gyFrom: -6, gyTo: 6 },
       /* Between the two, for a shape that is too big for the lesson's
-         own plane and too small to be lost on the rescue's. Still
-         numbered every unit — at 53px a cell there is room for all
-         twenty-one numbers, and a board a child can count on is worth
-         more than a tidy axis. */
+         own plane and too small to be lost on the rescue's.
+
+         Numbered every SECOND unit. It was every unit, and the note
+         here said there was room at 53px a cell for all twenty-one
+         numbers — which was true while a negative was written with a
+         hyphen. It is not any more: the board writes a real minus sign
+         now, and U+2212 is a tabular glyph the width of a digit, so
+         "−10" is three digit-widths where "10" is two. Measured on
+         this board that is 62px of number in a 53px cell, and the run
+         came out as "−10−9−8…" with 1.6px between one number and the
+         next, and the 0 overlapping the −1 beside it.
+
+         Every second unit gives each label two cells of its own and a
+         44px gap at the worst pair. The gridline is still drawn for
+         the ones between — a point between two labels is still a point
+         a child can count to, which is the same reasoning the wide
+         board has always used. */
       mid:   { k: 0.6, xFrom: -10, xTo: 10, yFrom: -8,  yTo: 8,
-               every: 1, labelSize: 30, overshoot: 40,
+               every: 2, labelSize: 30, overshoot: 40,
                arrow: { len: 26, halfW: 15 },
                gxFrom: -11, gxTo: 11, gyFrom: -10, gyTo: 10 },
       wide:  { k: 0.4, xFrom: -15, xTo: 15, yFrom: -13, yTo: 13,

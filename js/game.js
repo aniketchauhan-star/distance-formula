@@ -1131,8 +1131,35 @@
         if (y === 0 || y % step) continue;
         label(numText(y), ox - G.yLabelGap - G.labelSize * 0.30, oy - y * G.stepY, 0, 'y', y);
       }
+      /* The zero, in the corner between the two runs — held off the
+         y-axis so it does not stand on the stroke, and off −1 so the
+         two do not read as one number.
+
+         How far off cannot be the constant it was. `zeroGap` is a
+         fraction of a cell, and on the wide boards a cell is small
+         while −1 is not: a real minus sign is the width of a digit,
+         not of a hyphen, so −1 is wider than the gap was written for.
+         Measured on those boards, 0 was sitting 1.6px from −1 — close
+         enough that "−1 0" read as "−10" along the bottom of every
+         screen from 55 on.
+
+         So the offset is measured instead: as far from the axis as
+         `zeroGap` asks, unless that would crowd −1, in which case as
+         far as there is room for — and never so close to the axis that
+         it touches the stroke. On the close board there is room for
+         the full gap and nothing moves. */
+      const zeroW = self.textW('0', G.labelSize);
+      /* Whichever number is actually drawn next to it — which is -1
+         when every unit is numbered and -2 when every second one is. */
+      const leftV = -step, leftW = self.textW(numText(leftV), G.labelSize);
+      const air = G.labelSize * 0.34;          // the space between two numbers
+      /* Nearest the axis it may sit, and furthest before it reaches
+         that neighbour. */
+      const nearest = zeroW / 2 + G.axisWidth / 2 + air * 0.5;
+      const furthest = Math.abs(leftV) * G.stepX - leftW / 2 - zeroW / 2 - air;
+      const off = Math.max(nearest, Math.min(G.zeroGap, furthest));
       // at the origin, so it lights as the sweep sets off
-      label('0', ox - G.zeroGap, oy + G.labelGap + G.labelSize * 0.42, 0, 'x', 0);
+      label('0', ox - off, oy + G.labelGap + G.labelSize * 0.42, 0, 'x', 0);
 
       /* The axis names sit past the last number, where each sweep ends —
          but the ruling now runs to the panel's own edges, so past the
