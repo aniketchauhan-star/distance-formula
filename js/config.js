@@ -740,15 +740,16 @@ window.CFG = (function () {
        applied to it; the two are kept the same number so reading
        either tells the truth. */
     labelSize: 34,                  // scaled with the cell
-    labelGap: 14,                   // x numbers, tucked under their axis
-    /* The y numbers sit beside their axis the way the x ones sit under
-       theirs: tucked close to it, with the rest of the cell left open
-       on the far side. They used to be pushed right out to the x=-1
-       gridline — 8px off it and 33px off the axis they belong to — so
-       they read as hanging in the cell rather than labelling the line.
-       This is the x row's own proportion, about a quarter of the spare
-       room on the axis side and three quarters beyond. */
-    yLabelGap: 20,
+    /* How far every axis number stands off its own axis, measured from
+       the stroke's outer edge to the number's INK.
+
+       One value for both runs, because the two were placed by different
+       rules and neither of them was a gap: the x row by a constant plus
+       a fraction of its type, the y column by its own CENTRE — so a
+       two-character "-5" reached closer to the axis than a one-character
+       "5", and the column's clearance ran from 6.3px to 16.5px while
+       the row sat tucked against the line. */
+    numGap: 16,
     /* 0 keeps the x numbers' row and shares the y numbers' column, so
        the left-hand numbers read as one column with the 0 at its
        corner. It is the only one of them in that row, so the -1 to its

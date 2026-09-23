@@ -948,8 +948,7 @@
       if (!R || this.rangeName === (name || 'close')) return false;
       if (!this.baseGeom) {
         this.baseGeom = { stepX: G.stepX, stepY: G.stepY,
-                          labelGap: G.labelGap, yLabelGap: G.yLabelGap,
-                          zeroGap: G.zeroGap };
+                          numGap: G.numGap, zeroGap: G.zeroGap };
       }
       const B = this.baseGeom;
       G.stepX = B.stepX * R.k;
@@ -962,12 +961,10 @@
       G.labelSize = R.labelSize;
       G.overshoot = R.overshoot;
       G.arrow = R.arrow;
-      /* The gaps that hold a number off its axis are cell-sized, so
-         they come down with the cell; the axis stroke and the type of
-         the letters x and y do not, because neither is measured in
-         units. */
-      G.labelGap = B.labelGap * R.k;
-      G.yLabelGap = B.yLabelGap * R.k;
+      /* The gap that holds a number off its axis is cell-sized, so it
+         comes down with the cell; the axis stroke and the type of the
+         letters x and y do not, because neither is measured in units. */
+      G.numGap = B.numGap * R.k;
       G.zeroGap = B.zeroGap * R.k;
       G.paper.gxFrom = R.gxFrom; G.paper.gxTo = R.gxTo;
       G.paper.gyFrom = R.gyFrom; G.paper.gyTo = R.gyTo;
@@ -1123,13 +1120,23 @@
          each of the unnumbered ones — a point between two labels is
          still a point you can count to. */
       const step = G.labelEvery || 1;
+      const rowTop = self.numRow().top, colRight = self.numCol().right;
       for (let x = G.xFrom; x <= G.xTo; x++) {
         if (x === 0 || x % step) continue;
-        label(numText(x), ox + x * G.stepX, oy + G.labelGap + G.labelSize * 0.42, 0, 'x', x);
+        /* Its ink's top edge `numGap` below the axis, whatever the
+           label is: the y attribute is the MIDDLE, so the ink's own
+           rise above that middle is added back. */
+        label(numText(x), ox + x * G.stepX,
+              rowTop + self.textMetrics(numText(x), G.labelSize).up, 0, 'x', x);
       }
       for (let y = G.yFrom; y <= G.yTo; y++) {
         if (y === 0 || y % step) continue;
-        label(numText(y), ox - G.yLabelGap - G.labelSize * 0.30, oy - y * G.stepY, 0, 'y', y);
+        /* And its ink's right edge `numGap` left of the axis. The x
+           attribute is the CENTRE, so half the label's own width comes
+           off — which is the whole of why "−5" used to sit ten pixels
+           closer to the line than "5" did. */
+        label(numText(y), colRight - self.textMetrics(numText(y), G.labelSize).w / 2,
+              oy - y * G.stepY, 0, 'y', y);
       }
       /* The zero, in the corner between the two runs — held off the
          y-axis so it does not stand on the stroke, and off −1 so the
@@ -1159,7 +1166,7 @@
       const furthest = Math.abs(leftV) * G.stepX - leftW / 2 - zeroW / 2 - air;
       const off = Math.max(nearest, Math.min(G.zeroGap, furthest));
       // at the origin, so it lights as the sweep sets off
-      label('0', ox - off, oy + G.labelGap + G.labelSize * 0.42, 0, 'x', 0);
+      label('0', ox - off, rowTop + self.textMetrics('0', G.labelSize).up, 0, 'x', 0);
 
       /* The axis names sit past the last number, where each sweep ends —
          but the ruling now runs to the panel's own edges, so past the
@@ -2195,6 +2202,30 @@
       return r;
     },
 
+    /* The row the x numbers occupy and the column the y numbers do, by
+       their INK.
+
+       One place decides where a number goes and these two say where it
+       went, so everything that has to keep clear of the numbering is
+       asking the same question the placer answered. They used to be six
+       separate restatements of the old placement arithmetic, which is
+       how a run could be moved and the things that dodge it left
+       pointing at where it had been. */
+    numRow: function () {
+      const G = C.GRID, m = this.textMetrics('0', G.labelSize);
+      const top = G.originY + G.axisWidth / 2 + G.numGap;
+      return { top: top, bot: top + m.up + m.down };
+    },
+    numCol: function () {
+      const G = C.GRID;
+      const right = G.originX - G.axisWidth / 2 - G.numGap;
+      /* The widest thing the column will hold — a negative, since the
+         minus is a digit wide. */
+      const wide = Math.max(this.textW(numText(G.yFrom), G.labelSize),
+                            this.textW(numText(G.yTo), G.labelSize));
+      return { right: right, left: right - wide };
+    },
+
     textW: function (t, size) { return this.textMetrics(t, size).w; },
     textH: function (t, size) { return this.textMetrics(t, size).h; },
 
@@ -2207,8 +2238,7 @@
        left of it. */
     onYAxisCol: function (cx, w) {
       const G = C.GRID, pad = 5;
-      const left = G.originX - G.yLabelGap - G.labelSize * 0.30 -
-                   this.textW('-6', G.labelSize) / 2 - pad;
+      const left = this.numCol().left - pad;
       const right = G.originX + G.axisWidth / 2 + pad;
       return cx + w / 2 > left && cx - w / 2 < right;
     },
@@ -2254,8 +2284,7 @@
     clearOfYAxis: function (cx, w) {
       if (!this.onYAxisCol(cx, w)) return cx;
       const G = C.GRID, pad = 5, air = 6;
-      const left = G.originX - G.yLabelGap - G.labelSize * 0.30 -
-                   this.textW('-6', G.labelSize) / 2 - pad - w / 2 - air;
+      const left = this.numCol().left - pad - w / 2 - air;
       const right = G.originX + G.axisWidth / 2 + pad + w / 2 + air;
       return (cx - left) < (right - cx) ? left : right;
     },
@@ -2331,8 +2360,8 @@
       });
       if (!anyNum) {
         /* Before they exist, the bands they will occupy. */
-        push(0, G.originY, G.w, G.originY + G.labelGap + nh, 'x numbers');
-        push(G.originX - G.yLabelGap - nh, 0, G.originX, G.h, 'y numbers');
+        push(0, G.originY, G.w, self.numRow().bot, 'x numbers');
+        push(self.numCol().left, 0, G.originX, G.h, 'y numbers');
       }
       /* And the two letters that name the axes — which nothing has ever
          kept clear of, and which is what `(6, 1)` was written into. */
@@ -2758,7 +2787,7 @@
     onXAxisRow: function (cy, h) {
       const G = C.GRID, pad = 5;
       const top = G.originY - G.axisWidth / 2 - pad;
-      const bot = G.originY + G.labelGap + G.labelSize * 0.42 + G.labelSize / 2 + pad;
+      const bot = this.numRow().bot + pad;
       return cy + h / 2 > top && cy - h / 2 < bot;
     },
 
@@ -4355,7 +4384,7 @@
            is not on. Over the top of a column the sum is a long way from
            the pair and hard against the frame; under the axis it sits in
            the quarter of the board a column always leaves empty. */
-        const numbers = G.labelGap + G.labelSize * 0.42 + G.labelSize / 2;
+        const numbers = this.numRow().bot - G.originY;
         stageY = this.clampY(py(0) + numbers + G.stepY * X.underDown, X.size);
         /* Clear of the column itself, on whichever side has the room. */
         const gapX = G.stepX * X.underGap;
@@ -4671,8 +4700,7 @@
         const y = top + n * size0 * 0 + n * step;
         if (!this.onXAxisRow(y, size0 * 1.4)) continue;
         const up = y - (G.originY - G.axisWidth / 2 - size0 * 0.9);
-        const down = (G.originY + G.labelGap + G.labelSize * 0.42 +
-                      G.labelSize / 2 + size0 * 0.9) - y;
+        const down = (this.numRow().bot + size0 * 0.9) - y;
         top += (up <= down) ? -up : down;
         break;
       }
