@@ -2154,8 +2154,15 @@ window.CFG = (function () {
          finishes. It used to be two clocks running past the words:
          `spotSeq` at a flat 700 and 1600ms, and `pulse` timed off the
          length of the FIRST line and started a fifth of the way into
-         it, so AB lit 324ms into "we already know two of its sides". */
-      lineLights: [ { spots: ['h', 'v'] }, { pulse: 'ab' } ],
+         it, so AB lit 324ms into "we already know two of its sides".
+
+         The second line spots as well as pulses. A spotlight is one
+         side at a time, so the first line ends with the light on the
+         LAST of its two — the vertical — and a pulse does not move it.
+         AC had stepped back and CB was still burning beside the side
+         she was naming. The third side is the subject now, so both of
+         the known ones step back. */
+      lineLights: [ { spots: ['h', 'v'] }, { pulse: 'ab', spots: ['ab'] } ],
       derive: {
         /* The working, tagged to the board. Every part that names a
            length carries the side it belongs to — 'h' the horizontal,

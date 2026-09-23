@@ -7234,9 +7234,13 @@
       let ms = 0;
       if (L.points) ms = Math.max(ms, Board.pulsePoints(later, 0, [].concat(L.points), run));
       if (L.pulse) ms = Math.max(ms, Board.pulseSides(later, 0, [].concat(L.pulse), run));
+      /* A pulse brings its own sound with it. When a line both pulses a
+         side and holds it forward, the two land in the same tick, and
+         two bells on one beat read as a stumble rather than emphasis. */
+      const rings = !L.pulse;
       if (L.spots) [].concat(L.spots).forEach(function (k, m) {
         const at = m * (L.step || 900);
-        later(function () { Board.spotlightPart(k); SFX.tick(m); }, at);
+        later(function () { Board.spotlightPart(k); if (rings) SFX.tick(m); }, at);
         ms = Math.max(ms, at + (L.step || 900));
       });
       return ms;
