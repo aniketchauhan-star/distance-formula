@@ -12,7 +12,6 @@
    'startScreen', 'playBtn', 'playImg', 'scene', 'skyLayer',
    'charGroup', 'shadow', 'birdRig', 'birdFlip', 'birdWin', 'flySheet', 'talkSheet',
    'bubble', 'bubbleShape', 'bubbleBody', 'bubbleSheen',
-   'bubbleMarkL', 'bubbleMarkR',
    'bubbleText', 'bubbleLine', 'nav', 'nextBtn', 'backBtn',
    'gridPanel', 'gridImg', 'gridAxes', 'standSwifty',
    'formulaBoard', 'leafLayer', 'fxLayer', 'sceneArt', 'startArt',
@@ -508,41 +507,6 @@
     el.bubbleSheen.setAttribute('rx', em * 0.25);
     el.bubbleSheen.setAttribute('ry', em * 0.10);
     el.bubbleSheen.setAttribute('transform', 'rotate(-22 ' + cx + ' ' + cy + ')');
-
-    /* ---- the emphasis marks ----
-       Two short strokes outside each edge, leaning in at the balloon,
-       like the marks round a raised voice in a comic panel.
-
-       Drawn from the shared bubble's own figures: a 40 x 60 box set
-       .62em wide and .93em tall — so one box unit is .0155em, the same
-       both ways — standing .42em clear of the edge and centred on the
-       BALLOON rather than on the ink, which includes the tail and would
-       carry them down past her chin.
-
-       The strokes lean toward the box: on the left they run from far
-       out and wide apart to near and close together, and the right is
-       that mirrored. Their weight is the drawing's second line: 7 of
-       those same box units, which is what keeps a mark's proportions
-       the ones it was drawn with. Tying it to this game's border was
-       tried and is wrong — the shared bubble's 4px edge sits under
-       59px type where this one's 5px edge sits under a third of that,
-       so the ratio between the two is not a fact they share, and
-       following it laid an 8px stroke across an 11px mark. */
-    const mu = em * 0.0155;                  // one mark-box unit
-    const mw = 40 * mu, mh = 60 * mu;
-    const mTop = (bh - mh) / 2;              // centred on the balloon
-    const mGap = em * 0.42;
-    const at = function (bx, u, v) {
-      return (bx + u * mu).toFixed(1) + ' ' + (mTop + v * mu).toFixed(1);
-    };
-    const lx0 = -mGap - mw, rx0 = bw + mGap;
-    el.bubbleMarkL.setAttribute('d',
-      'M' + at(lx0, 8, 12) + ' L' + at(lx0, 30, 24) +
-      ' M' + at(lx0, 8, 48) + ' L' + at(lx0, 30, 36));
-    el.bubbleMarkR.setAttribute('d',
-      'M' + at(rx0, 32, 12) + ' L' + at(rx0, 10, 24) +
-      ' M' + at(rx0, 32, 48) + ' L' + at(rx0, 10, 36));
-    el.bubbleShape.style.setProperty('--markW', (7 * mu).toFixed(2) + 'px');
 
     if (B.pad) {
       el.bubbleText.style.left = B.pad.x * s + 'px';

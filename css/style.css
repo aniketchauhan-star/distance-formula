@@ -321,17 +321,6 @@ html, body {
 /* the catch-light in the top-left corner */
 #bubbleSheen { fill: var(--sheen, rgba(255, 255, 255, .92)); }
 
-/* The emphasis marks. seatBubble() writes where they run; this is only
-   how they are drawn — the edge's colour, and the drawing's second line
-   weight, which is a shade heavier than the outline so two short
-   strokes read as a mark rather than as a stray piece of the box. */
-.bub-mark {
-  fill: none;
-  stroke: var(--edge, #232A44);
-  stroke-width: var(--markW, 8px);
-  stroke-linecap: round;
-}
-
 #bubbleText {
   position: absolute;
   display: flex; align-items: center; justify-content: center;
