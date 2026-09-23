@@ -614,8 +614,14 @@ window.CFG = (function () {
        come down with the cells, or the head alone would be most of a
        numbered interval. */
     ranges: {
+      /* 34, down from 36. The numbering is what the board is read
+         against and it was the loudest type on the paper — louder than
+         the working being taught at 30, and a shade louder than it
+         needs to be to be counted along. Two points quieter leaves the
+         drawing the loud thing, which is the right way round, and
+         hands every negative a little more air besides. */
       close: { k: 1,   xFrom: -6,  xTo: 6,  yFrom: -5,  yTo: 5,
-               every: 1, labelSize: 36, overshoot: 58,
+               every: 1, labelSize: 34, overshoot: 58,
                arrow: { len: 34, halfW: 20 },
                gxFrom: -7, gxTo: 7, gyFrom: -6, gyTo: 6 },
       /* Between the two, for a shape that is too big for the lesson's
@@ -727,7 +733,13 @@ window.CFG = (function () {
       gyFrom: -6, gyTo: 6
     },
 
-    labelSize: 36,                  // scaled with the cell
+    /* 34, down from 36 — and this is the one that governs the close
+       board, not `ranges.close.labelSize` beside it. `setRange` bails
+       when the range asked for is the one already in force, and close
+       is in force from the start, so the range's own figure is never
+       applied to it; the two are kept the same number so reading
+       either tells the truth. */
+    labelSize: 34,                  // scaled with the cell
     labelGap: 14,                   // x numbers, tucked under their axis
     /* The y numbers sit beside their axis the way the x ones sit under
        theirs: tucked close to it, with the rest of the cell left open
