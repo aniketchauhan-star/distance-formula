@@ -1678,10 +1678,18 @@ window.CFG = (function () {
        'fly'  she flies in from off-stage on the fly sheet, then lands
        'stay' she is already standing; only the bubble changes
        'hop'  a short flap-and-hop in place (uses the fly sheet)
-     She flies in on screen 1 only; 2 and 3 are talking only. */
+     She flies in on screen 1 only; 3 is talking only.
+
+     The ids are labels, not positions: they already skip 23 and 27, and
+     2 is gone the same way. Nothing addresses a screen by number — the
+     picker and the counter read whatever ids are in the list — so a
+     screen that goes simply goes, and the ones after it keep the names
+     they have always had. */
   const SCRIPT = [
     { id: 1, line: 'Hey there!',                                         entrance: 'fly'  },
-    { id: 2, line: 'Ready to explore distance on the coordinate plane?', entrance: 'stay' },
+    /* 2 — "Ready to explore distance on the coordinate plane?" She asked
+       it and then answered herself by starting, which is a beat that
+       costs a screen and settles nothing. Gone; 1 hands straight to 3. */
     { id: 3, line: 'Let’s do a quick warm-up.',                          entrance: 'stay' },
 
     // 4 — no dialogue: she simply flies back out the way she came in,

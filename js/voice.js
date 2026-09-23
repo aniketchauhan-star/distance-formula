@@ -24,6 +24,9 @@ window.Voice = (function () {
   const MAP = {
     'Hey there!':
       ['01-hey-there.mp3', 0.78],
+    /* The screen that said this is gone. Kept for the same reason the
+       one below it is: the clip exists and the reader said the words,
+       so the key is what would hook it back up. */
     'Ready to explore distance on the coordinate plane?':
       ['02-ready-to-explore-distance-on-the-coordinate-pl.mp3', 3.19],
     /* Screen 3 says "Let’s do a quick warm-up." now, and no recording
