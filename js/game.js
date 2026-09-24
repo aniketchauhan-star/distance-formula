@@ -639,6 +639,16 @@
      rig and shows the painting because the two are drawn at the same
      size in the same place, and that is exactly what lets the rig take
      the line back off it and hand it over again when she stops. */
+  /* A line's two ends, each moved in along it by its own amount —
+     never past the middle, so a side too short to clear both of its
+     points keeps a sliver rather than turning inside out. */
+  function inset(x1, y1, x2, y2, t1, t2) {
+    const len = Math.hypot(x2 - x1, y2 - y1) || 1;
+    const ux = (x2 - x1) / len, uy = (y2 - y1) / len;
+    t1 = Math.min(t1, len / 2 - 1); t2 = Math.min(t2, len / 2 - 1);
+    return [x1 + ux * t1, y1 + uy * t1, x2 - ux * t2, y2 - uy * t2];
+  }
+
   function mouthOpen() {
     if (standPose) {
       el.standSwifty.classList.add('hidden');
@@ -2232,7 +2242,7 @@
         L.line.classList.remove('draw');
         if (L.dashG) L.dashG.classList.remove('draw');
         ['dot', 'coord', 'name', 'plate', 'len'].forEach(function (k) {
-          L[k].classList.remove('pop', 'on', 'triangle-point');
+          L[k].classList.remove('pop', 'on');
         });
       });
     },
@@ -2915,17 +2925,29 @@
       /* Dotted while it is a guide, solid once it is known. Only one of
          the two is ever on the board. */
       if (L.dash) {
-        L.dash.setAttribute('x1', x1); L.dash.setAttribute('y1', y1);
-        L.dash.setAttribute('x2', x2); L.dash.setAttribute('y2', y2);
+        const cw = +L.dash.getAttribute('stroke-width') || 0;
+        const e = inset(x1, y1, x2, y2, this.clearPoint(x1, y1, cw),
+                        this.clearPoint(x2, y2, cw));
+        L.dash.setAttribute('x1', e[0]); L.dash.setAttribute('y1', e[1]);
+        L.dash.setAttribute('x2', e[2]); L.dash.setAttribute('y2', e[3]);
         L.dash.setAttribute('stroke', side);
         L.dashG.style.transformOrigin = x1 + 'px ' + y1 + 'px';
         L.dashG.style.display = spec.dash ? '' : 'none';
         L.line.style.display = spec.dash ? 'none' : '';
       }
 
-      L.line.setAttribute('x1', x1); L.line.setAttribute('y1', y1);
-      L.line.setAttribute('x2', x2); L.line.setAttribute('y2', y2);
-      const len = Math.hypot(x2 - x1, y2 - y1);
+      /* A solid side meets each point at its white ring and stops —
+         it does not run on to the centre. Every leg lives in a layer of
+         its own, and a later layer paints over an earlier one's dots:
+         CB was drawn straight across C's orange. Stopping at the ring
+         keeps the joint clean whatever order the layers are in. (The
+         dotted guide above stops short with air; a solid line touches.)*/
+      const lw = +L.line.getAttribute('stroke-width') || 0;
+      const le = inset(x1, y1, x2, y2, this.clearPoint(x1, y1, lw) - 4,
+                       this.clearPoint(x2, y2, lw) - 4);
+      L.line.setAttribute('x1', le[0]); L.line.setAttribute('y1', le[1]);
+      L.line.setAttribute('x2', le[2]); L.line.setAttribute('y2', le[3]);
+      const len = Math.hypot(le[2] - le[0], le[3] - le[1]);
       L.line.setAttribute('stroke-dasharray', len);
       /* Wound back to nothing, so the leg can draw itself on. A side
          the board is CARRYING OVER is already there and goes down at
@@ -3419,12 +3441,10 @@
          float, with the same duration and no delay. Identical animation
          on every piece is what keeps the shape connected; one group
          floating on its own would pull it apart. */
-      const whole = !keys || keys.length === 3;
-      const dots = whole
-        ? [this.segParts && this.segParts.a.dot,
-           this.segParts && this.segParts.b.dot,
-           this.legSlots[0] && this.legSlots[0].dot].filter(Boolean)
-        : [];
+      /* Lines only. The corners used to pulse with the whole shape —
+         growing and glowing on every beat — and a pulsing dot pulls the
+         eye to a point when what is being named is the side. They stay
+         exactly as they are while the lines around them light. */
 
       /* Marked, then switched on from one place. `triangle-side` says
          which lines are in the highlight; the class on the board turns
@@ -3445,51 +3465,60 @@
       const overlay = this.pulseLines || [];
       const self2 = this;
 
+      /* Up to each point and no further. The overlay is laid over
+         everything — it has to be, to be seen over the real line — and
+         it used to run centre to centre, so at the top of its pulse the
+         glow washed straight across the two dots at its ends. It stops
+         short of each by the dot's own radius, its white ring, and half
+         the glow's widest stroke (realStrokePulse peaks at 14px, and a
+         round cap reaches half that past its end), with a little air.
+         The dots are read at the moment of the pulse rather than from
+         config, because the camera resizes them as it pushes in. */
+      const PULSE_HALF = 7, AIR = 4;
+      const ends = [self2.segParts && self2.segParts.a && self2.segParts.a.dot,
+                    self2.segParts && self2.segParts.b && self2.segParts.b.dot]
+        .concat((self2.legSlots || []).map(function (L) { return L && L.dot; }))
+        .filter(Boolean);
+      /* However far the line already stops short — a leg now ends at
+         its point's ring, the pair still runs centre to centre — the
+         glow is taken in by whatever it still needs to clear. */
+      const clearOf = function (x, y) {
+        let need = 0;
+        ends.forEach(function (d) {
+          if (d.style.display === 'none') return;
+          const edge = (+d.getAttribute('r') || 0) +
+                       (+d.getAttribute('stroke-width') || 0) / 2;
+          const dist = Math.hypot(+d.getAttribute('cx') - x, +d.getAttribute('cy') - y);
+          need = Math.max(need, edge + PULSE_HALF + AIR - dist);
+        });
+        return need;
+      };
+
       later(function () {
         overlay.forEach(function (l, i) {
           const src = srcs[i];
           if (!src) { l.classList.remove('on'); return; }
-          ['x1', 'y1', 'x2', 'y2'].forEach(function (a) {
-            l.setAttribute(a, src.getAttribute(a));
-          });
+          const x1 = +src.getAttribute('x1'), y1 = +src.getAttribute('y1');
+          const x2 = +src.getAttribute('x2'), y2 = +src.getAttribute('y2');
+          const len = Math.hypot(x2 - x1, y2 - y1) || 1;
+          const ux = (x2 - x1) / len, uy = (y2 - y1) / len;
+          /* Never past the middle: a side too short to clear both of
+             its dots keeps a sliver of light rather than inverting. */
+          const t1 = Math.min(clearOf(x1, y1), len / 2 - 1);
+          const t2 = Math.min(clearOf(x2, y2), len / 2 - 1);
+          l.setAttribute('x1', x1 + ux * t1); l.setAttribute('y1', y1 + uy * t1);
+          l.setAttribute('x2', x2 - ux * t2); l.setAttribute('y2', y2 - uy * t2);
           const col = src.getAttribute('stroke');
           l.setAttribute('stroke', col);
           l.style.color = col;                 // what the glow is drawn in
           l.classList.add('on');
         });
-        dots.forEach(function (n) { n.classList.add('triangle-point'); });
         el.gridAxes.classList.add('triangle-question-active');
         SFX.tick(3);
       }, start);
       later(function () {
         el.gridAxes.classList.remove('triangle-question-active');
         overlay.forEach(function (l) { l.classList.remove('on'); });
-        dots.forEach(function (n) { n.classList.remove('triangle-point'); });
-      }, start + run);
-      return start + run;
-    },
-
-    /* The same highlight, on POINTS rather than sides. "Look at A and
-       C" names two dots and nothing between them — the line between
-       them is the next sentence, and lighting it early answers the
-       question before it is asked. `a` and `b` are the pair's own
-       ends, `c` the corner the first leg arrives at. */
-    pulsePoints: function (later, delay, keys, runMs) {
-      if (!this.segParts) return 0;
-      const of = { a: this.segParts.a.dot, b: this.segParts.b.dot,
-                   c: this.legSlots && this.legSlots[0] && this.legSlots[0].dot };
-      const dots = (keys || ['a', 'b']).map(function (k) { return of[k]; })
-        .filter(Boolean);
-      if (!dots.length) return 0;
-      const start = delay || 0, run = runMs || 1600;
-      later(function () {
-        dots.forEach(function (n) { n.classList.add('triangle-point'); });
-        el.gridAxes.classList.add('triangle-question-active');
-        SFX.tick(3);
-      }, start);
-      later(function () {
-        el.gridAxes.classList.remove('triangle-question-active');
-        dots.forEach(function (n) { n.classList.remove('triangle-point'); });
       }, start + run);
       return start + run;
     },
@@ -3567,9 +3596,15 @@
          lit — C is on both legs — so it is hushed only when neither of
          them is. The old map walked one key after another and a shared
          node took whatever the last pass happened to say about it. */
+      /* But only the side itself GLOWS — its stroke and the length
+         written on it. Its two corners are part of it for hushing, so
+         the line never runs between dimmed dots, and they stay at full
+         strength; they just are not lit. A glowing dot says "this
+         point", and the beat is about the distance between them. */
+      const glows = (which && stroke[which]) ? stroke[which] : [];
       all.forEach(function (n) {
         const on = lit.indexOf(n) >= 0;
-        n.classList.toggle('spot', on);
+        n.classList.toggle('spot', on && glows.indexOf(n) >= 0);
         n.classList.toggle('hush', !!which && !on);
       });
 
@@ -4293,8 +4328,13 @@
          group's origin is pinned there. */
       /* An example carries no guide: it is only ever shown finished. */
       if (T.segDash) {
-      T.segDash.setAttribute('x1', px(a.x)); T.segDash.setAttribute('y1', py(a.y));
-      T.segDash.setAttribute('x2', px(b.x)); T.segDash.setAttribute('y2', py(b.y));
+      {
+        const cw = +T.segDash.getAttribute('stroke-width') || 0;
+        const r = SG.dotR + (SG.dotStrokeW || 0) / 2 + cw / 2 + 4;
+        const e = inset(px(a.x), py(a.y), px(b.x), py(b.y), r, r);
+        T.segDash.setAttribute('x1', e[0]); T.segDash.setAttribute('y1', e[1]);
+        T.segDash.setAttribute('x2', e[2]); T.segDash.setAttribute('y2', e[3]);
+      }
       /* It grows from the left-hand end, so the guide always reads left
          to right — the order the pair is read in — rather than from
          whichever point the screen happened to call `a`. A column has
@@ -5001,6 +5041,25 @@
        of every route through the script, and false the moment the
        picker drops a child in from somewhere else. Every screen that
        keeps asks this first. */
+    /* How far short of a point a line must stop to clear it: the
+       dot, its white ring, and the line's own round cap, with a little
+       air. A dotted line run centre to centre lays its last dot on the
+       point it is arriving at — on C's orange, and against B's ring.
+       Which dot is there is worked out, not assumed: the pair's own
+       points are bigger than the corner a leg drops to. */
+    clearPoint: function (x, y, capW) {
+      const G = C.GRID, SG = G.segment, LG = G.leg;
+      const px = function (v) { return G.originX + v * G.stepX; };
+      const py = function (v) { return G.originY - v * G.stepY; };
+      const d = this.lastPlotted;
+      const onPair = !!(d && d.a && d.b && [d.a, d.b].some(function (p) {
+        return Math.abs(px(p.x) - x) < 1 && Math.abs(py(p.y) - y) < 1;
+      }));
+      const r = onPair ? SG.dotR + (SG.dotStrokeW || 0) / 2
+                       : LG.dotR + 3 / 2;          // the corner's 3px ring
+      return r + (capW || 0) / 2 + 4;
+    },
+
     /* The pair, finished.
 
        `settleFurniture` does this for the axes: a screen that INHERITS
@@ -5049,7 +5108,6 @@
       this.markCrossing();
       const parts = this.segParts;
       if (parts) ['a', 'b'].forEach(function (k) {
-        parts[k].dot.classList.remove('triangle-point');
       });
       (this.pulseLines || []).forEach(function (l) { l.classList.remove('on'); });
       this.segLine.classList.remove('draw');
@@ -7765,14 +7823,9 @@
         Board.runLegs(entry.legs, later, function () {});
         ms = Math.max(ms, entry.legs.length * 1640);
       }
-      /* `delay` holds the dots back — a corner cannot be lit before the
-         line that puts it there has arrived — and `after` does the same
-         for a side, so one beat can light two points and then the line
-         between them without needing two sentences to do it. */
-      if (L.points) {
-        ms = Math.max(ms, Board.pulsePoints(later, L.delay || 0,
-                                            [].concat(L.points), run));
-      }
+      /* There is no way to light a POINT here, on purpose: a beat
+         names a side, and the side is what lights. `after` holds a
+         side's light back for a beat that needs it. */
       if (L.pulse) ms = Math.max(ms, Board.pulseSides(later, 0, [].concat(L.pulse), run));
       /* A pulse brings its own sound with it. When a line both pulses a
          side and holds it forward, the two land in the same tick, and

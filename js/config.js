@@ -2066,7 +2066,11 @@ window.CFG = (function () {
          has arrived. */
       lineLights: [ { pulse: 'ab' },
                     { hold: 900 },
-                    { points: ['a', 'c'], delay: 600 } ],
+                    /* Nothing lit: the side drawing in to C is the
+                       thing to look at. But the beat stays open until
+                       it has arrived, so nobody is handed on with C
+                       still on its way. */
+                    { hold: 1700 } ],
       /* C on the word itself, not after the sentence carrying it has
          finished — "explore" is the last word of that line, and a
          third point that appears once she has stopped talking is a
@@ -2169,7 +2173,7 @@ window.CFG = (function () {
          shown WHICH two points before being shown the run between
          them. */
       line: 'Now find the distance from C to B.',
-      lineLights: [ { points: ['c', 'b'], spots: ['v'], after: 900 } ],
+      lineLights: [ { spots: ['v'] } ],
       entrance: 'none', view: 'triangle', quietBoard: true,
       layout: 'board', distance: true, intro: 'measure', keepSegment: true,
       segment: { a: { x: 2, y: 1, name: 'A' },

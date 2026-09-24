@@ -1620,43 +1620,17 @@ html, body {
   }
 }
 
-/* and the three corners, on the same clock.
-
-   `opacity: 1` is not decoration — it is what keeps the corner ON the
-   board. A dot rests at opacity 0 and is painted by `segDotIn ... both`:
-   the animation's fill IS its visibility. Naming an animation here
-   REPLACES that one, fill and all, so the dot fell back to its own
-   resting opacity and went out for exactly as long as she was pointing
-   at it — the two corners she names being the only two that vanish.
-   The same trap as a filled animation beating a transform attribute:
-   whatever a `both` animation is holding, a second `animation:` on the
-   same element drops. Hold it here instead. */
-#gridAxes.triangle-question-active .triangle-point {
-  opacity: 1;
-  animation: trianglePointPulse 900ms ease-in-out infinite;
-  transform-box: fill-box;
-  transform-origin: center;
-}
-@keyframes trianglePointPulse {
-  0%, 100% {
-    transform: scale(1);
-    filter: drop-shadow(0 0 2px rgba(70, 140, 255, .40))
-            drop-shadow(0 0 0 rgba(70, 140, 255, 0));
-  }
-  50% {
-    transform: scale(1.28);
-    filter: drop-shadow(0 0 4px rgba(255, 255, 255, 1))
-            drop-shadow(0 0 9px rgba(70, 140, 255, .80));
-  }
-}
-
+/* The corners do not pulse with the lines. A dot that grows and
+   glows on every beat pulls the eye to a point when what is being
+   named is a side, so only the lines light. (It also retires a trap:
+   naming an animation on a dot replaced the `segDotIn ... both` fill
+   that IS its visibility, and the corners being pointed at went out.) */
 /* Only one animation may drive a corner while this runs — a freshly
    plotted dot has a pop of its own that would otherwise compete. */
 #gridAxes.triangle-question-active .segline.lit { animation: none; }
 
 @media (prefers-reduced-motion: reduce) {
-  #gridAxes.triangle-question-active .triangle-pulse-line.on,
-  #gridAxes.triangle-question-active .triangle-point { animation: none; }
+  #gridAxes.triangle-question-active .triangle-pulse-line.on { animation: none; }
 }
 
 
