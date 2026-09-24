@@ -651,8 +651,20 @@ html, body {
   55%  { opacity: 1; }
   100% { opacity: 1; }
 }
-#gridAxes .ucell-box { transition: fill .2s ease; }
-#gridAxes .ucell.lit .ucell-box { fill: rgba(120, 170, 225, .42); }
+/* The tile each of these was drawn on is gone, and `lit` with it — it
+   existed only to tint that tile as the count reached it, and with no
+   tile to tint it was state that painted nothing. The count still
+   reads: each step's arrow and number arrive on their own beat, which
+   is what `.on` has always done. */
+/* The step across the square, above its number. Drawn by the same hand
+   as the square's own edge — it belongs to the box, not to the board —
+   and given round ends so two short strokes meeting at the tip read as
+   one arrowhead rather than as a corner. */
+#gridAxes .ucell-arrow {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
 #gridAxes .ucell-n {
   font-family: 'Nunito', system-ui, sans-serif;
   font-weight: 800;
@@ -773,6 +785,17 @@ html, body {
    lagging line would feel disconnected from it. */
 #gridAxes .measline, #gridAxes .mescap { opacity: 0; }
 #gridAxes .measline.on, #gridAxes .mescap.on { opacity: 1; }
+/* Except on its way out after a wrong guess, where it does ease.
+
+   The line has no transition of its own because the slider's does not
+   want one; this is the one moment it is not following a hand. It is
+   written after `.on` deliberately — the two weigh the same, so the
+   later rule is the one that wins while both classes are on the
+   element. */
+#gridAxes .measline.fade, #gridAxes .mescap.fade {
+  opacity: 0;
+  transition: opacity var(--measFade, 380ms) ease;
+}
 #gridAxes .mescap {
   transform-box: fill-box; transform-origin: center;
 }

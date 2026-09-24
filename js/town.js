@@ -33,6 +33,8 @@ window.TownMap = (function () {
     let places = [];
     let built = '';
     const nodes = [];
+    /* What the places cover, refreshed on every re-place. */
+    let room$ = [];
 
     /* One place: its name pill, and a crop of the town sheet under it.
 
@@ -84,6 +86,7 @@ window.TownMap = (function () {
          whenever the panel moves. */
       place: function (at, cw, ch) {
         const T = window.CFG.TOWN;
+        const room = [];
         places.forEach(function (p, i) {
           const n = nodes[i];
           if (!n) return;
@@ -114,8 +117,40 @@ window.TownMap = (function () {
             n.style.setProperty('--h', (T.hCells * ch) + 'px');
           }
           n.style.setProperty('--cell', ch + 'px');
+
+          /* How much of the paper this place covers, in the panel's own
+             pixels, so the board can keep its coordinate labels off it.
+
+             The lift above already leaves room UNDER a building for the
+             coordinate that belongs to it — but the board chooses which
+             side of a dot to write on, and it was choosing blind: it
+             knows about the axis numbers, the lines and the other
+             labels, and knew nothing about the five pictures standing
+             on top of them. So Cafe A's (5, 4) went up into the cafe
+             and the park's (-3, 2) into the trees.
+
+             Measured rather than worked out, because a name pill is as
+             wide as its name — "Maya's House" is wider than the house —
+             and only the layout knows that. The wrap is centred on the
+             point and hangs upwards from its foot, which is where the
+             translate(-50%, -100%) puts it. */
+          const pill = n.querySelector('.town-pill');
+          const foot = s.y - T.liftCells * ch;
+          const wide = Math.max(n.offsetWidth || 0, pill ? pill.offsetWidth : 0);
+          const tall = n.offsetHeight || 0;
+          if (wide && tall) {
+            room.push({ l: s.x - wide / 2, t: foot - tall,
+                        r: s.x + wide / 2, b: foot,
+                        what: p.name || p.kind });
+          }
         });
+        room$ = room;
       },
+
+      /* The places, as boxes on the paper. Panel pixels — the board
+         turns them into its own units, which is the only place that
+         knows the two scales. */
+      boxes: function () { return room$.slice(); },
 
       show: function () { root.classList.add('on'); },
       hide: function () { root.classList.remove('on'); },

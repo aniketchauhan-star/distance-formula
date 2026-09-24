@@ -614,17 +614,36 @@ window.CFG = (function () {
        come down with the cells, or the head alone would be most of a
        numbered interval. */
     ranges: {
+      /* 34, down from 36. The numbering is what the board is read
+         against and it was the loudest type on the paper — louder than
+         the working being taught at 30, and a shade louder than it
+         needs to be to be counted along. Two points quieter leaves the
+         drawing the loud thing, which is the right way round, and
+         hands every negative a little more air besides. */
       close: { k: 1,   xFrom: -6,  xTo: 6,  yFrom: -5,  yTo: 5,
-               every: 1, labelSize: 36, overshoot: 58,
+               every: 1, labelSize: 34, overshoot: 58,
                arrow: { len: 34, halfW: 20 },
                gxFrom: -7, gxTo: 7, gyFrom: -6, gyTo: 6 },
       /* Between the two, for a shape that is too big for the lesson's
-         own plane and too small to be lost on the rescue's. Still
-         numbered every unit — at 53px a cell there is room for all
-         twenty-one numbers, and a board a child can count on is worth
-         more than a tidy axis. */
+         own plane and too small to be lost on the rescue's.
+
+         Numbered every SECOND unit. It was every unit, and the note
+         here said there was room at 53px a cell for all twenty-one
+         numbers — which was true while a negative was written with a
+         hyphen. It is not any more: the board writes a real minus sign
+         now, and U+2212 is a tabular glyph the width of a digit, so
+         "−10" is three digit-widths where "10" is two. Measured on
+         this board that is 62px of number in a 53px cell, and the run
+         came out as "−10−9−8…" with 1.6px between one number and the
+         next, and the 0 overlapping the −1 beside it.
+
+         Every second unit gives each label two cells of its own and a
+         44px gap at the worst pair. The gridline is still drawn for
+         the ones between — a point between two labels is still a point
+         a child can count to, which is the same reasoning the wide
+         board has always used. */
       mid:   { k: 0.6, xFrom: -10, xTo: 10, yFrom: -8,  yTo: 8,
-               every: 1, labelSize: 30, overshoot: 40,
+               every: 2, labelSize: 30, overshoot: 40,
                arrow: { len: 26, halfW: 15 },
                gxFrom: -11, gxTo: 11, gyFrom: -10, gyTo: 10 },
       wide:  { k: 0.4, xFrom: -15, xTo: 15, yFrom: -13, yTo: 13,
@@ -714,16 +733,23 @@ window.CFG = (function () {
       gyFrom: -6, gyTo: 6
     },
 
-    labelSize: 36,                  // scaled with the cell
-    labelGap: 14,                   // x numbers, tucked under their axis
-    /* The y numbers sit beside their axis the way the x ones sit under
-       theirs: tucked close to it, with the rest of the cell left open
-       on the far side. They used to be pushed right out to the x=-1
-       gridline — 8px off it and 33px off the axis they belong to — so
-       they read as hanging in the cell rather than labelling the line.
-       This is the x row's own proportion, about a quarter of the spare
-       room on the axis side and three quarters beyond. */
-    yLabelGap: 20,
+    /* 34, down from 36 — and this is the one that governs the close
+       board, not `ranges.close.labelSize` beside it. `setRange` bails
+       when the range asked for is the one already in force, and close
+       is in force from the start, so the range's own figure is never
+       applied to it; the two are kept the same number so reading
+       either tells the truth. */
+    labelSize: 34,                  // scaled with the cell
+    /* How far every axis number stands off its own axis, measured from
+       the stroke's outer edge to the number's INK.
+
+       One value for both runs, because the two were placed by different
+       rules and neither of them was a gap: the x row by a constant plus
+       a fraction of its type, the y column by its own CENTRE — so a
+       two-character "-5" reached closer to the axis than a one-character
+       "5", and the column's clearance ran from 6.3px to 16.5px while
+       the row sat tucked against the line. */
+    numGap: 16,
     /* 0 keeps the x numbers' row and shares the y numbers' column, so
        the left-hand numbers read as one column with the 0 at its
        corner. It is the only one of them in that row, so the -1 to its
@@ -799,6 +825,21 @@ window.CFG = (function () {
       dashWidth: 5,
       dashArray: '2 15',
       coordSize: 26,
+      /* "N units", written on a pair.
+
+         It had no figure at all. Four places in the code asked for
+         `SG.resSize || SG.coordSize` and got 26, while the stylesheet
+         was handed a hardcoded 34 — so every one of these was MEASURED
+         at 26 and DRAWN at 34, and each one was a third bigger than
+         the code placing it believed. It was also the loudest type on
+         the paper: larger than the coordinates it sits among, larger
+         than the working being taught at 30, and level with the axis
+         numbering the whole board is read against.
+
+         28 — a shade over a coordinate, because it is the answer and
+         they are the address, and under everything else. One number
+         now, read by the placing and by the painting alike. */
+      resSize: 28,
     /* Down from 40 and 34. A point's letter was the loudest type on
        the paper — larger than the axis NUMBERS the board is read
        against (36) and a third larger than the working that is being
@@ -1023,7 +1064,7 @@ window.CFG = (function () {
        segment's own, tightened: the pair being recalled is not news, so
        it arrives at a glance rather than being introduced. */
     example: {
-      slots: 1,          // the most any one screen recalls
+      slots: 2,          // the most any one screen recalls
       dotAMs: 100,       // its two points
       dotBMs: 240,
       lineMs: 420,       // the line that joins them
@@ -1073,15 +1114,20 @@ window.CFG = (function () {
       /* One beat per unit as the line walks out. Slow enough to count
          along with, quick enough that twelve of them is not a wait. */
       stepMs: 240,
-      /* A wrong guess is WALKED BACK. The line goes out to the number
-         they chose — short of the point or a unit past it, which is
-         the feedback — waits long enough to be seen there, and then
-         travels back to the point it started from, quicker than it
-         went out, leaving the board clear for the squares. It used to
-         simply stop existing, which read as the game deleting their
-         answer rather than as the answer coming back. */
+      /* A wrong guess is HELD, then LET GO. The line goes out to the
+         number they chose — short of the point or a unit past it,
+         which is the feedback — waits long enough to be read against
+         the point it was meant to reach, and then fades where it
+         stands, leaving the board clear for the squares.
+
+         It walked back, once, unit by unit the way it had come. That
+         is the gesture of giving the answer run in reverse, so the eye
+         follows the line home and the wrong length is the last thing
+         it is still being shown. Fading leaves the length where it was
+         drawn and stops showing it, which is the difference between
+         withdrawing an answer and letting one go. */
       missHoldMs: 620,   // the wrong length, held to be read
-      missStepMs: 110,   // and then walked back, one unit at a time
+      missFadeMs: 380,   // and then let go where it stands
       /* How long the finished count stays up before the board is handed
          back. It is a hint, not a caption: it says how long a unit is
          and how many fit, and then gets out of the way so the next try
@@ -1113,7 +1159,29 @@ window.CFG = (function () {
            finishes now, so there is nothing left for a second pass
            to say. */
         passes: 1,
-        numSize: 30
+        numSize: 26,
+        /* An arrow in each square, pointing the way the count is
+           running, with its number under it.
+
+           A square on its own says "here is a space"; an arrow in it
+           says "and this is the step you just took across it", which
+           is the thing being counted. It turns with the count rather
+           than always pointing right: along the row on a horizontal
+           span, up the column on a vertical one, and reversed on
+           either if the count runs the other way.
+
+           All three are fractions of the SMALLER side of the square,
+           so the arrow keeps its shape on a board whose cells are not
+           square, and the two heights are fractions of the square's
+           own, so the pair sits the same way in a tall cell as in a
+           squat one. */
+        arrow: {
+          len:  0.46,        // tip to tail, across the smaller side
+          head: 0.32,        // the barbs, as a share of that length
+          w:    4,           // its line weight
+          y:    0.36,        // where it sits down the square
+          numY: 0.71         // and where the number sits under it
+        }
       },
       labelDy: -28,          // horizontal: just above the line
       /* A vertical count stacks its squares in a band one cell wide,
@@ -1665,11 +1733,19 @@ window.CFG = (function () {
        'fly'  she flies in from off-stage on the fly sheet, then lands
        'stay' she is already standing; only the bubble changes
        'hop'  a short flap-and-hop in place (uses the fly sheet)
-     She flies in on screen 1 only; 2 and 3 are talking only. */
+     She flies in on screen 1 only; 3 is talking only.
+
+     The ids are labels, not positions: they already skip 23 and 27, and
+     2 is gone the same way. Nothing addresses a screen by number — the
+     picker and the counter read whatever ids are in the list — so a
+     screen that goes simply goes, and the ones after it keep the names
+     they have always had. */
   const SCRIPT = [
     { id: 1, line: 'Hey there!',                                         entrance: 'fly'  },
-    { id: 2, line: 'Ready to explore distance on the coordinate plane?', entrance: 'stay' },
-    { id: 3, line: 'Let’s start with something familiar.',               entrance: 'stay' },
+    /* 2 — "Ready to explore distance on the coordinate plane?" She asked
+       it and then answered herself by starting, which is a beat that
+       costs a screen and settles nothing. Gone; 1 hands straight to 3. */
+    { id: 3, line: 'Let’s do a quick warm-up.',                          entrance: 'stay' },
 
     // 4 — no dialogue: she simply flies back out the way she came in,
     //     then the screen hands over on its own.
@@ -1907,28 +1983,38 @@ window.CFG = (function () {
        distance." cannot be read on its own, which is what keeps them
        from reading as two separate recollections. */
     { id: 20,
-      line: 'We know how to find horizontal distance.',
-      /* It says nothing, so nothing paces it but this: a spoken beat is
-         held for as long as the words take and then some, and without
-         them the rows would be up and gone before they had been looked
-         at. */
+      /* One sentence, and the board follows it word by word.
+
+         It was two screens — a row on one, a column on the next — and
+         then one screen saying both in two lines. Both were spending
+         beats on a single fact: that these two are solved, and the
+         pair after them will be neither. It is one sentence, so it is
+         one line, and the two pairs are drawn as the words for them go
+         up: the row on "horizontally", the column on "vertically".
+         See `wordCues` and armWordCues.
+
+         Neither pair is the board's own segment. Both are carried as
+         recalled ones, because neither is the subject of the screen —
+         the sentence is, and they are what it points at. It also means
+         the board draws nothing until she starts talking, which is the
+         whole of the effect asked for. */
+      line: 'So far, the points were lined up horizontally or vertically.',
       entrance: 'stay', layout: 'board', hold: EXAMPLE_HOLD + 1600,
       /* Two pairs on one board: the furniture steps back so they read as
          the subject rather than as more lines among the ruling. */
       quietBoard: true,
-      /* The same row the argument worked, laid out the way it laid it
-         out: the coordinates under their points, and the length over
-         the line, where the working left it. */
-      segment: { a: { x: 3, y: 2 }, b: { x: 6, y: 2 },
-                 coordSide: 'under',
-                 result: { text: '3\u00A0units' } },
-      /* The other row they measured — screen 13's question, with the
-         answer they gave it. No offsets on either: a length goes in the
-         middle of the span it measures, and the board steps this one
-         aside far enough to clear the y-axis numbering its own middle
-         falls on — see showSegResult. */
-      examples: [ { a: { x: 4, y: 3 }, b: { x: -3, y: 3 },
-                    result: { text: '7\u00A0units' } } ] },
+      examples: [
+        /* The row, laid out the way the argument laid it out: the
+           coordinates under their points, the length over the line. */
+        { a: { x: 3, y: 2 }, b: { x: 6, y: 2 },
+          coordSide: 'under', result: { text: '3\u00A0units' } },
+        /* And the column they measured on 19, with the answer they
+           gave it. */
+        { a: { x: -2, y: 3 }, b: { x: -2, y: 1 },
+          result: { text: '2\u00A0units' } }
+      ],
+      wordCues: [ { word: 'horizontally', example: 0 },
+                  { word: 'vertically',   example: 1 } ] },
 
     /* Both lengths go where every length goes: the middle of the span
        it measures, out to the side of the line by the same air a
@@ -1936,13 +2022,6 @@ window.CFG = (function () {
        so its own middle is the row the axis numbers live in — the
        board slides it down its own line until it is clear of them, and
        no further. */
-    { id: 21, line: 'And vertical distance.',
-      entrance: 'stay', layout: 'board', hold: EXAMPLE_HOLD, quietBoard: true,
-      segment: { a: { x: 1, y: -3 }, b: { x: 1, y: 2 },
-                 result: { text: '5\u00A0units' } },
-      // the other column they measured — screen 19's question
-      examples: [ { a: { x: -2, y: 3 }, b: { x: -2, y: 1 },
-                    result: { text: '2\u00A0units' } } ] },
 
     /* 12 — leaves sweep again and the scene goes back to the field
        layout of screen 5: board on the right, Swifty standing on the
@@ -1964,10 +2043,44 @@ window.CFG = (function () {
        held across a screen change ("can the grid help?", then "how far
        apart are A and C?"). A statement about the problem is carried
        nowhere; the question on 24 stands on its own. */
-    { id: 22, line: 'But what if two points are like this?',
-      line2: 'Our earlier way won’t work this time.',
-      pulse: 'ab', entrance: 'fly',
+    { id: 22,
+      /* Beats 1 to 3. She notices, she wonders, and then she tries
+         something — and C arrives because she said she would look for
+         a way, not because the screen opened carrying it.
+
+         Three sentences on one board, so `lines` rather than
+         line/line2. "These two aren't" is an observation and "how can
+         we find the distance" is a question; run together they become
+         one shrug. The question is the one the whole lesson answers,
+         so it is allowed to sit. */
+      lines: [ 'But these two aren’t.',
+               'How can we find the distance between these two?',
+               'Let’s explore.' ],
+      /* The pair on the first. Nothing at all on the second — the beat
+         only stays open, which is what a question needs. And on the
+         third, the side that puts C on the board, with A and C lit
+         once it has got there: the dot lands 980ms into that draw, and
+         a corner must not be lit before the line that puts it there
+         has arrived. */
+      lineLights: [ { pulse: 'ab' },
+                    { hold: 900 },
+                    { points: ['a', 'c'], delay: 600 } ],
+      /* C on the word itself, not after the sentence carrying it has
+         finished — "explore" is the last word of that line, and a
+         third point that appears once she has stopped talking is a
+         point the screen produced rather than one she went looking
+         for. The dots then light 600ms after the line closes, by which
+         time the side that puts C there has arrived. */
+      wordCues: [ { word: 'explore', legs: true } ],
+      entrance: 'fly',
       layout: 'grid', transition: 'leaves',
+      /* The same push its neighbours use, so the whole stretch is read
+         at one scale — and taken in order rather than on a timer:
+         the paper builds in the middle of an empty frame, moves aside,
+         the camera comes in on where the pair is going to be, the two
+         points land, and only then does she fly in to talk about them.
+         See the grid branch of `dress` and the guard in `goTo`. */
+      rebuild: true, view: 'triangle',
       /* Named here rather than three screens on. They are called A and B
          from the moment the question about them is asked, and a pair
          that gains its letters later reads as two different pairs — the
@@ -1976,7 +2089,13 @@ window.CFG = (function () {
          beat that says to look at it — put here it answered a question
          the child has not been asked yet. */
       segment: { a: { x: 2, y: 1, name: 'A' },
-                 b: { x: 6, y: 4, name: 'B' } } },
+                 b: { x: 6, y: 4, name: 'B' } },
+      /* Dashed, because it is something she is trying rather than a
+         measurement anyone has taken. The child measures it next.
+         Held back until the third line asks for it — see `lineLights`
+         above and lightAfterLine. */
+      legs: [ { from: { x: 2, y: 1 }, to: { x: 6, y: 1 },
+                dash: true, mark: { name: 'C' } } ] },
 
     // 13 — same board and same segment, she just carries on talking
     /* The board pushes in here, on the first quadrant the triangle sits
@@ -2000,9 +2119,22 @@ window.CFG = (function () {
        because two beats asked the child to hold a hint across a screen
        change; what splits here is the sentence and its highlighting,
        not the beat. One board, one question, one control. */
-    { id: 24, line: 'But look at A and C.',
-      line2: 'Can you find AC?',
-      lineLights: [ { points: ['a', 'c'] }, { pulse: 'h' } ],
+    { id: 24,
+      /* Beats 4 and 5. A guess, and then the reason it is askable.
+
+         "Hmm" is her thinking aloud rather than instructing, which is
+         the difference between a child watching somebody work and a
+         child being told where to look. The second line is true — they
+         measured rows and columns four screens ago — and it is why
+         this question can be asked at all.
+
+         C and its dashed guide are already on the board from 22. They
+         are declared again so the screen stands on its own after a
+         jump: `placeLeg` recognises the same side in the same place
+         and hands it over rather than drawing it a second time. */
+      line: 'Hmm… what about A and C?',
+      line2: 'We know how to find this distance.',
+      lineLights: [ { pulse: 'h' }, {} ],
       entrance: 'none',
       layout: 'board', distance: true, intro: 'measure', keepSegment: true,
       view: 'triangle', quietBoard: true,
@@ -2029,7 +2161,13 @@ window.CFG = (function () {
        And AC stays on the board while they do it, stepped back rather
        than cleared: they need to see they now have two measured sides,
        and the one being asked for has to be the loud one. */
-    { id: 25, line: 'Great! Now find CB.', focus: 'v',
+    { id: 25,
+      /* Beat 6. The two corners first and the side between them
+         after — `after` holds the spotlight back, so the child is
+         shown WHICH two points before being shown the run between
+         them. */
+      line: 'Now find the distance from C to B.',
+      lineLights: [ { points: ['c', 'b'], spots: ['v'], after: 900 } ],
       entrance: 'none', view: 'triangle', quietBoard: true,
       layout: 'board', distance: true, intro: 'measure', keepSegment: true,
       segment: { a: { x: 2, y: 1, name: 'A' },
@@ -2062,6 +2200,53 @@ window.CFG = (function () {
 
        The panel was built for this: `triangle-options.js` carries these
        three as its own defaults and the game had stopped asking them. */
+    { id: 27,
+      /* Beat 7. The result.
+
+         AC and CB stay exactly as the child left them — both
+         `settled`, both carrying the length that was measured — and
+         the only thing that moves is AB coming back to full strength.
+         So the whole shape is on the board at once for the first time,
+         and it is there because of what they just did rather than
+         because a screen arrived carrying it.
+
+         This is where the line belongs. It was on 26 once, beside
+         three buttons, which made an observation into the preamble of
+         a question. Standing on its own it is what it says it is.
+
+         And it is VOICED: 16-look-we-made-a-triangle.mp3 is keyed on
+         exactly these words and has been sitting unused since the line
+         came off 26. Change the wording and the clip is thrown away
+         again. */
+      line: 'Look! We made a triangle.',
+      entrance: 'none', layout: 'board', keepSegment: true,
+      view: 'triangle', quietBoard: true,
+      /* Nothing is drawn here, and nothing is singled out either.
+
+         `spots: ['ab']` was tried and is wrong: lighting one side
+         hushes the others, so bringing AB forward pushed the two legs
+         the child had just measured down to 0.28 — and the point of
+         this beat is the shape all three make together. `clear` puts
+         the board back instead: AB comes up out of the hush beat 6
+         left it in, the legs stay exactly where they were, and the
+         whole triangle reads at once. */
+      lineLights: [ { clear: true } ],
+      /* On the word, not after the sentence. `lineLights` fires when a
+         line finishes, and measured that left the hypotenuse wound
+         back to nothing until 3.5s into a beat whose words land at
+         1.25s — so for over two seconds she was naming a triangle
+         with two sides on the board. The shape closes as she says
+         what it is. */
+      wordCues: [ { word: 'triangle', settle: true } ],
+      segment: { a: { x: 2, y: 1, name: 'A' },
+                 b: { x: 6, y: 4, name: 'B' } },
+      legs: [
+        { from: { x: 2, y: 1 }, to: { x: 6, y: 1 }, mark: { name: 'C' },
+          settled: true, length: true },
+        { from: { x: 6, y: 1 }, to: { x: 6, y: 4 },
+          settled: true, length: true }
+      ] },
+
     /* The balloon asks it. It used to say "Look! We've made a
        triangle." with the three names already up on the panel —
        an observation beside three buttons, so the child had to
