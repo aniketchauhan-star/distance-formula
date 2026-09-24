@@ -3591,8 +3591,15 @@
       /* Nobody's own. The face the three sides close and the square in
          the corner belong to the shape rather than to any one side, so
          they step back whenever one is singled out and come back when
-         nothing is. */
-      const shape = [this.triFill, this.rightMark];
+         nothing is.
+
+         Unless the screen is ABOUT the square. Where she says "since
+         it’s a right triangle", the marker is the reason she is giving,
+         and a highlight on a side must not dim the evidence for the
+         theorem at the moment the theorem is named. `keepMark` takes it
+         out of the shape and puts it back at full strength. */
+      const shape = this.keepMark ? [this.triFill] : [this.triFill, this.rightMark];
+      if (this.keepMark && this.rightMark) this.rightMark.classList.remove('hush', 'spot');
 
       /* Only what is actually ON the board. `hush` now carries enough
          weight to beat the animation painting a label, which means it
@@ -3604,7 +3611,23 @@
         if (!n || n.style.display === 'none') return false;
         return +getComputedStyle(n).opacity > .05;
       };
-      const lit = (which && part[which]) ? part[which].filter(shown) : [];
+      /* One side, or several at once. "We know AC and CB" is one fact
+         about two things, and lit one after the other the second
+         replaced the first, so the child never saw the two known sides
+         together. A list lights their union; a single key behaves
+         exactly as it always has, and nothing at all puts the board
+         back. */
+      const keys = [].concat(which == null ? [] : which)
+        .filter(function (k) { return !!part[k]; });
+      const any = keys.length > 0;
+      const union = function (map) {
+        const out = [];
+        keys.forEach(function (k) {
+          map[k].forEach(function (n) { if (shown(n) && out.indexOf(n) < 0) out.push(n); });
+        });
+        return out;
+      };
+      const lit = union(part);
       const all = [];
       const add = function (n) {
         if (shown(n) && all.indexOf(n) < 0) all.push(n);
@@ -3621,11 +3644,11 @@
          the line never runs between dimmed dots, and they stay at full
          strength; they just are not lit. A glowing dot says "this
          point", and the beat is about the distance between them. */
-      const glows = (which && stroke[which]) ? stroke[which] : [];
+      const glows = union(stroke);
       all.forEach(function (n) {
         const on = lit.indexOf(n) >= 0;
         n.classList.toggle('spot', on && glows.indexOf(n) >= 0);
-        n.classList.toggle('hush', !!which && !on);
+        n.classList.toggle('hush', any && !on);
       });
 
       /* The beat is the side swelling, so it goes on the stroke and its
@@ -3633,13 +3656,13 @@
          animation on an element whose visibility IS the fill of another
          one, and take it off the board — the trap this file has fallen
          into four times already. */
-      const beat = (which && stroke[which]) ? stroke[which].filter(shown) : [];
+      const beat = union(stroke);
       Object.keys(stroke).forEach(function (k) {
         stroke[k].forEach(function (n) { if (n) n.classList.remove('spotbeat'); });
       });
       beat.forEach(function (n) { n.classList.add('spotbeat'); });
       clearTimeout(this.beatOff);
-      if (which) this.beatOff = setTimeout(function () {
+      if (any) this.beatOff = setTimeout(function () {
         beat.forEach(function (n) { n.classList.remove('spotbeat'); });
       }, 720);
     },
@@ -5925,6 +5948,9 @@
          board settles into it rather than snapping — and cleared the
          same way by every screen that does not ask for it. */
       el.gridPanel.classList.toggle('quiet', !!next.quietBoard);
+      /* Whether a highlight may dim the right-angle marker on this
+         screen — see `shape` in spotlightPart. */
+      Board.keepMark = !!next.keepMark;
       /* And the other reason a board steps back, which no screen asks
          for because the board can see it: the drawing runs over an
          axis. It fades the axes and their numbers and leaves the ruling
@@ -5970,6 +5996,14 @@
          already be there and there is none, put up the one it would
          have inherited. Nothing to do on the way through the script. */
       this.seedInherited(i);
+      /* And a screen that rests on the right angle has its marker up
+         from the first frame. It is normally switched on by answering
+         26 — on a timer, which a quick tap on Next cancels — and a jump
+         never passes 26 at all; either way the screen would open
+         without it and fade it in late. Here, the drawing is already
+         in place, so it simply is there. (`after` asserts it again,
+         which costs nothing.) */
+      if (entry.rightAngle) Board.rightAngle(true);
       /* A question that follows straight on from one answered on the
          control keeps the whole arrangement: she stays up on the panel,
          the control stays under her, and only the board changes. Taking
@@ -6021,9 +6055,14 @@
          it when she lands. Screens where she is already standing are
          left alone — there the next line is 140ms away, and closing
          would blink the box between two sentences of the same breath. */
-      const speaks = !!entry.line && !geom.bare && entry.intro !== 'measure';
+      const speaks = !!(entry.line || (entry.lines || []).length) &&
+                     !geom.bare && entry.intro !== 'measure';
       if (entry.transition !== 'leaves') {
-        if (!speaks) Bubble.close();
+        /* A screen that opens on a silent light is not the next
+           sentence of the same breath either: the board shows
+           something before she speaks, so the last screen's words go
+           now, with the screen, not a second later when she arrives. */
+        if (!speaks || entry.openLight) Bubble.close();
         applyGeom(geom);
       }
 
@@ -6229,7 +6268,32 @@
         }, 420);
       };
 
+      let opened = false;
       const after = function () {
+        /* The marker, asserted rather than inherited. It is switched on
+           by answering "what kind of triangle is this?" and off by
+           `clearLegs`, so a child who jumps straight here from the
+           picker would arrive without the one mark the theorem rests
+           on. The same idea as settlePair and settleFurniture. */
+        if (entry.rightAngle) Board.rightAngle(true);
+        /* A light before anyone speaks. Every other light runs when its
+           line has finished, which is why no light lands ahead of its
+           sentence; this one is the exception on purpose — the two
+           known sides are up when the screen opens, so she names what
+           the child is already reading. Run through the same
+           `lightAfterLine`, and the lines wait for it to land. */
+        if (entry.openLight && !opened) {
+          opened = true;
+          /* A silent beat, so the balloon is empty for it: the last
+             screen's words hanging over this one's opening would make
+             it a continuation of her line rather than the board
+             showing something before she speaks. */
+          Bubble.close();
+          const ms = self.lightAfterLine(
+            Object.assign({}, entry, { lineLights: [entry.openLight] }), 0);
+          self.later(after, Math.max(0, ms));
+          return;
+        }
         self.pulseTail = 0;
         self.pulseOff = 0;
         spotlight();
@@ -6246,7 +6310,8 @@
            over to the working — which settles the screen itself once it
            has finished writing. Nothing else may settle in between. */
         if (entry.derive) {
-          self.sayLines([entry.line, entry.line2].filter(Boolean), function () {
+          self.armWordCues(entry);
+          self.sayLines(entry.lines || [entry.line, entry.line2].filter(Boolean), function () {
             if (gated) gated();
             derive();
           }, lit);
@@ -7076,6 +7141,10 @@
              the beat right when it is jumped into rather than played
              up to, and the balloon never types at all. */
           if (c.settle) { Board.settlePair(); Board.spotlightPart(null); }
+          /* Or light one — on the word that names it, so "we still
+             need AB" lights AB as she says it rather than after she has
+             stopped. */
+          if (c.spot) Board.spotlightPart(c.spot);
         });
       };
     },

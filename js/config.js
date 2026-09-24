@@ -2338,8 +2338,26 @@ window.CFG = (function () {
          board comes to the middle, pushes in on the drawing and the
          room the working needs, and writes it there. */
       stage: 'working',
-      line: 'A right triangle! And we already know two of its sides.',
-      line2: 'Pythagoras theorem can help us find the third!',
+      /* The need, then the reason, then the theorem.
+
+         What we have — the two sides the child measured, lit together
+         as the screen opens and named after, so she confirms what they
+         are already reading. What we need — AB, the one side with no
+         length on it, lit on the word that names it. Why the tool
+         applies — it is a right triangle, and the marker at C that
+         says so stays at full strength the whole time. Then the tool:
+         the working, unchanged.
+
+         It used to open "A right triangle!" — the answer the child had
+         given one screen before — light the two known sides one after
+         the other so they were never seen together, and reach for
+         Pythagoras with the marker dimmed by every highlight.
+
+         None of these lines is recorded; neither were the two they
+         replace. */
+      lines: [ 'We know AC and CB.',
+               'But we still need AB.',
+               'Since it’s a right triangle, Pythagoras theorem can help!' ],
       entrance: 'stay', layout: 'board',
       /* The working is about the drawing, so the paper steps back:
          the ruling, the axes and their numbering fade and the triangle
@@ -2348,20 +2366,18 @@ window.CFG = (function () {
          only the last two of them, so the same beat came up loud on one
          screen and quiet on the next. */
       quietBoard: true, keepSegment: true,
-      /* The two known sides under the first line, the one she is about
-         to find under the second — each played when its own sentence
-         finishes. It used to be two clocks running past the words:
-         `spotSeq` at a flat 700 and 1600ms, and `pulse` timed off the
-         length of the FIRST line and started a fifth of the way into
-         it, so AB lit 324ms into "we already know two of its sides".
-
-         The second line spots as well as pulses. A spotlight is one
-         side at a time, so the first line ends with the light on the
-         LAST of its two — the vertical — and a pulse does not move it.
-         AC had stepped back and CB was still burning beside the side
-         she was naming. The third side is the subject now, so both of
-         the known ones step back. */
-      lineLights: [ { spots: ['h', 'v'] }, { pulse: 'ab', spots: ['ab'] } ],
+      /* The triangle is left exactly as the child built it: every
+         side, every point, both lengths, at full strength, with
+         nothing pulsing and nothing stepped back. She names what is
+         already plainly there. The holds are the breaths between the
+         three sentences — what we have, what we need, why the tool
+         applies. */
+      lineLights: [ { hold: 500 }, { hold: 700 }, {} ],
+      /* The right angle is what the theorem rests on, so the marker is
+         asserted on arrival (a jump from the picker would otherwise
+         land without it) and exempt from every highlight's hush —
+         through the working too, which lights each side as it writes. */
+      rightAngle: true, keepMark: true,
       derive: {
         /* The working, tagged to the board. Every part that names a
            length carries the side it belongs to — 'h' the horizontal,
