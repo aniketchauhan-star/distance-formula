@@ -627,6 +627,32 @@
      on those screens. */
   let standPose = false;
 
+  /* Her beak, wherever she is standing.
+
+     The board screens settle her into a single standing painting the
+     moment she lands, which is right for standing still and wrong
+     while she is talking — on some of those boards she says three or
+     four sentences without so much as a blink. The talking sheet was
+     there the whole time and simply switched off by `standPose`.
+
+     The swap is the landing's own, run backwards: `onEnd` hides the
+     rig and shows the painting because the two are drawn at the same
+     size in the same place, and that is exactly what lets the rig take
+     the line back off it and hand it over again when she stops. */
+  function mouthOpen() {
+    if (standPose) {
+      el.standSwifty.classList.add('hidden');
+      el.birdWin.classList.remove('hidden');
+    }
+    Sprite.play('talk', true);
+  }
+  function mouthShut() {
+    Sprite.stopAt('talk', 0);
+    if (!standPose) return;
+    el.birdWin.classList.add('hidden');
+    el.standSwifty.classList.remove('hidden');
+  }
+
   /* ---------------- speech bubble ---------------- */
   const Bubble = {
     typing: false, timer: null, hideTimer: null, full: '', shown: 0, onDone: null,
@@ -854,7 +880,7 @@
       const self = this;
       this.typing = true;
       SFX.duck(true);                 // dip the music under her voice
-      if (!standPose) Sprite.play('talk', true);   // beak moves while she speaks
+      mouthOpen();                       // her beak moves while she speaks
 
       this.lay(this.full);
       const voiced = window.Voice ? window.Voice.say(this.full) : 0;
@@ -904,7 +930,7 @@
       clearInterval(this.timer);
       SFX.duck(false);
       SFX.chime();
-      if (!standPose) Sprite.stopAt('talk', 0);
+      mouthShut();
       if (this.onDone) { const d = this.onDone; this.onDone = null; d(); }
     },
 
@@ -7015,11 +7041,11 @@
       this.state = 'speaking';
       Bubble.close();
       SFX.duck(true);                                  // dip the music under her
-      if (!standPose) Sprite.play('talk', true);       // her beak still moves
+      mouthOpen();                                     // her beak still moves
       const ms = (window.Voice && window.Voice.say(line)) || 0;
       this.later(function () {
         SFX.duck(false);
-        if (!standPose) Sprite.stopAt('talk', 0);
+        mouthShut();
         if (then) then();
         /* A beat that names its own hold is honoured here too: without it
            a line said without a balloon takes the ordinary pause and the
