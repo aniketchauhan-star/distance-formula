@@ -1043,9 +1043,16 @@
           list.length = 0;
         };
         const wasDrawn = this.lines.some(function (l) { return l.classList.contains('draw'); });
+        /* The lines and arrowheads live in a group of their own now (so
+           the board can fade them as one shape), and `buildAxes` makes
+           a fresh one — the old, emptied group goes with them. */
+        const oldAxes = this.axesG;
         drop(this.lines); drop(this.arrows); drop(this.labels);
         this.axisLabels.length = 0;
         this.buildAxes();
+        if (oldAxes && oldAxes !== this.axesG && oldAxes.parentNode) {
+          oldAxes.parentNode.removeChild(oldAxes);
+        }
         /* New axes are made the way the board makes them at the start of
            a screen: dashed out of sight, waiting for the sweep that
            reveals them. A range that changes on a board already on the
@@ -1059,9 +1066,13 @@
            very triangle it is the paper for. Since the board gained a
            second range this has been true of every screen that changes
            one. */
+        /* The GROUP goes under the drawing, not each line in it: the
+           lines are its children, not the board's, and asking the board
+           to remove them threw — on every screen from 54 on, which is
+           where the range first changes. */
         const svg2 = el.gridAxes;
-        const axisNodes = this.lines.concat(this.arrows, this.labels);
-        axisNodes.forEach(function (n) { svg2.removeChild(n); });
+        const axisNodes = [this.axesG].concat(this.labels).filter(Boolean);
+        axisNodes.forEach(function (n) { if (n.parentNode) n.parentNode.removeChild(n); });
         for (let k = axisNodes.length - 1; k >= 0; k--) {
           svg2.insertBefore(axisNodes[k], svg2.firstChild);
         }
