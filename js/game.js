@@ -7410,8 +7410,8 @@
         const helping = fb.exhausted && !!t.spec.countLine;
         const msg = helping ? t.spec.countLine : fb.msg;
 
-        /* "Count the spaces between the two points" — and then they
-           are counted. In that order.
+        /* "Count carefully!" — and then they are counted. In that
+           order.
 
            The count used to be started first and the sentence 320ms
            after it, so the first square was already lit while she was

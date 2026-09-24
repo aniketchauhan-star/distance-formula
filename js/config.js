@@ -1824,7 +1824,7 @@ window.CFG = (function () {
                  this beat carries little weight, and a child who has
                  missed learns more from the spaces being counted than
                  from being sent round again. */
-              countLine: 'Count the spaces between the two points.'
+              countLine: 'Count carefully!'
       } },
 
     /* 9-11 — three more of the same, staying on the board. Two of them
@@ -1902,7 +1902,7 @@ window.CFG = (function () {
                  this beat carries little weight, and a child who has
                  missed learns more from the spaces being counted than
                  from being sent round again. */
-              countLine: 'Count the spaces between the two points.' } },
+              countLine: 'Count carefully!' } },
 
     { id: 14, line: 'What is the distance between the two points?', entrance: 'none', layout: 'board',
       distance: true, intro: 'measure',
@@ -1912,7 +1912,7 @@ window.CFG = (function () {
                  this beat carries little weight, and a child who has
                  missed learns more from the spaces being counted than
                  from being sent round again. */
-              countLine: 'Count the spaces between the two points.' } },
+              countLine: 'Count carefully!' } },
 
     /* ---- and the same argument for a column. After the first vertical
        question the y-axis gets what the x-axis got: this time the x
@@ -1955,7 +1955,7 @@ window.CFG = (function () {
                  this beat carries little weight, and a child who has
                  missed learns more from the spaces being counted than
                  from being sent round again. */
-              countLine: 'Count the spaces between the two points.' } },
+              countLine: 'Count carefully!' } },
 
     /* ---- 20-21: the recall, immediately before the ground moves.
 
@@ -2149,7 +2149,7 @@ window.CFG = (function () {
         measureLeg: 0,        // A to C, not A to B
         /* No retry, and the spaces counted rather than a nudge to go
            and count them — the same showing every other miss gets. */
-        countLine: 'Count the spaces between the two points.'
+        countLine: 'Count carefully!'
       } },
 
     /* 15 — the board is kept exactly as it was. The first leg is
@@ -2183,7 +2183,7 @@ window.CFG = (function () {
         kind: 'distance',
         measureLeg: 1,        // C to B
         // no retry; see screen 24
-        countLine: 'Count the spaces between the two points.'
+        countLine: 'Count carefully!'
       } },
 
     /* 16 — leaves, then the whole shape redrawn as one closed red
@@ -3268,7 +3268,7 @@ window.CFG = (function () {
       task: { kind: 'distance', measureLeg: 0, keepLength: true,
               correctLine: 'Fourteen.',
               feedback: ['Count the squares from B up to C.'],
-              countLine: 'Count the spaces between the two points.' } },
+              countLine: 'Count carefully!' } },
 
     { id: 59, line: 'One more. Find CA.', focus: 'v',
       entrance: 'none', layout: 'board', board: 'mid', keepSegment: true,
