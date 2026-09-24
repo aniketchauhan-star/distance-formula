@@ -1787,7 +1787,7 @@ window.CFG = (function () {
     /* No sweep between 7 and 8: this question is asked on the very board
        the point was just located on, so the board and Swifty both stay
        and only the two points arrive. */
-    { id: 8, line: 'What is the distance between two points?', entrance: 'none',
+    { id: 8, line: 'What is the distance between the two points?', entrance: 'none',
       layout: 'board', distance: true, intro: 'measure',
 
       /* Plotted first, then joined by a dashed guide, and only then is
@@ -1892,7 +1892,7 @@ window.CFG = (function () {
          its own lighting, in its own order. */
       voiceOnly: true, xEquation: true, hold: XEQ_HOLD },
 
-    { id: 13, line: 'What is the distance between two points?', entrance: 'none', layout: 'board',
+    { id: 13, line: 'What is the distance between the two points?', entrance: 'none', layout: 'board',
       distance: true, intro: 'measure',
       segment: { a: { x: 4, y: 3 }, b: { x: -3, y: 3 } , dash: true},
       task: { kind: 'distance',
@@ -1902,7 +1902,7 @@ window.CFG = (function () {
                  from being sent round again. */
               countLine: 'Count the spaces between the two points.' } },
 
-    { id: 14, line: 'What is the distance between two points?', entrance: 'none', layout: 'board',
+    { id: 14, line: 'What is the distance between the two points?', entrance: 'none', layout: 'board',
       distance: true, intro: 'measure',
       segment: { a: { x: 1, y: 2 }, b: { x: 1, y: -3 } , dash: true},
       task: { kind: 'distance',
@@ -1945,7 +1945,7 @@ window.CFG = (function () {
       entrance: 'stay', layout: 'board', keepSegment: true, quietBoard: true,
       voiceOnly: true, xEquation: true, hold: XEQ_HOLD },
 
-    { id: 19, line: 'What is the distance between two points?', entrance: 'none', layout: 'board',
+    { id: 19, line: 'What is the distance between the two points?', entrance: 'none', layout: 'board',
       distance: true, intro: 'measure',
       segment: { a: { x: -2, y: 3 }, b: { x: -2, y: 1 } , dash: true},
       task: { kind: 'distance',
@@ -2473,7 +2473,7 @@ window.CFG = (function () {
       /* The working goes on the paper, not in a panel beside it: the
          board comes to the middle, pushes in on the drawing and the
          room the working needs, and writes it there. */
-      stage: 'working', line: 'What is the distance between two points?', range: { min: 0, max: 12 }, entrance: 'none',
+      stage: 'working', line: 'What is the distance between the two points?', range: { min: 0, max: 12 }, entrance: 'none',
       layout: 'board',
       /* The working is about the drawing, so the paper steps back:
          the ruling, the axes and their numbering fade and the triangle

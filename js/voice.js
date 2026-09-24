@@ -65,8 +65,12 @@ window.Voice = (function () {
        the master cut. */
     'Here it is — (6, 2).':
       ['09-here-it-is-6-2.mp3', 2.35],
-    'What is the distance between two points?':
-      ['10-what-is-the-distance-between-two-points.mp3', 2.61],
+    /* The line reads "between THE two points" now, and the recording
+       says "between two points" — so it is cut loose rather than left
+       to say something the balloon does not, exactly as screen 7's
+       was. The line is quiet until it is re-recorded;
+       10-what-is-the-distance-between-two-points.mp3 stays in the
+       master cut, and this key is what hooks it back up. */
     'Let’s count the units.':
       ['11-let-s-count-the-units.mp3', 1.52],
     'Now try again!':
