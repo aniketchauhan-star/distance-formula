@@ -639,6 +639,17 @@
      rig and shows the painting because the two are drawn at the same
      size in the same place, and that is exactly what lets the rig take
      the line back off it and hand it over again when she stops. */
+  /* A dotted pattern stretched to fit its line exactly: a dot at each
+     end and the rest evenly between. Left to itself a pattern stops
+     wherever it runs out, so a dotted line began at one point and gave
+     up short of the other. `len` is in the pattern's own units. */
+  function evenDots(pattern, len) {
+    const p = String(pattern).split(/[ ,]+/).map(Number);
+    const dash = p[0] || 1, gap = p[1] || 14, period = dash + gap;
+    const n = Math.max(1, Math.round((len - dash) / period));
+    return dash + ' ' + Math.max(0, (len - dash) / n - dash);
+  }
+
   /* A line's two ends, each moved in along it by its own amount —
      never past the middle, so a side too short to clear both of its
      points keeps a sliver rather than turning inside out. */
@@ -1368,13 +1379,15 @@
                              dash: dl, dashG: dg });
       }
 
-      /* Three spare lines that do nothing but pulse, laid over the real
-         ones. The real lines carry stroke-width as a presentation
+      /* Three spare lines that do nothing but pulse, laid behind the
+         real ones. The real lines carry stroke-width as a presentation
          attribute written by the drawing code, and a highlight that
          fights that is a highlight that loses — so nothing here touches
-         them. These are appended last, which puts them above everything
-         else in the SVG, and they take their ends and their colour from
-         whatever they are covering. */
+         them. They sit just above the triangle's face and below every
+         side and every point (see where pulseG is inserted), so the
+         glow shows around the side and the points stay crisp on top;
+         they take their ends and their colour from whatever side they
+         are lighting. */
       const pulseG = document.createElementNS(NS, 'g');
       pulseG.setAttribute('class', 'tri-pulse-overlay');
       pulseG.setAttribute('pointer-events', 'none');
@@ -1382,7 +1395,9 @@
         const l = document.createElementNS(NS, 'line');
         l.setAttribute('class', 'triangle-pulse-line');
         l.setAttribute('fill', 'none');
-        l.setAttribute('stroke-linecap', 'round');
+        /* Square ends, finished just inside each point — see
+           pulseSides — so no corner of the glow shows past a dot. */
+        l.setAttribute('stroke-linecap', 'butt');
         pulseG.appendChild(l);
         return l;
       });
@@ -1699,7 +1714,12 @@
 
       this.dotGroup = g;
       // last of all, so the pulse overlay sits above every other part
-      svg.appendChild(pulseG);
+      /* Behind every line and every point: just above the triangle's
+         face, below the sides. The highlight is a glow BEHIND the side,
+         the full length of it, with the line and its two points drawn
+         crisp on top — not a band laid over the drawing that has to be
+         cut short to keep it off the dots. */
+      svg.insertBefore(pulseG, this.triFill ? this.triFill.nextSibling : svg.firstChild);
     },
 
     /* The board is seated in different boxes on different screens, so
@@ -2925,11 +2945,19 @@
       /* Dotted while it is a guide, solid once it is known. Only one of
          the two is ever on the board. */
       if (L.dash) {
-        const cw = +L.dash.getAttribute('stroke-width') || 0;
-        const e = inset(x1, y1, x2, y2, this.clearPoint(x1, y1, cw),
-                        this.clearPoint(x2, y2, cw));
+        /* Up to each point's ring and no further — so it reads as
+           running on behind the point, the way the solid side does —
+           with its dots spaced to fit, one against each ring. Its
+           stroke does not scale, so its width is converted to board
+           units before it is measured against the dots. */
+        const k = this.hostScale();
+        const cw = (+L.dash.getAttribute('stroke-width') || 0) / k;
+        const e = inset(x1, y1, x2, y2, this.clearPoint(x1, y1, cw) - 4,
+                        this.clearPoint(x2, y2, cw) - 4);
         L.dash.setAttribute('x1', e[0]); L.dash.setAttribute('y1', e[1]);
         L.dash.setAttribute('x2', e[2]); L.dash.setAttribute('y2', e[3]);
+        L.dash.setAttribute('stroke-dasharray', evenDots(LG.dashArray || '2 14',
+          Math.hypot(e[2] - e[0], e[3] - e[1]) * k));
         L.dash.setAttribute('stroke', side);
         L.dashG.style.transformOrigin = x1 + 'px ' + y1 + 'px';
         L.dashG.style.display = spec.dash ? '' : 'none';
@@ -3465,33 +3493,30 @@
       const overlay = this.pulseLines || [];
       const self2 = this;
 
-      /* Up to each point and no further. The overlay is laid over
-         everything — it has to be, to be seen over the real line — and
-         it used to run centre to centre, so at the top of its pulse the
-         glow washed straight across the two dots at its ends. It stops
-         short of each by the dot's own radius, its white ring, and half
-         the glow's widest stroke (realStrokePulse peaks at 14px, and a
-         round cap reaches half that past its end), with a little air.
-         The dots are read at the moment of the pulse rather than from
-         config, because the camera resizes them as it pushes in. */
-      const PULSE_HALF = 7, AIR = 4;
+      /* The full side, point to point, behind the line. The glow now
+         lies under every line and every dot, so it can run the whole
+         length; it finishes just INSIDE each point — at the depth where
+         its square corners are still covered by the dot — so it reads
+         as passing behind the point with nothing showing past its rim,
+         and never as a light on the point itself. A side that already
+         stops at its point's ring has its glow carried back in to meet
+         the point. The dots are read at the moment of the pulse,
+         because the camera resizes them as it pushes in. */
+      const HALF = 7;                       // realStrokePulse peaks at 14px
       const ends = [self2.segParts && self2.segParts.a && self2.segParts.a.dot,
                     self2.segParts && self2.segParts.b && self2.segParts.b.dot]
         .concat((self2.legSlots || []).map(function (L) { return L && L.dot; }))
         .filter(Boolean);
-      /* However far the line already stops short — a leg now ends at
-         its point's ring, the pair still runs centre to centre — the
-         glow is taken in by whatever it still needs to clear. */
-      const clearOf = function (x, y) {
-        let need = 0;
+      const inTo = function (x, y) {
+        let best = null;
         ends.forEach(function (d) {
           if (d.style.display === 'none') return;
-          const edge = (+d.getAttribute('r') || 0) +
-                       (+d.getAttribute('stroke-width') || 0) / 2;
+          const E = (+d.getAttribute('r') || 0) + (+d.getAttribute('stroke-width') || 0) / 2;
           const dist = Math.hypot(+d.getAttribute('cx') - x, +d.getAttribute('cy') - y);
-          need = Math.max(need, edge + PULSE_HALF + AIR - dist);
+          if (dist > E + 12 || (best && dist >= best.dist)) return;
+          best = { dist: dist, t: Math.sqrt(Math.max(0, E * E - HALF * HALF)) - dist };
         });
-        return need;
+        return best ? best.t : 0;
       };
 
       later(function () {
@@ -3500,14 +3525,9 @@
           if (!src) { l.classList.remove('on'); return; }
           const x1 = +src.getAttribute('x1'), y1 = +src.getAttribute('y1');
           const x2 = +src.getAttribute('x2'), y2 = +src.getAttribute('y2');
-          const len = Math.hypot(x2 - x1, y2 - y1) || 1;
-          const ux = (x2 - x1) / len, uy = (y2 - y1) / len;
-          /* Never past the middle: a side too short to clear both of
-             its dots keeps a sliver of light rather than inverting. */
-          const t1 = Math.min(clearOf(x1, y1), len / 2 - 1);
-          const t2 = Math.min(clearOf(x2, y2), len / 2 - 1);
-          l.setAttribute('x1', x1 + ux * t1); l.setAttribute('y1', y1 + uy * t1);
-          l.setAttribute('x2', x2 - ux * t2); l.setAttribute('y2', y2 - uy * t2);
+          const e = inset(x1, y1, x2, y2, inTo(x1, y1), inTo(x2, y2));
+          l.setAttribute('x1', e[0]); l.setAttribute('y1', e[1]);
+          l.setAttribute('x2', e[2]); l.setAttribute('y2', e[3]);
           const col = src.getAttribute('stroke');
           l.setAttribute('stroke', col);
           l.style.color = col;                 // what the glow is drawn in
@@ -4349,11 +4369,16 @@
       /* An example carries no guide: it is only ever shown finished. */
       if (T.segDash) {
       {
-        const cw = +T.segDash.getAttribute('stroke-width') || 0;
-        const r = SG.dotR + (SG.dotStrokeW || 0) / 2 + cw / 2 + 4;
+        /* To each point's ring, dots spaced to fit — see the leg's
+           dotted guide in placeLeg. */
+        const k = this.hostScale();
+        const cw = (+T.segDash.getAttribute('stroke-width') || 0) / k;
+        const r = SG.dotR + (SG.dotStrokeW || 0) / 2 + cw / 2;
         const e = inset(px(a.x), py(a.y), px(b.x), py(b.y), r, r);
         T.segDash.setAttribute('x1', e[0]); T.segDash.setAttribute('y1', e[1]);
         T.segDash.setAttribute('x2', e[2]); T.segDash.setAttribute('y2', e[3]);
+        T.segDash.setAttribute('stroke-dasharray', evenDots(SG.dashArray,
+          Math.hypot(e[2] - e[0], e[3] - e[1]) * k));
       }
       /* It grows from the left-hand end, so the guide always reads left
          to right — the order the pair is read in — rather than from
@@ -5061,6 +5086,18 @@
        of every route through the script, and false the moment the
        picker drops a child in from somewhere else. Every screen that
        keeps asks this first. */
+    /* Screen pixels per board unit. The camera zooms by moving the
+       viewBox, so this is one number for the whole board — and it is
+       what a line drawn with `vector-effect: non-scaling-stroke` is
+       measured in: its width and its dashes are pixels, not board
+       units. Worked out from the box and the view rather than asked of
+       the DOM, so it is right on a hidden board and mid-push alike. */
+    hostScale: function () {
+      const b = this.box, V = this.viewRect();
+      if (!b || !V || !V.w || !V.h) return 1;
+      return Math.min(b.w / V.w, b.h / V.h) || 1;
+    },
+
     /* How far short of a point a line must stop to clear it: the
        dot, its white ring, and the line's own round cap, with a little
        air. A dotted line run centre to centre lays its last dot on the
