@@ -423,14 +423,17 @@ html, body {
    so they keep most of their ink. Declared on the base rules as well,
    so a board goes quiet and comes back with a fade rather than a
    flicker. */
-#gridImg, #gridAxes .axis, #gridAxes .arrow, #gridAxes .glabel {
+#gridImg, #gridAxes .axes, #gridAxes .glabel {
   transition: opacity .45s ease;
 }
 #gridPanel.quiet #gridImg { opacity: .35; }
-#gridPanel.quiet #gridAxes .axis { opacity: .3; }
+/* The axes step back as ONE shape — lines and arrowheads share a
+   group — so where a shaft tucks under its arrowhead, or the four
+   half-axes meet at the origin, there is one layer of ink and not two.
+   Faded part by part, each overlap stacked darker. */
+#gridPanel.quiet #gridAxes .axes { opacity: .3; }
 /* Past the rules that turn these two on, which are as specific as they
    are and come earlier in the file. */
-#gridPanel.quiet #gridAxes .arrow.pop { opacity: .3; }
 #gridPanel.quiet #gridAxes .glabel.pop { opacity: .5; }
 
 /* The other reason the board steps back, and it is not the same reason.
@@ -448,8 +451,7 @@ html, body {
    coordinates off them on every screen in this game, and a number at .3
    is a number they have to squint at; the lines carry less here, so the
    lines can go further. */
-#gridPanel.crossed #gridAxes .axis { opacity: .3; }
-#gridPanel.crossed #gridAxes .arrow.pop { opacity: .3; }
+#gridPanel.crossed #gridAxes .axes { opacity: .3; }
 #gridPanel.crossed #gridAxes .glabel.pop { opacity: .5; }
 
 /* Pushed in, the axes are lines only. At that range the child is reading
@@ -461,6 +463,14 @@ html, body {
    Weighs the same as the quiet rule above and beats it on source order
    alone, so it has to stay below it. */
 #gridPanel.framed #gridAxes .glabel.pop { opacity: 0; }
+/* And the axes with them. The reason that takes the numbers away takes
+   the lines too: pushed in this far the child is reading one drawing,
+   and a pair of full-weight rules with arrowheads on them is the
+   heaviest thing left on the paper — in a frame that no longer even
+   shows what they count. They step back to the same .3 the board uses
+   everywhere else it quietens, as one shape (see the group rule above),
+   riding the .45s transition so the fade comes with the push. */
+#gridPanel.framed #gridAxes .axes { opacity: .3; }
 
 /* The ruling is the one that cannot be dimmed by a declaration. The rule
    above runs ruleIn with `both`, so its filled last frame — opacity 1 —
@@ -1247,6 +1257,42 @@ html, body {
 
 /* ---------------- effects layer ---------------- */
 #fxLayer { position: absolute; inset: 0; z-index: 9; pointer-events: none; overflow: hidden; }
+
+/* A wrong answer, felt at the edges of the frame.
+
+   Warm red gathered in the four corners and running faintly along the
+   edges between them, so the middle of the frame — the board, her
+   balloon, the control — is never tinted at all. It pulses twice and
+   goes: once to say "not that", a second, softer beat to let it
+   settle, and back to normal. Deliberately quiet. A miss is part of
+   learning here, and the count that follows it is the real answer; the
+   glow only has to be noticed, never to feel like being told off.
+
+   Over the scene and the sparkles, under the leaf sweep, so a screen
+   change still covers it — and never in the way of a tap. */
+#missGlow {
+  position: absolute; inset: 0; z-index: 10; pointer-events: none;
+  opacity: 0;
+  box-shadow: inset 0 0 120px 8px rgba(232, 72, 64, .28);
+  background:
+    radial-gradient(circle 460px at 0 0,       rgba(232, 72, 64, .26), rgba(232, 72, 64, 0)),
+    radial-gradient(circle 460px at 100% 0,    rgba(232, 72, 64, .26), rgba(232, 72, 64, 0)),
+    radial-gradient(circle 460px at 0 100%,    rgba(232, 72, 64, .26), rgba(232, 72, 64, 0)),
+    radial-gradient(circle 460px at 100% 100%, rgba(232, 72, 64, .26), rgba(232, 72, 64, 0));
+}
+#missGlow.on { animation: missPulse 1.3s cubic-bezier(.4, 0, .2, 1); }
+@keyframes missPulse {
+  0%   { opacity: 0; }
+  18%  { opacity: 1; }
+  42%  { opacity: .25; }
+  64%  { opacity: .8; }
+  100% { opacity: 0; }
+}
+/* Without the motion: one soft fade in and out, no pulsing. */
+@media (prefers-reduced-motion: reduce) {
+  #missGlow.on { animation: missFade .9s ease; }
+  @keyframes missFade { 0%, 100% { opacity: 0; } 35% { opacity: .7; } }
+}
 .fx { position: absolute; will-change: transform, opacity; }
 
 .fx-star {
@@ -1574,43 +1620,17 @@ html, body {
   }
 }
 
-/* and the three corners, on the same clock.
-
-   `opacity: 1` is not decoration — it is what keeps the corner ON the
-   board. A dot rests at opacity 0 and is painted by `segDotIn ... both`:
-   the animation's fill IS its visibility. Naming an animation here
-   REPLACES that one, fill and all, so the dot fell back to its own
-   resting opacity and went out for exactly as long as she was pointing
-   at it — the two corners she names being the only two that vanish.
-   The same trap as a filled animation beating a transform attribute:
-   whatever a `both` animation is holding, a second `animation:` on the
-   same element drops. Hold it here instead. */
-#gridAxes.triangle-question-active .triangle-point {
-  opacity: 1;
-  animation: trianglePointPulse 900ms ease-in-out infinite;
-  transform-box: fill-box;
-  transform-origin: center;
-}
-@keyframes trianglePointPulse {
-  0%, 100% {
-    transform: scale(1);
-    filter: drop-shadow(0 0 2px rgba(70, 140, 255, .40))
-            drop-shadow(0 0 0 rgba(70, 140, 255, 0));
-  }
-  50% {
-    transform: scale(1.28);
-    filter: drop-shadow(0 0 4px rgba(255, 255, 255, 1))
-            drop-shadow(0 0 9px rgba(70, 140, 255, .80));
-  }
-}
-
+/* The corners do not pulse with the lines. A dot that grows and
+   glows on every beat pulls the eye to a point when what is being
+   named is a side, so only the lines light. (It also retires a trap:
+   naming an animation on a dot replaced the `segDotIn ... both` fill
+   that IS its visibility, and the corners being pointed at went out.) */
 /* Only one animation may drive a corner while this runs — a freshly
    plotted dot has a pop of its own that would otherwise compete. */
 #gridAxes.triangle-question-active .segline.lit { animation: none; }
 
 @media (prefers-reduced-motion: reduce) {
-  #gridAxes.triangle-question-active .triangle-pulse-line.on,
-  #gridAxes.triangle-question-active .triangle-point { animation: none; }
+  #gridAxes.triangle-question-active .triangle-pulse-line.on { animation: none; }
 }
 
 
@@ -1618,6 +1638,10 @@ html, body {
    copy — the label it came from never moves — so it carries the same
    face and the same paper halo, and lands at the size the working is
    set in rather than the size it left at. */
+/* A copy lifted off the triangle for the formula table: the weight of
+   the table it is going to. */
+.fx-glyph.fx-copy { font-weight: 700; }
+
 .fx-glyph {
   font-family: 'Nunito', system-ui, sans-serif;
   font-weight: 600;

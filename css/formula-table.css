@@ -1,0 +1,75 @@
+/* The formula table: the grid panel extended to the right.
+
+   It wears the board's own frame and paper — the same inset edge,
+   frame and highlight, the same radius and shadow — so it reads as the
+   same panel grown out of the board's right edge rather than a card
+   laid beside it. It sits UNDER the board (it is inserted before it),
+   with its left edge tucked behind the board's, and opens left to
+   right like a drawer. */
+.formula-table {
+  position: absolute; z-index: 2;
+  transform: translateY(-50%);
+  box-sizing: border-box;
+  padding: 48px 44px 48px 92px;          /* the tucked-in edge carries no type */
+  border-radius: var(--radius, 46px);
+  background: var(--paper-inner, #FFFDF1);
+  box-shadow:
+    inset 0 0 0 var(--edgeW,  2px) var(--paper-edge,  #141930),
+    inset 0 0 0 var(--frameW, 14px) var(--paper-frame, #252C47),
+    inset 0 0 0 var(--hiW,    16px) var(--paper-hi,    #FFF2A8),
+    0 8px 22px rgba(16, 20, 40, .30);
+  font-family: 'Nunito', system-ui, sans-serif;
+  font-weight: 700;
+  font-size: var(--ft-size, 40px);
+  line-height: 1.15;
+  color: #213258;
+  /* Closed: nothing shows past its own left edge, which is behind the
+     board. Opening uncovers it rightward. */
+  clip-path: inset(0 100% 0 0 round var(--radius, 46px));
+  transition: clip-path .7s cubic-bezier(.22, .61, .36, 1);
+  pointer-events: none;
+}
+.formula-table.open   { clip-path: inset(0 0 0 0 round var(--radius, 46px)); }
+.formula-table.hidden { display: none; }
+
+/* One column of equals signs, a column per term; every row lines up
+   under the one above it. */
+.formula-table .ft-grid {
+  display: grid;
+  grid-template-columns: repeat(5, auto);
+  justify-content: center;
+  align-items: baseline;
+  column-gap: .34em;
+  row-gap: .55em;
+}
+.formula-table .ft-col0 { justify-self: end; }      /* the left-hand side meets its = */
+.formula-table .ft-col1,
+.formula-table .ft-col2,
+.formula-table .ft-col3,
+.formula-table .ft-col4 { justify-self: center; }
+
+/* A row comes in as its skeleton; a written value when it is written. */
+.formula-table .ft-cell {
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(.18em);
+  transition: opacity .45s ease, transform .45s cubic-bezier(.22, .61, .36, 1);
+}
+.formula-table .ft-cell.in { opacity: 1; transform: none; }
+
+/* The empty slot: the space the name will take, held open by the name
+   itself (laid out, not shown), with a soft dashed line under it. */
+.formula-table .ft-slot { display: inline-block; position: relative; padding: 0 .06em; }
+.formula-table .ft-slot::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: .06em;
+  border-bottom: 3px dashed rgba(33, 50, 88, .32);
+  transition: opacity .3s ease;
+}
+.formula-table .ft-fill { visibility: hidden; }
+.formula-table .ft-slot.landed .ft-fill { visibility: visible; }
+.formula-table .ft-slot.landed::after  { opacity: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .formula-table { transition: none; }
+  .formula-table .ft-cell { transition: opacity .2s linear; transform: none; }
+}

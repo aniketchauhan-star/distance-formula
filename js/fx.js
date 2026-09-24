@@ -540,12 +540,109 @@ window.FX = (function () {
     requestAnimationFrame(step);
     return stop;
   }
+  /* A COPY of a symbol, taken off the board and carried to where it is
+     needed — the original never moves.
+
+       appear   exactly on top of the original: same text, same colour,
+                same size and the same slant, so for a moment it cannot
+                be told from it
+       pulse    lifts a little above it and swells twice there,
+                straightening as it rises if the original is written
+                along a slanted side
+       travel   across to its place, on the camera's own curve, growing
+                or shrinking to the size it will be read at there
+
+     Kept on the flight list, so a screen change lands it with every
+     other flight rather than leaving it in the air. */
+  function liftAndFly(text, from, to, o, done) {
+    o = o || {};
+    if (!layer) { if (done) done(); return function () {}; }
+    const d = document.createElement('div');
+    d.className = 'fx fx-glyph fx-copy';
+    d.textContent = text;
+    if (o.color) d.style.color = o.color;
+    layer.appendChild(d);
+    const A = o.appearMs || 200, P = o.pulseMs || 1000, T = o.travelMs || 1400;
+    const lift = (o.lift == null ? 0.6 : o.lift) * from.size;
+    const rot0 = from.rot || 0;
+    const out = function (t) { return 1 - Math.pow(1 - t, 3); };
+    /* cubic-bezier(.22, .61, .36, 1), as `flyGlyph` and the camera
+       solve it, so the copy is carried the way the board moves. */
+    const ease = function (t) {
+      let lo = 0, hi = 1, u = t;
+      for (let i = 0; i < 14; i++) {
+        u = (lo + hi) / 2;
+        const x = 3 * (1-u) * (1-u) * u * 0.22 + 3 * (1-u) * u * u * 0.36 + u*u*u;
+        if (x < t) lo = u; else hi = u;
+      }
+      return 3 * (1-u) * (1-u) * u * 0.61 + 3 * (1-u) * u * u + u*u*u;
+    };
+    const put = function (x, y, size, rot, sc, op) {
+      d.style.left = x + 'px';
+      d.style.top = y + 'px';
+      d.style.fontSize = size + 'px';
+      d.style.transform = 'translate(-50%, -50%) rotate(' + rot.toFixed(2) +
+                          'deg) scale(' + sc.toFixed(3) + ')';
+      d.style.opacity = op;
+    };
+    let live = true;
+    const stop = function () {
+      if (!live) return;
+      live = false;
+      const i = flights.indexOf(stop);
+      if (i >= 0) flights.splice(i, 1);
+      if (d.parentNode) d.parentNode.removeChild(d);
+    };
+    flights.push(stop);
+    put(from.x, from.y, from.size, rot0, 1, 0);
+    const t0 = performance.now();
+    const step = function () {
+      if (!live) return;
+      const t = performance.now() - t0;
+      if (t < A) {
+        put(from.x, from.y, from.size, rot0, 1, t / A);
+      } else if (t < A + P) {
+        const u = (t - A) / P, up = out(Math.min(1, u / 0.35));
+        /* sin² over one turn: two swells, at a quarter and three
+           quarters of the way through. */
+        const sc = 1 + 0.3 * Math.pow(Math.sin(u * Math.PI * 2), 2);
+        put(from.x, from.y - lift * up, from.size, rot0 * (1 - up), sc, 1);
+      } else if (t < A + P + T) {
+        const e = ease((t - A - P) / T), y0 = from.y - lift;
+        put(from.x + (to.x - from.x) * e, y0 + (to.y - y0) * e,
+            from.size + (to.size - from.size) * e, 0, 1, 1);
+      } else {
+        stop();
+        if (done) done();
+        return;
+      }
+      requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+    return stop;
+  }
+
   /* Nothing may be left in the air when a screen changes. */
   function landAll() { flights.slice().forEach(function (s) { s(); }); }
 
-  function clear() { landAll(); if (layer) layer.innerHTML = ''; }
+  /* The frame glows red at its corners, twice, and settles. Restarted
+     rather than stacked: a second miss inside the first one's glow
+     begins it again instead of layering another on top. */
+  function missGlow() {
+    const g = document.getElementById('missGlow');
+    if (!g) return;
+    g.classList.remove('on');
+    void g.offsetWidth;              // so removing and re-adding replays it
+    g.classList.add('on');
+  }
+  function stopGlow() {
+    const g = document.getElementById('missGlow');
+    if (g) g.classList.remove('on');
+  }
+
+  function clear() { landAll(); stopGlow(); if (layer) layer.innerHTML = ''; }
 
   return { init, starBurst, ring, pop, sparkles, puff, motes, clouds,
-           flyGlyph, landAll,
+           flyGlyph, liftAndFly, landAll, missGlow,
            leafDrift, wind, leaves, clear };
 })();

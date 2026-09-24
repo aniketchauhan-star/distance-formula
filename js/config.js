@@ -1053,6 +1053,27 @@ window.CFG = (function () {
       ms: 980            // and travels
     },
 
+    /* The formula table (screen 28): the board slides left and the table
+       opens out of its right edge; every name and number in it is a copy
+       lifted off the triangle. Slow on purpose — about three seconds a
+       symbol — so a child can follow each one from where it was to
+       where it goes. Only that screen uses these; `fly` above is
+       untouched for every other working. */
+    table: {
+      board:    { x: 44, y: 12, w: 1232, h: 1056 },   // where the board slides to
+      tuck:     60,       // how far the table's edge sits behind the board's
+      margin:   44,       // from the table's right edge to the frame's
+      size:     40,       // its type, in stage pixels
+      openMs:   900,      // the drawer opening, and a breath after
+      rowMs:    450,      // a row's skeleton coming in
+      appearMs: 200,      // a copy appears on its original
+      pulseMs:  1000,     // lifts above it and swells twice
+      travelMs: 1400,     // travels to its slot
+      restMs:   300,      // lands; a breath before the next
+      writeMs:  600,      // a worked-out value written in place
+      lift:     0.6       // how far above the original, in its own heights
+    },
+
     zoom: {
       ms: 900,           // one push, about a second
       delayMs: 260,      // after the beat opens, so it comes with her line
@@ -1159,7 +1180,7 @@ window.CFG = (function () {
            finishes now, so there is nothing left for a second pass
            to say. */
         passes: 1,
-        numSize: 26,
+        numSize: 20,
         /* An arrow in each square, pointing the way the count is
            running, with its number under it.
 
@@ -1176,11 +1197,14 @@ window.CFG = (function () {
            own, so the pair sits the same way in a tall cell as in a
            squat one. */
         arrow: {
-          len:  0.46,        // tip to tail, across the smaller side
-          head: 0.32,        // the barbs, as a share of that length
-          w:    4,           // its line weight
-          y:    0.36,        // where it sits down the square
-          numY: 0.71         // and where the number sits under it
+          len:  1,           // tip to tail: the whole square, edge to edge
+          head: 0.11,        // small barbs — the line is the mark, not the heads
+          w:    2.5,         // a fine line, not a bold one
+          near: 0.28,        // how far the arrow sits from the line,
+                             // as a share of the square across it
+          far:  0.71         // and its number, further out — so they
+                             // read as a mark and its label, outward
+                             // from the line, whichever way it runs
         }
       },
       labelDy: -28,          // horizontal: just above the line
@@ -1787,7 +1811,7 @@ window.CFG = (function () {
     /* No sweep between 7 and 8: this question is asked on the very board
        the point was just located on, so the board and Swifty both stay
        and only the two points arrive. */
-    { id: 8, line: 'What is the distance between two points?', entrance: 'none',
+    { id: 8, line: 'What is the distance between the two points?', entrance: 'none',
       layout: 'board', distance: true, intro: 'measure',
 
       /* Plotted first, then joined by a dashed guide, and only then is
@@ -1822,7 +1846,7 @@ window.CFG = (function () {
                  this beat carries little weight, and a child who has
                  missed learns more from the spaces being counted than
                  from being sent round again. */
-              countLine: 'Count the spaces between the two points.'
+              countLine: 'Count carefully!'
       } },
 
     /* 9-11 — three more of the same, staying on the board. Two of them
@@ -1892,7 +1916,7 @@ window.CFG = (function () {
          its own lighting, in its own order. */
       voiceOnly: true, xEquation: true, hold: XEQ_HOLD },
 
-    { id: 13, line: 'What is the distance between two points?', entrance: 'none', layout: 'board',
+    { id: 13, line: 'What is the distance between the two points?', entrance: 'none', layout: 'board',
       distance: true, intro: 'measure',
       segment: { a: { x: 4, y: 3 }, b: { x: -3, y: 3 } , dash: true},
       task: { kind: 'distance',
@@ -1900,9 +1924,9 @@ window.CFG = (function () {
                  this beat carries little weight, and a child who has
                  missed learns more from the spaces being counted than
                  from being sent round again. */
-              countLine: 'Count the spaces between the two points.' } },
+              countLine: 'Count carefully!' } },
 
-    { id: 14, line: 'What is the distance between two points?', entrance: 'none', layout: 'board',
+    { id: 14, line: 'What is the distance between the two points?', entrance: 'none', layout: 'board',
       distance: true, intro: 'measure',
       segment: { a: { x: 1, y: 2 }, b: { x: 1, y: -3 } , dash: true},
       task: { kind: 'distance',
@@ -1910,7 +1934,7 @@ window.CFG = (function () {
                  this beat carries little weight, and a child who has
                  missed learns more from the spaces being counted than
                  from being sent round again. */
-              countLine: 'Count the spaces between the two points.' } },
+              countLine: 'Count carefully!' } },
 
     /* ---- and the same argument for a column. After the first vertical
        question the y-axis gets what the x-axis got: this time the x
@@ -1945,7 +1969,7 @@ window.CFG = (function () {
       entrance: 'stay', layout: 'board', keepSegment: true, quietBoard: true,
       voiceOnly: true, xEquation: true, hold: XEQ_HOLD },
 
-    { id: 19, line: 'What is the distance between two points?', entrance: 'none', layout: 'board',
+    { id: 19, line: 'What is the distance between the two points?', entrance: 'none', layout: 'board',
       distance: true, intro: 'measure',
       segment: { a: { x: -2, y: 3 }, b: { x: -2, y: 1 } , dash: true},
       task: { kind: 'distance',
@@ -1953,7 +1977,7 @@ window.CFG = (function () {
                  this beat carries little weight, and a child who has
                  missed learns more from the spaces being counted than
                  from being sent round again. */
-              countLine: 'Count the spaces between the two points.' } },
+              countLine: 'Count carefully!' } },
 
     /* ---- 20-21: the recall, immediately before the ground moves.
 
@@ -2064,7 +2088,11 @@ window.CFG = (function () {
          has arrived. */
       lineLights: [ { pulse: 'ab' },
                     { hold: 900 },
-                    { points: ['a', 'c'], delay: 600 } ],
+                    /* Nothing lit: the side drawing in to C is the
+                       thing to look at. But the beat stays open until
+                       it has arrived, so nobody is handed on with C
+                       still on its way. */
+                    { hold: 1700 } ],
       /* C on the word itself, not after the sentence carrying it has
          finished — "explore" is the last word of that line, and a
          third point that appears once she has stopped talking is a
@@ -2147,7 +2175,7 @@ window.CFG = (function () {
         measureLeg: 0,        // A to C, not A to B
         /* No retry, and the spaces counted rather than a nudge to go
            and count them — the same showing every other miss gets. */
-        countLine: 'Count the spaces between the two points.'
+        countLine: 'Count carefully!'
       } },
 
     /* 15 — the board is kept exactly as it was. The first leg is
@@ -2167,7 +2195,7 @@ window.CFG = (function () {
          shown WHICH two points before being shown the run between
          them. */
       line: 'Now find the distance from C to B.',
-      lineLights: [ { points: ['c', 'b'], spots: ['v'], after: 900 } ],
+      lineLights: [ { spots: ['v'] } ],
       entrance: 'none', view: 'triangle', quietBoard: true,
       layout: 'board', distance: true, intro: 'measure', keepSegment: true,
       segment: { a: { x: 2, y: 1, name: 'A' },
@@ -2181,7 +2209,7 @@ window.CFG = (function () {
         kind: 'distance',
         measureLeg: 1,        // C to B
         // no retry; see screen 24
-        countLine: 'Count the spaces between the two points.'
+        countLine: 'Count carefully!'
       } },
 
     /* 16 — leaves, then the whole shape redrawn as one closed red
@@ -2320,12 +2348,33 @@ window.CFG = (function () {
        theorem, which is the honest thing to do with a theorem they
        have not met, and the derivation follows on its own. */
     { id: 28,
-      /* The working goes on the paper, not in a panel beside it: the
-         board comes to the middle, pushes in on the drawing and the
-         room the working needs, and writes it there. */
-      stage: 'working',
-      line: 'A right triangle! And we already know two of its sides.',
-      line2: 'Pythagoras theorem can help us find the third!',
+      /* The same drawing as the four beats before it — this screen
+         keeps their triangle rather than making one — so it keeps
+         their camera too. Without a view named here the push pulls
+         all the way back out for one beat and goes in again on the
+         next, which reads as the board flinching between two
+         sentences about the same picture. */
+      view: 'triangle',
+      /* The need, then the reason, then the theorem.
+
+         What we have — the two sides the child measured, lit together
+         as the screen opens and named after, so she confirms what they
+         are already reading. What we need — AB, the one side with no
+         length on it, lit on the word that names it. Why the tool
+         applies — it is a right triangle, and the marker at C that
+         says so stays at full strength the whole time. Then the tool:
+         the working, unchanged.
+
+         It used to open "A right triangle!" — the answer the child had
+         given one screen before — light the two known sides one after
+         the other so they were never seen together, and reach for
+         Pythagoras with the marker dimmed by every highlight.
+
+         None of these lines is recorded; neither were the two they
+         replace. */
+      lines: [ 'We know AC and CB.',
+               'But we still need AB.',
+               'Since it’s a right triangle, Pythagoras theorem can help!' ],
       entrance: 'stay', layout: 'board',
       /* The working is about the drawing, so the paper steps back:
          the ruling, the axes and their numbering fade and the triangle
@@ -2334,21 +2383,24 @@ window.CFG = (function () {
          only the last two of them, so the same beat came up loud on one
          screen and quiet on the next. */
       quietBoard: true, keepSegment: true,
-      /* The two known sides under the first line, the one she is about
-         to find under the second — each played when its own sentence
-         finishes. It used to be two clocks running past the words:
-         `spotSeq` at a flat 700 and 1600ms, and `pulse` timed off the
-         length of the FIRST line and started a fifth of the way into
-         it, so AB lit 324ms into "we already know two of its sides".
-
-         The second line spots as well as pulses. A spotlight is one
-         side at a time, so the first line ends with the light on the
-         LAST of its two — the vertical — and a pulse does not move it.
-         AC had stepped back and CB was still burning beside the side
-         she was naming. The third side is the subject now, so both of
-         the known ones step back. */
-      lineLights: [ { spots: ['h', 'v'] }, { pulse: 'ab', spots: ['ab'] } ],
+      /* The triangle is left exactly as the child built it: every
+         side, every point, both lengths, at full strength, with
+         nothing pulsing and nothing stepped back. She names what is
+         already plainly there. The holds are the breaths between the
+         three sentences — what we have, what we need, why the tool
+         applies. */
+      lineLights: [ { hold: 500 }, { hold: 700 }, {} ],
+      /* The right angle is what the theorem rests on, so the marker is
+         asserted on arrival (a jump from the picker would otherwise
+         land without it) and exempt from every highlight's hush —
+         through the working too, which lights each side as it writes. */
+      rightAngle: true, keepMark: true,
       derive: {
+        /* As a table out of the board's edge, not writing on the paper:
+           the board slides left, the table opens to its right, and each
+           name and number is lifted off the triangle as a copy — which
+           is left exactly as the child built it. See workAsTable. */
+        table: true,
         /* The working, tagged to the board. Every part that names a
            length carries the side it belongs to — 'h' the horizontal,
            'v' the vertical, 'ab' the line between the two points — and
@@ -2378,8 +2430,13 @@ window.CFG = (function () {
               { t: '= ' }, { t: '16', lit: 'h' }, { t: ' + ' }, { t: '9', lit: 'v' } ] },
           { kind: 'step', parts: [
               { t: '= ' }, { t: '25', lit: 'ab' } ] },
+          /* AB off its side like the first line's, so the answer's
+             name is carried in too; the answer itself is worked out,
+             so it is written — and it stays in the table: nothing is
+             added to the triangle, so it does not fly home onto AB. */
           { kind: 'result', parts: [
-              { t: 'AB = ' }, { t: '5\u00A0units', lit: 'ab', home: true } ] }
+              { t: 'AB', lit: 'ab', from: { side: 'ab' } }, { t: ' = ' },
+              { t: '5\u00A0units', lit: 'ab' } ] }
         ]
       } },
 
@@ -2390,6 +2447,14 @@ window.CFG = (function () {
        answer comes out whole — 3-4-5 first, then the same shape
        doubled to 6-8-10. */
     { id: 29,
+      /* Pushed in, with room kept for the writing. `working` is the
+         view built for this and nothing had ever asked for it: it
+         frames the drawing and then as much again out to the side the
+         drawing is NOT on, so the paper in shot is triangle in one
+         half and clear board in the other for the working to be set
+         down in. 'triangle' would be wrong here — it frames the
+         drawing alone and the working would have nowhere to go. */
+      view: 'working',
       /* The working goes on the paper, not in a panel beside it: the
          board comes to the middle, pushes in on the drawing and the
          room the working needs, and writes it there. */
@@ -2447,10 +2512,18 @@ window.CFG = (function () {
               ], } },
 
     { id: 30,
+      /* Pushed in, with room kept for the writing. `working` is the
+         view built for this and nothing had ever asked for it: it
+         frames the drawing and then as much again out to the side the
+         drawing is NOT on, so the paper in shot is triangle in one
+         half and clear board in the other for the working to be set
+         down in. 'triangle' would be wrong here — it frames the
+         drawing alone and the working would have nowhere to go. */
+      view: 'working',
       /* The working goes on the paper, not in a panel beside it: the
          board comes to the middle, pushes in on the drawing and the
          room the working needs, and writes it there. */
-      stage: 'working', line: 'What is the distance between two points?', range: { min: 0, max: 12 }, entrance: 'none',
+      stage: 'working', line: 'What is the distance between the two points?', range: { min: 0, max: 12 }, entrance: 'none',
       layout: 'board',
       /* The working is about the drawing, so the paper steps back:
          the ruling, the axes and their numbering fade and the triangle
@@ -3243,7 +3316,7 @@ window.CFG = (function () {
       task: { kind: 'distance', measureLeg: 0, keepLength: true,
               correctLine: 'Fourteen.',
               feedback: ['Count the squares from B up to C.'],
-              countLine: 'Count the spaces between the two points.' } },
+              countLine: 'Count carefully!' } },
 
     { id: 59, line: 'One more. Find CA.', focus: 'v',
       entrance: 'none', layout: 'board', board: 'mid', keepSegment: true,

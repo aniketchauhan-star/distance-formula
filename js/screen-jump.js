@@ -27,6 +27,7 @@ window.ScreenJump = (function () {
      is for, which is the next best handle. */
   function describe(s) {
     if (s.line) return s.line;
+    if (s.lines && s.lines.length) return s.lines[0];
     if (s.task) return '(a question)';
     if (s.xEquation) return '(the subtraction, worked on the board)';
     if (s.examples) return '(pairs recalled)';
