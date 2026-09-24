@@ -1085,6 +1085,18 @@
       svg.style.setProperty('--numLit', G.numLit);
       svg.style.setProperty('--numInk', G.ink);
 
+      /* Lines and arrowheads in one group, so the board can fade them
+         as ONE shape. Faded one by one, every overlap stacked: the
+         shaft's round cap tucked under each arrowhead showed through it
+         as a darker bump, and the four half-axes' caps made a dark spot
+         at the origin — invisible at full strength, obvious at .3. A
+         group is composited once, so where two parts overlap there is
+         still only one layer of ink. */
+      const axesG = document.createElementNS(NS, 'g');
+      axesG.setAttribute('class', 'axes');
+      svg.appendChild(axesG);
+      this.axesG = axesG;
+
       const half = function (x2, y2) {
         const l = document.createElementNS(NS, 'line');
         l.setAttribute('x1', ox); l.setAttribute('y1', oy);
@@ -1095,7 +1107,7 @@
         const len = Math.hypot(x2 - ox, y2 - oy);
         l.setAttribute('stroke-dasharray', len);
         l.style.strokeDashoffset = len;
-        svg.appendChild(l);
+        axesG.appendChild(l);
         self.lines.push(l);
         return l;
       };
@@ -1116,7 +1128,7 @@
           tx + ',' + ty + ' ' + (bx + px) + ',' + (by + py) + ' ' + (bx - px) + ',' + (by - py));
         p.setAttribute('fill', G.ink);
         p.setAttribute('class', 'arrow');
-        svg.appendChild(p);
+        axesG.appendChild(p);
         self.arrows.push(p);
       };
       arrow(xMin, oy, -1, 0);

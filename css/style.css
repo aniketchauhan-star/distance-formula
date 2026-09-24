@@ -423,14 +423,17 @@ html, body {
    so they keep most of their ink. Declared on the base rules as well,
    so a board goes quiet and comes back with a fade rather than a
    flicker. */
-#gridImg, #gridAxes .axis, #gridAxes .arrow, #gridAxes .glabel {
+#gridImg, #gridAxes .axes, #gridAxes .glabel {
   transition: opacity .45s ease;
 }
 #gridPanel.quiet #gridImg { opacity: .35; }
-#gridPanel.quiet #gridAxes .axis { opacity: .3; }
+/* The axes step back as ONE shape — lines and arrowheads share a
+   group — so where a shaft tucks under its arrowhead, or the four
+   half-axes meet at the origin, there is one layer of ink and not two.
+   Faded part by part, each overlap stacked darker. */
+#gridPanel.quiet #gridAxes .axes { opacity: .3; }
 /* Past the rules that turn these two on, which are as specific as they
    are and come earlier in the file. */
-#gridPanel.quiet #gridAxes .arrow.pop { opacity: .3; }
 #gridPanel.quiet #gridAxes .glabel.pop { opacity: .5; }
 
 /* The other reason the board steps back, and it is not the same reason.
@@ -448,8 +451,7 @@ html, body {
    coordinates off them on every screen in this game, and a number at .3
    is a number they have to squint at; the lines carry less here, so the
    lines can go further. */
-#gridPanel.crossed #gridAxes .axis { opacity: .3; }
-#gridPanel.crossed #gridAxes .arrow.pop { opacity: .3; }
+#gridPanel.crossed #gridAxes .axes { opacity: .3; }
 #gridPanel.crossed #gridAxes .glabel.pop { opacity: .5; }
 
 /* Pushed in, the axes are lines only. At that range the child is reading
@@ -466,15 +468,9 @@ html, body {
    and a pair of full-weight rules with arrowheads on them is the
    heaviest thing left on the paper — in a frame that no longer even
    shows what they count. They step back to the same .3 the board uses
-   everywhere else it quietens, and ride the .45s opacity transition
-   these four already share, so the fade comes with the push rather
-   than after it.
-
-   `drawOut` animates the dash offset and nothing else, and `arrowPop`
-   has no fill mode, so an ordinary declaration is enough here — no
-   `!important` and no animation of its own. */
-#gridPanel.framed #gridAxes .axis { opacity: .3; }
-#gridPanel.framed #gridAxes .arrow.pop { opacity: .3; }
+   everywhere else it quietens, as one shape (see the group rule above),
+   riding the .45s transition so the fade comes with the push. */
+#gridPanel.framed #gridAxes .axes { opacity: .3; }
 
 /* The ruling is the one that cannot be dimmed by a declaration. The rule
    above runs ruleIn with `both`, so its filled last frame — opacity 1 —
