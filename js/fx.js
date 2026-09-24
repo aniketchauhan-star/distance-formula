@@ -133,8 +133,17 @@ window.FX = (function () {
     }
   }
 
+  /* Calm (html.calm, set from CFG.MOTION): the ambient weather is not
+     started at all, rather than started and hidden — hidden, its wind
+     was still heard with nothing moving. */
+  const calm = function () { return document.documentElement.classList.contains('calm'); };
+  /* A leaf rides its path with CSS motion paths, which Safari only has
+     from 16: without them every leaf spun in the top-left corner. */
+  const canRide = !!(window.CSS && CSS.supports && CSS.supports('offset-path', 'path("M0 0")'));
+
   /* Slow ambient motes so the scene is never completely still. */
   function motes(count) {
+    if (calm()) return;
     count = count || 18;
     for (let i = 0; i < count; i++) {
       const life = rnd(9000, 16000);
@@ -239,6 +248,7 @@ window.FX = (function () {
   }
 
   function driftOnce(host, cfg) {
+    if (calm() || !canRide) return;
     cfg = cfg || DRIFT;
     const y0 = rnd(cfg.y0[0], cfg.y0[1]);
     const cx = rnd(cfg.loopX[0], cfg.loopX[1]),
@@ -317,6 +327,7 @@ window.FX = (function () {
      being dragged across. Nothing but the streaks — the leaves are the
      drift's job, and doubling them up here would crowd the frame. */
   function windGust(host, cfg) {
+    if (calm()) return;
     const n = (rnd(cfg.gustLines[0], cfg.gustLines[1]) + 0.5) | 0;
     /* One sound for the gust, not one per streak — the streaks are the
        same gust seen, so several overlapping would read as several

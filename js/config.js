@@ -1822,6 +1822,24 @@ window.CFG = (function () {
      that should not carry it switches it off in one place. */
   const NAV = { jump: true };
 
+  /* How much the game moves. The laptop's own "reduce motion" setting
+     used to decide it, invisibly — Windows turns that on whenever
+     "Animation effects" is off, which many school laptops ship with —
+     so the same game played differently from one laptop to the next,
+     and on those laptops the dots on the locate screens were not there
+     at all. Now the game decides, once, the same everywhere:
+
+       'off'            the whole game, on every laptop (the default)
+       'on'             calm: the sky holds still, the grid markers stop
+                        breathing, panels and drawers appear rather than
+                        slide — and nothing is ever hidden by it
+       'follow-laptop'  calm only where the laptop asks for less motion
+
+     Calm is the stylesheets' (`html.calm` rules). The moves the script
+     makes — her flights, the camera, the numbers carried into the
+     table — are the lesson, and play in every mode. */
+  const MOTION = { calm: 'off' };
+
   const AUDIO = {
     musicSrc: MUSIC,
     musicVolume: 0.20,   // brief: background music at 20%
@@ -3521,6 +3539,6 @@ window.CFG = (function () {
     VERSION, STAGE_W, STAGE_H, ART, SHEETS, SHEET_W, SHEET_H,
     SWIFTY, CHAR_SCALE, ANCHOR, HEAD_TOP, FEET_DY, SHADOW, CLOUD,
     S5_ORIGIN, GRID, STAND, S8_ORIGIN, BOARD, RECAP, XAXIS, YAXIS, TOWN,
-    BUBBLE, PLAY, START, AUDIO, AUTO, NAV, SCRIPT
+    BUBBLE, PLAY, START, AUDIO, AUTO, NAV, MOTION, SCRIPT
   };
 })();

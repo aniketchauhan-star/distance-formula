@@ -111,7 +111,9 @@
 }
 
 /* ---------------- interaction ---------------- */
-.triangle-option:hover  { transform: translateY(-2px); filter: brightness(1.04); }
+@media (hover: hover) and (pointer: fine) {
+  .triangle-option:hover  { transform: translateY(-2px); filter: brightness(1.04); }
+}
 .triangle-option:active { transform: translateY(5px); }
 .triangle-option:focus  { outline: none; }
 .triangle-option:focus-visible {
@@ -273,9 +275,7 @@
   60%  { opacity: 1; transform: scale(var(--k, 1)) translateY(-8px); }
   100% { opacity: 1; transform: scale(var(--k, 1)) translateY(0); }
 }
-@media (prefers-reduced-motion: reduce) {
-  .triangle-options-panel.rising { animation: none; }
-}
+html.calm .triangle-options-panel.rising { animation: none; }
 
 /* =============================================================
    Two answers, side by side — the closing beat's pair of cafes.

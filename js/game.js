@@ -230,7 +230,12 @@
 
   let lastT = 0;
   function loop(t) {
-    const dt = lastT ? Math.min(t - lastT, 60) : 16;
+    /* A long frame is caught up, not dropped: clamped at 60ms, a laptop
+       that managed ten frames a second played her wings and beak at
+       60% speed against a flight and a voice that do not slow down.
+       The cap only stops a tab that was hidden for a minute from
+       spinning through a minute of frames. */
+    const dt = lastT ? Math.min(t - lastT, 250) : 16;
     lastT = t;
     Sprite.tick(dt);
     StartSprite.tick(dt);
@@ -890,6 +895,7 @@
       this.words = text.match(/\S+\s*/g) || [];
       // Unhide first: a display:none plate measures zero.
       clearTimeout(this.hideTimer);
+      if (this.hideEnd) { el.bubble.removeEventListener('animationend', this.hideEnd); this.hideEnd = null; }
       el.bubble.classList.remove('hidden', 'pop-out');
       const settled = this.fit(text);
       el.bubbleLine.textContent = '';
@@ -987,11 +993,23 @@
       if (this.typing) { this.typing = false; clearInterval(this.timer); SFX.duck(false); }
       el.bubble.classList.remove('pop-in');
       el.bubble.classList.add('pop-out');
-      const b = el.bubble;
+      const b = el.bubble, self = this;
       clearTimeout(this.hideTimer);
-      this.hideTimer = setTimeout(function () {
+      /* Out of the layout once the pop-out has PLAYED — it runs .26s, and
+         hiding it at a flat 240ms cut the last of it on every machine.
+         The timer only covers a pop-out that never reports its end. */
+      if (this.hideEnd) b.removeEventListener('animationend', this.hideEnd);
+      const hide = function (e) {
+        if (e && e.animationName !== 'bubbleOut') return;
+        b.removeEventListener('animationend', hide);
+        self.hideEnd = null;
+        clearTimeout(self.hideTimer);
+        if (!b.classList.contains('pop-out')) return;   // a line came back in
         b.classList.add('hidden'); b.classList.remove('pop-out');
-      }, 240);
+      };
+      this.hideEnd = hide;
+      b.addEventListener('animationend', hide);
+      this.hideTimer = setTimeout(hide, 260 + 300);
     }
   };
 
@@ -5068,6 +5086,10 @@
         if (!spec) { L.t.textContent = ''; return; }
         L.t.setAttribute('x', left + indent[i]);
         L.t.setAttribute('y', top + i * step);
+        /* Its pop scales it about its own start, named outright — with no
+           origin it scaled about the board's top-left corner and every
+           line of working swooped in from there (see the axis labels). */
+        L.t.style.transformOrigin = (left + indent[i]) + 'px ' + (top + i * step) + 'px';
         L.t.setAttribute('font-size', size);
         (spec.parts || [{ t: spec.text || '' }]).forEach(function (f) {
           const ts = document.createElementNS(NS2, 'tspan');
@@ -5610,7 +5632,7 @@
       this.foundMarks.push(g);
 
       if (this.dotGroup) this.dotGroup.classList.remove('on');   // highlighters away
-      void g.getBoundingClientRect;
+      void g.getBoundingClientRect();
       g.classList.add('on');
     },
 
@@ -5649,7 +5671,10 @@
     reject: function (node) {
       if (!node) return;
       node.classList.remove('wrong');
-      void node.getBoundingClientRect;
+      /* CALLED: read without the brackets it was only the method, the
+         restart never happened, and a second wrong tap on the same dot
+         within 600ms showed no red. */
+      void node.getBoundingClientRect();
       node.classList.add('wrong');
       setTimeout(function () { node.classList.remove('wrong'); }, 600);
     },
@@ -9356,7 +9381,22 @@
   };
 
   /* ---------------- boot ---------------- */
+  /* Calm or not, decided by the game (CFG.MOTION) — not by a setting on
+     the laptop that nobody can see. Before anything moves, so the sky
+     and the weather start the way they are going to stay. */
+  function decideMotion() {
+    const M = (C.MOTION && C.MOTION.calm) || 'off';
+    const mq = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+    const apply = function () {
+      const calm = M === 'on' || (M === 'follow-laptop' && !!(mq && mq.matches));
+      document.documentElement.classList.toggle('calm', calm);
+    };
+    apply();
+    if (M === 'follow-laptop' && mq && mq.addEventListener) mq.addEventListener('change', apply);
+  }
+
   function boot() {
+    decideMotion();
     /* The two full-frame pictures take their source from config rather
        than from the markup. They used to be hardcoded in the HTML,
        which meant a renamed file left ART pointing at the new name

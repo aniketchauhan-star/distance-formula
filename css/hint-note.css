@@ -40,7 +40,9 @@
 
   transition: background 160ms ease, border-color 160ms ease;
 }
-.hint-bar:hover { background: #E9F2FD; border-color: #A9C8E8; }
+@media (hover: hover) and (pointer: fine) {
+  .hint-bar:hover { background: #E9F2FD; border-color: #A9C8E8; }
+}
 .hint-bar:focus-visible { outline: 3px solid #1F6FD0; outline-offset: 3px; }
 
 .hint-bulb { font-size: 30px; line-height: 1; }
@@ -78,6 +80,4 @@
   padding: 16px 24px 6px;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .hint-chev, .hint-body { transition: none; }
-}
+html.calm .hint-chev, html.calm .hint-body { transition: none; }

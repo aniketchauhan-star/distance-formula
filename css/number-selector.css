@@ -48,7 +48,7 @@
      there and invisible. Tried, measured, reverted.
 
      If this ever needs to move, change the path here. */
-  --sheet: url('../assets/buttons.png?v=20260924233816');
+  --sheet: url('../assets/buttons.png?v=20260924234457');
 
   /* ---- the layout ------------------------------------------------
      Unchanged. The dials overhang the housing's ends, the pointer sits
@@ -327,7 +327,7 @@
    aria-label is what a screen reader reads — so it simply goes. */
 .number-control .chev { display: none; }
 
-.number-control .side:hover:not(:disabled) { transform: translateY(-2px); }
+@media (hover: hover) and (pointer: fine) { .number-control .side:hover:not(:disabled) { transform: translateY(-2px); } }
 .number-control .side:active:not(:disabled),
 .number-control .side.is-pressed:not(:disabled) {
   transform: translateY(5px) scale(.97);
@@ -363,14 +363,14 @@
 }
 .number-control .check-icon { display: none; }
 
-.number-control .check:hover:not(:disabled) { transform: translateY(-2px); }
+@media (hover: hover) and (pointer: fine) { .number-control .check:hover:not(:disabled) { transform: translateY(-2px); } }
 .number-control .check:active:not(:disabled),
 .number-control .check.is-pressed:not(:disabled) {
   transform: translateY(6px) scale(.98);
   filter: brightness(.90);
 }
 .number-control.locked .check { opacity: .55; cursor: default; }
-.number-control.locked .check:hover { transform: none; }
+@media (hover: hover) and (pointer: fine) { .number-control.locked .check:hover { transform: none; } }
 
 /* ---- right and wrong ----------------------------------------------
    No artwork for either — the sheet gives one frame per piece — so both
@@ -420,12 +420,10 @@
    is put on for the roll and taken off again rather than left on. */
 .number-control .cell.rolling { will-change: transform; }
 
-@media (prefers-reduced-motion: reduce) {
-  .number-control .cell,
-  .number-control .side,
-  .number-control .check,
-  .number-control .pointer { transition-duration: 1ms; }
-  .number-control .cell.on { animation: none; }
-  .number-control.is-wrong .cell.on,
-  .number-control.is-correct .cell.on { animation: none; }
-}
+html.calm .number-control .cell,
+html.calm .number-control .side,
+html.calm .number-control .check,
+html.calm .number-control .pointer { transition-duration: 1ms; }
+html.calm .number-control .cell.on { animation: none; }
+html.calm .number-control.is-wrong .cell.on,
+html.calm .number-control.is-correct .cell.on { animation: none; }

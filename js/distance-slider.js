@@ -199,7 +199,16 @@ window.DistanceSlider = (function () {
         clearVerdict();
         void root.offsetWidth;
         root.classList.add('is-wrong');
-        verdict = setTimeout(function () { root.classList.remove('is-wrong'); }, 360);
+        /* Off when the shake ends (`dsNo`, .4s), not 40ms before it; the
+           timer only covers a shake that never reports. */
+        const done = function (e) {
+          if (e && e.animationName !== 'dsNo') return;
+          root.removeEventListener('animationend', done);
+          clearTimeout(verdict);
+          root.classList.remove('is-wrong');
+        };
+        root.addEventListener('animationend', done);
+        verdict = setTimeout(done, 400 + 300);
       },
 
       lock: function () {

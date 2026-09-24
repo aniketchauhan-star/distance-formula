@@ -188,8 +188,18 @@ window.FormulaTable = (function () {
         /* The drawer's clip is only for the opening; kept after it, a
            scroller dropping from the last row would be cut off at the
            table's edge. */
+        /* Dropped when the drawer has actually finished opening, not on a
+           guess at when it will have: on a slow frame the clip was taken
+           away mid-slide and the drawer snapped open. */
         clearTimeout(root._settle);
-        root._settle = setTimeout(function () { root.classList.add('settled'); }, 760);
+        const settle = function (e) {
+          if (e && (e.target !== root || e.propertyName !== 'clip-path')) return;
+          root.removeEventListener('transitionend', settle);
+          clearTimeout(root._settle);
+          if (root.classList.contains('open')) root.classList.add('settled');
+        };
+        root.addEventListener('transitionend', settle);
+        root._settle = setTimeout(settle, 700 + 400);
       },
 
       /* A row's skeleton: its signs, its brackets and its empty slots. */
