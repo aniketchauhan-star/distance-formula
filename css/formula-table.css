@@ -190,3 +190,7 @@
    written as it reads, spaces and all, with its slots inside it. */
 .formula-table .ft-inline { justify-self: start; }
 .formula-table .ft-inline .ft-text { white-space: pre; }
+
+/* Standing in a column of its own rather than out of the board's edge:
+   hung from its top, with no tucked-under edge to pad for. */
+.formula-table.free { transform: none; padding: 44px 48px; }

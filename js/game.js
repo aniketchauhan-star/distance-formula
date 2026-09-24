@@ -6697,26 +6697,26 @@
            drawing — x1, x2, the two 0s — is carried across from the
            labels one at a time, slowly. The drawing is left alone and
            the answer stays in the table. */
+        /* The board stays as it is — big, where the case put it — and
+           only the camera comes in on the segment. The table stands in
+           her column, above her, between her and the board: the pieces
+           are carried from the drawing across to it. It was put to the
+           board's right once, which meant shrinking the board to 700 by
+           600 to fit the three of them across the frame. */
         const tableStep = function () {
-          const T = C.GRID.table, B = X.tableBoard;
-          el.gridPanel.classList.add('sliding');
-          Board.place(B);
-          self.later(function () { el.gridPanel.classList.remove('sliding'); }, 700);
+          const T = C.GRID.table, A = X.tableAt;
+          Board.viewName = 'triangle';
+          Board.viewTo(Board.viewFor('triangle'), C.GRID.zoom.ms);
           self.later(function () {
-            Board.viewName = 'triangle';
-            Board.viewTo(Board.viewFor('triangle'), C.GRID.zoom.ms);
-          }, 760);
-          self.later(function () {
-            const left = B.x + B.w - T.tuck;
             Table.build(X.rows);
             Table.el.style.setProperty('--ft-size', (X.tableSize || T.size) + 'px');
-            Table.place({ x: left, w: C.STAGE_W - T.margin - left, cy: B.y + B.h / 2 });
+            Table.place({ x: A.x, w: A.w, top: A.y });
             Table.open();
             SFX.sparkle();
             self.later(function () {
               self.fillTable(X.rows, function () { self.settle(); });
             }, T.openMs);
-          }, 760 + C.GRID.zoom.ms + 200);
+          }, C.GRID.zoom.ms + 200);
         };
         const step = function () {
           if (X.rows && Table) { tableStep(); return; }

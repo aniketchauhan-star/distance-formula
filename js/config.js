@@ -1680,14 +1680,17 @@ window.CFG = (function () {
          coordParts: [{ t: '(' }, { t: 'x2', glow: 'x' }, { t: ', ' },
                       { t: '0', glow: 'y' }, { t: ')' }] },
     /* The working as a table, the way 28's arrives (runAxisCase's
-       tableStep): the board moves here, into the middle, keeping the
-       study board's proportion so its cells stay square; the table
-       opens out of its right edge, empty; and every piece written on
-       the drawing is carried in from the labels. x pieces in the
+       tableStep): the board keeps its full size, the camera comes in on
+       the segment, the table opens in her column above her, empty, and
+       every piece written on the drawing is carried across from the
+       labels. x pieces in the
        horizontal's orange, y pieces in the vertical's green. The
        formula's own shape — and the y2, y1 the labels do not show —
        is each row's skeleton. */
-    tableBoard: { x: 480, y: 240, w: 700, h: 600 },
+    /* The table stands in her column, where the old working panel
+       stood — above her, with her balloon clear beneath it — and the
+       board keeps its full study size on the right. */
+    tableAt: { x: STUDY.fx, y: 132, w: STUDY.fw },
     tableSize: 36,
     rows: [
       { inline: true, parts: [
@@ -1741,7 +1744,7 @@ window.CFG = (function () {
                       { t: 'y2', glow: 'y' }, { t: ')' }] },
     /* The x-axis case's table with the axes swapped: y pieces carried
        from the labels, the 0s from their x halves. */
-    tableBoard: XAXIS.tableBoard,
+    tableAt: XAXIS.tableAt,
     tableSize: XAXIS.tableSize,
     rows: [
       { inline: true, parts: [

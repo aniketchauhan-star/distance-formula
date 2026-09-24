@@ -171,7 +171,12 @@ window.FormulaTable = (function () {
       place: function (box) {
         root.style.left = box.x + 'px';
         root.style.width = box.w + 'px';
-        root.style.top = box.cy + 'px';
+        /* Out of the board's edge, it is centred on `cy`; standing in a
+           column of its own (the axis cases, above her), it hangs from
+           `top` and carries no tucked-under edge. */
+        const free = box.top != null;
+        root.classList.toggle('free', free);
+        root.style.top = (free ? box.top : box.cy) + 'px';
       },
 
       /* Out of the board's edge, like a drawer. */
