@@ -655,6 +655,10 @@ html, body {
    number under it. Each lights rather than appears — the square is the
    space being counted, and it is already there to be counted. */
 #gridAxes .ucell { opacity: 0; }
+/* The number waits for its arrow: a square shows the step first, and
+   then — a beat later — how many steps that makes. */
+#gridAxes .ucell .ucell-n { opacity: 0; transition: opacity .35s ease; }
+#gridAxes .ucell.num .ucell-n { opacity: 1; }
 #gridAxes .ucell.on { opacity: 1; animation: uCellIn .34s cubic-bezier(.2, .8, .3, 1) both; }
 @keyframes uCellIn {
   0%   { opacity: 0; }

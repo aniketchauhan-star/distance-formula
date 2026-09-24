@@ -1171,7 +1171,8 @@ window.CFG = (function () {
          along with out loud, not to be watched. */
       count: {
         slots: 14,         // the longest span any screen asks about
-        stepMs: 430,       // one square, then the next
+        stepMs: 1000,      // one square, then the next — slowly
+        numMs:  450,       // its arrow first, then its number
         readMs: 900,       // the finished row, held to be read
         gapMs: 420,        // blank, before it goes again
         /* Once. It used to play twice, and the second pass was
@@ -2493,8 +2494,13 @@ window.CFG = (function () {
          strength to the end, and the triangle is left alone. */
       lines: [ 'Look, we made a right triangle.',
                'Let’s use Pythagoras to find AB.' ],
-      wordCues: [ { word: 'triangle', mark: true } ],
-      lineLights: [ { hold: 600 }, {} ],
+      /* As she says it, the two sides that make the right angle light
+         together and AB steps back — from her first word, not after
+         the sentence — and the marker comes up on "triangle". When the
+         line is done the triangle goes back to normal. */
+      wordCues: [ { word: 'Look', spot: ['h', 'v'] },
+                  { word: 'triangle', mark: true } ],
+      lineLights: [ { unspot: true, hold: 600 }, {} ],
       keepMark: true,
       entrance: 'none', view: 'triangle', quietBoard: true, layout: 'board', keepSegment: true,
       segment: { a: { x: -2, y: 2, name: 'A' }, b: { x: 2, y: 5, name: 'B' }, dash: true },

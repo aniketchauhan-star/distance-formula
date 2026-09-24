@@ -3602,8 +3602,15 @@
          lighting only the line left the rest of the drawing at full
          strength while the child was being told to look at one side
          of it. */
+      /* A pair still drawn as its dotted guide (AB is the unknown on
+         29 and 30) shows through `segDashG`, not the solid line — so the
+         guide belongs to AB's part too, or "fade AB" would leave the one
+         AB anybody can see at full strength. It is in the part and not
+         the stroke: it steps back and comes forward with AB, but never
+         takes the glow or the swell, whose animation would replace the
+         one that draws it out. */
       const part = {
-        ab: stroke.ab.concat(corner(A), corner(B)),
+        ab: stroke.ab.concat(corner(A), corner(B), [this.segDashG]),
         h:  stroke.h.concat(corner(A), corner(L0)),
         v:  stroke.v.concat(corner(L0), corner(B))
       };
@@ -4232,9 +4239,9 @@
       if (this.segGroup) this.segGroup.classList.add('counting');
 
       this.countCells.forEach(function (c, i) {
-        if (i >= n) { c.g.classList.remove('on'); c.g.style.display = 'none'; return; }
+        if (i >= n) { c.g.classList.remove('on', 'num'); c.g.style.display = 'none'; return; }
         c.g.style.display = '';
-        c.g.classList.remove('on');
+        c.g.classList.remove('on', 'num');
         let L, T, W, H, nx, ny;
         if (row) {
           const a = from.x + step * i, b = a + step;
@@ -4314,17 +4321,23 @@
       const cycle = n * UC.stepMs + UC.readMs + UC.gapMs;
       let t = 0;
       for (let pass = 0; pass < UC.passes; pass++) {
+        /* One square at a time, and one thing at a time in each: its
+           arrow, and then — a beat later — its number. The number is the
+           count of the step the arrow has just made, so it comes after
+           it; the two arriving together read as a label, not a count. */
         for (let k = 0; k < n; k++) {
           (function (k) {
             later(function () {
-              const c = self.countCells[k];
-              c.g.classList.add('on');
+              self.countCells[k].g.classList.add('on');
               SFX.tick(k);
             }, t + k * UC.stepMs);
+            later(function () {
+              self.countCells[k].g.classList.add('num');
+            }, t + k * UC.stepMs + (UC.numMs || 0));
           })(k);
         }
         later(function () {
-          self.countCells.forEach(function (c) { c.g.classList.remove('on'); });
+          self.countCells.forEach(function (c) { c.g.classList.remove('on', 'num'); });
         }, t + n * UC.stepMs + UC.readMs);
         t += cycle;
       }
@@ -8072,6 +8085,13 @@
           Board.settlePair();
           Board.spotlightPart(null);
         }, at);
+        ms = Math.max(ms, at + 420);
+      }
+      /* Or put the highlight away and nothing else — `clear` also
+         asserts the pair, which would draw a dotted AB out solid. */
+      if (L.unspot) {
+        const at = L.after || 0;
+        later(function () { Board.spotlightPart(null); }, at);
         ms = Math.max(ms, at + 420);
       }
       /* A line that asks a question and then waits. Nothing on the
