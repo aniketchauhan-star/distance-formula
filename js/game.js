@@ -7355,6 +7355,7 @@
            handed back empty. */
         t.wrong++;
         SFX.wrong();
+        FX.missGlow();
         if (Sel) Sel.markWrong();
         self.state = 'waiting';
         /* They have had their ungiven go. Now the slider becomes the
@@ -7663,6 +7664,7 @@
 
       t.wrong++;
       SFX.wrong();
+      FX.missGlow();
       Slots.markWrong();
       this.state = 'waiting';
       const fb = this.feedbackFor(t);
@@ -8064,6 +8066,7 @@
       } else {
         t.wrong++;
         SFX.wrong();
+        FX.missGlow();
         const fb = this.feedbackFor(t);
 
         /* Two misses on a two-answer question is not a question any
@@ -8182,6 +8185,7 @@
       const t = this.task;
       t.wrong++;
       SFX.wrong();
+      FX.missGlow();
       Board.reject(node);
       Hint.again();          // point it out again, from the top
 

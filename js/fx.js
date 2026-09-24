@@ -543,9 +543,24 @@ window.FX = (function () {
   /* Nothing may be left in the air when a screen changes. */
   function landAll() { flights.slice().forEach(function (s) { s(); }); }
 
-  function clear() { landAll(); if (layer) layer.innerHTML = ''; }
+  /* The frame glows red at its corners, twice, and settles. Restarted
+     rather than stacked: a second miss inside the first one's glow
+     begins it again instead of layering another on top. */
+  function missGlow() {
+    const g = document.getElementById('missGlow');
+    if (!g) return;
+    g.classList.remove('on');
+    void g.offsetWidth;              // so removing and re-adding replays it
+    g.classList.add('on');
+  }
+  function stopGlow() {
+    const g = document.getElementById('missGlow');
+    if (g) g.classList.remove('on');
+  }
+
+  function clear() { landAll(); stopGlow(); if (layer) layer.innerHTML = ''; }
 
   return { init, starBurst, ring, pop, sparkles, puff, motes, clouds,
-           flyGlyph, landAll,
+           flyGlyph, landAll, missGlow,
            leafDrift, wind, leaves, clear };
 })();
