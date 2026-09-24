@@ -1326,12 +1326,18 @@ window.CFG = (function () {
   /* And a perch on ONE of the answers rather than on the panel's middle.
      The closing question puts its two cafes side by side and she lands
      on the right-hand one, so the pose is seated on that button's own
-     top edge: the panel is at (34, 680) and drawn at 0.73, its border
-     and padding put a button top 37 natural units down (707 on the
-     stage), and the right button's centre is 377.5 natural units in
-     (309 on the stage). Her feet are 264 below this pose's top and
-     183 in from its left, so those two numbers are these two less. */
-  const STAND_PERCH = standAt(0.88, 126, 443);
+     top edge: the panel's border and padding put a button top 37
+     natural units down, and the right button's centre is 377.5 natural
+     units in, both at the panel's scale.
+
+     Worked out from where the panel IS, not typed. These numbers used
+     to be written for a panel at (34, 680); the panel moved to
+     (64, 650) and the perch did not, so she landed 30px into the Café B
+     button and 30px to the left of it. Her feet are 300 and 208 natural
+     units into this pose (264 and 183 at 0.88). */
+  const OPTS_AT = { x: 64, y: 650 }, OPTS_K = 0.73;
+  const PERCH_FEET = { x: OPTS_AT.x + 377.5 * OPTS_K, y: OPTS_AT.y + 37 * OPTS_K };
+  const STAND_PERCH = standAt(0.88, PERCH_FEET.x - 208 * 0.88, PERCH_FEET.y - 300 * 0.88);
 
   /* And a perch for the working panel, which sits higher up her column
      than the answers do — she leaves before it is written and comes
@@ -1446,7 +1452,8 @@ window.CFG = (function () {
        it, and it carries the seat she stands on so the two can never
        drift apart again. h is its real built height — 9px borders,
        28/32 padding, three 108px buttons and two 24px gaps. */
-    options: { pos: { x: 64, y: 650 }, w: 520, h: 450, scale: 0.73,
+    /* The same two numbers the perch above is worked out from. */
+    options: { pos: OPTS_AT, w: 520, h: 450, scale: OPTS_K,
                stand: STAND_OPTIONS },
 
     /* The ruler, in the same column as the reel and at the same width
