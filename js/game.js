@@ -6023,7 +6023,9 @@
          while the paper is still being drawn, and frames whatever
          happens to be on it. Claiming the name here, synchronously, is
          what makes the push below stand aside for it. */
-      if (next.rebuild) Board.viewName = next.view || null;
+      const framesItself = next.rebuild ||
+        (next.intro === 'measure' && next.view && next.segment && !next.keepSegment);
+      if (framesItself) Board.viewName = next.view || null;
       this.later(function () {
         /* "The view it already has" is compared by NAME, not by the
            rect the name works out to. The rect is derived from what is
@@ -6808,13 +6810,27 @@
           });
         };
 
+        /* A new drawing that asks for a view is framed between the
+           grid and the points: the whole grid fills first, the camera
+           comes in on where the triangle is going to be, and only then
+           is a point drawn — the order screen 22 has, and for the same
+           reason. Everything else plots as it always has. */
+        const frames = !!entry.view && !!entry.segment && !holds;
+        const framed = function () {
+          if (!frames) { plot(); return; }
+          self.later(plot, self.frameDrawing(entry));
+        };
         if (inherited) {
           Board.place(geom.panelBox);
-          plot();
+          framed();
         } else {
-          // the board builds itself in the middle of an empty frame
+          /* The board builds itself in the middle of an empty frame —
+             and at its full size: a camera still pushed in on the last
+             screen's triangle would build this grid in the wrong corner
+             of the paper. */
+          if (frames) Board.viewTo(null, 0);
           Board.place(C.GRID.centre);
-          Board.run(self.later.bind(self), plot);
+          Board.run(self.later.bind(self), framed);
         }
       };
 
@@ -6872,9 +6888,7 @@
              is, not what can be seen of it, so the push knows where
              the triangle will be while the board is still empty. */
           if (entry.view) {
-            if (entry.segment) Board.placeSegment(entry.segment);
-            Board.viewTo(Board.viewFor(entry.view), C.GRID.zoom.ms);
-            self.later(function () { plotThen(arrive); }, C.GRID.zoom.ms + 140);
+            self.later(function () { plotThen(arrive); }, self.frameDrawing(entry));
           } else plotThen(arrive);
         });
       };
@@ -8168,6 +8182,26 @@
           }, 300);
         });
       }, 700);
+    },
+
+    /* The camera, on a drawing this screen is ABOUT to make — after the
+       grid has filled, before a single point is drawn. The pair is
+       PLACED and not drawn: `viewFor` reads where the drawing will be,
+       not what can be seen of it, so the push frames the whole new
+       triangle rather than whatever the last screen left on the board.
+
+       Pushed outright, never by name. Two screens can ask for the same
+       view of two different triangles, and the name-based "already
+       there" in goTo would leave the second framed on the first — which
+       is how 29 opened on 28's corner of the paper with its own point A
+       cut off at the board's edge. Returns how long to wait before
+       drawing into it. */
+    frameDrawing: function (entry) {
+      if (!entry || !entry.view) return 0;
+      if (entry.segment) Board.placeSegment(entry.segment);
+      Board.viewName = entry.view;
+      Board.viewTo(Board.viewFor(entry.view), C.GRID.zoom.ms);
+      return C.GRID.zoom.ms + 140;
     },
 
     /* The working as a TABLE, for a screen whose triangle is to be

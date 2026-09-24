@@ -2447,14 +2447,13 @@ window.CFG = (function () {
        answer comes out whole — 3-4-5 first, then the same shape
        doubled to 6-8-10. */
     { id: 29,
-      /* Pushed in, with room kept for the writing. `working` is the
-         view built for this and nothing had ever asked for it: it
-         frames the drawing and then as much again out to the side the
-         drawing is NOT on, so the paper in shot is triangle in one
-         half and clear board in the other for the working to be set
-         down in. 'triangle' would be wrong here — it frames the
-         drawing alone and the working would have nowhere to go. */
-      view: 'working',
+      /* Pushed in on the whole triangle as the screen opens — after
+         the grid has filled and before a point is drawn (see
+         frameDrawing). The working, if the child needs it, pushes to
+         its own `working` view with room to write when it starts; asking
+         for that view here opened the screen with empty room reserved
+         beside the triangle and the triangle itself pushed off-centre. */
+      view: 'triangle',
       /* The working goes on the paper, not in a panel beside it: the
          board comes to the middle, pushes in on the drawing and the
          room the working needs, and writes it there. */
@@ -2512,14 +2511,13 @@ window.CFG = (function () {
               ], } },
 
     { id: 30,
-      /* Pushed in, with room kept for the writing. `working` is the
-         view built for this and nothing had ever asked for it: it
-         frames the drawing and then as much again out to the side the
-         drawing is NOT on, so the paper in shot is triangle in one
-         half and clear board in the other for the working to be set
-         down in. 'triangle' would be wrong here — it frames the
-         drawing alone and the working would have nowhere to go. */
-      view: 'working',
+      /* Pushed in on the whole triangle as the screen opens — after
+         the grid has filled and before a point is drawn (see
+         frameDrawing). The working, if the child needs it, pushes to
+         its own `working` view with room to write when it starts; asking
+         for that view here opened the screen with empty room reserved
+         beside the triangle and the triangle itself pushed off-centre. */
+      view: 'triangle',
       /* The working goes on the paper, not in a panel beside it: the
          board comes to the middle, pushes in on the drawing and the
          room the working needs, and writes it there. */
