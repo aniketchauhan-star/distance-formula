@@ -1326,12 +1326,18 @@ window.CFG = (function () {
   /* And a perch on ONE of the answers rather than on the panel's middle.
      The closing question puts its two cafes side by side and she lands
      on the right-hand one, so the pose is seated on that button's own
-     top edge: the panel is at (34, 680) and drawn at 0.73, its border
-     and padding put a button top 37 natural units down (707 on the
-     stage), and the right button's centre is 377.5 natural units in
-     (309 on the stage). Her feet are 264 below this pose's top and
-     183 in from its left, so those two numbers are these two less. */
-  const STAND_PERCH = standAt(0.88, 126, 443);
+     top edge: the panel's border and padding put a button top 37
+     natural units down, and the right button's centre is 377.5 natural
+     units in, both at the panel's scale.
+
+     Worked out from where the panel IS, not typed. These numbers used
+     to be written for a panel at (34, 680); the panel moved to
+     (64, 650) and the perch did not, so she landed 30px into the Café B
+     button and 30px to the left of it. Her feet are 300 and 208 natural
+     units into this pose (264 and 183 at 0.88). */
+  const OPTS_AT = { x: 64, y: 650 }, OPTS_K = 0.73;
+  const PERCH_FEET = { x: OPTS_AT.x + 377.5 * OPTS_K, y: OPTS_AT.y + 37 * OPTS_K };
+  const STAND_PERCH = standAt(0.88, PERCH_FEET.x - 208 * 0.88, PERCH_FEET.y - 300 * 0.88);
 
   /* And a perch for the working panel, which sits higher up her column
      than the answers do — she leaves before it is written and comes
@@ -1446,7 +1452,8 @@ window.CFG = (function () {
        it, and it carries the seat she stands on so the two can never
        drift apart again. h is its real built height — 9px borders,
        28/32 padding, three 108px buttons and two 24px gaps. */
-    options: { pos: { x: 64, y: 650 }, w: 520, h: 450, scale: 0.73,
+    /* The same two numbers the perch above is worked out from. */
+    options: { pos: OPTS_AT, w: 520, h: 450, scale: OPTS_K,
                stand: STAND_OPTIONS },
 
     /* The ruler, in the same column as the reel and at the same width
@@ -1664,10 +1671,43 @@ window.CFG = (function () {
        another when a third has joined them and the sides need naming;
        with only two on the board there is nothing to tell apart, and
        the coordinates already say which is which. */
+    /* x1 and x2 are pieces of their own now, beside the 0s, so the
+       formula table can make a copy of each and carry it across. */
     a: { x: -4, y: 0,
-         coordParts: [{ t: '(x1, ' }, { t: '0', glow: 'y' }, { t: ')' }] },
+         coordParts: [{ t: '(' }, { t: 'x1', glow: 'x' }, { t: ', ' },
+                      { t: '0', glow: 'y' }, { t: ')' }] },
     b: { x:  4, y: 0,
-         coordParts: [{ t: '(x2, ' }, { t: '0', glow: 'y' }, { t: ')' }] },
+         coordParts: [{ t: '(' }, { t: 'x2', glow: 'x' }, { t: ', ' },
+                      { t: '0', glow: 'y' }, { t: ')' }] },
+    /* The working as a table, the way 28's arrives (runAxisCase's
+       tableStep): the board keeps its full size, the camera comes in on
+       the segment, the table opens in her column above her, empty, and
+       every piece written on the drawing is carried across from the
+       labels. x pieces in the
+       horizontal's orange, y pieces in the vertical's green. The
+       formula's own shape — and the y2, y1 the labels do not show —
+       is each row's skeleton. */
+    /* The table stands in her column, where the old working panel
+       stood — above her, with her balloon clear beneath it — and the
+       board keeps its full study size on the right. */
+    tableAt: { x: STUDY.fx, y: 132, w: STUDY.fw },
+    tableSize: 36,
+    rows: [
+      { inline: true, parts: [
+          { t: 'd' }, { t: ' = ' }, { t: '√((' },
+          { t: 'x2', lit: 'h', from: { p: 'b', half: 'x' } }, { t: ' - ' },
+          { t: 'x1', lit: 'h', from: { p: 'a', half: 'x' } },
+          { t: ')² + (y2 - y1)²)' } ] },
+      { inline: true, parts: [
+          { t: '= ' }, { t: '√((x2 - x1)² + (' },
+          { t: '0', lit: 'v', from: { p: 'b', half: 'y' } }, { t: ' - ' },
+          { t: '0', lit: 'v', from: { p: 'a', half: 'y' } }, { t: ')²)' } ] },
+      { inline: true, parts: [ { t: '= ' }, { t: '√((x2 - x1)²)' } ] },
+      { inline: true, parts: [
+          { t: 'd' }, { t: ' = ' }, { t: '|' },
+          { t: 'x2', lit: 'h', from: { p: 'b', half: 'x' } }, { t: ' - ' },
+          { t: 'x1', lit: 'h', from: { p: 'a', half: 'x' } }, { t: '|' } ] }
+    ],
     coordDy: -88,
     nameDy: -40,
     resultDy: 82,          // the answer goes below, clear of the numbering
@@ -1697,9 +1737,30 @@ window.CFG = (function () {
     formula: XAXIS.formula,
 
     a: { x: 0, y: -4,
-         coordParts: [{ t: '(' }, { t: '0', glow: 'x' }, { t: ', y1)' }] },
+         coordParts: [{ t: '(' }, { t: '0', glow: 'x' }, { t: ', ' },
+                      { t: 'y1', glow: 'y' }, { t: ')' }] },
     b: { x: 0, y:  4,
-         coordParts: [{ t: '(' }, { t: '0', glow: 'x' }, { t: ', y2)' }] },
+         coordParts: [{ t: '(' }, { t: '0', glow: 'x' }, { t: ', ' },
+                      { t: 'y2', glow: 'y' }, { t: ')' }] },
+    /* The x-axis case's table with the axes swapped: y pieces carried
+       from the labels, the 0s from their x halves. */
+    tableAt: XAXIS.tableAt,
+    tableSize: XAXIS.tableSize,
+    rows: [
+      { inline: true, parts: [
+          { t: 'd' }, { t: ' = ' }, { t: '√((x2 - x1)² + (' },
+          { t: 'y2', lit: 'v', from: { p: 'b', half: 'y' } }, { t: ' - ' },
+          { t: 'y1', lit: 'v', from: { p: 'a', half: 'y' } }, { t: ')²)' } ] },
+      { inline: true, parts: [
+          { t: '= ' }, { t: '√((' },
+          { t: '0', lit: 'h', from: { p: 'b', half: 'x' } }, { t: ' - ' },
+          { t: '0', lit: 'h', from: { p: 'a', half: 'x' } }, { t: ')² + (y2 - y1)²)' } ] },
+      { inline: true, parts: [ { t: '= ' }, { t: '√((y2 - y1)²)' } ] },
+      { inline: true, parts: [
+          { t: 'd' }, { t: ' = ' }, { t: '|' },
+          { t: 'y2', lit: 'v', from: { p: 'b', half: 'y' } }, { t: ' - ' },
+          { t: 'y1', lit: 'v', from: { p: 'a', half: 'y' } }, { t: '|' } ] }
+    ],
 
     /* This segment is centred on the origin too, so the answer moves
        off it — right of the axis and a little above the x numbering. */

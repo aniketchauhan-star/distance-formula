@@ -6646,6 +6646,9 @@
           Formula.place(C.RECAP.formula);
           Formula.setLines(C.RECAP.lines, C.RECAP.step);
           el.formulaBoard.classList.remove('hidden');
+        } else if (AX && AX.rows) {
+          /* The table does the working here; her column stays clear. */
+          el.formulaBoard.classList.add('hidden');
         } else if (AX) {
           Formula.place(AX.formula);
           Formula.setStep(AX.steps[0]);
@@ -6687,7 +6690,36 @@
       const runAxisCase = function (X) {
         const spec = { a: X.a, b: X.b, color: C.GRID.leg.color,
                        coordDy: X.coordDy, nameDy: X.nameDy };
+        /* The working as a TABLE, the way 28's arrives: she stays in
+           her column; the board moves to the middle and the camera comes
+           in on the segment; a table opens out of the board's right
+           edge with nothing in it; and every piece written on the
+           drawing — x1, x2, the two 0s — is carried across from the
+           labels one at a time, slowly. The drawing is left alone and
+           the answer stays in the table. */
+        /* The board stays as it is — big, where the case put it — and
+           only the camera comes in on the segment. The table stands in
+           her column, above her, between her and the board: the pieces
+           are carried from the drawing across to it. It was put to the
+           board's right once, which meant shrinking the board to 700 by
+           600 to fit the three of them across the frame. */
+        const tableStep = function () {
+          const T = C.GRID.table, A = X.tableAt;
+          Board.viewName = 'triangle';
+          Board.viewTo(Board.viewFor('triangle'), C.GRID.zoom.ms);
+          self.later(function () {
+            Table.build(X.rows);
+            Table.el.style.setProperty('--ft-size', (X.tableSize || T.size) + 'px');
+            Table.place({ x: A.x, w: A.w, top: A.y });
+            Table.open();
+            SFX.sparkle();
+            self.later(function () {
+              self.fillTable(X.rows, function () { self.settle(); });
+            }, T.openMs);
+          }, C.GRID.zoom.ms + 200);
+        };
         const step = function () {
+          if (X.rows && Table) { tableStep(); return; }
           let t = 0;
           // the two zeros light up, and the formula takes them in
           self.later(function () { Board.glowCoords(true); SFX.tick(0); }, t += 500);
@@ -8463,6 +8495,7 @@
         at += T.rowMs;
         (l.parts || []).forEach(function (p, k) {
           if (FT.isOp(p.t)) return;                  // part of the skeleton
+          if (!p.from && l.inline) return;           // so is an inline row's text
           if (p.from) {
             self.later(function () { self.liftInto(r, k, p, colourOf(p)); }, at);
             at += T.appearMs + T.pulseMs + T.travelMs + T.restMs;
