@@ -1071,7 +1071,8 @@ window.CFG = (function () {
       travelMs: 1400,     // travels to its slot
       restMs:   300,      // lands; a breath before the next
       writeMs:  600,      // a worked-out value written in place
-      lift:     0.6       // how far above the original, in its own heights
+      lift:     0.6,      // how far above the original, in its own heights
+      pickCy:   400       // 29c's table sits higher: she comes back under it
     },
 
     zoom: {
@@ -1170,7 +1171,8 @@ window.CFG = (function () {
          along with out loud, not to be watched. */
       count: {
         slots: 14,         // the longest span any screen asks about
-        stepMs: 430,       // one square, then the next
+        stepMs: 1000,      // one square, then the next — slowly
+        numMs:  450,       // its arrow first, then its number
         readMs: 900,       // the finished row, held to be read
         gapMs: 420,        // blank, before it goes again
         /* Once. It used to play twice, and the second pass was
@@ -1468,6 +1470,10 @@ window.CFG = (function () {
     /* Where she stands when a screen names a perch — one of the answer
        buttons rather than the panel as a whole. */
     perch: STAND_PERCH,
+    /* Where she comes back to when the child has filled the table on
+       29c: under the table, on the right, with room above her head for
+       her balloon between her and it. */
+    tableStand: standAt(0.88, 1371, 786),
 
     /* And the answer pad takes the same column again, for the
        questions whose answer is typed rather than chosen. */
@@ -1865,6 +1871,13 @@ window.CFG = (function () {
        a child counting squares needs to see them. */
     { id: 9, line: 'Did you notice?',
       entrance: 'stay', layout: 'board', quietBoard: true,
+      /* The pair the question was about, KEPT — after a right answer
+         the points and the line stay exactly as they are rather than
+         being taken away and animated in again. Only the coordinates
+         change, and only in how they are built: in parts, for the next
+         beats to light (see Board.carryOn). The question's dotted guide
+         becomes the solid line — already drawn, not drawing. */
+      keepSegment: true, solidLine: true,
       /* The very pair screen 8 asked about, not a fresh one. The whole
          of this argument is "look at what you just measured, and see
          where the answer came from" — which only works if it is
@@ -1942,6 +1955,13 @@ window.CFG = (function () {
        of the y halves, and the subtraction reads 2 - (-3). */
     { id: 15, line: 'Did you notice?',
       entrance: 'stay', layout: 'board', quietBoard: true,
+      /* The pair the question was about, KEPT — after a right answer
+         the points and the line stay exactly as they are rather than
+         being taken away and animated in again. Only the coordinates
+         change, and only in how they are built: in parts, for the next
+         beats to light (see Board.carryOn). The question's dotted guide
+         becomes the solid line — already drawn, not drawing. */
+      keepSegment: true, solidLine: true,
       segment: {
         a: { x: 1, y: -3,
              coordParts: [{ t: '(' }, { t: '1', glow: 'x' }, { t: ',\u00A0' },
@@ -2446,124 +2466,138 @@ window.CFG = (function () {
        Pythagoras can be applied. Both are Pythagorean triples, so the
        answer comes out whole — 3-4-5 first, then the same shape
        doubled to 6-8-10. */
+    /* The child's own go at the argument 22 to 28 made — on a fresh
+       triangle, A(−2, 2), B(2, 5), C(2, 2) — ending in the same table
+       as 28, filled by the child this time. Three screens on one board,
+       one question each, with no sweep between them. */
     { id: 29,
-      /* Pushed in, with room kept for the writing. `working` is the
-         view built for this and nothing had ever asked for it: it
-         frames the drawing and then as much again out to the side the
-         drawing is NOT on, so the paper in shot is triangle in one
-         half and clear board in the other for the working to be set
-         down in. 'triangle' would be wrong here — it frames the
-         drawing alone and the working would have nowhere to go. */
-      view: 'working',
-      /* The working goes on the paper, not in a panel beside it: the
-         board comes to the middle, pushes in on the drawing and the
-         room the working needs, and writes it there. */
-      stage: 'working', line: 'Use the right triangle to find AB.', range: { min: 0, max: 12 }, entrance: 'none',
-      layout: 'board',
-      /* The working is about the drawing, so the paper steps back:
-         the ruling, the axes and their numbering fade and the triangle
-         and its lengths are what is left at full strength. The screens
-         that write a solution on the board all do this now — it was on
-         only the last two of them, so the same beat came up loud on one
-         screen and quiet on the next. */
-      quietBoard: true, transition: 'leaves', intro: 'measure', entry: true,
-      segment: { a: { x: -2, y: 2, name: 'A' },
-                 b: { x:  2, y: 5, name: 'B' } , dash: true},
-      legs: [
-        /* C sits beside its dot, not above it. The vertical leg leaves
-           this corner going up, so the worked-out "away" — which this
-           board gets wrong anyway, seating the mark before the segment
-           it measures from is its own — put the letter and the
-           coordinate alongside that line. Out to the right is the one
-           direction here with nothing in it. */
-        { from: { x: -2, y: 2 }, to: { x: 2, y: 2 },
-          mark: { name: 'C', away: { x: 1, y: 0 } } },
-        { from: { x:  2, y: 2 }, to: { x: 2, y: 5 } }
-      ],
-      task: { kind: 'entry', pair: 'AB', answer: 5,
-              correctLine: 'That\u2019s right!',
-              /* The one length on this board that cannot be counted off
-                 the grid — which is the whole lesson — so nothing is
-                 walked out along AB. */
-              noCount: true,
-              feedback: [
-                'Not quite. Check your working and try again.',
-                'Use the right triangle to find AB.'
-              ],
-              /* Still wrong after both: it is shown rather than asked a
-                 fourth time — each side measured on the board, then the
-                 working written out in the panel. */
-              showWorking: true,
-              /* And the working itself, in the panel — the same shape
-                 as the one the method screen shows, with this
-                 triangle's own numbers. Each part names a side and
-                 lights it. */
-              formula: [
-                { kind: 'lead', parts: [
-                    { t: '(AB)\u00B2', lit: 'ab', from: { side: 'ab' } }, { t: ' = ' },
-                    { t: '(4)\u00B2', lit: 'h', from: { leg: 0 } }, { t: ' + ' },
-                    { t: '(3)\u00B2', lit: 'v', from: { leg: 1 } } ] },
-                { kind: 'step', parts: [
-                    { t: '= ' }, { t: '16', lit: 'h' }, { t: ' + ' }, { t: '9', lit: 'v' } ] },
-                { kind: 'step', parts: [
-                    { t: '= ' }, { t: '25', lit: 'ab' } ] },
-                { kind: 'result', parts: [
-                    { t: 'AB = ' }, { t: '5\u00A0units', lit: 'ab', home: true } ] }
-              ], } },
+      /* Beats 0–3. The grid fills and the camera frames the triangle
+         before a point is drawn (frameDrawing); A and B come in, and
+         she names the question. Only then does C arrive, with the two
+         dashed sides — because she has set out to find the distance,
+         not with the screen — and AC glows as she asks about it. */
+      view: 'triangle',
+      line: 'Now, let’s find the distance between A and B.',
+      line2: 'What is the difference between these two points?',
+      lineLights: [ { legs: true }, { pulse: 'h' } ],
+      entrance: 'none', layout: 'board', quietBoard: true, transition: 'leaves',
+      intro: 'measure', distance: true,
+      segment: { a: { x: -2, y: 2, name: 'A' }, b: { x: 2, y: 5, name: 'B' }, dash: true },
+      legs: [ { from: { x: -2, y: 2 }, to: { x: 2, y: 2 }, dash: true,
+                mark: { name: 'C', away: { x: 1, y: 0 } } },
+              { from: { x: 2, y: 2 }, to: { x: 2, y: 5 }, dash: true } ],
+      task: { kind: 'distance', measureLeg: 0, countLine: 'Count carefully!' } },
+
+    { id: '29b',
+      /* Beat 4. AC is settled with its length; CB is asked the same
+         way, and glows as she asks. */
+      line: 'What is the difference between these two points?',
+      lineLights: [ { pulse: 'v' } ],
+      entrance: 'none', view: 'triangle', quietBoard: true,
+      layout: 'board', distance: true, intro: 'measure', keepSegment: true,
+      segment: { a: { x: -2, y: 2, name: 'A' }, b: { x: 2, y: 5, name: 'B' }, dash: true },
+      legs: [ { from: { x: -2, y: 2 }, to: { x: 2, y: 2 },
+                mark: { name: 'C', away: { x: 1, y: 0 } }, settled: true, length: true },
+              { from: { x: 2, y: 2 }, to: { x: 2, y: 5 } } ],
+      task: { kind: 'distance', measureLeg: 1, countLine: 'Count carefully!' } },
+
+    { id: '29c',
+      /* Beats 5–7. The shape named, with its marker on the word — the
+         reason the theorem applies — then the table, which the child
+         fills blank by blank (runTable). The marker stays at full
+         strength to the end, and the triangle is left alone. */
+      lines: [ 'Look, we made a right triangle.',
+               'Let’s use Pythagoras to find AB.' ],
+      /* As she says it, the two sides that make the right angle light
+         together and AB steps back — from her first word, not after
+         the sentence — and the marker comes up on "triangle". When the
+         line is done the triangle goes back to normal. */
+      wordCues: [ { word: 'Look', spot: ['h', 'v'] },
+                  { word: 'triangle', mark: true } ],
+      lineLights: [ { unspot: true, hold: 600 }, {} ],
+      keepMark: true,
+      entrance: 'none', view: 'triangle', quietBoard: true, layout: 'board', keepSegment: true,
+      segment: { a: { x: -2, y: 2, name: 'A' }, b: { x: 2, y: 5, name: 'B' }, dash: true },
+      legs: [ { from: { x: -2, y: 2 }, to: { x: 2, y: 2 },
+                mark: { name: 'C', away: { x: 1, y: 0 } }, settled: true, length: true },
+              { from: { x: 2, y: 2 }, to: { x: 2, y: 5 }, settled: true, length: true } ],
+      task: {
+        kind: 'table',
+        correctLine: 'That’s right!',
+        /* The theorem is given; every number after it is a blank the
+           child fills, choosing between the two in `offer` (in the order
+           they drop down — the right one is not always on top). Each
+           wrong number is the mistake that blank is there to catch: the
+           other side; squaring as doubling; a slip adding; stopping
+           before the square root. Coloured by side where a number is a
+           side's (CB green, AC orange), the working's blue otherwise. */
+        formula: [
+          { kind: 'lead', parts: [
+              { t: '(AB)\u00B2', lit: 'ab' }, { t: ' = ' },
+              { t: '(CB)\u00B2', lit: 'v' }, { t: ' + ' },
+              { t: '(AC)\u00B2', lit: 'h' } ] },
+          { kind: 'step', parts: [
+              { t: '= ' },
+              { t: '(3)\u00B2', lit: 'v', offer: [3, 4] }, { t: ' + ' },
+              { t: '(4)\u00B2', lit: 'h', offer: [3, 4] } ] },
+          { kind: 'step', parts: [
+              { t: '= ' },
+              { t: '9', lit: 'ab', offer: [6, 9] }, { t: ' + ' },
+              { t: '16', lit: 'ab', offer: [16, 8] } ] },
+          { kind: 'step', parts: [
+              { t: '= ' }, { t: '25', lit: 'ab', offer: [23, 25] } ] },
+          { kind: 'result', parts: [
+              { t: 'AB', lit: 'ab' }, { t: ' = ' },
+              { t: '5\u00A0units', lit: 'ab', offer: [5, 25] } ] }
+        ] } },
 
     { id: 30,
-      /* Pushed in, with room kept for the writing. `working` is the
-         view built for this and nothing had ever asked for it: it
-         frames the drawing and then as much again out to the side the
-         drawing is NOT on, so the paper in shot is triangle in one
-         half and clear board in the other for the working to be set
-         down in. 'triangle' would be wrong here — it frames the
-         drawing alone and the working would have nowhere to go. */
-      view: 'working',
-      /* The working goes on the paper, not in a panel beside it: the
-         board comes to the middle, pushes in on the drawing and the
-         room the working needs, and writes it there. */
-      stage: 'working', line: 'What is the distance between the two points?', range: { min: 0, max: 12 }, entrance: 'none',
-      layout: 'board',
-      /* The working is about the drawing, so the paper steps back:
-         the ruling, the axes and their numbering fade and the triangle
-         and its lengths are what is left at full strength. The screens
-         that write a solution on the board all do this now — it was on
-         only the last two of them, so the same beat came up loud on one
-         screen and quiet on the next. */
-      quietBoard: true, transition: 'leaves', intro: 'measure', entry: true,
-      segment: { a: { x: -3, y:  3, name: 'A' },
-                 b: { x:  5, y: -3, name: 'B' } , dash: true},
-      legs: [
-        { from: { x: -3, y: 3 }, to: { x: 5, y:  3 }, mark: { name: 'C' } },
-        { from: { x:  5, y: 3 }, to: { x: 5, y: -3 } }
-      ],
-      task: { kind: 'entry', pair: 'AB', answer: 10,
-              correctLine: 'That\u2019s right!',
-              noCount: true,
-              // the same ladder as the screen before it
-              feedback: [
-                'Not quite. Check your working and try again.',
-                'Use the right triangle to find AB.'
-              ],
-              showWorking: true,
-              /* And the working itself, in the panel — the same shape
-                 as the one the method screen shows, with this
-                 triangle's own numbers. Each part names a side and
-                 lights it. */
-              formula: [
-                { kind: 'lead', parts: [
-                    { t: '(AB)\u00B2', lit: 'ab', from: { side: 'ab' } }, { t: ' = ' },
-                    { t: '(8)\u00B2', lit: 'h', from: { leg: 0 } }, { t: ' + ' },
-                    { t: '(6)\u00B2', lit: 'v', from: { leg: 1 } } ] },
-                { kind: 'step', parts: [
-                    { t: '= ' }, { t: '64', lit: 'h' }, { t: ' + ' }, { t: '36', lit: 'v' } ] },
-                { kind: 'step', parts: [
-                    { t: '= ' }, { t: '100', lit: 'ab' } ] },
-                { kind: 'result', parts: [
-                    { t: 'AB = ' }, { t: '10\u00A0units', lit: 'ab', home: true } ] }
-              ], } },
-
+      /* Question 2: the same argument on a harder triangle — A(−3, 3),
+         B(5, −3), C(5, 3), across three quadrants, so reading the sides
+         off the coordinates means subtracting a negative. The complete
+         right triangle is up, but only its points and their coordinates:
+         no lengths, so AC and CB have to be worked out, not read. */
+      view: 'triangle',
+      line: 'Now find AB.',
+      range: { min: 0, max: 12 },
+      entrance: 'none', layout: 'board', quietBoard: true, transition: 'leaves',
+      intro: 'measure', entry: true,
+      rightAngle: true, keepMark: true,
+      segment: { a: { x: -3, y: 3, name: 'A' }, b: { x: 5, y: -3, name: 'B' }, dash: true },
+      legs: [ { from: { x: -3, y: 3 }, to: { x: 5, y: 3 }, mark: { name: 'C' } },
+              { from: { x: 5, y: 3 }, to: { x: 5, y: -3 } } ],
+      task: {
+        kind: 'entry',
+        pair: 'AB',
+        answer: 10,
+        correctLine: 'That’s right!',
+        noCount: true,
+        /* No hints. A miss goes straight to the table 29c taught, which
+           the child fills: tap a blank, two numbers drop down, pick one.
+           The wrong ones here are this question's own mistakes — 0 and 2
+           are the sides read with the minus sign lost (3 + (−3), and
+           5 + (−3)); 12 and 16 square as doubling; 14 adds the sides
+           instead of their squares; 100 stops before the square root. */
+        tableOnMiss: true,
+        formula: [
+          { kind: 'lead', parts: [
+              { t: '(AB)\u00B2', lit: 'ab' }, { t: ' = ' },
+              { t: '(CB)\u00B2', lit: 'v' }, { t: ' + ' },
+              { t: '(AC)\u00B2', lit: 'h' } ] },
+          { kind: 'step', parts: [
+              { t: '= ' },
+              { t: '(6)\u00B2', lit: 'v', offer: [6, 0] }, { t: ' + ' },
+              { t: '(8)\u00B2', lit: 'h', offer: [2, 8] } ] },
+          { kind: 'step', parts: [
+              { t: '= ' },
+              { t: '36', lit: 'ab', offer: [12, 36] }, { t: ' + ' },
+              { t: '64', lit: 'ab', offer: [64, 16] } ] },
+          { kind: 'step', parts: [
+              { t: '= ' }, { t: '100', lit: 'ab', offer: [14, 100] } ] },
+          { kind: 'result', parts: [
+              { t: 'AB', lit: 'ab' }, { t: ' = ' },
+              { t: '10\u00A0units', lit: 'ab', offer: [10, 100] } ] }
+        ] } },
     /* 21 — leaves, back to the field layout, and the same idea stated
        in general: the points are named rather than numbered. */
     { id: 31, line: 'The same idea works for any two points.', entrance: 'fly',
