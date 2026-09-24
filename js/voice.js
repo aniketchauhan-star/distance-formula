@@ -138,7 +138,10 @@ window.Voice = (function () {
 
   function load(file) {
     if (clips[file]) return clips[file];
-    const a = new Audio(DIR + file);
+    /* Stamped like everything else the game fetches (see VERSION in
+       config.js), so a re-cut clip is fetched again. */
+    const v = window.CFG && window.CFG.VERSION;
+    const a = new Audio(DIR + file + (v ? '?v=' + v : ''));
     a.preload = 'auto';
     clips[file] = a;
     return a;

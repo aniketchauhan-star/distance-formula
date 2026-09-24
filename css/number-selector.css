@@ -48,7 +48,7 @@
      there and invisible. Tried, measured, reverted.
 
      If this ever needs to move, change the path here. */
-  --sheet: url('../assets/buttons.png');
+  --sheet: url('../assets/buttons.png?v=20260924233816');
 
   /* ---- the layout ------------------------------------------------
      Unchanged. The dials overhang the housing's ends, the pointer sits
@@ -227,7 +227,7 @@
   z-index: 3;
 }
 
-.number-control .lane { position: absolute; inset: 0; }
+.number-control .lane { position: absolute; top: 0; right: 0; bottom: 0; left: 0; }
 
 /* ---- the drums --------------------------------------------------- */
 .number-control .cell {
@@ -240,7 +240,12 @@
   justify-content: center;
   color: #5E5145;
   font-size: calc(var(--side-h) * 0.56);
-  font-weight: 900;
+  /* Lilita One has one weight. The 900 asked for here was a bold every
+     browser faked in its own way; this outline is the thickness this
+     Mac's Chrome faked, written down, so every laptop draws the same
+     digits. */
+  font-weight: 400;
+  -webkit-text-stroke: var(--lilita-bold, .031em) currentColor;
   line-height: 1;
   background-image: var(--sheet);
   background-repeat: no-repeat;

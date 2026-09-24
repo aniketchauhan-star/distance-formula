@@ -71,6 +71,15 @@ window.ScreenJump = (function () {
     const head = document.createElement('div');
     head.className = 'jump-head';
     head.textContent = 'Which screen?';
+    /* Which copy of the game this is, so two laptops can be compared
+       without leaving the screen: the host hands over the words. */
+    const ver = typeof opts.version === 'function' ? opts.version() : opts.version;
+    if (ver) {
+      const v = document.createElement('span');
+      v.className = 'jump-ver';
+      v.textContent = ver;
+      head.appendChild(v);
+    }
     const rows = document.createElement('div');
     rows.className = 'jump-rows';
     panel.appendChild(head);

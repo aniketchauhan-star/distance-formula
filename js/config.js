@@ -10,26 +10,40 @@ window.CFG = (function () {
   const STAGE_W = 1920;
   const STAGE_H = 1080;
 
+  /* ---------- Version ----------
+     The stamp index.html gives this file's own address, written on
+     every commit by tools/stamp.js. Everything the scripts fetch —
+     pictures, music, voices — carries it too, so a browser holding an
+     earlier copy of any of them asks for the new one instead of
+     showing yesterday's picture with today's code. Empty when the page
+     is opened without one, and then nothing is stamped. */
+  const VERSION = (function () {
+    const s = document.currentScript && document.currentScript.src;
+    const m = s && /[?&]v=(\d+)/.exec(s);
+    return m ? m[1] : '';
+  })();
+  const stamped = function (url) { return VERSION ? url + '?v=' + VERSION : url; };
+
   /* ---------- Asset paths ---------- */
   const ART = {
-    startScreen: 'assets/start screen.png',
-    background:  'assets/game Background .png',
-    clouds:      'assets/clouds.png',
-    playButton:  'assets/play button .png',
-    swiftyFly:   'assets/swifty fly.png',
-    swiftyTalk:  'assets/swifty talk.png',
-    swiftyStand: 'assets/normal stand swifty.png',
-    townSheet:   'assets/sheet.png',
+    startScreen: stamped('assets/start screen.png'),
+    background:  stamped('assets/game Background .png'),
+    clouds:      stamped('assets/clouds.png'),
+    playButton:  stamped('assets/play button .png'),
+    swiftyFly:   stamped('assets/swifty fly.png'),
+    swiftyTalk:  stamped('assets/swifty talk.png'),
+    swiftyStand: stamped('assets/normal stand swifty.png'),
+    townSheet:   stamped('assets/sheet.png'),
     /* The number selector, drawn. Every piece of the control is a crop
        of this one sheet, so `preload` waiting for it is the whole of
        the loading story: it is about 940KB, and a control that rises
        un-skinned and then dresses itself is worse than the CSS it
        replaced. */
-    buttons:     'assets/buttons.png',
-    leaf:        'assets/leaf.png',
-    handNudge:   'assets/hand nudge.png'
+    buttons:     stamped('assets/buttons.png'),
+    leaf:        stamped('assets/leaf.png'),
+    handNudge:   stamped('assets/hand nudge.png')
   };
-  const MUSIC = 'sfx/bg music.mp3';
+  const MUSIC = stamped('sfx/bg music.mp3');
 
   /* -------------------------------------------------------------
      SPRITE SHEETS
@@ -3504,7 +3518,7 @@ window.CFG = (function () {
   ];
 
   return {
-    STAGE_W, STAGE_H, ART, SHEETS, SHEET_W, SHEET_H,
+    VERSION, STAGE_W, STAGE_H, ART, SHEETS, SHEET_W, SHEET_H,
     SWIFTY, CHAR_SCALE, ANCHOR, HEAD_TOP, FEET_DY, SHADOW, CLOUD,
     S5_ORIGIN, GRID, STAND, S8_ORIGIN, BOARD, RECAP, XAXIS, YAXIS, TOWN,
     BUBBLE, PLAY, START, AUDIO, AUTO, NAV, SCRIPT

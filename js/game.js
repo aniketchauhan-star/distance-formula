@@ -8,7 +8,7 @@
 
   /* ---------------- element handles ---------------- */
   const el = {};
-  ['viewport', 'stage', 'loader', 'loaderBar', 'loaderPct',
+  ['viewport', 'stage', 'loader', 'loaderBar', 'loaderPct', 'loaderVer',
    'startScreen', 'playBtn', 'playImg', 'scene', 'skyLayer',
    'charGroup', 'shadow', 'birdRig', 'birdFlip', 'birdWin', 'flySheet', 'talkSheet',
    'bubble', 'bubbleShape', 'bubbleBody', 'bubbleSheen',
@@ -30,6 +30,17 @@
      what the eye is looking for. The subtraction the board writes
      already uses it; this brings the numbers themselves into line. */
   const numText = function (v) { return String(v).replace('-', '\u2212'); };
+
+  /* The version stamp (see VERSION in config.js) as a date a person
+     reads — "Version 24 Sep 2026, 23:41" — for the loading screen and
+     the picker, so two laptops can be compared at a glance. */
+  const versionText = function () {
+    const V = C.VERSION || '';
+    if (V.length < 12) return '';
+    const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return 'Version ' + (+V.slice(6, 8)) + ' ' + MON[+V.slice(4, 6) - 1] + ' ' +
+      V.slice(0, 4) + ', ' + V.slice(8, 10) + ':' + V.slice(10, 12);
+  };
 
   /* ---------------- responsive stage ---------------- */
   /* The whole responsive system, in one function.
@@ -577,7 +588,8 @@
       Jump = window.ScreenJump.mount(el.nav, {
         screens: function () { return C.SCRIPT; },
         current: function () { return Game.index; },
-        go: function (i) { Game.goTo(i); }
+        go: function (i) { Game.goTo(i); },
+        version: versionText
       });
       Jump.sync();
     }
@@ -1040,11 +1052,19 @@
          "already drawn" any more, whatever its coordinates say. */
       this.lastPlotted = null;
 
-      if (this.built) {
-        /* Only the axis furniture is remade. Everything in these four
-           lists was made BY the old range and means nothing on the new
-           one; everything else on the board is placed against it and
-           will be placed again. */
+      if (this.built) this.rebuildAxes();
+      /* The ruling is laid out from the origin at `place` time, so the
+         new cell size reaches it as soon as the board is placed again
+         — which the screen change is about to do. */
+      return true;
+    },
+
+    /* The axis furniture made again, in the state the old one was in.
+       Everything in these four lists was made BY the range (or measured
+       in the type) and means nothing once either has changed; everything
+       else on the board is placed against it and will be placed again. */
+    rebuildAxes: function () {
+      {
         const svg = el.gridAxes;
         const drop = function (list) {
           list.forEach(function (n) { if (n.parentNode) n.parentNode.removeChild(n); });
@@ -1086,10 +1106,6 @@
         }
         if (wasDrawn || this.shown) this.showAxes();
       }
-      /* The ruling is laid out from the origin at `place` time, so the
-         new cell size reaches it as soon as the board is placed again
-         — which the screen change is about to do. */
-      return true;
     },
 
     /* Axes already drawn, with no sweep. The sweep is how a board
@@ -2376,6 +2392,14 @@
        fallback's metrics and stays that way. Called once the real face
        is in. */
     forgetTextMetrics: function () { this._tm = null; },
+
+    /* Everything that was placed by measuring type, placed again: the
+       axis numbers (the range's own rebuild, which is the one path that
+       lays them out from scratch) and whatever pair and sides are up. */
+    remeasure: function () {
+      this.rebuildAxes();
+      this.relabel();
+    },
 
     /* The column the y-axis owns: the line, and its numbers down the
        left of it. */
@@ -8946,11 +8970,39 @@
     let fontsReady = false;
     /* And every label measured before the real face arrived was
        measured against the fallback's metrics, so those go. */
-    const fontDone = function () { fontsReady = true; Board.forgetTextMetrics(); };
-    if (document.fonts && document.fonts.ready) {
-      document.fonts.ready.then(fontDone);
-      setTimeout(fontDone, 2500);          // never block on a slow CDN
+    const fontDone = function () {
+      if (fontsReady) return;
+      fontsReady = true;
+      Board.forgetTextMetrics();
+    };
+    /* Both faces, asked for BY NAME. `document.fonts.ready` waits only
+       for faces something on the page is already using, and at boot
+       that was the loading screen's Lilita One alone: Nunito — every
+       label and every balloon — was not even requested until her first
+       line, so on a slow connection the board was measured in a
+       stand-in face and her first words were drawn in one. The faces
+       are the game's own files now (css/fonts.css); the timeout is only
+       there so a damaged file can never hold the game up. */
+    if (document.fonts && document.fonts.load) {
+      Promise.all([
+        document.fonts.load('600 32px Nunito', 'Aa1√₁₂'),
+        document.fonts.load('32px "Lilita One"', 'Aa1')
+      ]).then(fontDone, fontDone);
+      setTimeout(fontDone, 4000);
+      /* A face that turns up after the game has started — it should
+         never happen with the files local, but if it does, nothing may
+         stay measured in the face it replaced. */
+      if (document.fonts.addEventListener) {
+        document.fonts.addEventListener('loadingdone', function () {
+          if (!fontsReady) return;       // the wait above is handling it
+          Board.forgetTextMetrics();
+          if (Board.built) Board.remeasure();
+        });
+      }
     } else { fontsReady = true; }
+    /* Which copy of the game this is, where it can be read off before
+       Play. */
+    if (el.loaderVer) el.loaderVer.textContent = versionText();
     let loaded = 0;
     const bump = function () {
       loaded++;

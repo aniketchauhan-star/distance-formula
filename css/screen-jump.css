@@ -83,6 +83,12 @@
   color: #9A7538;
   background: #FFF4DC;
   border-bottom: 2px solid #F3E2BE;
+  display: flex; align-items: baseline; justify-content: space-between; gap: 14px;
+}
+/* The version, beside the question and quieter than it. */
+.jump-ver {
+  font-family: 'Nunito', system-ui, sans-serif; font-weight: 600;
+  font-size: 14px; color: #B89A63; white-space: nowrap;
 }
 
 .jump-rows {

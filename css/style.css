@@ -38,13 +38,21 @@ html, body {
   background: #0b1622;
   overflow: hidden;
   font-family: 'Lilita One', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* Only the weights that exist. Lilita One has one and Nunito is
+     loaded at one; a heavier weight asked of either used to be faked
+     by the browser — each browser its own way, so the same digits came
+     out a different thickness on every laptop. */
+  font-synthesis: none;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
+  /* Safari only reads the prefixed form: without it a quick double tap
+     on the scene selected one of her words in blue. */
+  -webkit-user-select: none;
   user-select: none;
 }
 
 #viewport {
-  position: fixed; inset: 0;
+  position: fixed; top: 0; right: 0; bottom: 0; left: 0;
   background: radial-gradient(circle at 50% 40%, #16283c 0%, #0b1622 70%);
   overflow: hidden;
 }
@@ -74,7 +82,7 @@ html, body {
 
 /* ---------------- loading ---------------- */
 #loader {
-  position: absolute; inset: 0; z-index: 12;
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 12;
   display: flex; align-items: center; justify-content: center;
   background: linear-gradient(180deg, #5fc4f5 0%, #a5e6ff 55%, #b9ea86 100%);
   transition: opacity .45s ease;
@@ -104,9 +112,18 @@ html, body {
   margin-top: 18px; font-size: 30px; font-weight: 400; color: #fff;
   text-shadow: 0 3px 0 rgba(27, 100, 181, .8);
 }
+/* Which copy of the game this is: the version stamp, as a date. Small
+   and quiet — it is for comparing two laptops, not for the child. */
+#loaderVer {
+  margin-top: 26px;
+  font-family: 'Nunito', system-ui, sans-serif; font-weight: 600;
+  font-size: 18px; letter-spacing: .5px;
+  color: rgba(255, 255, 255, .55);
+  min-height: 1.2em;
+}
 
 /* ---------------- start screen ---------------- */
-#startScreen { position: absolute; inset: 0; z-index: 8; transition: opacity .5s ease; }
+#startScreen { position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 8; transition: opacity .5s ease; }
 #startScreen.fade-out { opacity: 0; }
 
 /* Swifty's arrival on the title screen, on the same rig convention as
@@ -186,7 +203,7 @@ html, body {
 #playBtn.pressed { animation: playPress .42s cubic-bezier(.3, 1.5, .5, 1) forwards; }
 
 /* ---------------- scene ---------------- */
-#scene { position: absolute; inset: 0; z-index: 1; opacity: 0; }
+#scene { position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 1; opacity: 0; }
 
 /* The scene behind the game is left sharp. It used to carry a 4px
    blur to push it back behind the board and the line — and the 1.02
@@ -1092,14 +1109,14 @@ html, body {
 
 /* the leaf curtain that hides the changeover */
 #leafLayer {
-  position: absolute; inset: 0; z-index: 12;
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 12;
   overflow: hidden; pointer-events: none;
 }
 /* The ambient drift: one leaf off the tree at a time, looping away on
    the wind. Each piece rides the same SVG path with offset-path, so the
    loop is a real curve, and offset-rotate turns it to face the way it
    is travelling; the spin on top is what makes it tumble as it goes. */
-.drift-host { position: absolute; inset: 0; pointer-events: none; }
+.drift-host { position: absolute; top: 0; right: 0; bottom: 0; left: 0; pointer-events: none; }
 
 .fx-drift {
   position: absolute; left: 0; top: 0;
@@ -1136,7 +1153,7 @@ html, body {
 
 /* A gust: faint streaks sweeping the frame. Their own host so the wind
    can blow whether or not a leaf happens to be crossing. */
-.gust-host { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.gust-host { position: absolute; top: 0; right: 0; bottom: 0; left: 0; pointer-events: none; overflow: hidden; }
 .fx-sweep {
   position: absolute;
   animation-name: windSweep;
@@ -1201,7 +1218,26 @@ html, body {
   box-shadow: 0 6px 0 #d4761a, 0 11px 18px rgba(0, 0, 0, .24);
   transition: transform .12s ease, box-shadow .12s ease;
 }
-#nextBtn .arrow { font-size: 20px; }
+/* The arrows, drawn: a small triangle seated where the ▶ glyph used to
+   sit on this Mac, pointing the way the button goes. Neither font has
+   the character, so as text every laptop drew its own. The shadow is
+   the one the button's text carries; it goes on the holder rather than
+   the shape, because the shape's clip would cut it off. */
+#nav .arrow {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  width: 15.6px; height: 23px;
+}
+#nav .arrow::before {
+  content: '';
+  position: absolute; top: 5.5px;
+  width: 13.5px; height: 14px;
+  background: currentColor;
+}
+#nextBtn .arrow { filter: drop-shadow(0 2px 0 rgba(180, 90, 0, .55)); }
+#nextBtn .arrow::before { left: 2px;   clip-path: polygon(0 0, 100% 50%, 0 100%); }
+#backBtn .arrow::before { left: .6px;  clip-path: polygon(100% 0, 0 50%, 100% 100%); }
 #nextBtn:hover  { transform: translateY(-2px); box-shadow: 0 8px 0 #d4761a, 0 14px 20px rgba(0, 0, 0, .28); }
 #nextBtn:active { transform: translateY(4px); box-shadow: 0 2px 0 #d4761a, 0 5px 10px rgba(0, 0, 0, .28); }
 /* The button is on screen the whole time; it only nudges once she has
@@ -1224,7 +1260,6 @@ html, body {
   box-shadow: 0 6px 0 #E6AE55, 0 11px 18px rgba(0, 0, 0, .18);
   transition: transform .12s ease, box-shadow .12s ease;
 }
-#backBtn .arrow { font-size: 20px; }
 #backBtn:hover  { transform: translateY(-2px); box-shadow: 0 8px 0 #E6AE55, 0 14px 20px rgba(0, 0, 0, .22); }
 #backBtn:active { transform: translateY(4px); box-shadow: 0 2px 0 #E6AE55, 0 5px 10px rgba(0, 0, 0, .22); }
 
@@ -1260,7 +1295,7 @@ html, body {
 }
 
 /* ---------------- effects layer ---------------- */
-#fxLayer { position: absolute; inset: 0; z-index: 9; pointer-events: none; overflow: hidden; }
+#fxLayer { position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 9; pointer-events: none; overflow: hidden; }
 
 /* A wrong answer, felt at the edges of the frame.
 
@@ -1275,7 +1310,7 @@ html, body {
    Over the scene and the sparkles, under the leaf sweep, so a screen
    change still covers it — and never in the way of a tap. */
 #missGlow {
-  position: absolute; inset: 0; z-index: 10; pointer-events: none;
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 10; pointer-events: none;
   opacity: 0;
   box-shadow: inset 0 0 120px 8px rgba(232, 72, 64, .28);
   background:

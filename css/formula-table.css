@@ -155,9 +155,12 @@
   display: grid; place-items: center;
   border: 0; padding: 0; margin: 0;
   font-family: 'Lilita One', 'Nunito', system-ui, sans-serif;
-  font-size: .82em; font-weight: 900; line-height: 1;
+  /* One weight, and the bold the browser used to fake drawn as a fixed
+     outline — see the reel's digits, number-selector.css. */
+  font-size: .82em; font-weight: 400; line-height: 1;
+  -webkit-text-stroke: var(--lilita-bold, .031em) currentColor;
   color: #5E5145;
-  background: url('../assets/buttons.png') no-repeat;
+  background: url('../assets/buttons.png?v=20260924233816') no-repeat;
   background-size: 825.12% 416.43%;
   background-position: 11.802% 95.846%;
   cursor: pointer;

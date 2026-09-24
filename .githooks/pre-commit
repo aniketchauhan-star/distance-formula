@@ -1,0 +1,12 @@
+#!/bin/sh
+# A new version stamp on every commit that changes what the game loads,
+# so a laptop that opened an earlier copy fetches the new files instead
+# of running the old ones. See tools/stamp.js.
+#
+# Never blocks a commit: without node it simply does nothing.
+command -v node >/dev/null 2>&1 || exit 0
+touched=$(git diff --cached --name-only -- index.html css js assets sfx)
+[ -z "$touched" ] && exit 0
+files=$(node tools/stamp.js) || exit 0
+[ -n "$files" ] && git add -- $files
+exit 0
