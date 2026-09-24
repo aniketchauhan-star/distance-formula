@@ -117,7 +117,13 @@ window.FormulaTable = (function () {
               cell.textContent = t.trim();
               if (colour) cell.style.color = colour;
             }
-            cell.classList.add('ft-' + kind);
+            /* The cell's KIND, under a prefix of its own. It was
+               `'ft-' + kind`, which for a slot is `ft-slot` — the very
+               class of the slot inside it — so every slot cell also
+               drew the slot's dashed underline, across the whole term,
+               and nothing ever took it away: the line stayed under
+               "(AB)²" and "(4)²" after their numbers had landed. */
+            cell.classList.add('ft-is-' + kind);
             grid.appendChild(cell);
             cells[k] = { kind: kind, el: cell, fill: fill };
           });
