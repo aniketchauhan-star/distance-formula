@@ -6738,6 +6738,11 @@
           };
           laid(function () {
             const asks = function () {
+              /* A screen resting on the right angle has its marker up
+                 once its sides are — the measuring intro speaks through
+                 here rather than `after`, which is where every other
+                 screen asserts it. */
+              if (entry.rightAngle) Board.rightAngle(true);
               /* She puts the question and stays, line and all — the
                  control arrives below her rather than in her place, so
                  there is no reason for her to leave. */
@@ -7635,6 +7640,15 @@
         /* They have had their ungiven go. Now the slider becomes the
            ruler it looks like. */
         if (t.spec.rulerAfterMiss) self.later(function () { self.armRuler(); }, 640);
+        /* Or straight to the table the child fills (screen 30): no hint
+           read out, no second try on the control — the working becomes
+           theirs to do, one blank at a time, and the question is
+           answered when its last blank is. */
+        if (t.spec.tableOnMiss && Table) {
+          if (Sel) Sel.lock();
+          self.later(function () { self.runTable(C.SCRIPT[self.index] || {}); }, 700);
+          return;
+        }
         // the ladder is read after the count, not before: feedbackFor
         // indexes on how many have been got wrong, this one included
         /* Two misses in is where a child needs showing rather than
@@ -8210,6 +8224,10 @@
       Bubble.close();
       this.later(function () {
         self.flyOut(function () {
+          /* A question answered on the control first (30) has the
+             control up: it goes with her. */
+          if (Opts) Opts.hide();
+          if (Sel) Sel.hide();
           if (Town) Town.hide();
           Board.clearFound();
           self.later(function () {

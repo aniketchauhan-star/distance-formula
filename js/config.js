@@ -2532,57 +2532,52 @@ window.CFG = (function () {
         ] } },
 
     { id: 30,
-      /* Pushed in on the whole triangle as the screen opens — after
-         the grid has filled and before a point is drawn (see
-         frameDrawing). The working, if the child needs it, pushes to
-         its own `working` view with room to write when it starts; asking
-         for that view here opened the screen with empty room reserved
-         beside the triangle and the triangle itself pushed off-centre. */
+      /* Question 2: the same argument on a harder triangle — A(−3, 3),
+         B(5, −3), C(5, 3), across three quadrants, so reading the sides
+         off the coordinates means subtracting a negative. The complete
+         right triangle is up, but only its points and their coordinates:
+         no lengths, so AC and CB have to be worked out, not read. */
       view: 'triangle',
-      /* The working goes on the paper, not in a panel beside it: the
-         board comes to the middle, pushes in on the drawing and the
-         room the working needs, and writes it there. */
-      stage: 'working', line: 'What is the distance between the two points?', range: { min: 0, max: 12 }, entrance: 'none',
-      layout: 'board',
-      /* The working is about the drawing, so the paper steps back:
-         the ruling, the axes and their numbering fade and the triangle
-         and its lengths are what is left at full strength. The screens
-         that write a solution on the board all do this now — it was on
-         only the last two of them, so the same beat came up loud on one
-         screen and quiet on the next. */
-      quietBoard: true, transition: 'leaves', intro: 'measure', entry: true,
-      segment: { a: { x: -3, y:  3, name: 'A' },
-                 b: { x:  5, y: -3, name: 'B' } , dash: true},
-      legs: [
-        { from: { x: -3, y: 3 }, to: { x: 5, y:  3 }, mark: { name: 'C' } },
-        { from: { x:  5, y: 3 }, to: { x: 5, y: -3 } }
-      ],
-      task: { kind: 'entry', pair: 'AB', answer: 10,
-              correctLine: 'That\u2019s right!',
-              noCount: true,
-              // the same ladder as the screen before it
-              feedback: [
-                'Not quite. Check your working and try again.',
-                'Use the right triangle to find AB.'
-              ],
-              showWorking: true,
-              /* And the working itself, in the panel — the same shape
-                 as the one the method screen shows, with this
-                 triangle's own numbers. Each part names a side and
-                 lights it. */
-              formula: [
-                { kind: 'lead', parts: [
-                    { t: '(AB)\u00B2', lit: 'ab', from: { side: 'ab' } }, { t: ' = ' },
-                    { t: '(8)\u00B2', lit: 'h', from: { leg: 0 } }, { t: ' + ' },
-                    { t: '(6)\u00B2', lit: 'v', from: { leg: 1 } } ] },
-                { kind: 'step', parts: [
-                    { t: '= ' }, { t: '64', lit: 'h' }, { t: ' + ' }, { t: '36', lit: 'v' } ] },
-                { kind: 'step', parts: [
-                    { t: '= ' }, { t: '100', lit: 'ab' } ] },
-                { kind: 'result', parts: [
-                    { t: 'AB = ' }, { t: '10\u00A0units', lit: 'ab', home: true } ] }
-              ], } },
-
+      line: 'Now find AB.',
+      range: { min: 0, max: 12 },
+      entrance: 'none', layout: 'board', quietBoard: true, transition: 'leaves',
+      intro: 'measure', entry: true,
+      rightAngle: true, keepMark: true,
+      segment: { a: { x: -3, y: 3, name: 'A' }, b: { x: 5, y: -3, name: 'B' }, dash: true },
+      legs: [ { from: { x: -3, y: 3 }, to: { x: 5, y: 3 }, mark: { name: 'C' } },
+              { from: { x: 5, y: 3 }, to: { x: 5, y: -3 } } ],
+      task: {
+        kind: 'entry',
+        pair: 'AB',
+        answer: 10,
+        correctLine: 'That’s right!',
+        noCount: true,
+        /* No hints. A miss goes straight to the table 29c taught, which
+           the child fills: tap a blank, two numbers drop down, pick one.
+           The wrong ones here are this question's own mistakes — 0 and 2
+           are the sides read with the minus sign lost (3 + (−3), and
+           5 + (−3)); 12 and 16 square as doubling; 14 adds the sides
+           instead of their squares; 100 stops before the square root. */
+        tableOnMiss: true,
+        formula: [
+          { kind: 'lead', parts: [
+              { t: '(AB)\u00B2', lit: 'ab' }, { t: ' = ' },
+              { t: '(CB)\u00B2', lit: 'v' }, { t: ' + ' },
+              { t: '(AC)\u00B2', lit: 'h' } ] },
+          { kind: 'step', parts: [
+              { t: '= ' },
+              { t: '(6)\u00B2', lit: 'v', offer: [6, 0] }, { t: ' + ' },
+              { t: '(8)\u00B2', lit: 'h', offer: [2, 8] } ] },
+          { kind: 'step', parts: [
+              { t: '= ' },
+              { t: '36', lit: 'ab', offer: [12, 36] }, { t: ' + ' },
+              { t: '64', lit: 'ab', offer: [64, 16] } ] },
+          { kind: 'step', parts: [
+              { t: '= ' }, { t: '100', lit: 'ab', offer: [14, 100] } ] },
+          { kind: 'result', parts: [
+              { t: 'AB', lit: 'ab' }, { t: ' = ' },
+              { t: '10\u00A0units', lit: 'ab', offer: [10, 100] } ] }
+        ] } },
     /* 21 — leaves, back to the field layout, and the same idea stated
        in general: the points are named rather than numbered. */
     { id: 31, line: 'The same idea works for any two points.', entrance: 'fly',
