@@ -5261,7 +5261,7 @@
        still being asked) becoming the solid line it now is, already
        drawn. The measuring line that lay along it is the screen's to
        clear, as it always has been. */
-    carryOn: function (spec) {
+    carryOn: function (spec, solid) {
       if (!spec || !this.segParts || !this.lastPlotted) return;
       const self = this, NS2 = 'http://www.w3.org/2000/svg';
       let k = this.lastPlotted, changed = false;
@@ -5290,7 +5290,10 @@
         k = next; changed = true;
       });
       if (changed) this.lastPlotted = k;
-      if (!spec.dash && this.segLine) {
+      /* Only a screen that asks for it. Every kept pair passes through
+         here, and a guide that another screen means to leave as a guide
+         must not be turned solid on the way. */
+      if (solid && !spec.dash && this.segLine) {
         if (this.segDashG) this.segDashG.classList.remove('draw');
         this.segLine.classList.add('draw', 'set');
         this.segLine.style.strokeDashoffset = 0;
@@ -6584,7 +6587,7 @@
           if (entry.segment) Board.nameSegment(entry.segment, self.later.bind(self));
           /* …or writes them in parts, or turns the guide solid — in
              place, with nothing arriving again. */
-          if (entry.segment) Board.carryOn(entry.segment);
+          if (entry.segment) Board.carryOn(entry.segment, !!entry.solidLine);
           afterSeg();
         }
       };

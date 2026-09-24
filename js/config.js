@@ -1875,8 +1875,9 @@ window.CFG = (function () {
          the points and the line stay exactly as they are rather than
          being taken away and animated in again. Only the coordinates
          change, and only in how they are built: in parts, for the next
-         beats to light (see Board.carryOn). */
-      keepSegment: true,
+         beats to light (see Board.carryOn). The question's dotted guide
+         becomes the solid line — already drawn, not drawing. */
+      keepSegment: true, solidLine: true,
       /* The very pair screen 8 asked about, not a fresh one. The whole
          of this argument is "look at what you just measured, and see
          where the answer came from" — which only works if it is
@@ -1958,8 +1959,9 @@ window.CFG = (function () {
          the points and the line stay exactly as they are rather than
          being taken away and animated in again. Only the coordinates
          change, and only in how they are built: in parts, for the next
-         beats to light (see Board.carryOn). */
-      keepSegment: true,
+         beats to light (see Board.carryOn). The question's dotted guide
+         becomes the solid line — already drawn, not drawing. */
+      keepSegment: true, solidLine: true,
       segment: {
         a: { x: 1, y: -3,
              coordParts: [{ t: '(' }, { t: '1', glow: 'x' }, { t: ',\u00A0' },
