@@ -4158,17 +4158,25 @@
           const ax = L + W / 2, ay = T + H * A.y;
           const tipX = ax + dx * half, tipY = ay + dy * half;
           const tailX = ax - dx * half, tailY = ay - dy * half;
-          /* The barbs: back along the shaft and out to either side. */
+          /* The barbs: back along the shaft and out to either side —
+             at BOTH ends. A head at one end says "move this way"; a
+             head at each says "from here to here", which is what a
+             square being counted is: one unit, edge to edge. It is how
+             a dimension is marked on any drawing, and it stops the
+             count reading as a direction to travel in when what is
+             being counted is a distance. */
           const b = half * 2 * A.head, sx = -dy, sy = dx;
-          const p1x = tipX - dx * b + sx * b * 0.62;
-          const p1y = tipY - dy * b + sy * b * 0.62;
-          const p2x = tipX - dx * b - sx * b * 0.62;
-          const p2y = tipY - dy * b - sy * b * 0.62;
+          const barbs = function (x, y, back) {
+            return 'M' + f(x - back * dx * b + sx * b * 0.62) + ' ' +
+                         f(y - back * dy * b + sy * b * 0.62) +
+                   'L' + f(x) + ' ' + f(y) +
+                   'L' + f(x - back * dx * b - sx * b * 0.62) + ' ' +
+                         f(y - back * dy * b - sy * b * 0.62);
+          };
           const f = function (v) { return v.toFixed(1); };
           c.arrow.setAttribute('d',
             'M' + f(tailX) + ' ' + f(tailY) + 'L' + f(tipX) + ' ' + f(tipY) +
-            'M' + f(p1x) + ' ' + f(p1y) + 'L' + f(tipX) + ' ' + f(tipY) +
-            'L' + f(p2x) + ' ' + f(p2y));
+            barbs(tipX, tipY, 1) + barbs(tailX, tailY, -1));
         }
       });
 

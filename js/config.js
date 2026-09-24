@@ -1179,7 +1179,9 @@ window.CFG = (function () {
           len:  0.46,        // tip to tail, across the smaller side
           head: 0.32,        // the barbs, as a share of that length
           w:    4,           // its line weight
-          y:    0.36,        // where it sits down the square
+          y:    0.28,        // where it sits down the square — up
+                             // off the number, so the two read as a
+                             // mark and its label rather than a stack
           numY: 0.71         // and where the number sits under it
         }
       },
