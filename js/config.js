@@ -1871,6 +1871,12 @@ window.CFG = (function () {
        a child counting squares needs to see them. */
     { id: 9, line: 'Did you notice?',
       entrance: 'stay', layout: 'board', quietBoard: true,
+      /* The pair the question was about, KEPT — after a right answer
+         the points and the line stay exactly as they are rather than
+         being taken away and animated in again. Only the coordinates
+         change, and only in how they are built: in parts, for the next
+         beats to light (see Board.carryOn). */
+      keepSegment: true,
       /* The very pair screen 8 asked about, not a fresh one. The whole
          of this argument is "look at what you just measured, and see
          where the answer came from" — which only works if it is
@@ -1948,6 +1954,12 @@ window.CFG = (function () {
        of the y halves, and the subtraction reads 2 - (-3). */
     { id: 15, line: 'Did you notice?',
       entrance: 'stay', layout: 'board', quietBoard: true,
+      /* The pair the question was about, KEPT — after a right answer
+         the points and the line stay exactly as they are rather than
+         being taken away and animated in again. Only the coordinates
+         change, and only in how they are built: in parts, for the next
+         beats to light (see Board.carryOn). */
+      keepSegment: true,
       segment: {
         a: { x: 1, y: -3,
              coordParts: [{ t: '(' }, { t: '1', glow: 'x' }, { t: ',\u00A0' },

@@ -5232,11 +5232,69 @@
       });
     },
 
+    /* Whether this pair is the one already up — the same two points, in
+       either order. A screen that names them the other way round is
+       still talking about the drawing the child is looking at: 15 lists
+       14's pair as (1, −3), (1, 2), and read in order it counted as a
+       new pair, so the points were taken away and plotted again. */
     showing: function (spec) {
       const k = this.lastPlotted;
-      return !!(spec && spec.a && spec.b && k && k.a && k.b &&
-                k.a.x === spec.a.x && k.a.y === spec.a.y &&
-                k.b.x === spec.b.x && k.b.y === spec.b.y);
+      if (!(spec && spec.a && spec.b && k && k.a && k.b)) return false;
+      const at = function (p, q) { return p.x === q.x && p.y === q.y; };
+      return (at(k.a, spec.a) && at(k.b, spec.b)) || (at(k.a, spec.b) && at(k.b, spec.a));
+    },
+
+    /* The board's own name for a point — 'a' or 'b' of the pair that is
+       up — found by where it is, not by what a screen calls it. */
+    keyAt: function (p) {
+      const k = this.lastPlotted;
+      if (!p || !k) return null;
+      if (k.a && k.a.x === p.x && k.a.y === p.y) return 'a';
+      if (k.b && k.b.x === p.x && k.b.y === p.y) return 'b';
+      return null;
+    },
+
+    /* A kept pair, carried into this screen's form with no arrival: the
+       points stay exactly where they are, nothing pops, nothing draws.
+       What can change is only how it is written — its coordinates built
+       in parts a later beat can light, and a dotted guide (the distance
+       still being asked) becoming the solid line it now is, already
+       drawn. The measuring line that lay along it is the screen's to
+       clear, as it always has been. */
+    carryOn: function (spec) {
+      if (!spec || !this.segParts || !this.lastPlotted) return;
+      const self = this, NS2 = 'http://www.w3.org/2000/svg';
+      let k = this.lastPlotted, changed = false;
+      [spec.a, spec.b].forEach(function (p) {
+        if (!p || !p.coordParts) return;
+        const key = self.keyAt(p);
+        if (!key) return;
+        const node = self.segParts[key].coord;
+        if (!node.querySelector('tspan.glowable')) {
+          while (node.firstChild) node.removeChild(node.firstChild);
+          p.coordParts.forEach(function (f) {
+            const ts = document.createElementNS(NS2, 'tspan');
+            ts.textContent = f.t;
+            if (f.glow) {
+              ts.classList.add('glowable');
+              if (typeof f.glow === 'string') ts.dataset.part = f.glow;
+            }
+            node.appendChild(ts);
+          });
+        }
+        /* Remembered on a copy of the pair — never on the screen's own
+           spec, which a later visit reads fresh — so the next lay-out
+           of this pair keeps its parts. */
+        const next = Object.assign({}, k);
+        next[key] = Object.assign({}, k[key], { coordParts: p.coordParts });
+        k = next; changed = true;
+      });
+      if (changed) this.lastPlotted = k;
+      if (!spec.dash && this.segLine) {
+        if (this.segDashG) this.segDashG.classList.remove('draw');
+        this.segLine.classList.add('draw', 'set');
+        this.segLine.style.strokeDashoffset = 0;
+      }
     },
 
     clearSegment: function () {
@@ -5356,8 +5414,8 @@
       if (!spec || !this.segParts) return false;
       let any = false;
       this.namedAs = this.namedAs || {};
-      ['a', 'b'].forEach(function (k) {
-        const p = spec[k], part = self.segParts[k];
+      ['a', 'b'].forEach(function (k0) {
+        const p = spec[k0], k = self.keyAt(p) || k0, part = self.segParts[k];
         if (!p || !p.name || part.name.textContent === p.name) return;
         part.name.textContent = p.name;
         /* Remembered, not only written. The pair on the paper was drawn
@@ -6524,6 +6582,9 @@
         } else {
           // kept, but this screen may be the one that names the points
           if (entry.segment) Board.nameSegment(entry.segment, self.later.bind(self));
+          /* …or writes them in parts, or turns the guide solid — in
+             place, with nothing arriving again. */
+          if (entry.segment) Board.carryOn(entry.segment);
           afterSeg();
         }
       };
