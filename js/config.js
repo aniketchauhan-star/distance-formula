@@ -2043,9 +2043,36 @@ window.CFG = (function () {
        held across a screen change ("can the grid help?", then "how far
        apart are A and C?"). A statement about the problem is carried
        nowhere; the question on 24 stands on its own. */
-    { id: 22, line: 'But what if two points are like this?',
-      line2: 'Our earlier way won’t work this time.',
-      pulse: 'ab', entrance: 'fly',
+    { id: 22,
+      /* Beats 1 to 3. She notices, she wonders, and then she tries
+         something — and C arrives because she said she would look for
+         a way, not because the screen opened carrying it.
+
+         Three sentences on one board, so `lines` rather than
+         line/line2. "These two aren't" is an observation and "how can
+         we find the distance" is a question; run together they become
+         one shrug. The question is the one the whole lesson answers,
+         so it is allowed to sit. */
+      lines: [ 'But these two aren’t.',
+               'How can we find the distance between these two?',
+               'Let’s explore.' ],
+      /* The pair on the first. Nothing at all on the second — the beat
+         only stays open, which is what a question needs. And on the
+         third, the side that puts C on the board, with A and C lit
+         once it has got there: the dot lands 980ms into that draw, and
+         a corner must not be lit before the line that puts it there
+         has arrived. */
+      lineLights: [ { pulse: 'ab' },
+                    { hold: 900 },
+                    { points: ['a', 'c'], delay: 600 } ],
+      /* C on the word itself, not after the sentence carrying it has
+         finished — "explore" is the last word of that line, and a
+         third point that appears once she has stopped talking is a
+         point the screen produced rather than one she went looking
+         for. The dots then light 600ms after the line closes, by which
+         time the side that puts C there has arrived. */
+      wordCues: [ { word: 'explore', legs: true } ],
+      entrance: 'fly',
       layout: 'grid', transition: 'leaves',
       /* Named here rather than three screens on. They are called A and B
          from the moment the question about them is asked, and a pair
@@ -2055,7 +2082,13 @@ window.CFG = (function () {
          beat that says to look at it — put here it answered a question
          the child has not been asked yet. */
       segment: { a: { x: 2, y: 1, name: 'A' },
-                 b: { x: 6, y: 4, name: 'B' } } },
+                 b: { x: 6, y: 4, name: 'B' } },
+      /* Dashed, because it is something she is trying rather than a
+         measurement anyone has taken. The child measures it next.
+         Held back until the third line asks for it — see `lineLights`
+         above and lightAfterLine. */
+      legs: [ { from: { x: 2, y: 1 }, to: { x: 6, y: 1 },
+                dash: true, mark: { name: 'C' } } ] },
 
     // 13 — same board and same segment, she just carries on talking
     /* The board pushes in here, on the first quadrant the triangle sits
@@ -2079,9 +2112,22 @@ window.CFG = (function () {
        because two beats asked the child to hold a hint across a screen
        change; what splits here is the sentence and its highlighting,
        not the beat. One board, one question, one control. */
-    { id: 24, line: 'But look at A and C.',
-      line2: 'Can you find AC?',
-      lineLights: [ { points: ['a', 'c'] }, { pulse: 'h' } ],
+    { id: 24,
+      /* Beats 4 and 5. A guess, and then the reason it is askable.
+
+         "Hmm" is her thinking aloud rather than instructing, which is
+         the difference between a child watching somebody work and a
+         child being told where to look. The second line is true — they
+         measured rows and columns four screens ago — and it is why
+         this question can be asked at all.
+
+         C and its dashed guide are already on the board from 22. They
+         are declared again so the screen stands on its own after a
+         jump: `placeLeg` recognises the same side in the same place
+         and hands it over rather than drawing it a second time. */
+      line: 'Hmm… what about A and C?',
+      line2: 'We know how to find this distance.',
+      lineLights: [ { pulse: 'h' }, {} ],
       entrance: 'none',
       layout: 'board', distance: true, intro: 'measure', keepSegment: true,
       view: 'triangle', quietBoard: true,
@@ -2108,7 +2154,13 @@ window.CFG = (function () {
        And AC stays on the board while they do it, stepped back rather
        than cleared: they need to see they now have two measured sides,
        and the one being asked for has to be the loud one. */
-    { id: 25, line: 'Great! Now find CB.', focus: 'v',
+    { id: 25,
+      /* Beat 6. The two corners first and the side between them
+         after — `after` holds the spotlight back, so the child is
+         shown WHICH two points before being shown the run between
+         them. */
+      line: 'Now find the distance from C to B.',
+      lineLights: [ { points: ['c', 'b'], spots: ['v'], after: 900 } ],
       entrance: 'none', view: 'triangle', quietBoard: true,
       layout: 'board', distance: true, intro: 'measure', keepSegment: true,
       segment: { a: { x: 2, y: 1, name: 'A' },
@@ -2141,6 +2193,46 @@ window.CFG = (function () {
 
        The panel was built for this: `triangle-options.js` carries these
        three as its own defaults and the game had stopped asking them. */
+    { id: 27,
+      /* Beat 7. The result.
+
+         AC and CB stay exactly as the child left them — both
+         `settled`, both carrying the length that was measured — and
+         the only thing that moves is AB coming back to full strength.
+         So the whole shape is on the board at once for the first time,
+         and it is there because of what they just did rather than
+         because a screen arrived carrying it.
+
+         This is where the line belongs. It was on 26 once, beside
+         three buttons, which made an observation into the preamble of
+         a question. Standing on its own it is what it says it is.
+
+         And it is VOICED: 16-look-we-made-a-triangle.mp3 is keyed on
+         exactly these words and has been sitting unused since the line
+         came off 26. Change the wording and the clip is thrown away
+         again. */
+      line: 'Look! We made a triangle.',
+      entrance: 'none', layout: 'board', keepSegment: true,
+      view: 'triangle', quietBoard: true,
+      /* Nothing is drawn here, and nothing is singled out either.
+
+         `spots: ['ab']` was tried and is wrong: lighting one side
+         hushes the others, so bringing AB forward pushed the two legs
+         the child had just measured down to 0.28 — and the point of
+         this beat is the shape all three make together. `clear` puts
+         the board back instead: AB comes up out of the hush beat 6
+         left it in, the legs stay exactly where they were, and the
+         whole triangle reads at once. */
+      lineLights: [ { clear: true } ],
+      segment: { a: { x: 2, y: 1, name: 'A' },
+                 b: { x: 6, y: 4, name: 'B' } },
+      legs: [
+        { from: { x: 2, y: 1 }, to: { x: 6, y: 1 }, mark: { name: 'C' },
+          settled: true, length: true },
+        { from: { x: 6, y: 1 }, to: { x: 6, y: 4 },
+          settled: true, length: true }
+      ] },
+
     /* The balloon asks it. It used to say "Look! We've made a
        triangle." with the three names already up on the panel —
        an observation beside three buttons, so the child had to

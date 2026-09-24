@@ -1832,7 +1832,19 @@
        nodes it had, so a highlight lit on one of its halves survives. */
     relabel: function () {
       const self = this;
-      if (this.lastPlotted) this.placeSegment(this.lastPlotted);
+      if (this.lastPlotted) {
+        /* `placeSegment` winds the line back to nothing, because almost
+           everything that calls it is about to draw it. This is not:
+           relabel only lays a pair out again — it is what runLegs calls
+           once the sides are down, so the corners can be placed knowing
+           the shape. Winding a line that is already ON the board back to
+           nothing, with no animation following to bring it out again,
+           is how the hypotenuse went missing from a screen that had
+           merely moved its labels. Put it back where it was. */
+        const drawn = !!(this.segLine && this.segLine.classList.contains('draw'));
+        this.placeSegment(this.lastPlotted);
+        if (drawn && this.segLine) this.segLine.style.strokeDashoffset = 0;
+      }
       (this.legPlaced || []).forEach(function (s, i) {
         if (s && self.legSlots && self.legSlots[i]) self.placeLeg(i, s);
       });
@@ -4932,6 +4944,33 @@
        of every route through the script, and false the moment the
        picker drops a child in from somewhere else. Every screen that
        keeps asks this first. */
+    /* The pair, finished.
+
+       `settleFurniture` does this for the axes: a screen that INHERITS
+       a drawing rather than making one cannot depend on every class
+       surviving the journey, and the board would rather assert what
+       should be there than hope. A pair that is placed but wound back
+       is a pair nobody can see — which is how the hypotenuse came to
+       be missing from the beat whose whole subject is the triangle.
+
+       It adds nothing that is not already meant to be there: the ends
+       are wherever the pair was last placed, and a label with no words
+       in it is left alone. */
+    settlePair: function () {
+      if (!this.segLine || !this.lastPlotted) return;
+      this.segGroup.classList.add('on');
+      this.segLine.classList.add('draw');
+      this.segLine.style.strokeDashoffset = 0;
+      const p = this.segParts;
+      if (!p) return;
+      ['a', 'b'].forEach(function (k) {
+        if (!p[k]) return;
+        p[k].dot.classList.add('pop');
+        if ((p[k].coord.textContent || '').trim()) p[k].coord.classList.add('pop');
+        if ((p[k].name.textContent || '').trim()) p[k].name.classList.add('pop');
+      });
+    },
+
     showing: function (spec) {
       const k = this.lastPlotted;
       return !!(spec && spec.a && spec.b && k && k.a && k.b &&
@@ -6034,6 +6073,23 @@
         else if (entry.line && entry.voiceOnly) {
           self.sayOnly(entry.line, function () { if (lit) lit(0); if (gated) gated(); });
         }
+        /* More than two sentences on one board. `sayLines` has always
+           been able to — it waits for each line's light to finish
+           before starting the next, and hands each one's index to the
+           lights — but only `derive` could reach it. A beat that has
+           three things to say in one breath should not have to be cut
+           into two screens to say them.
+
+           It settles nothing of its own, which is right for a
+           derivation whose last act is writing; an ordinary screen has
+           to be handed on, so that is done here. */
+        else if ((entry.lines || []).length) {
+          self.armWordCues(entry);
+          self.sayLines(entry.lines, function () {
+            if (gated) gated();
+            self.settle(entry.hold != null ? entry.hold : C.AUTO.afterLine);
+          }, lit);
+        }
         else if (entry.line && entry.line2) {
           self.speakBoth(entry.line, entry.line2, gated, lit);
         }
@@ -6116,8 +6172,12 @@
           if (entry.examples && !linedUp) {
             Board.runExamples(entry.examples, self.later.bind(self));
           }
-          if (entry.legs) Board.runLegs(entry.legs, self.later.bind(self), next);
-          else next();
+          const legsOnLine = (entry.lineLights || []).some(function (L) {
+            return L && L.legs;
+          }) || (entry.wordCues || []).some(function (c) { return c && c.legs; });
+          if (entry.legs && !legsOnLine) {
+            Board.runLegs(entry.legs, self.later.bind(self), next);
+          } else next();
         };
         /* A screen that keeps what it inherited does not replot the
            segment — only whatever is new gets drawn.
@@ -6791,6 +6851,12 @@
           if (c.example != null && (entry.examples || [])[c.example]) {
             Board.runExamples([entry.examples[c.example]],
                               self.later.bind(self), null, c.example);
+          }
+          /* Or the screen's own sides — which is how a third point
+             arrives ON the word that goes looking for it, rather than
+             after the sentence containing it has finished. */
+          if (c.legs && (entry.legs || []).length) {
+            Board.runLegs(entry.legs, self.later.bind(self), function () {});
           }
         });
       };
@@ -7586,17 +7652,56 @@
         ms = Math.max(ms, (entry.examples.length - 1) * EX.stagger +
                           EX.resultMs + 300);
       }
-      if (L.points) ms = Math.max(ms, Board.pulsePoints(later, 0, [].concat(L.points), run));
+      /* And a line can draw the screen's own SIDES, which is how a
+         third point arrives because somebody said they would look for
+         one rather than because the screen opened. The board's plotting
+         step stands aside when a line has claimed them. */
+      if (L.legs && (entry.legs || []).length) {
+        Board.runLegs(entry.legs, later, function () {});
+        ms = Math.max(ms, entry.legs.length * 1640);
+      }
+      /* `delay` holds the dots back — a corner cannot be lit before the
+         line that puts it there has arrived — and `after` does the same
+         for a side, so one beat can light two points and then the line
+         between them without needing two sentences to do it. */
+      if (L.points) {
+        ms = Math.max(ms, Board.pulsePoints(later, L.delay || 0,
+                                            [].concat(L.points), run));
+      }
       if (L.pulse) ms = Math.max(ms, Board.pulseSides(later, 0, [].concat(L.pulse), run));
       /* A pulse brings its own sound with it. When a line both pulses a
          side and holds it forward, the two land in the same tick, and
          two bells on one beat read as a stumble rather than emphasis. */
       const rings = !L.pulse;
       if (L.spots) [].concat(L.spots).forEach(function (k, m) {
-        const at = m * (L.step || 900);
+        const at = (L.after || 0) + m * (L.step || 900);
         later(function () { Board.spotlightPart(k); if (rings) SFX.tick(m); }, at);
         ms = Math.max(ms, at + (L.step || 900));
       });
+      /* Or a line that puts the board BACK — nothing singled out, so
+         nothing stepped back either, and the whole drawing reads at
+         once. `spotlightPart` hushes only when it is given a side to
+         light, so handing it nothing is the way to say "all of it".
+
+         This is not the same as lighting the third side: lighting AB
+         would push the two legs the child just measured into the
+         hush, and the point of that beat is the shape they add up to. */
+      if (L.clear) {
+        const at = L.after || 0;
+        later(function () {
+          /* And whatever the pair needed to be on the board, it has.
+             This beat is the one that inherits the most — two measured
+             legs and a pair drawn four screens ago — so it asserts
+             rather than hopes. */
+          Board.settlePair();
+          Board.spotlightPart(null);
+        }, at);
+        ms = Math.max(ms, at + 420);
+      }
+      /* A line that asks a question and then waits. Nothing on the
+         board moves; the beat simply stays open, because a question
+         answered in the same breath was not a question. */
+      if (L.hold) ms = Math.max(ms, L.hold);
       return ms;
     },
 
