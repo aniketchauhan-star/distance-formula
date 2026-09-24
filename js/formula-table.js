@@ -60,6 +60,41 @@ window.FormulaTable = (function () {
         rows = [];
         (formula || []).forEach(function (line, r) {
           const cells = [];
+          /* An INLINE row: one expression rather than terms in columns
+             — "d = √((x2 - x1)² + (y2 - y1)²)" has no terms that line up
+             from row to row, so everything after its equals sign sits in
+             one cell, written as it reads, with a slot wherever a piece
+             is carried in. The left-hand side and the equals sign keep
+             their columns, so the rows still hang from one = . */
+          if (line.inline) {
+            const lhs = mk('span', 'ft-cell ft-col0');
+            const eq = mk('span', 'ft-cell ft-col1 ft-is-op', '=');
+            const rhs = mk('span', 'ft-cell ft-col2 ft-inline');
+            [lhs, eq, rhs].forEach(function (c) { c.style.gridRow = String(r + 1); });
+            lhs.style.gridColumn = '1'; eq.style.gridColumn = '2'; rhs.style.gridColumn = '3 / -1';
+            let side = lhs, seenEq = false;
+            (line.parts || []).forEach(function (p, k) {
+              const t = p.t || '';
+              if (!seenEq && t.trim() === '=') { seenEq = true; side = rhs; cells[k] = { kind: 'op', el: eq }; return; }
+              const colour = p.lit ? colours[p.lit] : null;
+              if (p.from) {
+                const slot = mk('span', 'ft-slot');
+                const fill = mk('span', 'ft-fill', t.trim());
+                if (colour) fill.style.color = colour;
+                slot.appendChild(fill);
+                side.appendChild(slot);
+                cells[k] = { kind: 'slot', el: slot, fill: fill };
+              } else {
+                const sp = mk('span', 'ft-text', t);
+                if (colour) sp.style.color = colour;
+                side.appendChild(sp);
+                cells[k] = { kind: 'text', el: sp };
+              }
+            });
+            [lhs, eq, rhs].forEach(function (c) { grid.appendChild(c); });
+            rows.push({ cells: cells, boxes: [lhs, eq, rhs] });
+            return;
+          }
           let col = 0, next = 0;
           (line.parts || []).forEach(function (p, k) {
             const t = p.t || '';
@@ -155,7 +190,9 @@ window.FormulaTable = (function () {
       /* A row's skeleton: its signs, its brackets and its empty slots. */
       showRow: function (r) {
         const row = rows[r];
-        if (row) row.cells.forEach(function (c) {
+        if (!row) return;
+        (row.boxes || []).forEach(function (b) { b.classList.add('in'); });
+        row.cells.forEach(function (c) {
           if (c && c.kind !== 'write') c.el.classList.add('in');
         });
       },
@@ -178,7 +215,9 @@ window.FormulaTable = (function () {
       /* A row written in whole — the theorem, which is given. */
       writeRow: function (r) {
         const row = rows[r];
-        if (row) row.cells.forEach(function (c) { if (c) c.el.classList.add('in', 'landed'); });
+        if (!row) return;
+        (row.boxes || []).forEach(function (b) { b.classList.add('in'); });
+        row.cells.forEach(function (c) { if (c) c.el.classList.add('in', 'landed'); });
       },
 
       /* Every blank the child fills, in reading order, as [row, part]. */

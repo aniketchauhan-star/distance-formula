@@ -1664,10 +1664,40 @@ window.CFG = (function () {
        another when a third has joined them and the sides need naming;
        with only two on the board there is nothing to tell apart, and
        the coordinates already say which is which. */
+    /* x1 and x2 are pieces of their own now, beside the 0s, so the
+       formula table can make a copy of each and carry it across. */
     a: { x: -4, y: 0,
-         coordParts: [{ t: '(x1, ' }, { t: '0', glow: 'y' }, { t: ')' }] },
+         coordParts: [{ t: '(' }, { t: 'x1', glow: 'x' }, { t: ', ' },
+                      { t: '0', glow: 'y' }, { t: ')' }] },
     b: { x:  4, y: 0,
-         coordParts: [{ t: '(x2, ' }, { t: '0', glow: 'y' }, { t: ')' }] },
+         coordParts: [{ t: '(' }, { t: 'x2', glow: 'x' }, { t: ', ' },
+                      { t: '0', glow: 'y' }, { t: ')' }] },
+    /* The working as a table, the way 28's arrives (runAxisCase's
+       tableStep): the board moves here, into the middle, keeping the
+       study board's proportion so its cells stay square; the table
+       opens out of its right edge, empty; and every piece written on
+       the drawing is carried in from the labels. x pieces in the
+       horizontal's orange, y pieces in the vertical's green. The
+       formula's own shape — and the y2, y1 the labels do not show —
+       is each row's skeleton. */
+    tableBoard: { x: 480, y: 240, w: 700, h: 600 },
+    tableSize: 36,
+    rows: [
+      { inline: true, parts: [
+          { t: 'd' }, { t: ' = ' }, { t: '√((' },
+          { t: 'x2', lit: 'h', from: { p: 'b', half: 'x' } }, { t: ' - ' },
+          { t: 'x1', lit: 'h', from: { p: 'a', half: 'x' } },
+          { t: ')² + (y2 - y1)²)' } ] },
+      { inline: true, parts: [
+          { t: '= ' }, { t: '√((x2 - x1)² + (' },
+          { t: '0', lit: 'v', from: { p: 'b', half: 'y' } }, { t: ' - ' },
+          { t: '0', lit: 'v', from: { p: 'a', half: 'y' } }, { t: ')²)' } ] },
+      { inline: true, parts: [ { t: '= ' }, { t: '√((x2 - x1)²)' } ] },
+      { inline: true, parts: [
+          { t: 'd' }, { t: ' = ' }, { t: '|' },
+          { t: 'x2', lit: 'h', from: { p: 'b', half: 'x' } }, { t: ' - ' },
+          { t: 'x1', lit: 'h', from: { p: 'a', half: 'x' } }, { t: '|' } ] }
+    ],
     coordDy: -88,
     nameDy: -40,
     resultDy: 82,          // the answer goes below, clear of the numbering
@@ -1697,9 +1727,30 @@ window.CFG = (function () {
     formula: XAXIS.formula,
 
     a: { x: 0, y: -4,
-         coordParts: [{ t: '(' }, { t: '0', glow: 'x' }, { t: ', y1)' }] },
+         coordParts: [{ t: '(' }, { t: '0', glow: 'x' }, { t: ', ' },
+                      { t: 'y1', glow: 'y' }, { t: ')' }] },
     b: { x: 0, y:  4,
-         coordParts: [{ t: '(' }, { t: '0', glow: 'x' }, { t: ', y2)' }] },
+         coordParts: [{ t: '(' }, { t: '0', glow: 'x' }, { t: ', ' },
+                      { t: 'y2', glow: 'y' }, { t: ')' }] },
+    /* The x-axis case's table with the axes swapped: y pieces carried
+       from the labels, the 0s from their x halves. */
+    tableBoard: XAXIS.tableBoard,
+    tableSize: XAXIS.tableSize,
+    rows: [
+      { inline: true, parts: [
+          { t: 'd' }, { t: ' = ' }, { t: '√((x2 - x1)² + (' },
+          { t: 'y2', lit: 'v', from: { p: 'b', half: 'y' } }, { t: ' - ' },
+          { t: 'y1', lit: 'v', from: { p: 'a', half: 'y' } }, { t: ')²)' } ] },
+      { inline: true, parts: [
+          { t: '= ' }, { t: '√((' },
+          { t: '0', lit: 'h', from: { p: 'b', half: 'x' } }, { t: ' - ' },
+          { t: '0', lit: 'h', from: { p: 'a', half: 'x' } }, { t: ')² + (y2 - y1)²)' } ] },
+      { inline: true, parts: [ { t: '= ' }, { t: '√((y2 - y1)²)' } ] },
+      { inline: true, parts: [
+          { t: 'd' }, { t: ' = ' }, { t: '|' },
+          { t: 'y2', lit: 'v', from: { p: 'b', half: 'y' } }, { t: ' - ' },
+          { t: 'y1', lit: 'v', from: { p: 'a', half: 'y' } }, { t: '|' } ] }
+    ],
 
     /* This segment is centred on the origin too, so the answer moves
        off it — right of the axis and a little above the x numbering. */
