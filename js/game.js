@@ -6351,8 +6351,11 @@
         self.pulseTail = 0;
         self.pulseOff = 0;
         spotlight();
-        const bring = withControl && !keepsControl
-          ? function () { revealControl(entry); } : null;
+        /* A table question has no control to bring: the table comes
+           instead, once she has said her lines. */
+        const tableAsk = entry.task && entry.task.kind === 'table';
+        const bring = tableAsk ? function () { self.runTable(entry); }
+          : (withControl && !keepsControl ? function () { revealControl(entry); } : null);
         /* She asks, the shape lights, the light goes — and only then do
            the answers rise and she comes down on them. */
         const gated = (bring && self.pulseOff)
@@ -6796,7 +6799,12 @@
                about — the distance is — and a right-angled triangle
                already drawn round the line would be answering the
                question the working exists to answer. */
-            if (entry.legs && !entry.legsLater) {
+            /* Unless a line draws them — the corner arriving because she
+               has said what she is going to find, not with the screen. */
+            const legsOnLine = (entry.lineLights || []).some(function (L) {
+              return L && L.legs;
+            });
+            if (entry.legs && !entry.legsLater && !legsOnLine) {
               /* The side being asked about goes down dotted: the count
                  lays a solid stroke along it, and a solid guide under a
                  solid stroke reads as one thick line rather than as
@@ -7212,6 +7220,9 @@
              need AB" lights AB as she says it rather than after she has
              stopped. */
           if (c.spot) Board.spotlightPart(c.spot);
+          /* Or put up the right-angle marker, on the word that names the
+             shape it belongs to. */
+          if (c.mark) { Board.rightAngle(true); SFX.chime(); }
         });
       };
     },
@@ -8182,6 +8193,90 @@
           }, 300);
         });
       }, 700);
+    },
+
+    /* The table the CHILD fills (screen 29c). The same table as 28's —
+       she flies out, the board slides left, the table opens out of its
+       right edge — but this time nothing is carried in: the theorem is
+       written, and every blank after it is theirs. One at a time, in
+       reading order: tap it, two numbers drop down, pick one. Right
+       settles it and moves on; wrong gives the red glow and leaves only
+       the other number, so no blank can strand them. The triangle is
+       left exactly alone throughout. */
+    runTable: function (entry) {
+      const self = this, T = C.GRID.table;
+      if (!this.task || !Table) return;
+      const lines = entry.task.formula || [];
+      Bubble.close();
+      this.later(function () {
+        self.flyOut(function () {
+          if (Town) Town.hide();
+          Board.clearFound();
+          self.later(function () {
+            el.gridPanel.classList.add('sliding');
+            Board.place(T.board);
+            self.later(function () { el.gridPanel.classList.remove('sliding'); }, 700);
+            self.later(function () {
+              const B = T.board, left = B.x + B.w - T.tuck;
+              Table.build(lines);
+              Table.el.style.setProperty('--ft-size', T.size + 'px');
+              /* Higher than 28's, so there is room under it for her to
+                 come back to and her balloon above her. */
+              Table.place({ x: left, w: C.STAGE_W - T.margin - left, cy: T.pickCy });
+              Table.open();
+              SFX.sparkle();
+              self.later(function () {
+                Table.writeRow(0);                 // the theorem: given
+                SFX.draw();
+                const blanks = Table.blanks();
+                self.later(function () { self.nextBlank(lines, blanks, 0); }, T.rowMs + 300);
+              }, T.openMs);
+            }, 760);
+          }, 300);
+        });
+      }, 500);
+    },
+
+    /* One blank: its row comes up if it is not up yet, and it waits for
+       the child. The right number is the one written in the part. */
+    nextBlank: function (lines, blanks, n) {
+      const self = this, T = C.GRID.table, t = this.task;
+      if (!t) return;
+      if (n >= blanks.length) { this.tableDone(); return; }
+      const r = blanks[n][0], k = blanks[n][1];
+      if (n === 0 || blanks[n - 1][0] !== r) Table.writeRow(r);
+      const part = (lines[r].parts || [])[k] || {};
+      const m = String(part.t || '').match(/-?\d+(?:\.\d+)?/);
+      const answer = m ? parseFloat(m[0]) : NaN;
+      Table.activate(r, k, function (v, tile) {
+        if (t.done || self.task !== t) return;
+        if (+v === answer) {
+          Table.fill(r, k, v);
+          SFX.tick(3);
+          self.later(function () { self.nextBlank(lines, blanks, n + 1); }, T.restMs + 500);
+        } else {
+          t.wrong++;
+          SFX.wrong();
+          FX.missGlow();
+          Table.reject(tile);
+        }
+      });
+    },
+
+    /* The last blank is in: she comes back, under the table, and says
+       so — and the screen hands on as any answered question does. */
+    tableDone: function () {
+      const self = this, t = this.task;
+      if (!t) return;
+      t.done = true;
+      const g = standGeom(C.BOARD.tableStand, {});
+      this.geom = g;
+      this.raised = false;
+      standPose = !!g.stand;
+      applyGeom(g);
+      this.later(function () {
+        self.flyIn(function () { self.speak(t.spec.correctLine || 'That’s right!'); });
+      }, 400);
     },
 
     /* The camera, on a drawing this screen is ABOUT to make — after the

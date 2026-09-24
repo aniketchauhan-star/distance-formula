@@ -73,3 +73,115 @@
   .formula-table { transition: none; }
   .formula-table .ft-cell { transition: opacity .2s linear; transform: none; }
 }
+
+/* Once the drawer has opened its clip goes, so a scroller dropping from
+   the last row can hang below the table instead of being cut off. */
+.formula-table.open.settled { clip-path: none; }
+
+/* ---------------------------------------------------------------
+   The blanks a child fills (screen 29c). One is active at a time: it
+   breathes, carries a small chevron, and takes a tap; the rest wait.
+   --------------------------------------------------------------- */
+.formula-table .ft-pick {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.35em;
+  padding: 0 .12em;
+  height: 1.18em;
+  vertical-align: -.16em;
+  border: 3px dashed rgba(33, 50, 88, .28);
+  border-radius: .28em;
+  transition: border-color .3s ease, background-color .3s ease;
+}
+/* Held open at the width of its widest tile, so nothing in the row moves
+   when it fills; the number shows over the same spot. */
+.formula-table .ft-sizer,
+.formula-table .ft-num { grid-area: 1 / 1; }
+.formula-table .ft-sizer { visibility: hidden; }
+
+.formula-table .ft-pick.active {
+  pointer-events: auto;
+  cursor: pointer;
+  border-color: #E8A33C;
+  background-color: rgba(255, 214, 120, .18);
+  animation: ftBreathe 1.6s ease-in-out infinite;
+}
+.formula-table .ft-pick.active::after {             /* the chevron: tap me */
+  content: '';
+  position: absolute; left: 50%; top: calc(100% + .1em);
+  width: .34em; height: .34em;
+  border-right: 3px solid #E8A33C; border-bottom: 3px solid #E8A33C;
+  transform: translateX(-50%) rotate(45deg);
+}
+.formula-table .ft-pick.opened { animation: none; }
+.formula-table .ft-pick.opened::after { opacity: 0; }
+@keyframes ftBreathe {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(232, 163, 60, 0); }
+  50%      { box-shadow: 0 0 0 .14em rgba(232, 163, 60, .28); }
+}
+
+.formula-table .ft-pick.filled {
+  border-color: transparent;
+  background-color: transparent;
+}
+.formula-table .ft-pick.filled .ft-num { animation: ftSettle .42s cubic-bezier(.3, 1.5, .5, 1); }
+@keyframes ftSettle { from { transform: scale(1.35); } to { transform: none; } }
+
+/* The scroller: two of the number control's own tiles, stacked, dropping
+   out of the blank. */
+.formula-table .ft-drop {
+  position: absolute; left: 50%; top: calc(100% + .32em);
+  z-index: 3;
+  display: flex; flex-direction: column; align-items: center; gap: .14em;
+  pointer-events: auto;
+  transform-origin: top center;
+  transform: translateX(-50%) scaleY(.2) translateY(-.3em);
+  opacity: 0;
+  transition: transform .38s cubic-bezier(.3, 1.4, .5, 1), opacity .25s ease;
+}
+.formula-table .ft-drop.open { transform: translateX(-50%); opacity: 1; }
+.formula-table .ft-drop.fold {
+  transform: translateX(-50%) scaleY(.2) translateY(-.3em); opacity: 0;
+  transition: transform .3s ease-in, opacity .25s ease-in;
+}
+/* The reel's painted tile — region (184, 646, 215, 213) of the button
+   sheet — with its brown digits in Lilita One, so the child knows this
+   is the same kind of choosing as the control. The url is written here
+   rather than read through a custom property: a relative url() resolves
+   against the sheet that USES it. */
+.formula-table .ft-tile {
+  width: 1.7em; height: 1.7em;
+  display: grid; place-items: center;
+  border: 0; padding: 0; margin: 0;
+  font-family: 'Lilita One', 'Nunito', system-ui, sans-serif;
+  font-size: .82em; font-weight: 900; line-height: 1;
+  color: #5E5145;
+  background: url('../assets/buttons.png') no-repeat;
+  background-size: 825.12% 416.43%;
+  background-position: 11.802% 95.846%;
+  cursor: pointer;
+  transition: transform .15s ease, opacity .3s ease;
+}
+.formula-table .ft-tile:hover  { transform: scale(1.06); }
+.formula-table .ft-tile:active { transform: scale(.94); }
+.formula-table .ft-tile:focus-visible { outline: 3px solid #1F6FD0; outline-offset: 2px; }
+.formula-table .ft-tile.gone {
+  pointer-events: none;
+  animation: ftShake .38s ease;
+  opacity: .0;
+  transition: opacity .5s ease .3s;
+}
+@keyframes ftShake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-.14em); }
+  40% { transform: translateX(.14em); }
+  60% { transform: translateX(-.09em); }
+  80% { transform: translateX(.06em); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .formula-table .ft-pick.active { animation: none; }
+  .formula-table .ft-drop, .formula-table .ft-drop.fold { transition: opacity .2s linear; }
+  .formula-table .ft-tile.gone { animation: none; }
+}

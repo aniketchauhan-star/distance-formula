@@ -74,6 +74,31 @@ window.FormulaTable = (function () {
             if (isOp(t)) {
               kind = 'op';
               cell.textContent = t.trim();
+            } else if (p.offer) {
+              /* A blank the child fills: the number in the part is the
+                 right one, `offer` is the two tiles in the order they
+                 drop down. Whatever wraps the number — brackets and
+                 square, or " units" — is the shape it goes into, drawn
+                 with the skeleton. The box is held open at the width
+                 of the widest tile so nothing moves when it fills. */
+              kind = 'pick';
+              const m = t.match(/-?\d+(?:\.\d+)?/);
+              const at = m ? m.index : 0, num = m ? m[0] : '';
+              const pre = t.slice(0, at).trim(), post = t.slice(at + num.length).replace(/^\s+/, ' ');
+              if (pre) cell.appendChild(mk('span', 'ft-frame', pre));
+              const box = mk('span', 'ft-pick');
+              const wide = p.offer.map(String).reduce(function (a, b) { return b.length > a.length ? b : a; }, num);
+              box.appendChild(mk('span', 'ft-sizer', wide));
+              const shown = mk('span', 'ft-num');
+              if (colour) shown.style.color = colour;
+              box.appendChild(shown);
+              cell.appendChild(box);
+              if (post.trim()) cell.appendChild(mk('span', 'ft-frame', post));
+              cells[k] = { kind: kind, el: cell, box: box, num: shown,
+                           answer: parseFloat(num), offer: p.offer.slice() };
+              cell.classList.add('ft-pick-cell');
+              grid.appendChild(cell);
+              return;
             } else if (p.from) {
               /* Brackets and square with the skeleton; the name in a
                  slot that holds its width while it waits, so nothing
@@ -111,8 +136,14 @@ window.FormulaTable = (function () {
       /* Out of the board's edge, like a drawer. */
       open: function () {
         root.classList.remove('hidden');
+        root.classList.remove('settled');
         void root.offsetWidth;
         root.classList.add('open');
+        /* The drawer's clip is only for the opening; kept after it, a
+           scroller dropping from the last row would be cut off at the
+           table's edge. */
+        clearTimeout(root._settle);
+        root._settle = setTimeout(function () { root.classList.add('settled'); }, 760);
       },
 
       /* A row's skeleton: its signs, its brackets and its empty slots. */
@@ -138,6 +169,80 @@ window.FormulaTable = (function () {
         if (c.fill) c.fill.parentNode.classList.add('landed');
       },
 
+      /* A row written in whole — the theorem, which is given. */
+      writeRow: function (r) {
+        const row = rows[r];
+        if (row) row.cells.forEach(function (c) { if (c) c.el.classList.add('in', 'landed'); });
+      },
+
+      /* Every blank the child fills, in reading order, as [row, part]. */
+      blanks: function () {
+        const out = [];
+        rows.forEach(function (row, r) {
+          row.cells.forEach(function (c, k) { if (c && c.kind === 'pick') out.push([r, k]); });
+        });
+        return out;
+      },
+
+      /* The blank the child fills next. It breathes and carries a small
+         chevron; tapped, it drops a short scroller of two tiles, and a
+         tapped tile is handed to `onPick(value, tile)` — the game
+         decides whether it was right. Only this blank takes a tap. */
+      activate: function (r, k, onPick) {
+        const c = rows[r] && rows[r].cells[k];
+        if (!c || c.kind !== 'pick') return false;
+        c.el.classList.add('in');
+        c.box.classList.add('active');
+        const open = function () {
+          if (c.drop) return;
+          const drop = mk('span', 'ft-drop');
+          c.offer.forEach(function (v) {
+            const tile = mk('button', 'ft-tile', String(v));
+            tile.type = 'button';
+            tile.setAttribute('aria-label', String(v));
+            tile.addEventListener('click', function (e) {
+              e.stopPropagation();
+              if (tile.disabled) return;
+              onPick(v, tile);
+            });
+            drop.appendChild(tile);
+          });
+          c.box.appendChild(drop);
+          c.drop = drop;
+          void drop.offsetWidth;
+          drop.classList.add('open');
+          c.box.classList.add('opened');
+        };
+        c.box.onclick = function (e) { e.stopPropagation(); open(); };
+        c.open = open;
+        return true;
+      },
+
+      /* Right: the scroller folds back into the blank and the number
+         settles there, in its colour. */
+      fill: function (r, k, v) {
+        const c = rows[r] && rows[r].cells[k];
+        if (!c) return;
+        c.box.onclick = null;
+        c.box.classList.remove('active', 'opened');
+        if (c.drop) {
+          const d = c.drop;
+          c.drop = null;
+          d.classList.remove('open');
+          d.classList.add('fold');
+          setTimeout(function () { if (d.parentNode) d.parentNode.removeChild(d); }, 380);
+        }
+        c.num.textContent = String(v);
+        c.box.classList.add('filled');
+      },
+
+      /* Wrong: that tile shakes and goes; the other stays to be taken. */
+      reject: function (tile) {
+        if (!tile) return;
+        tile.disabled = true;
+        tile.classList.add('gone');
+      },
+
       /* Worked out, not read off: written where it stands. */
       write: function (r, k) {
         const c = rows[r] && rows[r].cells[k];
@@ -145,7 +250,8 @@ window.FormulaTable = (function () {
       },
 
       hide: function () {
-        root.classList.remove('open');
+        clearTimeout(root._settle);
+        root.classList.remove('open', 'settled');
         root.classList.add('hidden');
         grid.innerHTML = '';
         rows = [];
