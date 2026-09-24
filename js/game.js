@@ -243,6 +243,7 @@
   let Sel  = null;              // whichever of the two this screen wants
   let Slots = null;             // the substitution panel
   let Opts = null;              // the triangle-type answer panel
+  let Table = null;             // the formula table, out of the board's edge
   let Jump = null;              // the screen picker beside Next
   let Hints = null;             // the "Need a hint?" row inside it
   let Town = null;              // the closing beat's map, drawn over the board
@@ -549,6 +550,13 @@
       const FP = C.BOARD.slots || C.BOARD.options;
       Slots = window.FormulaSlots.mount(el.scene,
         { x: FP.pos.x, y: FP.pos.y, scale: FP.scale, hidden: true });
+    }
+    /* The formula table. Inserted just before the board so it sits
+       UNDER it, its left edge tucked behind the board's right one, and
+       coloured with the same three the working and the panel use. */
+    if (window.FormulaTable && !Table) {
+      Table = window.FormulaTable.mount(el.scene, { before: el.gridPanel });
+      Table.setColours({ h: C.GRID.leg.hColor, v: C.GRID.leg.vColor, ab: '#1F6FD0' });
     }
     if (window.TriangleOptions && !Opts) {
       const OP = C.BOARD.options;
@@ -5120,6 +5128,39 @@
        of every route through the script, and false the moment the
        picker drops a child in from somewhere else. Every screen that
        keeps asks this first. */
+    /* Where the number of a side's length actually sits: the digits of
+       "4 units", not the middle of the whole label, in stage pixels —
+       with its size and its slant, since a vertical side writes its
+       length turned on end. Read through the text's own screen
+       transform, so whatever rotation or camera the label is under,
+       the copy made from this starts exactly on top of the digit. */
+    digitSpot: function (i) {
+      const L = this.legSlots && this.legSlots[i];
+      const t = L && L.len;
+      if (!t || !(t.textContent || '').trim()) return null;
+      const num = (t.textContent || '').split('\u00A0')[0];
+      const m = t.getScreenCTM && t.getScreenCTM();
+      if (!m || !num) return null;
+      let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+      try {
+        for (let c = 0; c < num.length; c++) {
+          const b = t.getExtentOfChar(c);
+          x1 = Math.min(x1, b.x); y1 = Math.min(y1, b.y);
+          x2 = Math.max(x2, b.x + b.width); y2 = Math.max(y2, b.y + b.height);
+        }
+      } catch (e) { return null; }
+      const pt = el.gridAxes.createSVGPoint();
+      pt.x = (x1 + x2) / 2; pt.y = (y1 + y2) / 2;
+      const s = pt.matrixTransform(m);
+      const st = el.stage.getBoundingClientRect();
+      const k = st.width / C.STAGE_W || 1;
+      const fs = parseFloat(getComputedStyle(t).fontSize) || C.GRID.leg.lenSize;
+      return { x: (s.x - st.x) / k, y: (s.y - st.y) / k,
+               size: fs * Math.hypot(m.a, m.b) / k,
+               rot: Math.atan2(m.b, m.a) * 180 / Math.PI,
+               text: num, color: t.getAttribute('fill') };
+    },
+
     /* Screen pixels per board unit. The camera zooms by moving the
        viewBox, so this is one number for the whole board — and it is
        what a line drawn with `vector-effect: non-scaling-stroke` is
@@ -6841,6 +6882,7 @@
       /* And a working written on the paper goes with the screen that
          wrote it, however the next one is arrived at. */
       Board.clearWorkLines();
+      if (Table) Table.hide();
 
       /* The picker is told where the game went, however it got there —
          her own hand-over, Back, Next, or a jump from the picker
@@ -8128,6 +8170,105 @@
       }, 700);
     },
 
+    /* The working as a TABLE, for a screen whose triangle is to be
+       left exactly as the child built it.
+
+       She goes, as she does before any working. Then the board slides
+       to the left — not to the middle — and the table opens out of its
+       right edge like a drawer, so the paper reads as extended to the
+       right. Then one thing at a time: a row's skeleton comes in, each
+       name and number in it is lifted off the triangle as a copy and
+       carried slowly to its slot, and what was worked out is written in
+       place. Nothing on the triangle is lit, stepped back or moved, and
+       the answer stays in the table rather than flying home onto AB. */
+    workAsTable: function (t, then) {
+      const self = this, G = C.GRID, T = G.table;
+      const lines = t.spec.formula || [];
+      this.writing = true;                   // the screen is the working's now
+      Bubble.close();
+      if (Sel) Sel.lock();
+      if (Opts) Opts.lock();
+
+      this.later(function () {
+        self.flyOut(function () {
+          if (Opts) Opts.hide();
+          if (Sel) Sel.hide();
+          if (Town) Town.hide();
+          Board.clearFound();
+          /* 1 — the board to the left. */
+          self.later(function () {
+            el.gridPanel.classList.add('sliding');
+            Board.place(T.board);
+            self.later(function () { el.gridPanel.classList.remove('sliding'); }, 700);
+            /* 2 — the table out of its right edge. */
+            self.later(function () {
+              const B = T.board, left = B.x + B.w - T.tuck;
+              Table.build(lines);
+              Table.el.style.setProperty('--ft-size', T.size + 'px');
+              Table.place({ x: left, w: C.STAGE_W - T.margin - left, cy: B.y + B.h / 2 });
+              Table.open();
+              SFX.sparkle();
+              /* 3 — then the rows, one thing at a time. */
+              self.later(function () { self.fillTable(lines, then); }, T.openMs);
+            }, 760);
+          }, 300);
+        });
+      }, 700);
+    },
+
+    /* The table's rows, in order: each row's skeleton, then each of its
+       terms — a copy carried in from the triangle where the term was
+       read off it, written in place where it was worked out. Strictly
+       one after another; nothing overlaps. */
+    fillTable: function (lines, then) {
+      const self = this, T = C.GRID.table, FT = window.FormulaTable;
+      const colourOf = function (p) {
+        return p.lit === 'h' ? C.GRID.leg.hColor
+             : p.lit === 'v' ? C.GRID.leg.vColor : '#1F6FD0';
+      };
+      let at = 0;
+      lines.forEach(function (l, r) {
+        self.later(function () { Table.showRow(r); SFX.draw(); }, at);
+        at += T.rowMs;
+        (l.parts || []).forEach(function (p, k) {
+          if (FT.isOp(p.t)) return;                  // part of the skeleton
+          if (p.from) {
+            self.later(function () { self.liftInto(r, k, p, colourOf(p)); }, at);
+            at += T.appearMs + T.pulseMs + T.travelMs + T.restMs;
+          } else {
+            self.later(function () { Table.write(r, k); SFX.tick(2); }, at);
+            at += T.writeMs;
+          }
+        });
+      });
+      self.later(function () {
+        self.writing = false;                // written; it can be handed on
+        if (then) then();
+      }, at + C.AUTO.afterWorking);
+    },
+
+    /* One term, carried in. Its source is the thing on the triangle it
+       stands for: the digits of a side's length where they are written,
+       or the middle of a side for that side's name. With no source on
+       the board it simply lands — the table is never left with a gap. */
+    liftInto: function (r, k, p, colour) {
+      const T = C.GRID.table, node = Table.target(r, k);
+      const src = (p.from.leg != null) ? Board.digitSpot(p.from.leg)
+                                       : this.sourceSpot(p.from);
+      if (!src || !node) { Table.land(r, k); return; }
+      const text = src.text || window.FormulaTable.split(p.t).inner.trim();
+      const st = el.stage.getBoundingClientRect(), sk = st.width / C.STAGE_W || 1;
+      const b = node.getBoundingClientRect();
+      const to = { x: (b.x + b.width / 2 - st.x) / sk,
+                   y: (b.y + b.height / 2 - st.y) / sk,
+                   size: parseFloat(getComputedStyle(node).fontSize) || T.size };
+      SFX.tick(2);
+      FX.liftAndFly(text, { x: src.x, y: src.y, size: src.size, rot: src.rot || 0 }, to, {
+        color: colour, appearMs: T.appearMs, pulseMs: T.pulseMs,
+        travelMs: T.travelMs, lift: T.lift
+      }, function () { Table.land(r, k); SFX.blip(); });
+    },
+
     /* The answer leaving the working for the line it measures — the
        board's own version, a short move on the same paper. */
     flyAnswerHomeFromBoard: function (t, lines) {
@@ -8146,6 +8287,12 @@
     workThrough: function (t, then) {
       const self = this, W = C.BOARD.working;
       if (!Opts || !t.spec.formula) { if (then) then(); return; }
+      /* Or as a table grown out of the board's edge, with every number
+         in it lifted off the triangle — which is left exactly alone. */
+      if (t.spec.table && Table) {
+        this.workAsTable(t, then);
+        return;
+      }
       /* A screen can ask for its working on the paper instead. */
       if ((C.SCRIPT[this.index] || {}).stage === 'working') {
         this.workOnBoard(t, then);

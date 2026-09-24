@@ -1053,6 +1053,27 @@ window.CFG = (function () {
       ms: 980            // and travels
     },
 
+    /* The formula table (screen 28): the board slides left and the table
+       opens out of its right edge; every name and number in it is a copy
+       lifted off the triangle. Slow on purpose — about three seconds a
+       symbol — so a child can follow each one from where it was to
+       where it goes. Only that screen uses these; `fly` above is
+       untouched for every other working. */
+    table: {
+      board:    { x: 44, y: 12, w: 1232, h: 1056 },   // where the board slides to
+      tuck:     60,       // how far the table's edge sits behind the board's
+      margin:   44,       // from the table's right edge to the frame's
+      size:     40,       // its type, in stage pixels
+      openMs:   900,      // the drawer opening, and a breath after
+      rowMs:    450,      // a row's skeleton coming in
+      appearMs: 200,      // a copy appears on its original
+      pulseMs:  1000,     // lifts above it and swells twice
+      travelMs: 1400,     // travels to its slot
+      restMs:   300,      // lands; a breath before the next
+      writeMs:  600,      // a worked-out value written in place
+      lift:     0.6       // how far above the original, in its own heights
+    },
+
     zoom: {
       ms: 900,           // one push, about a second
       delayMs: 260,      // after the beat opens, so it comes with her line
@@ -2334,10 +2355,6 @@ window.CFG = (function () {
          next, which reads as the board flinching between two
          sentences about the same picture. */
       view: 'triangle',
-      /* The working goes on the paper, not in a panel beside it: the
-         board comes to the middle, pushes in on the drawing and the
-         room the working needs, and writes it there. */
-      stage: 'working',
       /* The need, then the reason, then the theorem.
 
          What we have — the two sides the child measured, lit together
@@ -2379,6 +2396,11 @@ window.CFG = (function () {
          through the working too, which lights each side as it writes. */
       rightAngle: true, keepMark: true,
       derive: {
+        /* As a table out of the board's edge, not writing on the paper:
+           the board slides left, the table opens to its right, and each
+           name and number is lifted off the triangle as a copy — which
+           is left exactly as the child built it. See workAsTable. */
+        table: true,
         /* The working, tagged to the board. Every part that names a
            length carries the side it belongs to — 'h' the horizontal,
            'v' the vertical, 'ab' the line between the two points — and
@@ -2408,8 +2430,13 @@ window.CFG = (function () {
               { t: '= ' }, { t: '16', lit: 'h' }, { t: ' + ' }, { t: '9', lit: 'v' } ] },
           { kind: 'step', parts: [
               { t: '= ' }, { t: '25', lit: 'ab' } ] },
+          /* AB off its side like the first line's, so the answer's
+             name is carried in too; the answer itself is worked out,
+             so it is written — and it stays in the table: nothing is
+             added to the triangle, so it does not fly home onto AB. */
           { kind: 'result', parts: [
-              { t: 'AB = ' }, { t: '5\u00A0units', lit: 'ab', home: true } ] }
+              { t: 'AB', lit: 'ab', from: { side: 'ab' } }, { t: ' = ' },
+              { t: '5\u00A0units', lit: 'ab' } ] }
         ]
       } },
 

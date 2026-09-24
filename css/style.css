@@ -1638,6 +1638,10 @@ html, body {
    copy — the label it came from never moves — so it carries the same
    face and the same paper halo, and lands at the size the working is
    set in rather than the size it left at. */
+/* A copy lifted off the triangle for the formula table: the weight of
+   the table it is going to. */
+.fx-glyph.fx-copy { font-weight: 700; }
+
 .fx-glyph {
   font-family: 'Nunito', system-ui, sans-serif;
   font-weight: 600;
