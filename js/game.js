@@ -4191,8 +4191,23 @@
            way the count runs. The square says there is a space here;
            the arrow says this is the move across it. */
         const A = UC.arrow;
-        nx = L + W / 2;
-        ny = A ? (T + H * A.numY) : (T + H / 2);
+        /* The arrow beside the line it is counting along, and its
+           number on the far side of it: line, mark, label, in that
+           order outward. A horizontal count's squares hang below or
+           above the line, so that order runs down or up; a vertical
+           count's stand to its left or right, so it runs across — the
+           same rule turned on its side, rather than a mark and a
+           number stacked in the middle of a square one column wide.
+           Which way is worked out from where the line actually is, so
+           a pair below the axis puts its arrows against its line as
+           well as a pair above it does. */
+        const lineAt = row ? py(from.y) : px(from.x);
+        const lo = row ? T : L, span = row ? H : W;
+        const into = (lo + span / 2) >= lineAt ? 1 : -1;
+        const across = function (frac) { return lineAt + into * span * frac; };
+        const mid = row ? L + W / 2 : T + H / 2;     // the square's middle, along the count
+        if (A) { nx = row ? mid : across(A.far); ny = row ? across(A.far) : mid; }
+        else { nx = L + W / 2; ny = T + H / 2; }
         c.num.setAttribute('x', nx); c.num.setAttribute('y', ny);
         c.num.textContent = String(i + 1);
 
@@ -4201,8 +4216,13 @@
              up the column when the count climbs, because the board's y
              grows upward and the screen's grows down. */
           const dx = row ? step : 0, dy = row ? 0 : -step;
-          const half = Math.min(W, H) * A.len / 2;
-          const ax = L + W / 2, ay = T + H * A.y;
+          /* Edge to edge: the arrow spans the whole square, less its
+             own stroke, so the round caps land exactly on the grid
+             lines and the marks in neighbouring squares meet tip to
+             tip — a chain of units, the way a run of dimensions is
+             drawn. */
+          const half = (Math.min(W, H) * A.len - A.w) / 2;
+          const ax = row ? mid : across(A.near), ay = row ? across(A.near) : mid;
           const tipX = ax + dx * half, tipY = ay + dy * half;
           const tailX = ax - dx * half, tailY = ay - dy * half;
           /* The barbs: back along the shaft and out to either side —

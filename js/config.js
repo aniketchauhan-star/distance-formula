@@ -1159,7 +1159,7 @@ window.CFG = (function () {
            finishes now, so there is nothing left for a second pass
            to say. */
         passes: 1,
-        numSize: 26,
+        numSize: 20,
         /* An arrow in each square, pointing the way the count is
            running, with its number under it.
 
@@ -1176,13 +1176,14 @@ window.CFG = (function () {
            own, so the pair sits the same way in a tall cell as in a
            squat one. */
         arrow: {
-          len:  0.46,        // tip to tail, across the smaller side
-          head: 0.32,        // the barbs, as a share of that length
-          w:    4,           // its line weight
-          y:    0.28,        // where it sits down the square — up
-                             // off the number, so the two read as a
-                             // mark and its label rather than a stack
-          numY: 0.71         // and where the number sits under it
+          len:  1,           // tip to tail: the whole square, edge to edge
+          head: 0.11,        // small barbs — the line is the mark, not the heads
+          w:    2.5,         // a fine line, not a bold one
+          near: 0.28,        // how far the arrow sits from the line,
+                             // as a share of the square across it
+          far:  0.71         // and its number, further out — so they
+                             // read as a mark and its label, outward
+                             // from the line, whichever way it runs
         }
       },
       labelDy: -28,          // horizontal: just above the line
