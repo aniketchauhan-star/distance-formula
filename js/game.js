@@ -1840,10 +1840,21 @@
            the shape. Winding a line that is already ON the board back to
            nothing, with no animation following to bring it out again,
            is how the hypotenuse went missing from a screen that had
-           merely moved its labels. Put it back where it was. */
-        const drawn = !!(this.segLine && this.segLine.classList.contains('draw'));
+           merely moved its labels. Put it back where it was.
+
+           Ask the LINE, not a class. `draw` is not on it by every route
+           into a screen — an inherited pair arrives without it — and a
+           test that reads the class quietly did nothing on exactly the
+           screens that needed it. A stroke whose dash offset is already
+           at nothing is a stroke somebody can see, whatever it is
+           wearing. Only a finished one is restored: a line caught
+           halfway through its own draw is left to finish. */
+        const L = this.segLine;
+        const len = (L && L.getTotalLength) ? L.getTotalLength() : 0;
+        const was = L ? parseFloat(getComputedStyle(L).strokeDashoffset) : NaN;
+        const drawn = len > 1 && was <= 1;
         this.placeSegment(this.lastPlotted);
-        if (drawn && this.segLine) this.segLine.style.strokeDashoffset = 0;
+        if (drawn) L.style.strokeDashoffset = 0;
       }
       (this.legPlaced || []).forEach(function (s, i) {
         if (s && self.legSlots && self.legSlots[i]) self.placeLeg(i, s);
@@ -5765,6 +5776,15 @@
          the push comes with her line rather than under the change, and
          queued through later() so a skip cancels it with everything
          else. */
+      /* Unless the screen pushes its own camera. A board that builds
+         itself from nothing wants the three in order — the paper
+         arrives, the camera comes in, and only THEN do the points land
+         in a frame that has already settled — and the queued push
+         below cannot do that: it fires on a fixed delay, 260ms in,
+         while the paper is still being drawn, and frames whatever
+         happens to be on it. Claiming the name here, synchronously, is
+         what makes the push below stand aside for it. */
+      if (next.rebuild) Board.viewName = next.view || null;
       this.later(function () {
         /* "The view it already has" is compared by NAME, not by the
            rect the name works out to. The rect is derived from what is
@@ -6542,6 +6562,45 @@
         }, 240);
       };
 
+      /* The board's own arrival, in the order a child reads it: built
+         in the middle of an empty frame, moved aside to make room for
+         her, the camera brought in on where the drawing is going to
+         be, and only then the points — with her arriving last, to talk
+         about something that is already there.
+
+         It lives here because BOTH ways into a screen need it. A leaf
+         sweep hands straight to `plotThen` and returns before the grid
+         branch below is ever reached, so a screen behind leaves used
+         to inherit the last screen's board and skip its own arrival
+         entirely — which is how the one screen that asks for a build
+         got none. */
+      const buildThenPlot = function () {
+        /* She is coming, so the board starts in the middle and only
+           moves aside once she is on her way — until then there is
+           nobody to share the frame with. */
+        const slides = entry.entrance === 'fly';
+        if (slides) Board.place(C.GRID.centre);
+        Board.run(self.later.bind(self), function () {
+          Board.setDots(!!entry.dots);
+          if (slides) {
+            el.gridPanel.classList.add('sliding');
+            Board.place(C.GRID.box);
+            self.later(function () {
+              el.gridPanel.classList.remove('sliding');
+            }, 700);
+          }
+          /* The camera before the points, not under them. The pair is
+             PLACED and not drawn: `viewFor` reads where the drawing
+             is, not what can be seen of it, so the push knows where
+             the triangle will be while the board is still empty. */
+          if (entry.view) {
+            if (entry.segment) Board.placeSegment(entry.segment);
+            Board.viewTo(Board.viewFor(entry.view), C.GRID.zoom.ms);
+            self.later(function () { plotThen(arrive); }, C.GRID.zoom.ms + 140);
+          } else plotThen(arrive);
+        });
+      };
+
       /* And a working written on the paper goes with the screen that
          wrote it, however the next one is arrived at. */
       Board.clearWorkLines();
@@ -6565,6 +6624,7 @@
         FX.leaves(el.leafLayer, dress, function () {
           if (AX) runAxisCase(AX);
           else if (entry.intro === 'measure') runMeasure();
+          else if (entry.rebuild) buildThenPlot();
           else plotThen(arrive);
         });
         return;
@@ -6603,25 +6663,8 @@
          carries straight on from 5 instead of rebuilding it. */
       /* Plot the segment before asking about it, on any screen that
          has one. */
-      if (entry.layout === 'grid' && !Board.shown) {
-        /* A screen that brings her in builds the board centred first
-           and only moves it aside once she is on her way — until then
-           there is nobody to share the frame with, so the board has no
-           reason to sit off to one side. Screens where she is already
-           standing inherit the board where it is and skip all this. */
-        const slides = entry.entrance === 'fly';
-        if (slides) Board.place(C.GRID.centre);
-        Board.run(this.later.bind(this), function () {
-          Board.setDots(!!entry.dots);
-          if (slides) {
-            el.gridPanel.classList.add('sliding');
-            Board.place(C.GRID.box);
-            self.later(function () {
-              el.gridPanel.classList.remove('sliding');
-            }, 700);
-          }
-          plotThen(arrive);
-        });
+      if (entry.layout === 'grid' && (entry.rebuild || !Board.shown)) {
+        buildThenPlot();
       } else {
         Board.setDots(!!entry.dots);
         plotThen(arrive);
@@ -6858,6 +6901,20 @@
           if (c.legs && (entry.legs || []).length) {
             Board.runLegs(entry.legs, self.later.bind(self), function () {});
           }
+          /* Or the whole shape, on the word that names it.
+
+             Lights hang off the END of a line, which is right for a
+             beat that asks for something and wrong for the one beat
+             that IS the result: measured, she said "Look! We made a
+             triangle" and then stood in front of two sides of one for
+             another 2.25 seconds. The third arrives on the word now.
+
+             The line's own `clear` stays as it was. Both of these are
+             idempotent, so the one that gets there first does the work
+             and the other finds it already done — which is what keeps
+             the beat right when it is jumped into rather than played
+             up to, and the balloon never types at all. */
+          if (c.settle) { Board.settlePair(); Board.spotlightPart(null); }
         });
       };
     },

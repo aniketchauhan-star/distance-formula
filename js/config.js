@@ -2074,6 +2074,13 @@ window.CFG = (function () {
       wordCues: [ { word: 'explore', legs: true } ],
       entrance: 'fly',
       layout: 'grid', transition: 'leaves',
+      /* The same push its neighbours use, so the whole stretch is read
+         at one scale — and taken in order rather than on a timer:
+         the paper builds in the middle of an empty frame, moves aside,
+         the camera comes in on where the pair is going to be, the two
+         points land, and only then does she fly in to talk about them.
+         See the grid branch of `dress` and the guard in `goTo`. */
+      rebuild: true, view: 'triangle',
       /* Named here rather than three screens on. They are called A and B
          from the moment the question about them is asked, and a pair
          that gains its letters later reads as two different pairs — the
@@ -2224,6 +2231,13 @@ window.CFG = (function () {
          left it in, the legs stay exactly where they were, and the
          whole triangle reads at once. */
       lineLights: [ { clear: true } ],
+      /* On the word, not after the sentence. `lineLights` fires when a
+         line finishes, and measured that left the hypotenuse wound
+         back to nothing until 3.5s into a beat whose words land at
+         1.25s — so for over two seconds she was naming a triangle
+         with two sides on the board. The shape closes as she says
+         what it is. */
+      wordCues: [ { word: 'triangle', settle: true } ],
       segment: { a: { x: 2, y: 1, name: 'A' },
                  b: { x: 6, y: 4, name: 'B' } },
       legs: [
