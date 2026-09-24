@@ -2320,6 +2320,13 @@ window.CFG = (function () {
        theorem, which is the honest thing to do with a theorem they
        have not met, and the derivation follows on its own. */
     { id: 28,
+      /* The same drawing as the four beats before it — this screen
+         keeps their triangle rather than making one — so it keeps
+         their camera too. Without a view named here the push pulls
+         all the way back out for one beat and goes in again on the
+         next, which reads as the board flinching between two
+         sentences about the same picture. */
+      view: 'triangle',
       /* The working goes on the paper, not in a panel beside it: the
          board comes to the middle, pushes in on the drawing and the
          room the working needs, and writes it there. */
@@ -2390,6 +2397,14 @@ window.CFG = (function () {
        answer comes out whole — 3-4-5 first, then the same shape
        doubled to 6-8-10. */
     { id: 29,
+      /* Pushed in, with room kept for the writing. `working` is the
+         view built for this and nothing had ever asked for it: it
+         frames the drawing and then as much again out to the side the
+         drawing is NOT on, so the paper in shot is triangle in one
+         half and clear board in the other for the working to be set
+         down in. 'triangle' would be wrong here — it frames the
+         drawing alone and the working would have nowhere to go. */
+      view: 'working',
       /* The working goes on the paper, not in a panel beside it: the
          board comes to the middle, pushes in on the drawing and the
          room the working needs, and writes it there. */
@@ -2447,6 +2462,14 @@ window.CFG = (function () {
               ], } },
 
     { id: 30,
+      /* Pushed in, with room kept for the writing. `working` is the
+         view built for this and nothing had ever asked for it: it
+         frames the drawing and then as much again out to the side the
+         drawing is NOT on, so the paper in shot is triangle in one
+         half and clear board in the other for the working to be set
+         down in. 'triangle' would be wrong here — it frames the
+         drawing alone and the working would have nowhere to go. */
+      view: 'working',
       /* The working goes on the paper, not in a panel beside it: the
          board comes to the middle, pushes in on the drawing and the
          room the working needs, and writes it there. */
