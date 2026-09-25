@@ -3200,7 +3200,13 @@ window.CFG = (function () {
     /* The house to the park: four across, one up, and √17. */
     ...walk({
       ids: ['47e', '47f', '47g'],
-      a: { x: 1, y: 1 }, b: { x: -3, y: 2 }, c: { x: -3, y: 1 },
+      /* B's label to the right of the park's trees, above the dotted line
+         — anywhere the rule looked, the trees or a line was in the way,
+         and it ended up behind them. Named, it stays there. */
+      a: { x: 1, y: 1 }, b: { x: -3, y: 2, extra: { labelAt: { x: 1.04, y: 0.55 } } },
+      /* And C's under C, clear of the short side CB — so CB's "1 unit"
+         can sit beside its own line. */
+      c: { x: -3, y: 1 }, cAway: { x: 0, y: 1 },
       seg: { coordSide: 'under' },
       say: { first: 'Now, the house to the park.' },
       base: { textScale: 0.85, town: ['house', 'school', 'park'], townFocus: ['house', 'park'],
@@ -3213,7 +3219,7 @@ window.CFG = (function () {
     { id: 48, line: '√17 is less than √41 — so the park is closer.',
       entrance: 'fly', layout: 'board', transition: 'leaves',
       town: ['house', 'school', 'park'], textScale: 0.85,
-      segment: { a: { x: 1, y: 1 }, b: { x: -3, y: 2 },
+      segment: { a: { x: 1, y: 1 }, b: { x: -3, y: 2, labelAt: { x: 1.04, y: 0.55 } },
                  coordSide: 'under', result: { text: '√17 units' } },
       examples: [ { a: { x: 5, y: -4 }, b: { x: 1, y: 1, quiet: true },
                     coordSide: 'under', result: { text: '√41 units' } } ],

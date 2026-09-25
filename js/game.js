@@ -3054,11 +3054,23 @@
       if (mine && this.inked) {
         this.inked = this.inked.filter(function (o) { return o.owner !== mine; });
       }
-      const at = this.placeBlock(w, h, X, Y, gap,
-                   pin ? opt.away : (part.heldDir ? opt.away : (wasFound ?
-                     { x: 0, y: -wasFound[1] } : opt.away)),
-                   pin || part.heldDir || wasFound);
-      part.heldDir = at.dir;
+      /* Or a spot the screen names outright (`labelAt` on a point, in
+         squares from it): where a picture stands on the point and a line
+         leaves it, every side the rule can look at is blocked, and the
+         least bad of them was behind the park's trees. Named, it is used
+         as given, and it never moves. */
+      let at;
+      if (opt.fixed) {
+        const fx0 = X + opt.fixed.x, fy0 = Y + opt.fixed.y;
+        at = { x: fx0, y: fy0, dir: null,
+               box: { l: fx0 - w / 2, t: fy0 - h / 2, r: fx0 + w / 2, b: fy0 + h / 2 } };
+      } else {
+        at = this.placeBlock(w, h, X, Y, gap,
+               pin ? opt.away : (part.heldDir ? opt.away : (wasFound ?
+                 { x: 0, y: -wasFound[1] } : opt.away)),
+               pin || part.heldDir || wasFound);
+        part.heldDir = at.dir;
+      }
 
       /* And now measured to the INK.
 
@@ -4938,9 +4950,11 @@
            axis letters and would have written (0, 0) into the y. It can
            see them now, so the rule does it — and a screen that still
            reads better by hand is a fault in the rule to go and find. */
+        const la = p.labelAt;
         self.placePointLabel(part, p, X, Y,
                              { ctext: ctext, ntext: ntxt, away: away,
-                               at: p.x + ',' + p.y });
+                               at: p.x + ',' + p.y,
+                               fixed: la ? { x: la.x * G.stepX, y: -la.y * G.stepY } : null });
       });
     },
 
