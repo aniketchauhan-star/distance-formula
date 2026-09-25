@@ -2971,26 +2971,34 @@ window.CFG = (function () {
        every piece of it carried in off the triangle — AB, CB and AC off
        their sides, y₂ − y₁ and x₂ − x₁ off the lengths just written —
        ending on AB = √((y₂ − y₁)² + (x₂ − x₁)²). Nothing asked. */
-    { id: 35, shape: SHAPE_G, lines: [ 'Now, let’s find AB.' ], entrance: 'stay',
+    { id: 35, shape: SHAPE_G, line: 'Now, let’s find AB.', entrance: 'stay',
       layout: 'board', keepSegment: true,
       wordCues: [ { word: 'AB', spot: 'ab' } ],
       lineLights: [ { unspot: true, after: 500 } ],
-      derive: {
-        table: true, tableSize: 34, tableHigh: true,
+      /* The child's to fill, the way 29c's table is: she flies off, the
+         board makes room and the table opens out of its right edge — AB,
+         CB and AC carried in off the triangle — then each blank, tapped,
+         drops two tiles: the side's own difference, read off the labels
+         on the board, or the sum a child reaches for instead. Then the
+         root is written and she comes back under the table. */
+      task: {
+        kind: 'table',
+        correctLine: 'That’s right!',
+        tableSize: 36,
         formula: [
-          { inline: true, parts: [
-              { t: '(' }, { t: 'AB', lit: 'ab', from: { side: 'ab' } }, { t: ')\u00B2' },
-              { t: ' = ' },
-              { t: '(' }, { t: 'CB', lit: 'v', from: { side: 'v' } }, { t: ')\u00B2 + (' },
-              { t: 'AC', lit: 'h', from: { side: 'h' } }, { t: ')\u00B2' } ] },
-          { inline: true, parts: [
+          { kind: 'lead', parts: [
+              { t: '(AB)\u00B2', lit: 'ab', from: { side: 'ab' } }, { t: ' = ' },
+              { t: '(CB)\u00B2', lit: 'v',  from: { side: 'v'  } }, { t: ' + ' },
+              { t: '(AC)\u00B2', lit: 'h',  from: { side: 'h'  } } ] },
+          { kind: 'step', parts: [
               { t: '= ' },
-              { t: '(' }, { t: 'y₂ − y₁', lit: 'v', from: { leg: 1, whole: true } },
-              { t: ')\u00B2 + (' },
-              { t: 'x₂ − x₁', lit: 'h', from: { leg: 0, whole: true } }, { t: ')\u00B2' } ] },
-          { inline: true, parts: [
-              { t: 'AB', lit: 'ab', from: { side: 'ab' } }, { t: ' = ' },
-              { t: '\u221A((y₂ − y₁)\u00B2 + (x₂ − x₁)\u00B2)' } ] }
+              { t: '(y\u2082 \u2212 y\u2081)\u00B2', lit: 'v', answer: 'y\u2082 \u2212 y\u2081',
+                offer: [ 'y\u2081 + y\u2082', 'y\u2082 \u2212 y\u2081' ] }, { t: ' + ' },
+              { t: '(x\u2082 \u2212 x\u2081)\u00B2', lit: 'h', answer: 'x\u2082 \u2212 x\u2081',
+                offer: [ 'x\u2082 \u2212 x\u2081', 'x\u2081 + x\u2082' ] } ] },
+          { kind: 'result', inline: true, parts: [
+              { t: 'AB', lit: 'ab' }, { t: ' = ' },
+              { t: '\u221A((y\u2082 \u2212 y\u2081)\u00B2 + (x\u2082 \u2212 x\u2081)\u00B2)', lit: 'ab' } ] }
         ] },
       segment: {
         a: { x: -5, y: 1, name: 'A', coordParts: [ { t: '(' }, { t: 'x₁', glow: 'x' }, { t: ',\u00A0' },
@@ -3011,7 +3019,7 @@ window.CFG = (function () {
        37 — what that formula is: no leaf sweep, the table stays where 35
        wrote it, and she flies back under it to say so. */
     { id: 37, shape: SHAPE_G, line: 'And that gives us the distance between any two points!',
-      entrance: 'fly', layout: 'board', keepSegment: true, keepTable: true },
+      entrance: 'stay', layout: 'board', keepSegment: true, keepTable: true },
 
 
     /* Back to the field, behind the leaves: the scene changes here now
