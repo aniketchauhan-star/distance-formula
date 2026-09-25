@@ -1949,6 +1949,18 @@ window.CFG = (function () {
                     { from: { x: 2, y: 2 }, to: { x: 2, y: 5 } } ];     // 29–29c
   const SHAPE_G = [ { from: { x: -5, y: 1 }, to: { x: 5, y: 1 } },
                     { from: { x: 5, y: 1 }, to: { x: 5, y: 4 } } ];     // 31–37
+  /* Where the park's coordinates are written: right of its trees and a
+     little up — the same spot whether the park is a point of the walk
+     (with its letter over it) or one of the other places. In squares
+     from the point. */
+  const PARK_LABEL = { x: 1.04, y: 0.376 };
+  /* And the house's, on the school-and-park screens (47 to 48): right of
+     the house, level with its point. Every line out of the house there
+     — to the school, down to the corner under it, left to the park's
+     corner, up to the park — leaves on another side, so nothing is ever
+     written across it and it never has to move. */
+  const HOUSE_LABEL = { x: 0.95, y: 0.12 };
+
   function walk(w) {
     const pt = function (p, name) {
       return Object.assign({ x: p.x, y: p.y, name: name }, p.extra || {});
@@ -2971,26 +2983,34 @@ window.CFG = (function () {
        every piece of it carried in off the triangle — AB, CB and AC off
        their sides, y₂ − y₁ and x₂ − x₁ off the lengths just written —
        ending on AB = √((y₂ − y₁)² + (x₂ − x₁)²). Nothing asked. */
-    { id: 35, shape: SHAPE_G, lines: [ 'Now, let’s find AB.' ], entrance: 'stay',
+    { id: 35, shape: SHAPE_G, line: 'Now, let’s find AB.', entrance: 'stay',
       layout: 'board', keepSegment: true,
       wordCues: [ { word: 'AB', spot: 'ab' } ],
       lineLights: [ { unspot: true, after: 500 } ],
-      derive: {
-        table: true, tableSize: 34, tableHigh: true,
+      /* The child's to fill, the way 29c's table is: she flies off, the
+         board makes room and the table opens out of its right edge — AB,
+         CB and AC carried in off the triangle — then each blank, tapped,
+         drops two tiles: the side's own difference, read off the labels
+         on the board, or the sum a child reaches for instead. Then the
+         root is written and she comes back under the table. */
+      task: {
+        kind: 'table',
+        correctLine: 'That’s right!',
+        tableSize: 36,
         formula: [
-          { inline: true, parts: [
-              { t: '(' }, { t: 'AB', lit: 'ab', from: { side: 'ab' } }, { t: ')\u00B2' },
-              { t: ' = ' },
-              { t: '(' }, { t: 'CB', lit: 'v', from: { side: 'v' } }, { t: ')\u00B2 + (' },
-              { t: 'AC', lit: 'h', from: { side: 'h' } }, { t: ')\u00B2' } ] },
-          { inline: true, parts: [
+          { kind: 'lead', parts: [
+              { t: '(AB)\u00B2', lit: 'ab', from: { side: 'ab' } }, { t: ' = ' },
+              { t: '(CB)\u00B2', lit: 'v',  from: { side: 'v'  } }, { t: ' + ' },
+              { t: '(AC)\u00B2', lit: 'h',  from: { side: 'h'  } } ] },
+          { kind: 'step', parts: [
               { t: '= ' },
-              { t: '(' }, { t: 'y₂ − y₁', lit: 'v', from: { leg: 1, whole: true } },
-              { t: ')\u00B2 + (' },
-              { t: 'x₂ − x₁', lit: 'h', from: { leg: 0, whole: true } }, { t: ')\u00B2' } ] },
-          { inline: true, parts: [
-              { t: 'AB', lit: 'ab', from: { side: 'ab' } }, { t: ' = ' },
-              { t: '\u221A((y₂ − y₁)\u00B2 + (x₂ − x₁)\u00B2)' } ] }
+              { t: '(y\u2082 \u2212 y\u2081)\u00B2', lit: 'v', answer: 'y\u2082 \u2212 y\u2081',
+                offer: [ 'y\u2081 + y\u2082', 'y\u2082 \u2212 y\u2081' ] }, { t: ' + ' },
+              { t: '(x\u2082 \u2212 x\u2081)\u00B2', lit: 'h', answer: 'x\u2082 \u2212 x\u2081',
+                offer: [ 'x\u2082 \u2212 x\u2081', 'x\u2081 + x\u2082' ] } ] },
+          { kind: 'result', inline: true, parts: [
+              { t: 'AB', lit: 'ab' }, { t: ' = ' },
+              { t: '\u221A((y\u2082 \u2212 y\u2081)\u00B2 + (x\u2082 \u2212 x\u2081)\u00B2)', lit: 'ab' } ] }
         ] },
       segment: {
         a: { x: -5, y: 1, name: 'A', coordParts: [ { t: '(' }, { t: 'x₁', glow: 'x' }, { t: ',\u00A0' },
@@ -3011,7 +3031,7 @@ window.CFG = (function () {
        37 — what that formula is: no leaf sweep, the table stays where 35
        wrote it, and she flies back under it to say so. */
     { id: 37, shape: SHAPE_G, line: 'And that gives us the distance between any two points!',
-      entrance: 'fly', layout: 'board', keepSegment: true, keepTable: true },
+      entrance: 'stay', layout: 'board', keepSegment: true, keepTable: true },
 
 
     /* Back to the field, behind the leaves: the scene changes here now
@@ -3129,19 +3149,30 @@ window.CFG = (function () {
       say: { first: 'Now, the house to Cafe B.' },
       base: { textScale: 0.85, town: ['house', 'cafeA', 'cafeB'], townFocus: ['house', 'cafeB'],
               mark: [ { x: 5, y: 4 } ], range: { min: 0, max: 8 } },
-      first: { transition: 'leaves', entrance: 'fly' }
+      /* No leaf sweep: it follows the last walk's table on the same
+         town, so she flies off from under it and back in (flyBack). */
+      first: { flyBack: true }
     }),
 
     /* The comparison, not the winner: both walks on the map with their
        lengths, and the smaller one named. */
-    { id: 46, line: '5 is less than √40 — so Cafe A is closer.',
-      entrance: 'fly', layout: 'board', transition: 'leaves',
+    { id: 46, line: '5 is less than \u221A40 \u2014 so Cafe A is closer.',
+      /* No leaf sweep: she flies off from under the second walk's table
+         (or from the answers, answered right on 42), the table folds away
+         and the board slides back, the walk's triangle fades — and the
+         pair already on the board STAYS: the two places, their points and
+         their coordinates, exactly where they were. Its line is drawn
+         solid with its length on it, and the other walk is drawn beside
+         it (compareWalks). */
+      entrance: 'fly', layout: 'board', flyBack: true,
       town: ['house', 'cafeA', 'cafeB'], textScale: 0.85,
-      segment: { a: { x: 1, y: 1 }, b: { x: 5, y: 4 },
-                 coordSide: 'under', result: { text: '5 units' } },
-      /* Its far end is the house, which the pair above already names. */
-      examples: [ { a: { x: -5, y: 3 }, b: { x: 1, y: 1, quiet: true },
-                    coordSide: 'under', result: { text: '√40 units' } } ],
+      keepSegment: true, dropLegs: true, dropNames: true,
+      compare: [
+        { a: { x: 1, y: 1 }, b: { x: -5, y: 3 }, coordSide: 'under',
+          result: { text: '\u221A40\u00A0units' } },
+        { a: { x: 1, y: 1 }, b: { x: 5, y: 4 }, coordSide: 'under',
+          result: { text: '5\u00A0units' } }
+      ],
       hold: 5200 },
 
     /* 47 — the same question with the other two places: the house, the
@@ -3151,8 +3182,8 @@ window.CFG = (function () {
       line: 'Which is closer to Maya’s house — the school or the park?',
       town: ['house', 'school', 'park'], textScale: 0.85,
       pointsOnly: true,
-      segment: { a: { x: 1, y: 1 }, b: { x: 5, y: -4 }, coordSide: 'under' },
-      mark: [ { x: -3, y: 2 } ],
+      segment: { a: { x: 1, y: 1, labelAt: HOUSE_LABEL }, b: { x: 5, y: -4 }, coordSide: 'under' },
+      mark: [ { x: -3, y: 2, labelAt: PARK_LABEL } ],
       askLast: true,
       options: [
         { key: 'school', label: 'School', cls: 'school' },
@@ -3179,32 +3210,45 @@ window.CFG = (function () {
        house's picture, which stands above its point. */
     ...walk({
       ids: ['47b', '47c', '47d'],
-      a: { x: 1, y: 1 }, b: { x: 5, y: -4 }, c: { x: 1, y: -4 },
+      a: { x: 1, y: 1, extra: { labelAt: HOUSE_LABEL } }, b: { x: 5, y: -4 }, c: { x: 1, y: -4 },
       seg: { coordSide: 'under' },
       say: { first: 'First, the house to the school.' },
       base: { textScale: 0.85, town: ['house', 'school', 'park'], townFocus: ['house', 'school'],
-              mark: [ { x: -3, y: 2 } ], range: { min: 0, max: 8 } },
+              mark: [ { x: -3, y: 2, labelAt: PARK_LABEL } ], range: { min: 0, max: 8 } },
       first: { keepSegment: true }
     }),
 
     /* The house to the park: four across, one up, and √17. */
     ...walk({
       ids: ['47e', '47f', '47g'],
-      a: { x: 1, y: 1 }, b: { x: -3, y: 2 }, c: { x: -3, y: 1 },
+      /* B's label to the right of the park's trees, above the dotted line
+         — anywhere the rule looked, the trees or a line was in the way,
+         and it ended up behind them. Named, it stays there. */
+      a: { x: 1, y: 1, extra: { labelAt: HOUSE_LABEL } }, b: { x: -3, y: 2, extra: { labelAt: PARK_LABEL } },
+      /* And C's under C, clear of the short side CB — so CB's "1 unit"
+         can sit beside its own line. */
+      c: { x: -3, y: 1 }, cAway: { x: 0, y: 1 },
       seg: { coordSide: 'under' },
       say: { first: 'Now, the house to the park.' },
       base: { textScale: 0.85, town: ['house', 'school', 'park'], townFocus: ['house', 'park'],
               mark: [ { x: 5, y: -4 } ], range: { min: 0, max: 6 } },
-      first: { transition: 'leaves', entrance: 'fly' }
+      /* No leaf sweep: it follows the last walk's table on the same
+         town, so she flies off from under it and back in (flyBack). */
+      first: { flyBack: true }
     }),
 
-    { id: 48, line: '√17 is less than √41 — so the park is closer.',
-      entrance: 'fly', layout: 'board', transition: 'leaves',
+    { id: 48, line: '\u221A17 is less than \u221A41 \u2014 so the park is closer.',
+      /* As 46: no leaf sweep, the pair on the board kept as it is, its
+         line drawn solid with its length, the other walk beside it. */
+      entrance: 'fly', layout: 'board', flyBack: true,
       town: ['house', 'school', 'park'], textScale: 0.85,
-      segment: { a: { x: 1, y: 1 }, b: { x: -3, y: 2 },
-                 coordSide: 'under', result: { text: '√17 units' } },
-      examples: [ { a: { x: 5, y: -4 }, b: { x: 1, y: 1, quiet: true },
-                    coordSide: 'under', result: { text: '√41 units' } } ],
+      keepSegment: true, dropLegs: true, dropNames: true,
+      compare: [
+        { a: { x: 1, y: 1, labelAt: HOUSE_LABEL }, b: { x: -3, y: 2, labelAt: PARK_LABEL }, coordSide: 'under',
+          result: { text: '\u221A17\u00A0units' } },
+        { a: { x: 1, y: 1, labelAt: HOUSE_LABEL }, b: { x: 5, y: -4 }, coordSide: 'under',
+          result: { text: '\u221A41\u00A0units' } }
+      ],
       hold: 5200 },
 
     /* ================= the towers and the rescue =================

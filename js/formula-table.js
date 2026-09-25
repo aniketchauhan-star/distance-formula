@@ -86,6 +86,7 @@ window.FormulaTable = (function () {
          the equals sign, then term, operator, term... in the order the
          line gives them. */
       build: function (formula) {
+        clearTimeout(root._close);
         grid.innerHTML = '';
         rows = [];
         setRoom(0);
@@ -249,8 +250,27 @@ window.FormulaTable = (function () {
         }
       },
 
+      /* Back into the board's edge, the way it came out, and then gone —
+         for a screen that moves on without a leaf sweep to hide it. */
+      close: function (done) {
+        clearTimeout(root._settle);
+        clearTimeout(root._close);
+        if (root.classList.contains('hidden')) { if (done) done(); return; }
+        root.classList.remove('settled');       // the clip back on, to close with
+        void root.offsetWidth;
+        root.classList.remove('open');          // and it closes right to left
+        root._close = setTimeout(function () {
+          root.classList.add('hidden');
+          grid.innerHTML = '';
+          rows = [];
+          setRoom(0);
+          if (done) done();
+        }, 740);
+      },
+
       /* Out of the board's edge, like a drawer. */
       open: function () {
+        clearTimeout(root._close);
         root.classList.remove('hidden');
         root.classList.remove('settled');
         void root.offsetWidth;
@@ -425,6 +445,7 @@ window.FormulaTable = (function () {
 
       hide: function () {
         clearTimeout(root._settle);
+        clearTimeout(root._close);
         root.classList.remove('open', 'settled');
         root.classList.add('hidden');
         grid.innerHTML = '';
