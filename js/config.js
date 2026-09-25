@@ -40,6 +40,11 @@ window.CFG = (function () {
        un-skinned and then dresses itself is worse than the CSS it
        replaced. */
     buttons:     stamped('assets/buttons.png'),
+    /* One tile of that sheet cut out on its own — region (184, 646,
+       215, 213) — for the table's scrollers, which lay it in nine
+       pieces so a tile can widen to its number (formula-table.css).
+       Listed so `preload` has it before the first scroller drops. */
+    tile:        stamped('assets/tile.png'),
     leaf:        stamped('assets/leaf.png'),
     handNudge:   stamped('assets/hand nudge.png')
   };
@@ -1081,11 +1086,14 @@ window.CFG = (function () {
       openMs:   900,      // the drawer opening, and a breath after
       rowMs:    450,      // a row's skeleton coming in
       appearMs: 200,      // a copy appears on its original
-      pulseMs:  1000,     // lifts above it and swells twice
-      travelMs: 1400,     // travels to its slot
+      /* and goes: no lifting above it, no swelling — the copy comes out
+         of the drawing and flies straight to its slot. (It used to lift
+         and pulse twice first.) */
+      pulseMs:  0,
+      travelMs: 1400,     // travels to its slot, turning level on the way
       restMs:   300,      // lands; a breath before the next
       writeMs:  600,      // a worked-out value written in place
-      lift:     0.6,      // how far above the original, in its own heights
+      lift:     0,        // how far above the original it lifts first (none)
       pickCy:   400       // 29c's table sits higher: she comes back under it
     },
 
@@ -1188,6 +1196,11 @@ window.CFG = (function () {
         stepMs: 1000,      // one square, then the next — slowly
         numMs:  450,       // its arrow first, then its number
         readMs: 900,       // the finished row, held to be read
+        /* Once the last arrow and its number are up, the whole count
+           stays for this long — to be looked at and counted along —
+           before the squares go and the total ("3 units") is written.
+           It used to be taken away 1.4s after the last number. */
+        holdMs: 5000,
         gapMs: 420,        // blank, before it goes again
         /* Once. It used to play twice, and the second pass was
            doing the job the sentence should have been doing — the
@@ -1218,9 +1231,13 @@ window.CFG = (function () {
           w:    2.5,         // a fine line, not a bold one
           near: 0.28,        // how far the arrow sits from the line,
                              // as a share of the square across it
-          far:  0.71         // and its number, further out — so they
-                             // read as a mark and its label, outward
-                             // from the line, whichever way it runs
+          /* And its number, just past it on the side away from the
+             line — close enough to read as the arrow's own label, never
+             touching it. This is the clear space between the tips of
+             the arrowheads and the number's paper halo, in board units.
+             (The number used to hang at a fixed 71% of the square, which
+             left a gap wider than the number itself.) */
+          numGap: 2
         }
       },
       labelDy: -28,          // horizontal: just above the line
@@ -1647,15 +1664,16 @@ window.CFG = (function () {
        than dropped in, so this has to clear the writing itself or two
        lines are being drawn at once. */
     step: 1500,
-    /* Plain "x2" rather than a subscript glyph — that one is still a
-       character the font has to carry. The root is written \u221A(...)
+    /* Subscripts (x₂) and the real minus sign: the game carries its own
+       copy of both (assets/fonts, nunito-600-math.woff2), so they no
+       longer depend on the laptop's fonts. The root is written \u221A(...)
        here, and those brackets are read as saying how far it reaches:
        the panel draws the sign and a bar over everything inside them,
        so the brackets themselves are never shown. */
     lines: [
       { kind: 'lead',   text: 'AB² = AC² + BC²' },
-      { kind: 'lead',   text: 'AB² = (x2 - x1)² + (y2 - y1)²' },
-      { kind: 'result', text: 'AB = √((x2 - x1)² + (y2 - y1)²)' }
+      { kind: 'lead',   text: 'AB² = (x₂ − x₁)² + (y₂ − y₁)²' },
+      { kind: 'result', text: 'AB = √((x₂ − x₁)² + (y₂ − y₁)²)' }
     ]
   };
 
@@ -1688,10 +1706,10 @@ window.CFG = (function () {
     /* x1 and x2 are pieces of their own now, beside the 0s, so the
        formula table can make a copy of each and carry it across. */
     a: { x: -4, y: 0,
-         coordParts: [{ t: '(' }, { t: 'x1', glow: 'x' }, { t: ', ' },
+         coordParts: [{ t: '(' }, { t: 'x₁', glow: 'x' }, { t: ', ' },
                       { t: '0', glow: 'y' }, { t: ')' }] },
     b: { x:  4, y: 0,
-         coordParts: [{ t: '(' }, { t: 'x2', glow: 'x' }, { t: ', ' },
+         coordParts: [{ t: '(' }, { t: 'x₂', glow: 'x' }, { t: ', ' },
                       { t: '0', glow: 'y' }, { t: ')' }] },
     /* The working as a table, the way 28's arrives (runAxisCase's
        tableStep): the board keeps its full size, the camera comes in on
@@ -1709,18 +1727,18 @@ window.CFG = (function () {
     rows: [
       { inline: true, parts: [
           { t: 'd' }, { t: ' = ' }, { t: '√((' },
-          { t: 'x2', lit: 'h', from: { p: 'b', half: 'x' } }, { t: ' - ' },
-          { t: 'x1', lit: 'h', from: { p: 'a', half: 'x' } },
-          { t: ')² + (y2 - y1)²)' } ] },
+          { t: 'x₂', lit: 'h', from: { p: 'b', half: 'x' } }, { t: ' - ' },
+          { t: 'x₁', lit: 'h', from: { p: 'a', half: 'x' } },
+          { t: ')² + (y₂ − y₁)²)' } ] },
       { inline: true, parts: [
-          { t: '= ' }, { t: '√((x2 - x1)² + (' },
+          { t: '= ' }, { t: '√((x₂ − x₁)² + (' },
           { t: '0', lit: 'v', from: { p: 'b', half: 'y' } }, { t: ' - ' },
           { t: '0', lit: 'v', from: { p: 'a', half: 'y' } }, { t: ')²)' } ] },
-      { inline: true, parts: [ { t: '= ' }, { t: '√((x2 - x1)²)' } ] },
+      { inline: true, parts: [ { t: '= ' }, { t: '√((x₂ − x₁)²)' } ] },
       { inline: true, parts: [
           { t: 'd' }, { t: ' = ' }, { t: '|' },
-          { t: 'x2', lit: 'h', from: { p: 'b', half: 'x' } }, { t: ' - ' },
-          { t: 'x1', lit: 'h', from: { p: 'a', half: 'x' } }, { t: '|' } ] }
+          { t: 'x₂', lit: 'h', from: { p: 'b', half: 'x' } }, { t: ' - ' },
+          { t: 'x₁', lit: 'h', from: { p: 'a', half: 'x' } }, { t: '|' } ] }
     ],
     coordDy: -88,
     nameDy: -40,
@@ -1732,14 +1750,14 @@ window.CFG = (function () {
     /* Each step replaces the line above it. Fragments let one part
        glow as it arrives, or fade as it collapses. */
     steps: [
-      [ { t: 'd = √((x2 - x1)² + (y2 - y1)²)' } ],
-      [ { t: 'd = √((x2 - x1)² + ' }, { t: '(0 - 0)²', glow: true }, { t: ')' } ],
+      [ { t: 'd = √((x₂ − x₁)² + (y₂ − y₁)²)' } ],
+      [ { t: 'd = √((x₂ − x₁)² + ' }, { t: '(0 − 0)²', glow: true }, { t: ')' } ],
       /* The plus goes out with the term it joins, or the formula
          reads "√((x2 - x1)² + )" for the length of the fade. */
-      [ { t: 'd = √((x2 - x1)²' }, { t: ' + (0 - 0)²', fade: true }, { t: ')' } ],
-      [ { t: 'd = √((x2 - x1)²)' } ]
+      [ { t: 'd = √((x₂ − x₁)²' }, { t: ' + (0 − 0)²', fade: true }, { t: ')' } ],
+      [ { t: 'd = √((x₂ − x₁)²)' } ]
     ],
-    result: 'd = |x2 - x1|'
+    result: 'd = |x₂ − x₁|'
   };
 
   /* The same thing turned on its side. The pair reads as one idea, so
@@ -1752,28 +1770,28 @@ window.CFG = (function () {
 
     a: { x: 0, y: -4,
          coordParts: [{ t: '(' }, { t: '0', glow: 'x' }, { t: ', ' },
-                      { t: 'y1', glow: 'y' }, { t: ')' }] },
+                      { t: 'y₁', glow: 'y' }, { t: ')' }] },
     b: { x: 0, y:  4,
          coordParts: [{ t: '(' }, { t: '0', glow: 'x' }, { t: ', ' },
-                      { t: 'y2', glow: 'y' }, { t: ')' }] },
+                      { t: 'y₂', glow: 'y' }, { t: ')' }] },
     /* The x-axis case's table with the axes swapped: y pieces carried
        from the labels, the 0s from their x halves. */
     tableAt: XAXIS.tableAt,
     tableSize: XAXIS.tableSize,
     rows: [
       { inline: true, parts: [
-          { t: 'd' }, { t: ' = ' }, { t: '√((x2 - x1)² + (' },
-          { t: 'y2', lit: 'v', from: { p: 'b', half: 'y' } }, { t: ' - ' },
-          { t: 'y1', lit: 'v', from: { p: 'a', half: 'y' } }, { t: ')²)' } ] },
+          { t: 'd' }, { t: ' = ' }, { t: '√((x₂ − x₁)² + (' },
+          { t: 'y₂', lit: 'v', from: { p: 'b', half: 'y' } }, { t: ' - ' },
+          { t: 'y₁', lit: 'v', from: { p: 'a', half: 'y' } }, { t: ')²)' } ] },
       { inline: true, parts: [
           { t: '= ' }, { t: '√((' },
           { t: '0', lit: 'h', from: { p: 'b', half: 'x' } }, { t: ' - ' },
-          { t: '0', lit: 'h', from: { p: 'a', half: 'x' } }, { t: ')² + (y2 - y1)²)' } ] },
-      { inline: true, parts: [ { t: '= ' }, { t: '√((y2 - y1)²)' } ] },
+          { t: '0', lit: 'h', from: { p: 'a', half: 'x' } }, { t: ')² + (y₂ − y₁)²)' } ] },
+      { inline: true, parts: [ { t: '= ' }, { t: '√((y₂ − y₁)²)' } ] },
       { inline: true, parts: [
           { t: 'd' }, { t: ' = ' }, { t: '|' },
-          { t: 'y2', lit: 'v', from: { p: 'b', half: 'y' } }, { t: ' - ' },
-          { t: 'y1', lit: 'v', from: { p: 'a', half: 'y' } }, { t: '|' } ] }
+          { t: 'y₂', lit: 'v', from: { p: 'b', half: 'y' } }, { t: ' - ' },
+          { t: 'y₁', lit: 'v', from: { p: 'a', half: 'y' } }, { t: '|' } ] }
     ],
 
     /* This segment is centred on the origin too, so the answer moves
@@ -1782,12 +1800,12 @@ window.CFG = (function () {
     resultDy: -60,
 
     steps: [
-      [ { t: 'd = √((x2 - x1)² + (y2 - y1)²)' } ],
-      [ { t: 'd = √(' }, { t: '(0 - 0)²', glow: true }, { t: ' + (y2 - y1)²)' } ],
-      [ { t: 'd = √(' }, { t: '(0 - 0)² + ', fade: true }, { t: '(y2 - y1)²)' } ],
-      [ { t: 'd = √((y2 - y1)²)' } ]
+      [ { t: 'd = √((x₂ − x₁)² + (y₂ − y₁)²)' } ],
+      [ { t: 'd = √(' }, { t: '(0 − 0)²', glow: true }, { t: ' + (y₂ − y₁)²)' } ],
+      [ { t: 'd = √(' }, { t: '(0 − 0)² + ', fade: true }, { t: '(y₂ − y₁)²)' } ],
+      [ { t: 'd = √((y₂ − y₁)²)' } ]
     ],
-    result: 'd = |y2 - y1|'
+    result: 'd = |y₂ − y₁|'
   };
 
   /* ---------- Audio ---------- */
@@ -2275,6 +2293,11 @@ window.CFG = (function () {
          and hands it over rather than drawing it a second time. */
       line: 'Hmm… what about A and C?',
       line2: 'We know how to find this distance.',
+      /* While she talks about A and C, the rest steps back — B and the
+         dotted AB fade from her first word, so the side she means is
+         the only thing at full strength — and AC pulses once she has
+         named it. It stays that way through the question. */
+      wordCues: [ { word: 'Hmm', spot: 'h' } ],
       lineLights: [ { pulse: 'h' }, {} ],
       entrance: 'none',
       layout: 'board', distance: true, intro: 'measure', keepSegment: true,
@@ -2303,12 +2326,13 @@ window.CFG = (function () {
        than cleared: they need to see they now have two measured sides,
        and the one being asked for has to be the loud one. */
     { id: 25,
-      /* Beat 6. The two corners first and the side between them
-         after — `after` holds the spotlight back, so the child is
-         shown WHICH two points before being shown the run between
-         them. */
+      /* Beat 6. From her first word the side she is talking about is
+         the only one at full strength: C, B and the run between them
+         stay, and A, AC and the dotted AB step back — through the
+         question, until the screen goes. It used to wait for the end of
+         the sentence, so "from C to B" was said over the whole drawing. */
       line: 'Now find the distance from C to B.',
-      lineLights: [ { spots: ['v'] } ],
+      wordCues: [ { word: 'Now', spot: 'v' } ],
       entrance: 'none', view: 'triangle', quietBoard: true,
       layout: 'board', distance: true, intro: 'measure', keepSegment: true,
       segment: { a: { x: 2, y: 1, name: 'A' },
@@ -2502,7 +2526,15 @@ window.CFG = (function () {
          already plainly there. The holds are the breaths between the
          three sentences — what we have, what we need, why the tool
          applies. */
-      lineLights: [ { hold: 500 }, { hold: 700 }, {} ],
+      /* "We know AC and CB." — the two measured sides come forward and
+         pulse while she says it, and AB steps back; when the sentence
+         ends the triangle is whole again for the rest of the screen and
+         the table. */
+      /* The pulse and the fade end together, just after the sentence
+         has finished — the pulse used to run on into "But we still
+         need AB." with AB already back. */
+      wordCues: [ { word: 'We', spot: ['h', 'v'], pulse: ['h', 'v'], run: 1500 } ],
+      lineLights: [ { unspot: true, after: 550, hold: 500 }, { hold: 700 }, {} ],
       /* The right angle is what the theorem rests on, so the marker is
          asserted on arrival (a jump from the picker would otherwise
          land without it) and exempt from every highlight's hush —
@@ -2564,27 +2596,38 @@ window.CFG = (function () {
        as 28, filled by the child this time. Three screens on one board,
        one question each, with no sweep between them. */
     { id: 29,
-      /* Beats 0–3. The grid fills and the camera frames the triangle
-         before a point is drawn (frameDrawing); A and B come in, and
-         she names the question. Only then does C arrive, with the two
-         dashed sides — because she has set out to find the distance,
-         not with the screen — and AC glows as she asks about it. */
+      /* Beats 0–3, one thing with each sentence.
+         The grid fills and the camera frames the triangle before a point
+         is drawn (frameDrawing); A and B go up. Then, with "Now, let's
+         find the distance between A and B.", A and B pulse and the dotted
+         line between them is drawn as she says "distance" — and nothing
+         else is on the board. Her balloon goes; C arrives with a pulse,
+         the dotted side from A running out to it; and only then "What is
+         the difference between these two points?" — from its first word
+         AC is the only side at full strength, B and the dotted AB
+         stepping back — with AC glowing after it. CB is not drawn here:
+         it comes on the next screen, once AC has been answered. */
       view: 'triangle',
       line: 'Now, let’s find the distance between A and B.',
       line2: 'What is the difference between these two points?',
-      lineLights: [ { legs: true }, { pulse: 'h' } ],
+      guideOnLine: true,
+      wordCues: [ { word: 'distance', guide: true, beat: ['a', 'b'] },
+                  { word: 'What', spot: 'h' } ],
+      lineLights: [ { legs: true, beat: ['c'], quiet: true }, { pulse: 'h' } ],
       entrance: 'none', layout: 'board', quietBoard: true, transition: 'leaves',
       intro: 'measure', distance: true,
       segment: { a: { x: -2, y: 2, name: 'A' }, b: { x: 2, y: 5, name: 'B' }, dash: true },
       legs: [ { from: { x: -2, y: 2 }, to: { x: 2, y: 2 }, dash: true,
-                mark: { name: 'C', away: { x: 1, y: 0 } } },
-              { from: { x: 2, y: 2 }, to: { x: 2, y: 5 }, dash: true } ],
+                mark: { name: 'C', away: { x: 1, y: 0 } } } ],
       task: { kind: 'distance', measureLeg: 0, countLine: 'Count carefully!' } },
 
     { id: '29b',
-      /* Beat 4. AC is settled with its length; CB is asked the same
-         way, and glows as she asks. */
+      /* Beat 4. AC is settled with its length; CB is drawn, and asked
+         the same way: from her first word C, B and the side between them
+         are the only things at full strength — A, AC and the dotted AB
+         step back — and CB glows as she asks. */
       line: 'What is the difference between these two points?',
+      wordCues: [ { word: 'What', spot: 'v' } ],
       lineLights: [ { pulse: 'v' } ],
       entrance: 'none', view: 'triangle', quietBoard: true,
       layout: 'board', distance: true, intro: 'measure', keepSegment: true,
@@ -2647,15 +2690,30 @@ window.CFG = (function () {
     { id: 30,
       /* Question 2: the same argument on a harder triangle — A(−3, 3),
          B(5, −3), C(5, 3), across three quadrants, so reading the sides
-         off the coordinates means subtracting a negative. The complete
-         right triangle is up, but only its points and their coordinates:
-         no lengths, so AC and CB have to be worked out, not read. */
+         off the coordinates means subtracting a negative. The triangle
+         is built the way 29 built it, one thing with each sentence: A
+         and B go up and pulse as she says "Now find AB.", and the dotted
+         line between them is drawn on "AB". Then the question — and
+         only then AC, out to C, and CB down from it, with the right
+         angle once both are down. No lengths: AC and CB have to be
+         worked out from the coordinates, not read. The number control
+         comes last. */
       view: 'triangle',
       line: 'Now find AB.',
+      line2: 'What is the distance between the two points?',
+      guideOnLine: true,
+      wordCues: [ { word: 'Now', beat: ['a', 'b'] },
+                  { word: 'AB', guide: true } ],
+      lineLights: [ { hold: 900 }, { legs: true, beat: ['c'], mark: true } ],
+      /* From here to the end the board carries no numbers on its axes —
+         every point has its coordinates written beside it, and those
+         are what the child reads. The axes still sweep in. Said once,
+         here; it holds for every screen after (Game.numbersAt). */
+      numbers: false,
       range: { min: 0, max: 12 },
       entrance: 'none', layout: 'board', quietBoard: true, transition: 'leaves',
       intro: 'measure', entry: true,
-      rightAngle: true, keepMark: true,
+      keepMark: true,
       segment: { a: { x: -3, y: 3, name: 'A' }, b: { x: 5, y: -3, name: 'B' }, dash: true },
       legs: [ { from: { x: -3, y: 3 }, to: { x: 5, y: 3 }, mark: { name: 'C' } },
               { from: { x: 5, y: 3 }, to: { x: 5, y: -3 } } ],
@@ -2665,18 +2723,22 @@ window.CFG = (function () {
         answer: 10,
         correctLine: 'That’s right!',
         noCount: true,
-        /* No hints. A miss goes straight to the table 29c taught, which
-           the child fills: tap a blank, two numbers drop down, pick one.
-           The wrong ones here are this question's own mistakes — 0 and 2
+        /* One "try again", then the table 29c taught: she flies off,
+           the table comes out of the board's edge, and the names in the
+           theorem are carried in off the triangle — AB, CB, AC, each a
+           copy lifted off its side, the way 28 wrote it. Then the child
+           fills it: tap a blank, two numbers drop down, pick one. The
+           wrong ones here are this question's own mistakes — 0 and 2
            are the sides read with the minus sign lost (3 + (−3), and
            5 + (−3)); 12 and 16 square as doubling; 14 adds the sides
            instead of their squares; 100 stops before the square root. */
+        feedback: [ 'Not quite! Try again!' ],
         tableOnMiss: true,
         formula: [
           { kind: 'lead', parts: [
-              { t: '(AB)\u00B2', lit: 'ab' }, { t: ' = ' },
-              { t: '(CB)\u00B2', lit: 'v' }, { t: ' + ' },
-              { t: '(AC)\u00B2', lit: 'h' } ] },
+              { t: '(AB)\u00B2', lit: 'ab', from: { side: 'ab' } }, { t: ' = ' },
+              { t: '(CB)\u00B2', lit: 'v',  from: { side: 'v'  } }, { t: ' + ' },
+              { t: '(AC)\u00B2', lit: 'h',  from: { side: 'h'  } } ] },
           { kind: 'step', parts: [
               { t: '= ' },
               { t: '(6)\u00B2', lit: 'v', offer: [6, 0] }, { t: ' + ' },
@@ -2688,88 +2750,173 @@ window.CFG = (function () {
           { kind: 'step', parts: [
               { t: '= ' }, { t: '100', lit: 'ab', offer: [14, 100] } ] },
           { kind: 'result', parts: [
-              { t: 'AB', lit: 'ab' }, { t: ' = ' },
+              { t: 'AB', lit: 'ab', from: { side: 'ab' } }, { t: ' = ' },
               { t: '10\u00A0units', lit: 'ab', offer: [10, 100] } ] }
         ] } },
     /* 21 — leaves, back to the field layout, and the same idea stated
        in general: the points are named rather than numbered. */
+    /* 31–36 — the general triangle, on the board layout the questions
+       before it use, so the answers can rise under her. Subscripts and
+       the minus sign are real characters now: the game carries its own
+       font for them. */
     { id: 31, line: 'The same idea works for any two points.', entrance: 'fly',
-      layout: 'grid', transition: 'leaves',
+      layout: 'board', transition: 'leaves',
       segment: {
-        a: { x: -5, y: 1, coordParts: [ { t: '(' }, { t: 'x1', glow: 'x' }, { t: ',\u00A0' },
-                           { t: 'y1', glow: 'y' }, { t: ')' } ] },
-        b: { x:  5, y: 4, coordParts: [ { t: '(' }, { t: 'x2', glow: 'x' }, { t: ',\u00A0' },
-                           { t: 'y2', glow: 'y' }, { t: ')' } ] }
+        a: { x: -5, y: 1, coordParts: [ { t: '(' }, { t: 'x₁', glow: 'x' }, { t: ',\u00A0' },
+                           { t: 'y₁', glow: 'y' }, { t: ')' } ] },
+        b: { x:  5, y: 4, coordParts: [ { t: '(' }, { t: 'x₂', glow: 'x' }, { t: ',\u00A0' },
+                           { t: 'y₂', glow: 'y' }, { t: ')' } ] }
       } },
 
-    /* 22 — the same general segment, with the corner dropped and both
+    /* 32 — the same general segment, with the corner dropped and both
        legs drawn: the right-angled triangle in its general form. The
        corner is named from the two points' own coordinates. */
     { id: 32, line: null, entrance: 'stay',
-      layout: 'grid', keepSegment: true,
+      layout: 'board', keepSegment: true,
       segment: {
-        a: { x: -5, y: 1, name: 'A', coordParts: [ { t: '(' }, { t: 'x1', glow: 'x' }, { t: ',\u00A0' },
-                           { t: 'y1', glow: 'y' }, { t: ')' } ] },
-        b: { x:  5, y: 4, name: 'B', coordParts: [ { t: '(' }, { t: 'x2', glow: 'x' }, { t: ',\u00A0' },
-                           { t: 'y2', glow: 'y' }, { t: ')' } ] }
+        a: { x: -5, y: 1, name: 'A', coordParts: [ { t: '(' }, { t: 'x₁', glow: 'x' }, { t: ',\u00A0' },
+                           { t: 'y₁', glow: 'y' }, { t: ')' } ] },
+        b: { x:  5, y: 4, name: 'B', coordParts: [ { t: '(' }, { t: 'x₂', glow: 'x' }, { t: ',\u00A0' },
+                           { t: 'y₂', glow: 'y' }, { t: ')' } ] }
       },
       legs: [
         { from: { x: -5, y: 1 }, to: { x: 5, y: 1 },
-          mark: { name: 'C', coordText: '(x2, y1)', fill: '#3B7DD8' } },
+          mark: { name: 'C', coordText: '(x₂, y₁)', fill: '#3B7DD8' } },
         { from: { x:  5, y: 1 }, to: { x: 5, y: 4 } }
       ] },
 
-    /* 23 — the horizontal leg is named. Nothing is redrawn; it only
-       gains its length, written as the difference rather than a
-       count of units. */
-    { id: 33, line: 'AC = x2 - x1', entrance: 'stay',
-      layout: 'grid', keepSegment: true,
+    /* 33 — the child's go at the horizontal side. A(x₁, y₁) and
+       C(x₂, y₁) share a row, so AC is the difference of their x's.
+       While she asks, AC and its two corners are the only things at
+       full strength; B, CB and AB step back. Right — or wrong twice,
+       when she names it herself — and x₂ − x₁ is put together on the
+       side as she says it: x₂ lifted off B's label, then the sign,
+       then x₁ off A's. */
+    { id: 33, line: 'How long is AC?', entrance: 'stay',
+      layout: 'board', keepSegment: true, askFirst: true,
+      wordCues: [ { word: 'How', spot: 'h' } ],
+      options: [
+        { key: 'x2-x1', cls: 'expr', label: 'x₂ − x₁' },
+        { key: 'x1+x2', cls: 'expr', label: 'x₁ + x₂' },
+        { key: 'y2-y1', cls: 'expr', label: 'y₂ − y₁' }
+      ],
+      task: {
+        kind: 'choice',
+        answer: 'x2-x1',
+        feedback: [ 'Look at the x-coordinates of A and C.' ],
+        correctLine: 'AC = x₂ − x₁',
+        spentLine: 'AC = x₂ − x₁',
+        writesLeg: 0
+      },
+      hold: 3200,
       segment: {
-        a: { x: -5, y: 1, name: 'A', coordParts: [ { t: '(' }, { t: 'x1', glow: 'x' }, { t: ',\u00A0' },
-                           { t: 'y1', glow: 'y' }, { t: ')' } ] },
-        b: { x:  5, y: 4, name: 'B', coordParts: [ { t: '(' }, { t: 'x2', glow: 'x' }, { t: ',\u00A0' },
-                           { t: 'y2', glow: 'y' }, { t: ')' } ] }
+        a: { x: -5, y: 1, name: 'A', coordParts: [ { t: '(' }, { t: 'x₁', glow: 'x' }, { t: ',\u00A0' },
+                           { t: 'y₁', glow: 'y' }, { t: ')' } ] },
+        b: { x:  5, y: 4, name: 'B', coordParts: [ { t: '(' }, { t: 'x₂', glow: 'x' }, { t: ',\u00A0' },
+                           { t: 'y₂', glow: 'y' }, { t: ')' } ] }
       },
       legs: [
         { from: { x: -5, y: 1 }, to: { x: 5, y: 1 },
-          mark: { name: 'C', coordText: '(x2, y1)', fill: '#3B7DD8' },
-          settled: true, length: true, lengthText: 'x2 - x1',
+          mark: { name: 'C', coordText: '(x₂, y₁)', fill: '#3B7DD8' },
+          settled: true, lengthText: 'x₂ − x₁',
           /* both symbols read straight off the two labels */
           lengthFrom: [ { p: 'b', half: 'x' }, { p: 'a', half: 'x' } ] },
         { from: { x:  5, y: 1 }, to: { x: 5, y: 4 }, settled: true }
       ] },
 
-    /* 24 — and now the vertical leg is named too, so both differences
-       are on the board together. */
-    { id: 34, line: 'CB = y2 - y1', entrance: 'stay',
-      layout: 'grid', keepSegment: true,
+    /* 34 — and the vertical side, the same way: C(x₂, y₁) and B(x₂, y₂)
+       share a column, so CB is the difference of their y's. CB, C and B
+       stay at full strength while she asks and while she says it; A,
+       AC and AB step back. y₂, then the sign, then y₁. */
+    { id: 34, line: 'How long is CB?', entrance: 'stay',
+      layout: 'board', keepSegment: true, askFirst: true,
+      wordCues: [ { word: 'How', spot: 'v' } ],
+      options: [
+        { key: 'y1+y2', cls: 'expr', label: 'y₁ + y₂' },
+        { key: 'x2-x1', cls: 'expr', label: 'x₂ − x₁' },
+        { key: 'y2-y1', cls: 'expr', label: 'y₂ − y₁' }
+      ],
+      task: {
+        kind: 'choice',
+        answer: 'y2-y1',
+        feedback: [ 'Look at the y-coordinates of C and B.' ],
+        correctLine: 'CB = y₂ − y₁',
+        spentLine: 'CB = y₂ − y₁',
+        writesLeg: 1
+      },
+      hold: 3200,
       segment: {
-        a: { x: -5, y: 1, name: 'A', coordParts: [ { t: '(' }, { t: 'x1', glow: 'x' }, { t: ',\u00A0' },
-                           { t: 'y1', glow: 'y' }, { t: ')' } ] },
-        b: { x:  5, y: 4, name: 'B', coordParts: [ { t: '(' }, { t: 'x2', glow: 'x' }, { t: ',\u00A0' },
-                           { t: 'y2', glow: 'y' }, { t: ')' } ] }
+        a: { x: -5, y: 1, name: 'A', coordParts: [ { t: '(' }, { t: 'x₁', glow: 'x' }, { t: ',\u00A0' },
+                           { t: 'y₁', glow: 'y' }, { t: ')' } ] },
+        b: { x:  5, y: 4, name: 'B', coordParts: [ { t: '(' }, { t: 'x₂', glow: 'x' }, { t: ',\u00A0' },
+                           { t: 'y₂', glow: 'y' }, { t: ')' } ] }
       },
       legs: [
         { from: { x: -5, y: 1 }, to: { x: 5, y: 1 },
-          mark: { name: 'C', coordText: '(x2, y1)', fill: '#3B7DD8' },
-          settled: true, length: true, lengthText: 'x2 - x1',
-          /* both symbols read straight off the two labels */
-          lengthFrom: [ { p: 'b', half: 'x' }, { p: 'a', half: 'x' } ] },
+          mark: { name: 'C', coordText: '(x₂, y₁)', fill: '#3B7DD8' },
+          settled: true, length: true, lengthText: 'x₂ − x₁' },
         { from: { x:  5, y: 1 }, to: { x: 5, y: 4 },
-          settled: true, length: true, lengthText: 'y2 - y1',
+          settled: true, lengthText: 'y₂ − y₁',
           lengthFrom: [ { p: 'b', half: 'y' }, { p: 'a', half: 'y' } ] }
       ] },
 
-    /* 25 — the board is finished; she just turns to the question it
-       sets up. Nothing is declared to draw, so nothing redraws and
-       her line comes straight up. */
+    /* 35 — and AB. AB lights as she names it, then the whole triangle is
+       back for the answers: three formulas. Right, and the recap follows.
+       Wrong once, "try again"; wrong twice, and like screen 30 she flies
+       off, the board makes room, and the table opens out of its right
+       edge: AB, CB and AC carried in off the triangle, then the child
+       fills the two blanks — each side's difference — and the root is
+       written in. */
     { id: 35, line: 'Now, let’s find AB.', entrance: 'stay',
-      layout: 'grid', keepSegment: true },
+      layout: 'board', keepSegment: true, askFirst: true, optionWide: true,
+      wordCues: [ { word: 'AB', spot: 'ab' } ],
+      lineLights: [ { unspot: true, after: 500 } ],
+      options: [
+        { key: 'sum',  cls: 'expr long', label: '(x₂ − x₁) + (y₂ − y₁)' },
+        { key: 'root', cls: 'expr long', label: '√((x₂ − x₁)² + (y₂ − y₁)²)' },
+        { key: 'plus', cls: 'expr long', label: '√((x₂ + x₁)² + (y₂ + y₁)²)' }
+      ],
+      task: {
+        kind: 'choice',
+        answer: 'root',
+        feedback: [ 'Not quite! Try again!' ],
+        correctLine: 'That’s right!',
+        tableOnMiss: true,
+        tableSize: 36,
+        formula: [
+          { kind: 'lead', parts: [
+              { t: '(AB)\u00B2', lit: 'ab', from: { side: 'ab' } }, { t: ' = ' },
+              { t: '(CB)\u00B2', lit: 'v',  from: { side: 'v'  } }, { t: ' + ' },
+              { t: '(AC)\u00B2', lit: 'h',  from: { side: 'h'  } } ] },
+          { kind: 'step', parts: [
+              { t: '= ' },
+              { t: '(y₂ − y₁)\u00B2', lit: 'v', answer: 'y₂ − y₁',
+                offer: [ 'y₁ + y₂', 'y₂ − y₁' ] }, { t: ' + ' },
+              { t: '(x₂ − x₁)\u00B2', lit: 'h', answer: 'x₂ − x₁',
+                offer: [ 'x₂ − x₁', 'x₁ + x₂' ] } ] },
+          { kind: 'result', inline: true, parts: [
+              { t: 'AB', lit: 'ab', from: { side: 'ab' } }, { t: ' = ' },
+              { t: '\u221A((y₂ − y₁)\u00B2 + (x₂ − x₁)\u00B2)', lit: 'ab' } ] }
+        ] },
+      segment: {
+        a: { x: -5, y: 1, name: 'A', coordParts: [ { t: '(' }, { t: 'x₁', glow: 'x' }, { t: ',\u00A0' },
+                           { t: 'y₁', glow: 'y' }, { t: ')' } ] },
+        b: { x:  5, y: 4, name: 'B', coordParts: [ { t: '(' }, { t: 'x₂', glow: 'x' }, { t: ',\u00A0' },
+                           { t: 'y₂', glow: 'y' }, { t: ')' } ] }
+      },
+      legs: [
+        { from: { x: -5, y: 1 }, to: { x: 5, y: 1 },
+          mark: { name: 'C', coordText: '(x₂, y₁)', fill: '#3B7DD8' },
+          settled: true, length: true, lengthText: 'x₂ − x₁' },
+        { from: { x:  5, y: 1 }, to: { x: 5, y: 4 },
+          settled: true, length: true, lengthText: 'y₂ − y₁' }
+      ] },
 
-    /* 26 — leaves, then the result on its own: board to the left, the
-       working beside it, and nobody in shot. */
+    /* 36 — the result on its own: board to the left, the working beside
+       it, and nobody in shot. No leaf sweep from 35: she flies off, the
+       board slides across, and the formula writes itself (runRecap). */
     { id: 36, line: null, entrance: 'none',
-      layout: 'recap', transition: 'leaves', keepSegment: true,
+      layout: 'recap', keepSegment: true,
       /* The formula the whole lesson has been building to. Nothing is
          said over it, and the ordinary silent beat is 900ms — which
          took it away before the last line had been read. Three lines
@@ -2942,7 +3089,7 @@ window.CFG = (function () {
                  that the algebra and the picture are one object. */
               formula: [
                 { kind: 'lead', small: true, parts: [
-                    { t: 'd = \u221A((x2 - x1)\u00B2 + (y2 - y1)\u00B2)' } ] },
+                    { t: 'd = \u221A((x₂ − x₁)\u00B2 + (y₂ − y₁)\u00B2)' } ] },
                 /* The substitution, and the only line whose numbers were
                    READ rather than worked out — so the only line that
                    flies. Each half comes out of the coordinate it is
@@ -3063,7 +3210,7 @@ window.CFG = (function () {
               showWorking: true,
               formula: [
                 { kind: 'lead', small: true, parts: [
-                    { t: 'd = \u221A((x2 - x1)\u00B2 + (y2 - y1)\u00B2)' } ] },
+                    { t: 'd = \u221A((x₂ − x₁)\u00B2 + (y₂ − y₁)\u00B2)' } ] },
                 /* With its brackets. "3 - -5" reads as a typo; the
                    bracket is what makes the minus-a-minus visible, and
                    this line is the whole reason the beat exists. */

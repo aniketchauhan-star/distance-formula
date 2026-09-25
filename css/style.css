@@ -37,7 +37,10 @@ html, body {
   margin: 0; padding: 0; height: 100%;
   background: #0b1622;
   overflow: hidden;
-  font-family: 'Lilita One', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* Nunito second: it is the game's own too, and it carries the few
+     characters Lilita One lacks (√, ₁, ₂), so those never fall through
+     to whatever font the laptop has. */
+  font-family: 'Lilita One', 'Nunito', system-ui, -apple-system, 'Segoe UI', sans-serif;
   /* Only the weights that exist. Lilita One has one and Nunito is
      loaded at one; a heavier weight asked of either used to be faked
      by the browser — each browser its own way, so the same digits came
@@ -492,6 +495,16 @@ html.calm .wd.in { animation-duration: .08s; }
    riding the .45s transition so the fade comes with the push. */
 #gridPanel.framed #gridAxes .axes { opacity: .3; }
 
+/* A board with no numbers on it — `numbers: false` in the script, from
+   screen 30 on. By then every point carries its own coordinates, and
+   the child reads those, not the axes. The axes still sweep out and
+   their letters still land; only the numbering stays off. Not removed:
+   still laid out and measured, so every label on the board keeps the
+   place it has always had. Weighs more than every rule above that
+   lights a number or dims it, so none of them can bring one back. */
+#gridPanel.unnumbered #gridAxes .glabel.gnum,
+#gridPanel.unnumbered #gridAxes .glabel.gnum.pop { opacity: 0; animation: none; }
+
 /* The ruling is the one that cannot be dimmed by a declaration. The rule
    above runs ruleIn with `both`, so its filled last frame — opacity 1 —
    beats any rule, whatever its weight; the axes record the same trap a
@@ -636,6 +649,21 @@ html.calm #nudge.on { animation: none; opacity: 1; }
 #gridAxes .legline.draw.set,
 #gridAxes .segline.draw.set,
 #gridAxes .segdash-g.draw.set { animation: none; stroke-dashoffset: 0; }
+/* And the rest of a drawing put up already finished — what a screen
+   reached with the picker or with Back is given, so it opens looking
+   exactly as it does when it is played up to (see Board.seed). */
+#gridAxes .legdash-g.draw.set { animation: none; }
+/* Weighted with the panel's id as well: the rules that pop these in
+   (legcoord, legname and leglen's below, segres's and found's further
+   down) weigh the same as a plain `#gridAxes .x.set` and come later, so
+   they won — a screen reached with the picker still bounced C's letters
+   and both lengths in. `.hush` is !important and still beats this. */
+#gridPanel #gridAxes .legdot.set, #gridPanel #gridAxes .legcoord.set,
+#gridPanel #gridAxes .legname.set, #gridPanel #gridAxes .leglen.set,
+#gridPanel #gridAxes .segres.set { opacity: 1; animation: none; }
+#gridAxes .trifill.set { transition: none; }
+#gridAxes .rightangle.on.set { opacity: 1; animation: none; }
+#gridPanel #gridAxes .found.set { opacity: 1; animation: none; }
 #gridAxes .legcoord, #gridAxes .legname {
   opacity: 0;
   font-family: 'Nunito', system-ui, sans-serif;
@@ -666,6 +694,10 @@ html.calm #nudge.on { animation: none; opacity: 1; }
   transform-box: fill-box; transform-origin: center;
 }
 #gridAxes .leglen.pop { animation: labelPop .56s cubic-bezier(.22, .68, .3, 1) both; }
+/* A length put together a piece at a time (x₂ − x₁): a piece still to
+   come is laid out but not painted, and fades in where it lands. */
+#gridAxes .leglen .lpart { transition: fill-opacity .28s ease, stroke-opacity .28s ease; }
+#gridAxes .leglen .lpart.wait { fill-opacity: 0; stroke-opacity: 0; }
 
 /* The count's total. There are no squares behind it any more — the
    line walking out a unit at a time is the count, and a block of
@@ -844,7 +876,9 @@ html.calm #gridAxes .xsweep.draw { animation: none; opacity: .85; stroke-dashoff
   100% { transform: scale(1); }
 }
 /* it reached: leave it lit, the way a confirmed segment is */
-#gridAxes .measline.lit { animation: segLit 1.4s ease-in-out infinite; }
+/* Lit, and still: it used to pulse without end, so the answer's line
+   was still going off while the total was being written beside it. */
+#gridAxes .measline.lit { animation: none; }
 
 /* The board slides from the middle of the frame to its working place
    once the question has been put. Same size either end, so only the
@@ -902,6 +936,17 @@ html.calm #gridAxes .xsweep.draw { animation: none; opacity: .85; stroke-dashoff
    dimming still eases over its 420ms. */
 #gridAxes .hush { opacity: .28 !important; }
 #gridAxes .spot { filter: drop-shadow(0 0 7px rgba(255, 196, 74, .95)); }
+/* Safari — every WebKit browser — does not draw a CSS filter on an SVG
+   shape at all, so on a Mac in Safari nothing on the board ever
+   glowed. There the same glows are drawn with SVG filters, which it
+   does draw (#fx… in the board's <defs>, game.js). `html.svgfx` is
+   set only on WebKit, so every other browser is untouched. The
+   !important is what beats a glow that is animated. */
+html.svgfx #gridAxes .spot { filter: url(#fxSpot) !important; }
+html.svgfx #gridAxes .spotbeat.spotbeat { animation: none; }
+html.svgfx #gridAxes .segline.lit,
+html.svgfx #gridAxes .measline.lit { animation: none; filter: url(#fxLit) !important; }
+html.svgfx #gridAxes.triangle-question-active .triangle-pulse-line.on { filter: url(#fxSoft) !important; }
 
 @keyframes partBeat {
   0%   { opacity: 1; }
@@ -1045,7 +1090,9 @@ html.calm #gridAxes .xsweep.draw { animation: none; opacity: .85; stroke-dashoff
   flex-direction: column;
   justify-content: center;
   gap: 20px;
-  font-family: 'Lilita One', system-ui, sans-serif;
+  /* √ and the subscripts from the game's own Nunito, not the laptop's
+     font — Lilita One has neither. */
+  font-family: 'Lilita One', 'Nunito', system-ui, sans-serif;
   color: #14418c;
   text-align: center;
 }

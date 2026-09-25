@@ -343,6 +343,25 @@ html.calm .triangle-options-panel.rising { animation: none; }
   letter-spacing: -0.3px;
 }
 .triangle-option .opt-label { display: block; }
+/* A choice written in symbols — the general triangle's x₂ − x₁. Set in
+   Nunito, which carries the subscripts (Lilita One has none, and a
+   label half in one face and half in another reads as a mistake), in
+   the game's one weight of it. The three candidates for AB are formulas
+   of twenty-odd symbols, so theirs is smaller: each sits on one line in
+   the 446px a button has inside it. */
+.triangle-option.expr {
+  font-family: 'Nunito', system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 46px;
+  letter-spacing: 0;
+}
+.triangle-option.expr.long { font-size: 40px; }
+/* The panel those three sit in is as wide as the trio's (below), still
+   stacked: at the stacked 520 the formulas had to be set at 28, which
+   the panel's scale brings down to 20 on the stage — too small to read
+   the subscripts in. */
+.triangle-options-panel.wide { width: 740px; }
+.triangle-option.expr .opt-label { white-space: nowrap; }
 .triangle-option .opt-icon {
   display: block;
   width: 100%;

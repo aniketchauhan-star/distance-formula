@@ -117,6 +117,16 @@ window.Audio8 = (function () {
     else musicTarget(A.musicVolume, A.duckUp);
   }
 
+  /* Every dip lifted at once — for a screen change, where the step that
+     would have lifted one may have been cancelled with the screen it
+     belonged to. A count left above zero kept the music quiet for the
+     rest of the game. */
+  function duckReset() {
+    if (duckDepth === 0) return;
+    duckDepth = 0;
+    musicTarget(A.musicVolume, A.duckUp);
+  }
+
   function setMuted(m) {
     muted = m;
     if (master) master.gain.setTargetAtTime(m ? 0 : 1, now(), 0.05);
@@ -388,7 +398,7 @@ window.Audio8 = (function () {
   }
 
   return {
-    unlock, prime, duck, setMuted, isMuted, wind, breeze, confettiPop,
+    unlock, prime, duck, duckReset, setMuted, isMuted, wind, breeze, confettiPop,
     chirp, birdCall, flap, land, pop, blip, sparkle, whoosh, chime, magic, draw, tick,
     correct, wrong, cheer, rustle,
     get ready() { return !!ctx; },
