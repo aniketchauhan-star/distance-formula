@@ -3299,9 +3299,10 @@ window.CFG = (function () {
       entrance: 'stay', layout: 'board', board: 'mid', keepSegment: true,
       quietBoard: true, park: true,
       intro: 'measure', entry: true, range: { min: 0, max: 18 },
-      hint: 'Twelve across and five up.',
-      segment: { a: { x: -6, y: -2, name: 'A', coordSide: 'under' },
-                 b: { x:  6, y: -7, name: 'B', coordSide: 'under' } },
+      /* A and B's coordinates in parts, so the working can carry their
+         numbers out of them. The same words either way. */
+      segment: { a: { x: -6, y: -2, name: 'A', coordSide: 'under', coordParts: [ { t: '(' }, { t: '−6', glow: 'x' }, { t: ',\u00A0' }, { t: '−2', glow: 'y' }, { t: ')' } ] },
+                 b: { x:  6, y: -7, name: 'B', coordSide: 'under', coordParts: [ { t: '(' }, { t: '6', glow: 'x' }, { t: ',\u00A0' }, { t: '−7', glow: 'y' }, { t: ')' } ] } },
       legs: [
         { from: { x:  6, y: -7 }, to: { x: 6, y: 7 }, mark: { name: 'C' }, settled: true },
         { from: { x:  6, y:  7 }, to: { x: -6, y: -2 }, settled: true }
@@ -3310,16 +3311,27 @@ window.CFG = (function () {
               keepLength: true,
               correctLine: 'Thirteen. That one stays.',
               feedback: ['Square them, add, then take the root.'],
-              showWorking: true,
+              /* Missed twice: she flies off, the board makes room, and the
+                 working opens out of its right edge as a table — AB
+                 carried in off its side, then the four numbers lifted out
+                 of A's and B's coordinates into the formula, then worked
+                 through to 13. It stays on AB after. */
+              showWorking: true, table: true, tableSize: 36,
               formula: [
-                { kind: 'lead', parts: [
-                    { t: '(AB)\u00B2', lit: 'ab', from: { side: 'ab' } }, { t: ' = ' },
-                    { t: '(12)\u00B2' }, { t: ' + ' }, { t: '(5)\u00B2' } ] },
-                { kind: 'step', parts: [
-                    { t: '= ' }, { t: '144' }, { t: ' + ' }, { t: '25' } ] },
-                { kind: 'step', parts: [ { t: '= ' }, { t: '169', lit: 'ab' } ] },
-                { kind: 'result', parts: [
-                    { t: 'AB = ' }, { t: '13\u00A0units', lit: 'ab', home: true } ] }
+                { inline: true, parts: [
+                    { t: '(' }, { t: 'AB', lit: 'ab', from: { side: 'ab' } }, { t: ')\u00B2' },
+                    { t: ' = ' },
+                    { t: '(x\u2082 \u2212 x\u2081)\u00B2 + (y\u2082 \u2212 y\u2081)\u00B2' } ] },
+                { inline: true, parts: [
+                    { t: '= ' }, { t: '(' },
+                    { t: '6', from: { p: 'b', half: 'x' } }, { t: ' \u2212 (' },
+                    { t: '\u22126', from: { p: 'a', half: 'x' } }, { t: '))\u00B2 + (' },
+                    { t: '\u22127', from: { p: 'b', half: 'y' } }, { t: ' \u2212 (' },
+                    { t: '\u22122', from: { p: 'a', half: 'y' } }, { t: '))\u00B2' } ] },
+                { inline: true, parts: [ { t: '= ' }, { t: '12\u00B2 + (\u22125)\u00B2' } ] },
+                { inline: true, parts: [ { t: '= ' }, { t: '144 + 25 = 169' } ] },
+                { inline: true, parts: [
+                    { t: 'AB' }, { t: ' = ' }, { t: '\u221A169 = 13\u00A0units', lit: 'ab' } ] }
               ] } },
 
     /* The one side of this triangle that runs straight up the grid — so
@@ -3350,28 +3362,39 @@ window.CFG = (function () {
       entrance: 'none', layout: 'board', board: 'mid', keepSegment: true,
       quietBoard: true, park: true,
       intro: 'measure', entry: true, range: { min: 0, max: 18 },
-      hint: 'Twelve across and nine down.',
-      segment: { a: { x: -6, y: -2, name: 'A', coordSide: 'under' },
-                 b: { x:  6, y: -7, name: 'B', coordSide: 'under' },
+      segment: { a: { x: -6, y: -2, name: 'A', coordSide: 'under', coordParts: [ { t: '(' }, { t: '−6', glow: 'x' }, { t: ',\u00A0' }, { t: '−2', glow: 'y' }, { t: ')' } ] },
+                 b: { x:  6, y: -7, name: 'B', coordSide: 'under', coordParts: [ { t: '(' }, { t: '6', glow: 'x' }, { t: ',\u00A0' }, { t: '−7', glow: 'y' }, { t: ')' } ] },
                  result: { text: '13\u00A0units' } },
       legs: [
-        { from: { x:  6, y: -7 }, to: { x: 6, y: 7 }, mark: { name: 'C' }, settled: true, length: true },
+        /* C's coordinates in parts as well: the working lifts its 6 and
+           its 7 out of them. */
+        { from: { x:  6, y: -7 }, to: { x: 6, y: 7 }, mark: { name: 'C', coordParts: [ { t: '(' }, { t: '6', glow: 'x' }, { t: ',\u00A0' }, { t: '7', glow: 'y' }, { t: ')' } ] },
+          settled: true, length: true },
         { from: { x:  6, y:  7 }, to: { x: -6, y: -2 }, settled: true }
       ],
       task: { kind: 'entry', measureLeg: 1, answer: 15, noCount: true,
               keepLength: true,
               correctLine: 'Fifteen. All three are down.',
               feedback: ['Square them, add, then take the root.'],
-              showWorking: true,
+              /* As on 57: missed twice, the working comes as a table, CA
+                 carried in off its side and the numbers lifted out of C's
+                 and A's coordinates, read from C to A. */
+              showWorking: true, table: true, tableSize: 36,
               formula: [
-                { kind: 'lead', parts: [
-                    { t: '(CA)\u00B2', lit: 'v', from: { side: 'v' } }, { t: ' = ' },
-                    { t: '(12)\u00B2' }, { t: ' + ' }, { t: '(9)\u00B2' } ] },
-                { kind: 'step', parts: [
-                    { t: '= ' }, { t: '144' }, { t: ' + ' }, { t: '81' } ] },
-                { kind: 'step', parts: [ { t: '= ' }, { t: '225', lit: 'v' } ] },
-                { kind: 'result', parts: [
-                    { t: 'CA = ' }, { t: '15\u00A0units', lit: 'v', home: true } ] }
+                { inline: true, parts: [
+                    { t: '(' }, { t: 'CA', lit: 'v', from: { side: 'v' } }, { t: ')\u00B2' },
+                    { t: ' = ' },
+                    { t: '(x\u2082 \u2212 x\u2081)\u00B2 + (y\u2082 \u2212 y\u2081)\u00B2' } ] },
+                { inline: true, parts: [
+                    { t: '= ' }, { t: '(' },
+                    { t: '\u22126', from: { p: 'a', half: 'x' } }, { t: ' \u2212 ' },
+                    { t: '6', from: { p: 'c', half: 'x' } }, { t: ')\u00B2 + (' },
+                    { t: '\u22122', from: { p: 'a', half: 'y' } }, { t: ' \u2212 ' },
+                    { t: '7', from: { p: 'c', half: 'y' } }, { t: ')\u00B2' } ] },
+                { inline: true, parts: [ { t: '= ' }, { t: '(\u221212)\u00B2 + (\u22129)\u00B2' } ] },
+                { inline: true, parts: [ { t: '= ' }, { t: '144 + 81 = 225' } ] },
+                { inline: true, parts: [
+                    { t: 'CA' }, { t: ' = ' }, { t: '\u221A225 = 15\u00A0units', lit: 'v' } ] }
               ] } },
 
     /* 60 — the screen the whole repair is for. Three numbers become a

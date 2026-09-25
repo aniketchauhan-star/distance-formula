@@ -3243,8 +3243,23 @@
         L.dot.setAttribute('cx', x2); L.dot.setAttribute('cy', y2);
         // the corner can be drawn as a plotted point rather than a leg end
         L.dot.setAttribute('fill', spec.mark.fill || side);
-        L.coord.textContent = spec.mark.coordText ||
-                              ('(' + numText(t.x) + ',\u00A0' + numText(t.y) + ')');
+        if (spec.mark.coordParts) {
+          /* In parts, so a working can lift a half out of them — the same
+             words either way, so nothing on the paper changes. */
+          while (L.coord.firstChild) L.coord.removeChild(L.coord.firstChild);
+          spec.mark.coordParts.forEach(function (f) {
+            const ts = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+            ts.textContent = f.t;
+            if (f.glow) {
+              ts.classList.add('glowable');
+              if (typeof f.glow === 'string') ts.dataset.part = f.glow;
+            }
+            L.coord.appendChild(ts);
+          });
+        } else {
+          L.coord.textContent = spec.mark.coordText ||
+                                ('(' + numText(t.x) + ',\u00A0' + numText(t.y) + ')');
+        }
         L.name.textContent = spec.mark.name || '';
         /* The corner's letter and its coordinate are one block, placed
            by the same rule every other point's are — out of the shape,
@@ -4152,7 +4167,12 @@
        begins. */
     partSpot: function (which, part) {
       const SG = C.GRID.segment, self = this;
-      const p = this.segParts && this.segParts[which];
+      /* 'a' and 'b' are the pair; 'c' is the corner the sides meet at —
+         its coordinates are written in parts too when a working carries
+         numbers out of them (59). */
+      const p = which === 'c'
+        ? (this.legSlots && this.legSlots[0] ? { coord: this.legSlots[0].coord } : null)
+        : (this.segParts && this.segParts[which]);
       if (!p || !p.coord) return null;
       const kids = p.coord.children || [];
       if (!kids.length) return null;
@@ -6733,7 +6753,10 @@
           if (plots && !measure && !e.pointsOnly) want.joined = true;
           if (plots && measure && t.measureLeg != null && !e.guideOnLine) want.joined = true;
           if (e.segment.dash) want.dash = true;
-          if (e.segment.result && !measure) want.result = e.segment.result;
+          /* A length written on the pair: said by a screen that draws it,
+             or by a question screen that keeps a pair already carrying it
+             (58, 59 carry 57's "13 units"). */
+          if (e.segment.result && (!measure || e.keepSegment)) want.result = e.segment.result;
         }
         if (e.joinSegment) want.joined = true;
         if (e.solidLine) { want.joined = true; want.dash = false; }
@@ -6757,6 +6780,12 @@
            the next screen expected had no such length, the one it was
            holding did not match, and it was put up again without it:
            the label blinked out and came back. */
+        /* And a question about the pair itself that keeps its answer
+           (57's AB): the length it came to stays on the pair, right or
+           worked out — the screens after compare all three. */
+        if (measure && t.keepLength && t.measureLeg == null && t.answer != null) {
+          want.result = { text: t.answer + '\u00A0unit' + (t.answer === 1 ? '' : 's') };
+        }
         (e.wordCues || []).forEach(function (c) {
           if (c && c.leg != null && want.legs[c.leg]) {
             want.legs[c.leg].length = true; want.legs[c.leg].dash = false;
@@ -7578,6 +7607,7 @@
             Table.build(X.rows);
             Table.el.style.setProperty('--ft-size', (X.tableSize || T.size) + 'px');
             Table.place({ x: A.x, w: A.w, top: A.y });
+            Table.fit();
             Table.open();
             SFX.sparkle();
             self.later(function () {
@@ -8745,10 +8775,19 @@
             /* The two sides measured on the board first — they are what
                the working is about to square and add, so they have to be
                there before it does. */
-            const ms = self.showWorking(screen);
+            /* Not for a working done as a table (57, 59): its numbers
+               come out of the points' own coordinates, and the sides
+               measured here were the triangle's OTHER sides — "14 units"
+               and "15 units" put up to work out AB. */
+            const ms = t.spec.table ? 0 : self.showWorking(screen);
             self.later(function () {
               if (t.spec.formula) {
-                self.workThrough(t, function () { self.settle(C.AUTO.afterLine); });
+                self.workThrough(t, function () {
+                  /* And what it came to stays on the side, as a right
+                     answer's does: the screens after compare all three. */
+                  if (t.spec.table && t.spec.keepLength) self.writeLength(t);
+                  self.settle(C.AUTO.afterLine);
+                });
               } else {
                 self.settle(C.AUTO.afterReveal);
               }
@@ -9343,6 +9382,7 @@
               /* Higher than 28's, so there is room under it for her to
                  come back to and her balloon above her. */
               Table.place({ x: left, w: C.STAGE_W - T.margin - left, cy: T.pickCy });
+              Table.fit();
               Table.open();
               SFX.sparkle();
               self.later(function () {
@@ -9528,6 +9568,7 @@
                  (35: she lands under it on the screen after). */
               Table.place({ x: left, w: C.STAGE_W - T.margin - left,
                             cy: t.spec.tableHigh ? T.pickCy : B.y + B.h / 2 });
+              Table.fit();
               Table.open();
               SFX.sparkle();
               /* 3 — then the rows, one thing at a time. */
