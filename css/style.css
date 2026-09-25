@@ -672,6 +672,15 @@ html.calm #nudge.on { animation: none; opacity: 1; }
 #gridAxes .trifill.set { transition: none; }
 #gridAxes .rightangle.on.set { opacity: 1; animation: none; }
 #gridPanel #gridAxes .found.set { opacity: 1; animation: none; }
+/* A drawing changed in plain sight (no leaf sweep): what is going
+   steps back to nothing together before it is taken away (Board.fadeOut).
+   Heavy enough to outrank every rule and animation that paints these,
+   the town's own dimming included. */
+#gridPanel #gridAxes .fading.fading.fading { opacity: 0 !important; transition: opacity .38s ease !important; }
+/* The pair's letters, stepped back when they are done with — the
+   comparison screens after a walk (Board.fadeNames). */
+#gridPanel #gridAxes .segname.faded { opacity: 0 !important; }
+
 /* A place in the town the screen is not about — its point and its
    coordinates step back with its picture (Board.townFocus). */
 #gridAxes .found { transition: opacity .42s ease; }

@@ -3061,9 +3061,14 @@
          as given, and it never moves. */
       let at;
       if (opt.fixed) {
-        const fx0 = X + opt.fixed.x, fy0 = Y + opt.fixed.y;
-        at = { x: fx0, y: fy0, dir: null,
-               box: { l: fx0 - w / 2, t: fy0 - h / 2, r: fx0 + w / 2, b: fy0 + h / 2 } };
+        /* The spot is where the COORDINATES go; the letter sits over
+           them. Named that way, a point's coordinates are in the same
+           place whether it has a letter or not (a place of the town that
+           is not one of the pair has none — solve). */
+        const fx0 = X + opt.fixed.x, cy0 = Y + opt.fixed.y;
+        const bot = cy0 + ch / 2;
+        at = { x: fx0, y: bot - h / 2, dir: null,
+               box: { l: fx0 - w / 2, t: bot - h, r: fx0 + w / 2, b: bot } };
       } else {
         at = this.placeBlock(w, h, X, Y, gap,
                pin ? opt.away : (part.heldDir ? opt.away : (wasFound ?
@@ -5677,7 +5682,7 @@
         if (!p[k]) return;
         p[k].dot.classList.add('pop');
         if ((p[k].coord.textContent || '').trim()) p[k].coord.classList.add('pop');
-        if ((p[k].name.textContent || '').trim()) p[k].name.classList.add('pop');
+        if ((p[k].name.textContent || '').trim()) { p[k].name.classList.add('pop'); p[k].name.classList.remove('faded'); }
       });
     },
 
@@ -5698,7 +5703,7 @@
         const part = self.segParts[k];
         part.dot.classList.add('pop', 'set');
         if ((part.coord.textContent || '').trim()) part.coord.classList.add('pop', 'set');
-        if ((part.name.textContent || '').trim()) part.name.classList.add('pop', 'set');
+        if ((part.name.textContent || '').trim()) { part.name.classList.add('pop', 'set'); part.name.classList.remove('faded'); }
       });
       if (want.joined) {
         this.segLine.classList.add('draw', 'set');
@@ -5707,8 +5712,16 @@
       /* The dotted guide is its own thing: a pair can carry both (29b,
          29c, 51–53 show the line and the guide along it). */
       if (want.dash && this.segDashG) this.segDashG.classList.add('draw', 'set');
+      /* Written the way the screen writes them: a town's places at the
+         pair's size and in any spot they name (markPlaces), anything else
+         as a located point. */
+      const SGm = C.GRID.segment, tkm = this.typeScale();
+      const town = (C.SCRIPT[Game.index] || {}).town;
       (want.marks || []).forEach(function (m) {
-        self.solve(m.x, m.y);
+        if (town) self.solve(m.x, m.y, { size: SGm.coordSize * tkm,
+                                         under: SGm.dotR + 6 + SGm.coordSize * tkm * 0.62,
+                                         labelAt: m.labelAt });
+        else self.solve(m.x, m.y);
         const g = self.foundMarks[self.foundMarks.length - 1];
         if (g) g.classList.add('set');
       });
@@ -5874,7 +5887,7 @@
         const p = self.segParts[k];
         p.dot.classList.remove('pop', 'set');
         p.coord.classList.remove('pop', 'set');
-        p.name.classList.remove('pop', 'set');
+        p.name.classList.remove('pop', 'set', 'faded');
       });
     },
 
@@ -5947,6 +5960,7 @@
       }
       later(function () { self.segParts.a.coord.classList.add('pop'); SFX.tick(2); }, 1260);
       later(function () { self.segParts.b.coord.classList.add('pop'); SFX.tick(3); }, 1530);
+      ['a', 'b'].forEach(function (k) { self.segParts[k].name.classList.remove('faded'); });
       later(function () { self.segParts.a.name.classList.add('pop'); SFX.tick(4); }, 1880);
       later(function () { self.segParts.b.name.classList.add('pop'); SFX.tick(5); }, 2150);
       if (spec.dash) {
@@ -5985,6 +5999,7 @@
       ['a', 'b'].forEach(function (k, i) {
         later(function () {
           self.segParts[k].name.classList.add('pop');
+          self.segParts[k].name.classList.remove('faded');
           SFX.tick(4 + i);
         }, 200 + i * 260);
       });
@@ -6148,6 +6163,11 @@
       const ctext = '(' + numText(gx) + ',\u00A0' + numText(gy) + ')';
       const cw = this.textW(ctext, size);
       t.setAttribute('x', this.clampLabel(px, cw));
+      /* A spot named for it, in squares from the point: exactly where the
+         pair writes the same point's coordinates (placePointLabel), so a
+         place's label is in one place whatever it is part of. */
+      const la = opts && opts.labelAt;
+      if (la) t.setAttribute('x', px + la.x * G.stepX);
       /* And remembered, so the pair this point is about to become is
          labelled where the child already saw it. A located mark and the
          segment that joins it are the same point twice; its coordinates
@@ -6160,7 +6180,7 @@
          the same number. Both have to agree: a pair tapped out with its
          coordinates under it and then joined with them over it looks
          like two different pairs. */
-      t.setAttribute('y', py + (F.side === 'under' ? under : -under));
+      t.setAttribute('y', la ? (py - la.y * G.stepY) : (py + (F.side === 'under' ? under : -under)));
       t.setAttribute('fill', G.ink);
       t.setAttribute('font-size', size);
       g.dataset.at = gx + ',' + gy;
@@ -6177,7 +6197,9 @@
 
     /* The other places on a town screen, each a point with its
        coordinates under it — so every place on the map can be read,
-       not only the two a question is about. */
+       not only the two a question is about. A place can name where its
+       coordinates go (`labelAt`, as a point of the pair can): the park's
+       are right of its trees whether it is a point of the walk or not. */
     markPlaces: function (list, later) {
       const self = this, SG = C.GRID.segment, tk = this.typeScale();
       const size = SG.coordSize * tk;
@@ -6185,9 +6207,60 @@
       (list || []).forEach(function (m, n) {
         const at = self.dataAt(m.x, m.y);
         if (at) return;                            // already there
-        later(function () { self.solve(m.x, m.y, { size: size, under: under }); SFX.tick(n + 1); },
-              260 + n * 220);
+        later(function () {
+          self.solve(m.x, m.y, { size: size, under: under, labelAt: m.labelAt });
+          SFX.tick(n + 1);
+        }, 260 + n * 220);
       });
+    },
+
+    /* Things on the board stepped back to nothing together, for a
+       screen that changes the drawing in plain sight (no leaf sweep to
+       hide it). The class outranks every animation that paints them. */
+    fadeOut: function (nodes, later, then) {
+      nodes = nodes.filter(Boolean);
+      nodes.forEach(function (n) { n.classList.add('fading'); });
+      const restore = Game.hold(function () {
+        nodes.forEach(function (n) { n.classList.remove('fading'); });
+      });
+      later(function () { if (then) then(); restore(); }, 420);
+    },
+
+    /* The whole drawing — the pair, its sides, their labels and lengths,
+       the face and its marker, the recalled pairs, the places' points —
+       faded out and then cleared: a walk arriving after another's table
+       (45, 47e). */
+    fadeDrawing: function (later, then) {
+      const self = this;
+      this.fadeOut([this.segGroup, this.triFill, this.rightMark, this.parkTrees]
+        .concat((this.legSlots || []).map(function (L) { return L && L.g; }))
+        .concat((this.exSlots || []).map(function (X) { return X && X.g; }))
+        .concat(this.foundMarks || []), later, function () {
+          self.clearSegment();
+          self.clearFound();
+          if (then) then();
+        });
+    },
+
+    /* Only the sides — lengths, corner, face, marker — faded and then
+       taken away, the pair left as it is: a comparison after a walk. */
+    fadeLegs: function (later, then) {
+      const self = this;
+      this.fadeOut([this.triFill, this.rightMark, this.parkTrees]
+        .concat((this.legSlots || []).map(function (L) { return L && L.g; })), later, function () {
+          self.clearLegs();
+          if (then) then();
+        });
+    },
+
+    /* The pair's two letters stepped back, and nothing else moved: the
+       comparison is about the places, and the A and B of the walk are
+       done with. Put back whenever a letter is next written. */
+    fadeNames: function () {
+      ['a', 'b'].forEach(function (k) {
+        const n = this.segParts && this.segParts[k] && this.segParts[k].name;
+        if (n && (n.textContent || '').trim()) n.classList.add('faded');
+      }, this);
     },
     dataAt: function (gx, gy) {
       return (this.foundMarks || []).filter(function (g) {
@@ -6854,6 +6927,11 @@
     seedDrawing: function (i) {
       const entry = C.SCRIPT[i] || {};
       if (!entry.keepSegment) return;            // it draws its own, from nothing
+      /* A comparison is reached two ways — after the second walk's table,
+         or straight from its question answered right — so the drawing
+         before it is not one thing. Holding either of its two walks is
+         holding what it needs; only with neither up is anything put up. */
+      if (entry.compare && entry.compare.some(function (w) { return Board.showing(w); })) return;
       const want = this.drawingBefore(i);
       if (!want.pair) return;
       /* On the plane this screen is taught on: seeded on the last one's
@@ -7058,8 +7136,10 @@
         }
         if (entry.layout !== 'recap' && !AX) el.formulaBoard.classList.add('hidden');
         if (!entry.segment && !entry.keepSegment) Board.clearSegment();
-        if (Opts && !entry.options) Opts.hide();
-        if (Sel && !(entry.distance || entry.entry)) Sel.hide();
+        /* Not from under her: on a fly-back screen she may be standing
+           on it, and it goes once she has. */
+        if (Opts && !entry.options && !flyBack) Opts.hide();
+        if (Sel && !(entry.distance || entry.entry) && !flyBack) Sel.hide();
       }
 
       /* What happens once she has arrived: speak her line, hand over
@@ -7415,6 +7495,20 @@
            and false the moment the picker drops a child in from
            somewhere else. So the pair it declares wins over the pair
            that happens to be up. */
+        /* A comparison keeps whichever of its two walks is up (see
+           compareWalks); with neither up, the first is drawn. */
+        if (entry.compare) {
+          const held = entry.compare.filter(function (w) { return Board.showing(w); })[0];
+          if (held) { self.compareWalks(entry, held); afterSeg(); }
+          else {
+            Board.clearSegment();
+            Board.runSegment(entry.compare[0], self.later.bind(self), function () {
+              self.compareWalks(entry, entry.compare[0]);
+              afterSeg();
+            });
+          }
+          return;
+        }
         const samePair = Board.showing(entry.segment);
         /* Redrawing over the top of the wrong pair leaves the wrong
            pair's labels and lengths underneath it, so the paper is
@@ -7527,7 +7621,7 @@
          to the component, and all three have to be taken away again by
          the screens that do not want them — a town left standing on the
          screen after is a town on the wrong board. */
-      const dressTown = function (e) {
+      const dressTown = function (e, soft) {
         if (Town) {
           /* `town: true` is every place; a list names the ones this
              screen is about — the cafés and the house, or the school,
@@ -7562,8 +7656,10 @@
            second label on a point this one is drawing itself. */
         if (e.dropMarks) Board.clearFound();
         /* And a triangle that was the working's own scaffolding does
-           not belong to the screen after it. */
-        if (e.dropLegs) Board.clearLegs();
+           not belong to the screen after it — faded away in plain sight,
+           or simply gone behind the leaves. */
+        if (e.dropLegs) { if (soft) Board.fadeLegs(self.later.bind(self)); else Board.clearLegs(); }
+        if (e.dropNames) Board.fadeNames();
       };
 
       /* An axis case: plot the segment, then narrow the formula a step
@@ -7725,7 +7821,13 @@
             applyGeom(geom);
             el.standSwifty.classList.add('hidden');
             el.birdWin.classList.add('hidden');
-            measure();
+            /* Then the last walk's table folds back into the board, its
+               drawing fades, and this walk is drawn on the board as it
+               slides back into place. */
+            if (Table) Table.close();
+            if (Opts && !entry.options) Opts.hide();
+            dressTown(entry, true);
+            Board.fadeDrawing(self.later.bind(self), measure);
           });
           return;
         }
@@ -7981,7 +8083,7 @@
       Board.clearWorkLines();
       /* Behind the leaves, under the cover (dress), rather than popping
          out in plain sight before a single leaf has arrived. */
-      if (Table && !entry.keepTable && entry.transition !== 'leaves') Table.hide();
+      if (Table && !entry.keepTable && entry.transition !== 'leaves' && !flyBack) Table.hide();
 
       /* The picker is told where the game went, however it got there —
          her own hand-over, Back, Next, or a jump from the picker
@@ -7992,7 +8094,7 @@
          and straight away where there are not. Either way it happens
          before anything is drawn, never after, or the town flashes up
          on the board the screen before was using. */
-      if (entry.transition !== 'leaves') dressTown(entry);
+      if (entry.transition !== 'leaves' && !flyBack) dressTown(entry);
 
       if (entry.transition === 'leaves') {
         this.state = 'entering';
@@ -8011,6 +8113,9 @@
       // a distance question rebuilds from an empty frame, every time
       if (entry.intro === 'measure') { runMeasure(); return; }
 
+      /* The board screen itself: placed, its drawing kept or cleared, then
+         plotted and arrived at. Run at once, or after a fly-back. */
+      const settleIn = function () {
       if (geom.panelBox) Board.place(geom.panelBox);
       else Board.place(C.GRID.box);
 
@@ -8066,6 +8171,31 @@
         Board.setDots(!!entry.dots);
         plotThen(arrive);
       }
+      };
+
+      /* A board screen after a table with no leaf sweep (46, 48): she
+         flies off from where she stands, the table folds back into the
+         board as it slides back into place, the working's triangle fades,
+         and only then is the screen drawn and she flies back in. */
+      if (flyBack) {
+        this.state = 'entering';
+        Bubble.close();
+        this.flyOut(function () {
+          self.geom = geom;
+          standPose = !!geom.stand;
+          applyGeom(geom);
+          el.standSwifty.classList.add('hidden');
+          el.birdWin.classList.add('hidden');
+          if (Table) Table.close();
+          if (Opts && !entry.options) Opts.hide();
+          if (Sel && !(entry.distance || entry.entry)) Sel.hide();
+          dressTown(entry, true);
+          self.slideBoard(geom.panelBox || C.GRID.box);
+          self.later(settleIn, 760);
+        });
+        return;
+      }
+      settleIn();
     },
 
     /* Down onto one of the answers, rather than onto the panel as a
@@ -9918,6 +10048,36 @@
         this.later(function () {
           if (t.spec.voiceOnly) self.sayOnly(fb.msg); else self.speak(fb.msg);
         }, 320);
+      }
+    },
+
+    /* The two walks of a comparison (46, 48). Whichever of them the
+       board is holding stays exactly as it is — the walk just worked, or
+       the pair the question was asked on — and its line is drawn solid
+       over its guide and its length written on it. The other is drawn
+       beside it, its ends not named a second time where something on the
+       board already names them. Nothing that is already up moves. */
+    compareWalks: function (entry, main) {
+      const self = this, later = this.later.bind(this);
+      const other = (entry.compare || []).filter(function (w) { return w !== main; })[0];
+      const L = Board.segLine;
+      const drawn = !!L && L.classList.contains('draw') &&
+                    (parseFloat(getComputedStyle(L).strokeDashoffset) || 0) < 1;
+      let at = 0;
+      if (L && !drawn) {
+        later(function () { L.classList.add('draw'); SFX.draw(); }, 240);
+        // the dots under it go once it has covered them
+        later(function () { if (Board.segDashG) Board.segDashG.classList.remove('draw', 'set'); }, 240 + 720);
+        at = 240 + 720;
+      }
+      const R = main.result;
+      if (R) later(function () { Board.showSegResult(main, R.text, R.dy, R.dx); SFX.chime(); }, at + 120);
+      if (other) {
+        const named = function (p) { return !!Board.dataAt(p.x, p.y) || !!Board.keyAt(p); };
+        const ex = Object.assign({}, other, {
+          a: Object.assign({}, other.a, named(other.a) ? { quiet: true } : {}),
+          b: Object.assign({}, other.b, named(other.b) ? { quiet: true } : {}) });
+        later(function () { Board.runExamples([ex], later); }, at + 520);
       }
     },
 

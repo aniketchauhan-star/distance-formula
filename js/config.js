@@ -1949,6 +1949,18 @@ window.CFG = (function () {
                     { from: { x: 2, y: 2 }, to: { x: 2, y: 5 } } ];     // 29–29c
   const SHAPE_G = [ { from: { x: -5, y: 1 }, to: { x: 5, y: 1 } },
                     { from: { x: 5, y: 1 }, to: { x: 5, y: 4 } } ];     // 31–37
+  /* Where the park's coordinates are written: right of its trees and a
+     little up — the same spot whether the park is a point of the walk
+     (with its letter over it) or one of the other places. In squares
+     from the point. */
+  const PARK_LABEL = { x: 1.04, y: 0.376 };
+  /* And the house's, on the school-and-park screens (47 to 48): right of
+     the house, level with its point. Every line out of the house there
+     — to the school, down to the corner under it, left to the park's
+     corner, up to the park — leaves on another side, so nothing is ever
+     written across it and it never has to move. */
+  const HOUSE_LABEL = { x: 0.95, y: 0.12 };
+
   function walk(w) {
     const pt = function (p, name) {
       return Object.assign({ x: p.x, y: p.y, name: name }, p.extra || {});
@@ -3144,14 +3156,23 @@ window.CFG = (function () {
 
     /* The comparison, not the winner: both walks on the map with their
        lengths, and the smaller one named. */
-    { id: 46, line: '5 is less than √40 — so Cafe A is closer.',
-      entrance: 'fly', layout: 'board', transition: 'leaves',
+    { id: 46, line: '5 is less than \u221A40 \u2014 so Cafe A is closer.',
+      /* No leaf sweep: she flies off from under the second walk's table
+         (or from the answers, answered right on 42), the table folds away
+         and the board slides back, the walk's triangle fades — and the
+         pair already on the board STAYS: the two places, their points and
+         their coordinates, exactly where they were. Its line is drawn
+         solid with its length on it, and the other walk is drawn beside
+         it (compareWalks). */
+      entrance: 'fly', layout: 'board', flyBack: true,
       town: ['house', 'cafeA', 'cafeB'], textScale: 0.85,
-      segment: { a: { x: 1, y: 1 }, b: { x: 5, y: 4 },
-                 coordSide: 'under', result: { text: '5 units' } },
-      /* Its far end is the house, which the pair above already names. */
-      examples: [ { a: { x: -5, y: 3 }, b: { x: 1, y: 1, quiet: true },
-                    coordSide: 'under', result: { text: '√40 units' } } ],
+      keepSegment: true, dropLegs: true, dropNames: true,
+      compare: [
+        { a: { x: 1, y: 1 }, b: { x: -5, y: 3 }, coordSide: 'under',
+          result: { text: '\u221A40\u00A0units' } },
+        { a: { x: 1, y: 1 }, b: { x: 5, y: 4 }, coordSide: 'under',
+          result: { text: '5\u00A0units' } }
+      ],
       hold: 5200 },
 
     /* 47 — the same question with the other two places: the house, the
@@ -3161,8 +3182,8 @@ window.CFG = (function () {
       line: 'Which is closer to Maya’s house — the school or the park?',
       town: ['house', 'school', 'park'], textScale: 0.85,
       pointsOnly: true,
-      segment: { a: { x: 1, y: 1 }, b: { x: 5, y: -4 }, coordSide: 'under' },
-      mark: [ { x: -3, y: 2 } ],
+      segment: { a: { x: 1, y: 1, labelAt: HOUSE_LABEL }, b: { x: 5, y: -4 }, coordSide: 'under' },
+      mark: [ { x: -3, y: 2, labelAt: PARK_LABEL } ],
       askLast: true,
       options: [
         { key: 'school', label: 'School', cls: 'school' },
@@ -3189,11 +3210,11 @@ window.CFG = (function () {
        house's picture, which stands above its point. */
     ...walk({
       ids: ['47b', '47c', '47d'],
-      a: { x: 1, y: 1 }, b: { x: 5, y: -4 }, c: { x: 1, y: -4 },
+      a: { x: 1, y: 1, extra: { labelAt: HOUSE_LABEL } }, b: { x: 5, y: -4 }, c: { x: 1, y: -4 },
       seg: { coordSide: 'under' },
       say: { first: 'First, the house to the school.' },
       base: { textScale: 0.85, town: ['house', 'school', 'park'], townFocus: ['house', 'school'],
-              mark: [ { x: -3, y: 2 } ], range: { min: 0, max: 8 } },
+              mark: [ { x: -3, y: 2, labelAt: PARK_LABEL } ], range: { min: 0, max: 8 } },
       first: { keepSegment: true }
     }),
 
@@ -3203,7 +3224,7 @@ window.CFG = (function () {
       /* B's label to the right of the park's trees, above the dotted line
          — anywhere the rule looked, the trees or a line was in the way,
          and it ended up behind them. Named, it stays there. */
-      a: { x: 1, y: 1 }, b: { x: -3, y: 2, extra: { labelAt: { x: 1.04, y: 0.55 } } },
+      a: { x: 1, y: 1, extra: { labelAt: HOUSE_LABEL } }, b: { x: -3, y: 2, extra: { labelAt: PARK_LABEL } },
       /* And C's under C, clear of the short side CB — so CB's "1 unit"
          can sit beside its own line. */
       c: { x: -3, y: 1 }, cAway: { x: 0, y: 1 },
@@ -3216,13 +3237,18 @@ window.CFG = (function () {
       first: { flyBack: true }
     }),
 
-    { id: 48, line: '√17 is less than √41 — so the park is closer.',
-      entrance: 'fly', layout: 'board', transition: 'leaves',
+    { id: 48, line: '\u221A17 is less than \u221A41 \u2014 so the park is closer.',
+      /* As 46: no leaf sweep, the pair on the board kept as it is, its
+         line drawn solid with its length, the other walk beside it. */
+      entrance: 'fly', layout: 'board', flyBack: true,
       town: ['house', 'school', 'park'], textScale: 0.85,
-      segment: { a: { x: 1, y: 1 }, b: { x: -3, y: 2, labelAt: { x: 1.04, y: 0.55 } },
-                 coordSide: 'under', result: { text: '√17 units' } },
-      examples: [ { a: { x: 5, y: -4 }, b: { x: 1, y: 1, quiet: true },
-                    coordSide: 'under', result: { text: '√41 units' } } ],
+      keepSegment: true, dropLegs: true, dropNames: true,
+      compare: [
+        { a: { x: 1, y: 1, labelAt: HOUSE_LABEL }, b: { x: -3, y: 2, labelAt: PARK_LABEL }, coordSide: 'under',
+          result: { text: '\u221A17\u00A0units' } },
+        { a: { x: 1, y: 1, labelAt: HOUSE_LABEL }, b: { x: 5, y: -4 }, coordSide: 'under',
+          result: { text: '\u221A41\u00A0units' } }
+      ],
       hold: 5200 },
 
     /* ================= the towers and the rescue =================
