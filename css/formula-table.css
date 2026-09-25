@@ -10,7 +10,15 @@
   position: absolute; z-index: 2;
   transform: translateY(-50%);
   box-sizing: border-box;
-  padding: 48px 44px 48px 92px;          /* the tucked-in edge carries no type */
+  /* --room: extra paper at the foot for a scroller's tiles, set from
+     formula-table.js while one hangs below the last row. The panel is
+     centred on its `top`, so whatever it grows by at the foot it would
+     grow by half as much upward too; the margin moves it down by that
+     half, and with the two on one transition the top edge never moves
+     — the panel extends downward only. */
+  --room: 0px;
+  padding: 48px 44px calc(48px + var(--room)) 92px;   /* the tucked-in edge carries no type */
+  margin-top: calc(var(--room) / 2);
   border-radius: var(--radius, 46px);
   background: var(--paper-inner, #FFFDF1);
   box-shadow:
@@ -26,7 +34,9 @@
   /* Closed: nothing shows past its own left edge, which is behind the
      board. Opening uncovers it rightward. */
   clip-path: inset(0 100% 0 0 round var(--radius, 46px));
-  transition: clip-path .7s cubic-bezier(.22, .61, .36, 1);
+  transition: clip-path .7s cubic-bezier(.22, .61, .36, 1),
+              padding-bottom .3s cubic-bezier(.22, .61, .36, 1),
+              margin-top .3s cubic-bezier(.22, .61, .36, 1);
   pointer-events: none;
 }
 .formula-table.open   { clip-path: inset(0 0 0 0 round var(--radius, 46px)); }
@@ -69,10 +79,8 @@
 .formula-table .ft-slot.landed .ft-fill { visibility: visible; }
 .formula-table .ft-slot.landed::after  { opacity: 0; }
 
-@media (prefers-reduced-motion: reduce) {
-  .formula-table { transition: none; }
-  .formula-table .ft-cell { transition: opacity .2s linear; transform: none; }
-}
+html.calm .formula-table { transition: none; }
+html.calm .formula-table .ft-cell { transition: opacity .2s linear; transform: none; }
 
 /* Once the drawer has opened its clip goes, so a scroller dropping from
    the last row can hang below the table instead of being cut off. */
@@ -126,6 +134,12 @@
   background-color: transparent;
 }
 .formula-table .ft-pick.filled .ft-num { animation: ftSettle .42s cubic-bezier(.3, 1.5, .5, 1); }
+/* The answer the working ends on, shown as the answer. */
+.formula-table .ft-pick.filled.good {
+  background-color: #DDF3DF;
+  box-shadow: 0 0 0 .12em #DDF3DF;
+  transition: background-color .4s ease, box-shadow .4s ease;
+}
 @keyframes ftSettle { from { transform: scale(1.35); } to { transform: none; } }
 
 /* The scroller: two of the number control's own tiles, stacked, dropping
@@ -133,7 +147,9 @@
 .formula-table .ft-drop {
   position: absolute; left: 50%; top: calc(100% + .32em);
   z-index: 3;
-  display: flex; flex-direction: column; align-items: center; gap: .14em;
+  /* Stretched, so the two tiles of a scroller are one width — the
+     wider number's — and stack as a pair rather than as two sizes. */
+  display: flex; flex-direction: column; align-items: stretch; gap: .14em;
   pointer-events: auto;
   transform-origin: top center;
   transform: translateX(-50%) scaleY(.2) translateY(-.3em);
@@ -142,35 +158,69 @@
 }
 .formula-table .ft-drop.open { transform: translateX(-50%); opacity: 1; }
 .formula-table .ft-drop.fold {
+  pointer-events: none;            /* answered: nothing in it takes a tap */
   transform: translateX(-50%) scaleY(.2) translateY(-.3em); opacity: 0;
   transition: transform .3s ease-in, opacity .25s ease-in;
 }
-/* The reel's painted tile — region (184, 646, 215, 213) of the button
-   sheet — with its brown digits in Lilita One, so the child knows this
-   is the same kind of choosing as the control. The url is written here
-   rather than read through a custom property: a relative url() resolves
+/* The reel's painted tile, with its brown digits in Lilita One, so the
+   child knows this is the same kind of choosing as the control.
+
+   Laid in nine pieces rather than as one picture, so a tile is as wide
+   as its number needs: the corners keep their shape, the edges and the
+   middle stretch. "100" used to be pressed into the same square as
+   "14", its outer digits on the tile's own rim. Now every number has
+   the same air either side of it, and a short one still gets the
+   square. The picture is region (184, 646, 215, 213) of the button
+   sheet, cut out on its own (assets/tile.png) — a border image cannot
+   take a region of a sheet. Its corners are 64 of its 215 pixels, and
+   drawn at 64/215 of the square's 1.7em they come out exactly the size
+   they were. The border is there for the image only: it is 0 wide, so
+   none of the tile's room goes to it. The url is written here rather
+   than read through a custom property: a relative url() resolves
    against the sheet that USES it. */
 .formula-table .ft-tile {
-  width: 1.7em; height: 1.7em;
+  box-sizing: border-box;
+  min-width: 1.7em; height: 1.7em;
+  padding: 0 .36em;
   display: grid; place-items: center;
-  border: 0; padding: 0; margin: 0;
+  margin: 0;
+  border-style: solid; border-width: 0;
+  border-image: url('../assets/tile.png?v=20260925120733') 64 fill / .506em stretch;
+  background: none;
   font-family: 'Lilita One', 'Nunito', system-ui, sans-serif;
-  font-size: .82em; font-weight: 900; line-height: 1;
+  /* One weight, and the bold the browser used to fake drawn as a fixed
+     outline — see the reel's digits, number-selector.css. */
+  font-size: .82em; font-weight: 400; line-height: 1;
+  -webkit-text-stroke: var(--lilita-bold, .031em) currentColor;
+  white-space: nowrap;
   color: #5E5145;
-  background: url('../assets/buttons.png') no-repeat;
-  background-size: 825.12% 416.43%;
-  background-position: 11.802% 95.846%;
   cursor: pointer;
-  transition: transform .15s ease, opacity .3s ease;
+  transition: transform .15s ease, opacity .3s ease, color .3s ease;
 }
-.formula-table .ft-tile:hover  { transform: scale(1.06); }
+/* Letters rather than a number (x₂ − x₁): the table's own face and
+   weight, a touch smaller so a four-symbol term sits in the tile with
+   the same air as a number does. */
+.formula-table .ft-tile.ft-word {
+  font-family: 'Nunito', system-ui, sans-serif;
+  font-weight: 700; font-size: .72em;
+  -webkit-text-stroke: 0;
+  height: calc(1.7em * .82 / .72);
+  min-width: calc(1.7em * .82 / .72);
+  padding: 0 .5em;
+  border-image-width: calc(.506em * .82 / .72);
+}
+@media (hover: hover) and (pointer: fine) {
+  .formula-table .ft-tile:hover  { transform: scale(1.06); }
+}
 .formula-table .ft-tile:active { transform: scale(.94); }
 .formula-table .ft-tile:focus-visible { outline: 3px solid #1F6FD0; outline-offset: 2px; }
-.formula-table .ft-tile.gone {
-  pointer-events: none;
-  animation: ftShake .38s ease;
-  opacity: .0;
-  transition: opacity .5s ease .3s;
+/* Wrong: the tile shakes where it is, its number red — at once, and
+   easing back when the shake is done — and it stays to be chosen
+   again. The red is the triangle options' red. */
+.formula-table .ft-tile.no {
+  color: #E23A3A;
+  animation: ftShake .42s ease;
+  transition: none;
 }
 @keyframes ftShake {
   0%, 100% { transform: translateX(0); }
@@ -180,11 +230,9 @@
   80% { transform: translateX(.06em); }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .formula-table .ft-pick.active { animation: none; }
-  .formula-table .ft-drop, .formula-table .ft-drop.fold { transition: opacity .2s linear; }
-  .formula-table .ft-tile.gone { animation: none; }
-}
+html.calm .formula-table .ft-pick.active { animation: none; }
+html.calm .formula-table .ft-drop, html.calm .formula-table .ft-drop.fold { transition: opacity .2s linear; }
+html.calm .formula-table .ft-tile.no { animation: none; }
 
 /* An inline row (the axis cases): one expression after its = sign,
    written as it reads, spaces and all, with its slots inside it. */
@@ -193,4 +241,7 @@
 
 /* Standing in a column of its own rather than out of the board's edge:
    hung from its top, with no tucked-under edge to pad for. */
-.formula-table.free { transform: none; padding: 44px 48px; }
+.formula-table.free {
+  transform: none; margin-top: 0;          /* hung from its top: the room is all at the foot */
+  padding: 44px 48px calc(44px + var(--room));
+}

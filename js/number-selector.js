@@ -253,8 +253,19 @@ window.NumberSelector = (function () {
         clearVerdict();
         void seat.offsetWidth;
         root.classList.add('is-wrong');
-        // back to the ordinary yellow block once the shake is done
-        verdict = setTimeout(function () { root.classList.remove('is-wrong'); }, 320);
+        /* Back to the ordinary yellow block once the shake is done —
+           when the shake says it is done, not on a guess 20ms short of
+           it (340ms of wobble was being cut at 320 on every machine,
+           and by more on a slow one). The timer is only the fallback
+           for a shake that never reports. */
+        const done = function (e) {
+          if (e && e.animationName !== 'drumWobble') return;
+          root.removeEventListener('animationend', done);
+          clearTimeout(verdict);
+          root.classList.remove('is-wrong');
+        };
+        root.addEventListener('animationend', done);
+        verdict = setTimeout(done, 340 + 300);
       },
 
       /* Once the answer is right there is nothing left to choose, so

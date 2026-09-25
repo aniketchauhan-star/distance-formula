@@ -3,35 +3,35 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- The stylesheets and scripts below carry a version stamp, but the
-     page itself has none to carry: a cached index.html hands the browser
-     yesterday's stamps and so yesterday's css and js, which is what a
-     change that "did not happen" usually turns out to be. -->
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
+<!-- Every stylesheet, script and icon below carries a version stamp,
+     and so does everything the scripts load. tools/stamp.js writes it
+     on each commit (.githooks/pre-commit), so a laptop that opened an
+     earlier copy asks for the new files rather than running the old
+     ones. The loading screen shows it, small, so two laptops can be
+     compared at a glance. (The <meta http-equiv> cache lines that used
+     to sit here are ignored by every current browser.) -->
 <title>Distance Formula — Swifty's Adventure</title>
 
 <!-- The game's own mark: two plotted points and the distance between
      them, in the board's navy and gold. The SVG scales to whatever a
      browser asks for; the PNGs are there for the ones that still want a
      bitmap, and for an iOS home screen. -->
-<link rel="icon" type="image/svg+xml" href="assets/icon.svg?v=20260924014413">
-<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png?v=20260924014413">
-<link rel="apple-touch-icon" sizes="180x180" href="assets/icon-180.png?v=20260924014413">
+<link rel="icon" type="image/svg+xml" href="assets/icon.svg?v=20260925120733">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png?v=20260925120733">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/icon-180.png?v=20260925120733">
 <meta name="theme-color" content="#213258">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=20260924014413">
-<link rel="stylesheet" href="css/number-selector.css?v=20260924014413">
-<link rel="stylesheet" href="css/triangle-options.css?v=20260924014413">
-<link rel="stylesheet" href="css/hint-note.css?v=20260924014413">
-<link rel="stylesheet" href="css/screen-jump.css?v=20260924014413">
-<link rel="stylesheet" href="css/town.css?v=20260924014413">
-<link rel="stylesheet" href="css/formula-slots.css?v=20260924014413">
-<link rel="stylesheet" href="css/formula-table.css?v=20260924014413">
-<link rel="stylesheet" href="css/distance-slider.css?v=20260924014413">
+<!-- The game's own two fonts, from its own folder — never the
+     laptop's, never the network's. -->
+<link rel="stylesheet" href="css/fonts.css?v=20260925120733">
+<link rel="stylesheet" href="css/style.css?v=20260925120733">
+<link rel="stylesheet" href="css/number-selector.css?v=20260925120733">
+<link rel="stylesheet" href="css/triangle-options.css?v=20260925120733">
+<link rel="stylesheet" href="css/hint-note.css?v=20260925120733">
+<link rel="stylesheet" href="css/screen-jump.css?v=20260925120733">
+<link rel="stylesheet" href="css/town.css?v=20260925120733">
+<link rel="stylesheet" href="css/formula-slots.css?v=20260925120733">
+<link rel="stylesheet" href="css/formula-table.css?v=20260925120733">
+<link rel="stylesheet" href="css/distance-slider.css?v=20260925120733">
 </head>
 <body>
 
@@ -45,6 +45,7 @@
         <div class="loader-title">Distance Formula</div>
         <div class="loader-track"><div id="loaderBar"></div></div>
         <div id="loaderPct">0%</div>
+        <div id="loaderVer" aria-label="Version"></div>
       </div>
     </div>
 
@@ -127,8 +128,10 @@
 
       <!-- the way back and the way on, as one pair in the top corner -->
       <div id="nav">
-        <button id="backBtn" aria-label="Previous screen" disabled><span class="arrow">◀</span>Back</button>
-        <button id="nextBtn" aria-label="Next screen">Next<span class="arrow">▶</span></button>
+        <!-- The arrows are drawn, not typed: neither font has ◀ ▶, so
+             as characters every laptop drew its own. -->
+        <button id="backBtn" aria-label="Previous screen" disabled><span class="arrow" aria-hidden="true"></span>Back</button>
+        <button id="nextBtn" aria-label="Next screen">Next<span class="arrow" aria-hidden="true"></span></button>
       </div>
 
     </div>
@@ -145,18 +148,18 @@
   </div>
 </div>
 
-<script src="js/config.js?v=20260924014413"></script>
-<script src="js/audio.js?v=20260924014413"></script>
-<script src="js/voice.js?v=20260924014413"></script>
-<script src="js/fx.js?v=20260924014413"></script>
-<script src="js/number-selector.js?v=20260924014413"></script>
-<script src="js/triangle-options.js?v=20260924014413"></script>
-<script src="js/hint-note.js?v=20260924014413"></script>
-<script src="js/screen-jump.js?v=20260924014413"></script>
-<script src="js/town.js?v=20260924014413"></script>
-<script src="js/formula-slots.js?v=20260924014413"></script>
-<script src="js/formula-table.js?v=20260924014413"></script>
-<script src="js/distance-slider.js?v=20260924014413"></script>
-<script src="js/game.js?v=20260924014413"></script>
+<script src="js/config.js?v=20260925120733"></script>
+<script src="js/audio.js?v=20260925120733"></script>
+<script src="js/voice.js?v=20260925120733"></script>
+<script src="js/fx.js?v=20260925120733"></script>
+<script src="js/number-selector.js?v=20260925120733"></script>
+<script src="js/triangle-options.js?v=20260925120733"></script>
+<script src="js/hint-note.js?v=20260925120733"></script>
+<script src="js/screen-jump.js?v=20260925120733"></script>
+<script src="js/town.js?v=20260925120733"></script>
+<script src="js/formula-slots.js?v=20260925120733"></script>
+<script src="js/formula-table.js?v=20260925120733"></script>
+<script src="js/distance-slider.js?v=20260925120733"></script>
+<script src="js/game.js?v=20260925120733"></script>
 </body>
 </html>

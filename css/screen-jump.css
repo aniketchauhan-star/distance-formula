@@ -21,7 +21,9 @@
   box-shadow: 0 6px 0 rgba(200, 160, 90, .75), 0 11px 18px rgba(0, 0, 0, .14);
   transition: transform .12s ease, box-shadow .12s ease;
 }
-#jumpBtn:hover  { transform: translateY(-2px); box-shadow: 0 8px 0 rgba(200, 160, 90, .75), 0 14px 20px rgba(0, 0, 0, .18); }
+@media (hover: hover) and (pointer: fine) {
+  #jumpBtn:hover  { transform: translateY(-2px); box-shadow: 0 8px 0 rgba(200, 160, 90, .75), 0 14px 20px rgba(0, 0, 0, .18); }
+}
 #jumpBtn:active { transform: translateY(4px);  box-shadow: 0 2px 0 rgba(200, 160, 90, .75), 0 5px 10px rgba(0, 0, 0, .18); }
 #jumpBtn:focus-visible { outline: 3px solid #1F6FD0; outline-offset: 3px; }
 
@@ -83,6 +85,12 @@
   color: #9A7538;
   background: #FFF4DC;
   border-bottom: 2px solid #F3E2BE;
+  display: flex; align-items: baseline; justify-content: space-between; gap: 14px;
+}
+/* The version, beside the question and quieter than it. */
+.jump-ver {
+  font-family: 'Nunito', system-ui, sans-serif; font-weight: 600;
+  font-size: 14px; color: #B89A63; white-space: nowrap;
 }
 
 .jump-rows {
@@ -105,7 +113,9 @@
   color: #3A4E7A;
 }
 .jump-row:last-child { border-bottom: 0; }
-.jump-row:hover { background: #FFF6E2; }
+@media (hover: hover) and (pointer: fine) {
+  .jump-row:hover { background: #FFF6E2; }
+}
 .jump-row:focus-visible { outline: 3px solid #1F6FD0; outline-offset: -3px; }
 
 .jump-n {
@@ -137,6 +147,4 @@
 }
 .jump-row.here .jump-t { font-weight: 700; }
 
-@media (prefers-reduced-motion: reduce) {
-  #jumpBtn, .jump-chev { transition: none; }
-}
+html.calm #jumpBtn, html.calm .jump-chev { transition: none; }

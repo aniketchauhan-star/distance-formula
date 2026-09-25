@@ -93,8 +93,14 @@ window.TownMap = (function () {
           const s = at(p.x, p.y);
           n.style.left = s.x + 'px';
           /* Its foot sits a little above the dot, so neither the dot
-             nor the coordinates written under it are ever covered. */
-          n.style.top = (s.y - T.liftCells * ch) + 'px';
+             nor the coordinates written under it are ever covered.
+
+             Or it HANGS from the point (`hang`) — a tower whose top is
+             the point, with its name above: at the top of the paper a
+             tower standing on its point would stand off the edge, and a
+             side leaving the point downwards would run through it. */
+          n.classList.toggle('hang', !!p.hang);
+          n.style.top = (p.hang ? s.y : (s.y - T.liftCells * ch)) + 'px';
           /* Sized by its own height in cells, with its width taken
              from its own drawing so nothing is squashed — and the
              sheet behind it scaled so exactly that drawing fills the
@@ -102,7 +108,9 @@ window.TownMap = (function () {
           const sp = (T.sprites || {})[p.kind];
           const sheet = T.sheet;
           if (sp && sheet) {
-            const bh = (sp.tall != null ? sp.tall : T.hCells) * ch;
+            /* A place can be drawn bigger than its kind's default — on
+               the wide board a cell is a third of the size. */
+            const bh = (p.tall != null ? p.tall : (sp.tall != null ? sp.tall : T.hCells)) * ch;
             const bw = bh * (sp.w / sp.h);
             const k = bh / sp.h;
             n.style.setProperty('--w', bw + 'px');
@@ -138,7 +146,15 @@ window.TownMap = (function () {
           const foot = s.y - T.liftCells * ch;
           const wide = Math.max(n.offsetWidth || 0, pill ? pill.offsetWidth : 0);
           const tall = n.offsetHeight || 0;
-          if (wide && tall) {
+          if (wide && tall && p.hang) {
+            /* Hung: the name above the point, the picture below it. */
+            const ph = pill ? pill.offsetHeight : 0;
+            const gap = parseFloat(getComputedStyle(n).rowGap) || 0;
+            n.style.setProperty('--hangUp', -(ph + gap) + 'px');
+            room.push({ l: s.x - wide / 2, t: s.y - ph - gap,
+                        r: s.x + wide / 2, b: s.y - ph - gap + tall,
+                        what: p.name || p.kind });
+          } else if (wide && tall) {
             room.push({ l: s.x - wide / 2, t: foot - tall,
                         r: s.x + wide / 2, b: foot,
                         what: p.name || p.kind });
@@ -151,6 +167,14 @@ window.TownMap = (function () {
          turns them into its own units, which is the only place that
          knows the two scales. */
       boxes: function () { return room$.slice(); },
+
+      /* The places a screen is not about step back (`keys`), and
+         come forward again with an empty list. */
+      focus: function (keys) {
+        places.forEach(function (p, i) {
+          if (nodes[i]) nodes[i].classList.toggle('dim', (keys || []).indexOf(p.key) >= 0);
+        });
+      },
 
       show: function () { root.classList.add('on'); },
       hide: function () { root.classList.remove('on'); },

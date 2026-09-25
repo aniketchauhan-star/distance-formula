@@ -133,8 +133,17 @@ window.FX = (function () {
     }
   }
 
+  /* Calm (html.calm, set from CFG.MOTION): the ambient weather is not
+     started at all, rather than started and hidden — hidden, its wind
+     was still heard with nothing moving. */
+  const calm = function () { return document.documentElement.classList.contains('calm'); };
+  /* A leaf rides its path with CSS motion paths, which Safari only has
+     from 16: without them every leaf spun in the top-left corner. */
+  const canRide = !!(window.CSS && CSS.supports && CSS.supports('offset-path', 'path("M0 0")'));
+
   /* Slow ambient motes so the scene is never completely still. */
   function motes(count) {
+    if (calm()) return;
     count = count || 18;
     for (let i = 0; i < count; i++) {
       const life = rnd(9000, 16000);
@@ -239,6 +248,7 @@ window.FX = (function () {
   }
 
   function driftOnce(host, cfg) {
+    if (calm() || !canRide) return;
     cfg = cfg || DRIFT;
     const y0 = rnd(cfg.y0[0], cfg.y0[1]);
     const cx = rnd(cfg.loopX[0], cfg.loopX[1]),
@@ -317,6 +327,7 @@ window.FX = (function () {
      being dragged across. Nothing but the streaks — the leaves are the
      drift's job, and doubling them up here would crowd the frame. */
   function windGust(host, cfg) {
+    if (calm()) return;
     const n = (rnd(cfg.gustLines[0], cfg.gustLines[1]) + 0.5) | 0;
     /* One sound for the gust, not one per streak — the streaks are the
        same gust seen, so several overlapping would read as several
@@ -374,7 +385,6 @@ window.FX = (function () {
      gets its own size, tilt and spin, which is enough that nothing
      reads as the same leaf twice without tinting any of them. */
   const LEAF_DUR = 2600;          // the whole sweep
-  const LEAF_COVER = 0.51;        // where it is solid, and the swap lands
 
   /* Four passes over the frame, each a grid whose cells are filled one
      leaf apiece and jittered inside themselves. Scattering at random
@@ -395,7 +405,7 @@ window.FX = (function () {
     el.classList.remove('hidden');
 
     const src = window.CFG.ART.leaf;
-    let maxDelay = 0;
+    let maxDelay = 0, minDelay = Infinity;
 
     const cw = LEAF_AREA.w / LEAF_COLS, chh = LEAF_AREA.h / LEAF_ROWS;
     const spots = [];
@@ -442,6 +452,7 @@ window.FX = (function () {
          wall, but every leaf is home before the frame goes solid. */
       const delay = rnd(0, 330);
       if (delay > maxDelay) maxDelay = delay;
+      if (delay < minDelay) minDelay = delay;
       d.style.animationDuration = LEAF_DUR + 'ms';
       d.style.animationDelay = delay + 'ms';
       el.appendChild(d);
@@ -454,16 +465,34 @@ window.FX = (function () {
        leaving dress and plot itself onto the board of the screen they
        had arrived at. Handing the caller a way to call it off is the
        whole fix; `Game.clearPending` uses it. */
-    const t1 = setTimeout(function () { if (onCover) onCover(); },
-                          LEAF_DUR * LEAF_COVER);
-    const t2 = setTimeout(function () {
-      leaves.cancel = null;
-      el.classList.add('hidden');
-      el.innerHTML = '';
-      if (onDone) onDone();
-    }, LEAF_DUR + maxDelay + 160);
+    /* The swap lands while the frame is solid — measured on the
+       leaves' own clock. Each leaf is home at 44% of its run and holds
+       until 60%; with the delays above the frame is only solid from the
+       LAST arrival to the FIRST departure, so that is where it goes. And
+       the leaves' clock starts on the first frame they are painted, not
+       when they were put in the page: on a slow laptop, 216 large images
+       take a moment to reach the screen, and a timer started at
+       insertion swapped the board in plain sight through the gaps. */
+    const coverAt = Math.min(LEAF_DUR * 0.44 + maxDelay + 24,
+                             LEAF_DUR * 0.60 + minDelay - 24);
+    const doneAt = LEAF_DUR + maxDelay + 160;
+    let t1 = null, t2 = null, stopped = false;
+    const run = function () {
+      if (stopped) return;
+      t1 = setTimeout(function () { if (onCover) onCover(); }, coverAt);
+      t2 = setTimeout(function () {
+        leaves.cancel = null;
+        el.classList.add('hidden');
+        el.innerHTML = '';
+        if (onDone) onDone();
+      }, doneAt);
+    };
+    const first = el.firstChild && el.firstChild.getAnimations && el.firstChild.getAnimations()[0];
+    if (first && first.ready && first.ready.then) first.ready.then(run, run);
+    else run();
 
     leaves.cancel = function () {
+      stopped = true;
       clearTimeout(t1); clearTimeout(t2);
       leaves.cancel = null;
       el.classList.add('hidden');
@@ -562,7 +591,9 @@ window.FX = (function () {
     d.textContent = text;
     if (o.color) d.style.color = o.color;
     layer.appendChild(d);
-    const A = o.appearMs || 200, P = o.pulseMs || 1000, T = o.travelMs || 1400;
+    const A = o.appearMs || 200, T = o.travelMs || 1400;
+    /* No pulse is a real choice (0), not a missing one. */
+    const P = o.pulseMs != null ? o.pulseMs : 1000;
     const lift = (o.lift == null ? 0.6 : o.lift) * from.size;
     const rot0 = from.rot || 0;
     const out = function (t) { return 1 - Math.pow(1 - t, 3); };
@@ -609,8 +640,13 @@ window.FX = (function () {
         put(from.x, from.y - lift * up, from.size, rot0 * (1 - up), sc, 1);
       } else if (t < A + P + T) {
         const e = ease((t - A - P) / T), y0 = from.y - lift;
+        /* Written on its side (a vertical length), a copy with no pulse
+           to straighten it in leaves the board as it is written and turns
+           level on the way — most of the turn in the middle of the flight,
+           none of it at either end. */
+        const turn = P > 0 ? 0 : rot0 * (1 - e * e * (3 - 2 * e));
         put(from.x + (to.x - from.x) * e, y0 + (to.y - y0) * e,
-            from.size + (to.size - from.size) * e, 0, 1, 1);
+            from.size + (to.size - from.size) * e, turn, 1, 1);
       } else {
         stop();
         if (done) done();

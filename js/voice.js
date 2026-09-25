@@ -101,9 +101,9 @@ window.Voice = (function () {
       ['24-the-sides-are-8-and-6-what-is-82-62.mp3', 6.92],
     'The same idea works for any two points.':
       ['25-the-same-idea-works-for-any-two-points.mp3', 2.72],
-    'AC = x2 - x1':
+    'AC = x₂ − x₁':
       ['26-ac-x2-x1.mp3', 3.19],
-    'CB = y2 - y1':
+    'CB = y₂ − y₁':
       ['27-cb-y2-y1.mp3', 3.87],
     'Now, let’s find AB.':
       ['28-now-let-s-find-ab.mp3', 2.22],
@@ -136,9 +136,31 @@ window.Voice = (function () {
   let playing = null;
   let enabled = true;
 
+  /* ONE player for every line she says. Safari lets a page make sound
+     only from a tap, and it counts that per player: a player started
+     inside the tap on Play may play again later, a player that was not
+     may not. With a player per clip every line after the first was
+     started long after any tap, and Safari played none of them — her
+     words appeared, paced to a voice nobody heard. So the lines share
+     this one, it is started (silently) inside the Play tap by prime(),
+     and each line only swaps what it plays. The per-clip players below
+     are kept only to fetch every clip ahead of time. */
+  const player = new Audio();
+  player.preload = 'auto';
+  /* 0.1s of silence (8kHz, 8-bit), all the Play tap needs to start. */
+  const SILENCE = 'data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YSADAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==';
+  let refused = false;           // the last line was not allowed to sound
+
+  function src(file) {
+    const v = window.CFG && window.CFG.VERSION;
+    return DIR + file + (v ? '?v=' + v : '');
+  }
+
   function load(file) {
     if (clips[file]) return clips[file];
-    const a = new Audio(DIR + file);
+    /* Stamped like everything else the game fetches (see VERSION in
+       config.js), so a re-cut clip is fetched again. */
+    const a = new Audio(src(file));
     a.preload = 'auto';
     clips[file] = a;
     return a;
@@ -154,6 +176,32 @@ window.Voice = (function () {
     has: function (text) { return !!fileFor(text); },
     enable: function (on) { enabled = on !== false; },
 
+    /* From inside the tap on Play: the shared player plays a moment of
+       silence and stops, which is what Safari needs to see to let it
+       speak later. Harmless everywhere else. */
+    /* It plays a tenth of a second of silence — never one of her lines.
+       It used to prime with her first recording, muted, and unmute it as
+       it stopped; the sound already on its way out came through, and
+       tapping Play said "Hey…" before she had even flown in. It stays
+       muted until her first real line (say() unmutes it). */
+    prime: function () {
+      if (player.dataset.primed) return;
+      player.dataset.primed = '1';
+      player.muted = true;
+      player.src = SILENCE;
+      const p = player.play();
+      const done = function () {
+        if (playing === player) return;   // a line has already started on it
+        player.pause();
+      };
+      if (p && p.then) p.then(done, done); else done();
+    },
+
+    /* Whether the line being said is sounding at all. A browser that
+       refused it leaves the words to the little notes instead of to
+       silence. */
+    silent: function () { return refused; },
+
     /* Speak a line. Returns how long it will take, so the words can be
        revealed at the pace she actually says them; 0 when there is no
        recording for it and the caller should fall back to its own
@@ -162,16 +210,23 @@ window.Voice = (function () {
       this.stop();
       const e = entryFor(text);
       if (!e || !enabled) return 0;
-      const a = load(e[0]);
-      playing = a;
-      a.currentTime = 0;
-      const p = a.play();
-      if (p && p.catch) p.catch(function () {});
+      load(e[0]);                       // fetched already; kept warm
+      refused = false;
+      playing = player;
+      player.muted = false;
+      player.src = src(e[0]);
+      player.currentTime = 0;
+      const p = player.play();
+      /* Refused (Safari, a browser that has not seen a tap) is silence
+         to cover; interrupted by the next line is not. */
+      if (p && p.catch) p.catch(function (err) {
+        if (err && err.name === 'NotAllowedError') refused = true;
+      });
       return e[1] * 1000;
     },
 
     stop: function () {
-      if (playing) { playing.pause(); playing.currentTime = 0; playing = null; }
+      if (playing) { playing.pause(); try { playing.currentTime = 0; } catch (e) {} playing = null; }
     },
 
     /* How long a line takes, without playing it — the metadata is there

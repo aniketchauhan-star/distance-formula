@@ -108,7 +108,9 @@ window.TriangleOptions = (function () {
         b.classList.add('triangle-option');
         b.classList.add('opt-' + (i + 1));        // positional colour
         b.style.order = '1';                      // answers first, hint under
-        if (c.cls) b.classList.add(c.cls);
+        // one class or several ('expr long')
+        if (c.cls) String(c.cls).split(/\s+/).filter(Boolean)
+          .forEach(function (k) { b.classList.add(k); });
         b.dataset.key = c.key;
 
         /* A choice can carry a drawing of itself. `marks` is how many
@@ -131,6 +133,10 @@ window.TriangleOptions = (function () {
         b.addEventListener('click', function (e) {
           e.stopPropagation();        // a tap here must never skip the screen
           if (locked) return;
+          /* One answer at a time: while the last one's red is still
+             showing, a second tap is the same tap twice, not a second
+             go — counted, a double tap spent both tries at once. */
+          if (performance.now() < quietUntil) return;
           choose(c.key, b);
         });
         root.appendChild(b);
@@ -143,6 +149,7 @@ window.TriangleOptions = (function () {
     root.addEventListener('click', function (e) { e.stopPropagation(); });
     root.addEventListener('pointerdown', function (e) { e.stopPropagation(); });
 
+    let quietUntil = 0, redT = null;
     function choose(key, btn) {
       clearStates();
       btn.classList.add('selected');
@@ -154,9 +161,13 @@ window.TriangleOptions = (function () {
          takes it off at the next question. Red clears itself, because
          the panel stays live for another go. */
       btn.classList.add(right ? 'correct' : 'incorrect');
-      if (!right) setTimeout(function () {
-        btn.classList.remove('incorrect', 'selected');
-      }, 700);
+      if (!right) {
+        quietUntil = performance.now() + 700;
+        clearTimeout(redT);
+        redT = setTimeout(function () {
+          btn.classList.remove('incorrect', 'selected');
+        }, 700);
+      }
 
       if (onAnswer) onAnswer(key, right);
     }
@@ -284,9 +295,12 @@ window.TriangleOptions = (function () {
       /* Three side by side rather than stacked — for answers that are
          three of one kind of thing rather than a list to work down. */
       setTrio: function (on) { root.classList.toggle('trio', !!on); },
+      /* Stacked, but as wide as the trio: for answers that are whole
+         formulas (35). */
+      setWide: function (on) { root.classList.toggle('wide', !!on); },
       setAnswer: function (k) { answerKey = k; },
       reset: function () {
-        hideFormula(); clearStates(); locked = false;
+        hideFormula(); clearStates(); locked = false; quietUntil = 0;
         // back where it was mounted, wherever the working moved it to
         if (home.x !== undefined) root.style.left = home.x + 'px';
         if (home.y !== undefined) root.style.top = home.y + 'px';
@@ -320,7 +334,12 @@ window.TriangleOptions = (function () {
         root.classList.remove('hidden', 'rising');
         if (rising) { void root.offsetWidth; root.classList.add('rising'); }
       },
-      hide: function () { root.classList.add('hidden'); },
+      /* Hidden is finished: a working still being written into a panel
+         nobody can see would go on lighting sides and flying digits on
+         whatever screen came next. */
+      hide: function () { clearBeats(); root.classList.add('hidden'); },
+      /* The working stopped where it stands, for a screen change. */
+      stop: function () { clearBeats(); },
       onAnswer: function (fn) { onAnswer = fn; }
     };
   }

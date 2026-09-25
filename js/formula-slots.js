@@ -163,9 +163,15 @@ window.FormulaSlots = (function () {
       });
     });
 
+    /* One offer at a time: a second tap on Check while the first is
+       being judged is the same tap twice — counted, a double tap spent
+       two tries and left the panel half-reset under a live Check. */
+    let quietUntil = 0, fillT = null;
     check.addEventListener('click', function (e) {
       e.stopPropagation();
       if (locked || filled.some(function (f) { return !f; })) return;
+      if (performance.now() < quietUntil) return;
+      quietUntil = performance.now() + 900;
       if (onOffer) onOffer(filled.map(function (f) {
         return { value: f.value, axis: f.axis, from: f.from };
       }));
@@ -235,6 +241,8 @@ window.FormulaSlots = (function () {
       },
 
       reset: function () {
+        clearTimeout(fillT); fillT = null;
+        quietUntil = 0;
         locked = false;
         root.classList.remove('locked', 'is-wrong');
         filled = [null, null, null, null];
@@ -270,10 +278,16 @@ window.FormulaSlots = (function () {
           void slots[n].offsetWidth;
           slots[n].classList.add('landed');
           n++;
-          setTimeout(go, step || 620);
+          fillT = setTimeout(go, step || 620);
         };
+        clearTimeout(fillT);
         go();
       },
+
+      /* Stopped where it stands — for a screen change, so the chain of
+         chips (and the line it ends in) cannot carry on over the next
+         screen, or refill a fresh panel on a replay of this one. */
+      cancelFill: function () { clearTimeout(fillT); fillT = null; },
 
       lock: function () {
         locked = true;
@@ -289,7 +303,7 @@ window.FormulaSlots = (function () {
         fit();
         if (rising) { void root.offsetWidth; root.classList.add('rising'); land(); }
       },
-      hide: function () { root.classList.add('hidden'); },
+      hide: function () { clearTimeout(fillT); fillT = null; root.classList.add('hidden'); },
       onOffer: function (fn) { onOffer = fn; }
     };
   }

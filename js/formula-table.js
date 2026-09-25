@@ -40,6 +40,36 @@ window.FormulaTable = (function () {
     let rows = [];
     let colours = { h: '#E07B12', v: '#2F8F6F', ab: '#1F6FD0' };
 
+    /* Room at the foot of the panel for the tiles. A scroller hanging
+       from the last rows reaches below the table — from "AB = □ units"
+       the two tiles hung off the panel's edge, over the mountains. So
+       when a scroller opens the panel grows down until the tiles are
+       inside it, with as much paper under them as under a row; it
+       keeps that room while blanks are left (growing and shrinking
+       from one blank to the next would make it breathe), and gives it
+       back when the last is filled. Its top edge stays where it is:
+       see --room in the stylesheet. */
+    let room = 0;
+    const setRoom = function (px) {
+      room = px;
+      root.style.setProperty('--room', px + 'px');
+    };
+    const makeRoom = function (drop, box) {
+      /* The stage is scaled: a length on screen over the same length
+         laid out is the scale. The grid never animates, so it gives
+         the ratio cleanly. */
+      const g = grid.getBoundingClientRect();
+      const k = (g.height / grid.offsetHeight) || 1;
+      /* Where the tiles end once they are down — from the layout, not
+         from the screen: they are still dropping (scaled to a fifth)
+         as this is read. How far that is below the last row is the
+         room they need. */
+      const reach = (box.getBoundingClientRect().top - g.bottom) / k +
+                    box.clientTop + drop.offsetTop + drop.offsetHeight;
+      const need = Math.max(0, Math.ceil(reach));
+      if (need > room) setRoom(need);
+    };
+
     const mk = function (tag, cls, text) {
       const n = document.createElement(tag);
       if (cls) n.className = cls;
@@ -58,6 +88,7 @@ window.FormulaTable = (function () {
       build: function (formula) {
         grid.innerHTML = '';
         rows = [];
+        setRoom(0);
         (formula || []).forEach(function (line, r) {
           const cells = [];
           /* An INLINE row: one expression rather than terms in columns
@@ -77,6 +108,25 @@ window.FormulaTable = (function () {
               const t = p.t || '';
               if (!seenEq && t.trim() === '=') { seenEq = true; side = rhs; cells[k] = { kind: 'op', el: eq }; return; }
               const colour = p.lit ? colours[p.lit] : null;
+              /* A blank inside the expression (the axis cases): the same
+                 box and scroller as a blank in a column, sitting in the
+                 line where the term goes. Its part's text is the answer,
+                 or `answer` names it. */
+              if (p.offer) {
+                const want = p.answer != null ? String(p.answer) : t.trim();
+                const box = mk('span', 'ft-pick');
+                const wide = p.offer.map(String).reduce(function (a, b) {
+                  return b.length > a.length ? b : a; }, want);
+                box.appendChild(mk('span', 'ft-sizer', wide));
+                const shown = mk('span', 'ft-num');
+                if (colour) shown.style.color = colour;
+                box.appendChild(shown);
+                side.appendChild(box);
+                cells[k] = { kind: 'pick', el: box, box: box, num: shown,
+                             answer: /^-?\d+(?:\.\d+)?$/.test(want) ? parseFloat(want) : want,
+                             offer: p.offer.slice() };
+                return;
+              }
               if (p.from) {
                 const slot = mk('span', 'ft-slot');
                 const fill = mk('span', 'ft-fill', t.trim());
@@ -117,8 +167,12 @@ window.FormulaTable = (function () {
                  with the skeleton. The box is held open at the width
                  of the widest tile so nothing moves when it fills. */
               kind = 'pick';
-              const m = t.match(/-?\d+(?:\.\d+)?/);
-              const at = m ? m.index : 0, num = m ? m[0] : '';
+              /* The right answer is the number in the part — or, where
+                 the answer is not a number (x₂ − x₁ on the general
+                 triangle), the text the part names as its `answer`. */
+              const m = p.answer != null ? null : t.match(/-?\d+(?:\.\d+)?/);
+              const num = p.answer != null ? String(p.answer) : (m ? m[0] : '');
+              const at = p.answer != null ? Math.max(0, t.indexOf(num)) : (m ? m.index : 0);
               const pre = t.slice(0, at).trim(), post = t.slice(at + num.length).replace(/^\s+/, ' ');
               if (pre) cell.appendChild(mk('span', 'ft-frame', pre));
               const box = mk('span', 'ft-pick');
@@ -130,7 +184,8 @@ window.FormulaTable = (function () {
               cell.appendChild(box);
               if (post.trim()) cell.appendChild(mk('span', 'ft-frame', post));
               cells[k] = { kind: kind, el: cell, box: box, num: shown,
-                           answer: parseFloat(num), offer: p.offer.slice() };
+                           answer: p.answer != null ? num : parseFloat(num),
+                           offer: p.offer.slice() };
               cell.classList.add('ft-pick-cell');
               grid.appendChild(cell);
               return;
@@ -188,8 +243,18 @@ window.FormulaTable = (function () {
         /* The drawer's clip is only for the opening; kept after it, a
            scroller dropping from the last row would be cut off at the
            table's edge. */
+        /* Dropped when the drawer has actually finished opening, not on a
+           guess at when it will have: on a slow frame the clip was taken
+           away mid-slide and the drawer snapped open. */
         clearTimeout(root._settle);
-        root._settle = setTimeout(function () { root.classList.add('settled'); }, 760);
+        const settle = function (e) {
+          if (e && (e.target !== root || e.propertyName !== 'clip-path')) return;
+          root.removeEventListener('transitionend', settle);
+          clearTimeout(root._settle);
+          if (root.classList.contains('open')) root.classList.add('settled');
+        };
+        root.addEventListener('transitionend', settle);
+        root._settle = setTimeout(settle, 700 + 400);
       },
 
       /* A row's skeleton: its signs, its brackets and its empty slots. */
@@ -246,13 +311,23 @@ window.FormulaTable = (function () {
         const open = function () {
           if (c.drop) return;
           const drop = mk('span', 'ft-drop');
+          /* A scroller that carries letters on any tile is set in the
+             table's own face throughout: Lilita One has no ₁ or ₂, and a
+             pair of tiles in two faces reads as a mistake. */
+          const words = c.offer.some(function (v) { return !/^-?\d+(?:\.\d+)?$/.test(String(v)); });
           c.offer.forEach(function (v) {
             const tile = mk('button', 'ft-tile', String(v));
+            if (words) tile.classList.add('ft-word');
             tile.type = 'button';
             tile.setAttribute('aria-label', String(v));
             tile.addEventListener('click', function (e) {
               e.stopPropagation();
-              if (tile.disabled) return;
+              /* One answer per blank: once it is filled the scroller is
+                 folding away, and a second tap on either tile — a double
+                 tap — must not be a second answer. Nor is a tap on a
+                 tile still shaking from being wrong. */
+              if (tile.disabled || tile.classList.contains('no') ||
+                  c.box.classList.contains('filled')) return;
               onPick(v, tile);
             });
             drop.appendChild(tile);
@@ -260,6 +335,7 @@ window.FormulaTable = (function () {
           c.box.appendChild(drop);
           c.drop = drop;
           void drop.offsetWidth;
+          makeRoom(drop, c.box);
           drop.classList.add('open');
           c.box.classList.add('opened');
         };
@@ -275,22 +351,55 @@ window.FormulaTable = (function () {
         if (!c) return;
         c.box.onclick = null;
         c.box.classList.remove('active', 'opened');
+        c.num.textContent = String(v);
+        c.box.classList.add('filled');
+        c.box.querySelectorAll('.ft-tile').forEach(function (t) { t.disabled = true; });
+        /* The last blank: the room goes back — once the tiles have
+           folded up into it, or the panel's edge would pass them on the
+           way. */
+        const last = !rows.some(function (row) {
+          return row.cells.some(function (x) {
+            return x && x.kind === 'pick' && !x.box.classList.contains('filled');
+          });
+        });
         if (c.drop) {
           const d = c.drop;
           c.drop = null;
           d.classList.remove('open');
           d.classList.add('fold');
-          setTimeout(function () { if (d.parentNode) d.parentNode.removeChild(d); }, 380);
-        }
-        c.num.textContent = String(v);
-        c.box.classList.add('filled');
+          setTimeout(function () {
+            if (d.parentNode) d.parentNode.removeChild(d);
+            if (last && rows.length) setRoom(0);
+          }, 380);
+        } else if (last) setRoom(0);
       },
 
-      /* Wrong: that tile shakes and goes; the other stays to be taken. */
+      /* The working's answer, shown as the answer: its blank goes green. */
+      mark: function (r, k) {
+        const c = rows[r] && rows[r].cells[k];
+        if (c && c.box) c.box.classList.add('good');
+      },
+
+      /* Wrong: that tile shakes where it is, its number red while it
+         shakes, and stays. Both numbers are still there — the child
+         sees what they chose and that it was not it, and chooses again.
+         It used to shake and fade away, leaving one tile under the
+         blank: the answer, with nothing left to choose. */
       reject: function (tile) {
         if (!tile) return;
-        tile.disabled = true;
-        tile.classList.add('gone');
+        clearTimeout(tile._noT);
+        tile.classList.remove('no');
+        void tile.offsetWidth;
+        tile.classList.add('no');
+        const off = function (e) {
+          if (e && (e.target !== tile || e.animationName !== 'ftShake')) return;
+          tile.removeEventListener('animationend', off);
+          clearTimeout(tile._noT);
+          tile.classList.remove('no');
+        };
+        tile.addEventListener('animationend', off);
+        /* Calm has no shake, so no animationend: the red goes on time. */
+        tile._noT = setTimeout(off, 700);
       },
 
       /* Worked out, not read off: written where it stands. */
@@ -305,6 +414,7 @@ window.FormulaTable = (function () {
         root.classList.add('hidden');
         grid.innerHTML = '';
         rows = [];
+        setRoom(0);
       }
     };
   }

@@ -37,14 +37,25 @@ html, body {
   margin: 0; padding: 0; height: 100%;
   background: #0b1622;
   overflow: hidden;
-  font-family: 'Lilita One', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* Nunito second: it is the game's own too, and it carries the few
+     characters Lilita One lacks (√, ₁, ₂), so those never fall through
+     to whatever font the laptop has. */
+  font-family: 'Lilita One', 'Nunito', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* Only the weights that exist. Lilita One has one and Nunito is
+     loaded at one; a heavier weight asked of either used to be faked
+     by the browser — each browser its own way, so the same digits came
+     out a different thickness on every laptop. */
+  font-synthesis: none;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
+  /* Safari only reads the prefixed form: without it a quick double tap
+     on the scene selected one of her words in blue. */
+  -webkit-user-select: none;
   user-select: none;
 }
 
 #viewport {
-  position: fixed; inset: 0;
+  position: fixed; top: 0; right: 0; bottom: 0; left: 0;
   background: radial-gradient(circle at 50% 40%, #16283c 0%, #0b1622 70%);
   overflow: hidden;
 }
@@ -74,7 +85,7 @@ html, body {
 
 /* ---------------- loading ---------------- */
 #loader {
-  position: absolute; inset: 0; z-index: 12;
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 12;
   display: flex; align-items: center; justify-content: center;
   background: linear-gradient(180deg, #5fc4f5 0%, #a5e6ff 55%, #b9ea86 100%);
   transition: opacity .45s ease;
@@ -104,9 +115,18 @@ html, body {
   margin-top: 18px; font-size: 30px; font-weight: 400; color: #fff;
   text-shadow: 0 3px 0 rgba(27, 100, 181, .8);
 }
+/* Which copy of the game this is: the version stamp, as a date. Small
+   and quiet — it is for comparing two laptops, not for the child. */
+#loaderVer {
+  margin-top: 26px;
+  font-family: 'Nunito', system-ui, sans-serif; font-weight: 600;
+  font-size: 18px; letter-spacing: .5px;
+  color: rgba(255, 255, 255, .55);
+  min-height: 1.2em;
+}
 
 /* ---------------- start screen ---------------- */
-#startScreen { position: absolute; inset: 0; z-index: 8; transition: opacity .5s ease; }
+#startScreen { position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 8; transition: opacity .5s ease; }
 #startScreen.fade-out { opacity: 0; }
 
 /* Swifty's arrival on the title screen, on the same rig convention as
@@ -181,12 +201,14 @@ html, body {
    animation, so it cannot fight the idle keyframes below. */
 #playBtn.veiled { opacity: 0; pointer-events: none; }
 #playBtn.idle { animation: playIdle 1.9s ease-in-out infinite; }
-#playBtn:hover { animation-duration: 1.1s; }
+@media (hover: hover) and (pointer: fine) {
+  #playBtn:hover { animation-duration: 1.1s; }
+}
 #playBtn:active { animation: none; transform: scale(.9); }
 #playBtn.pressed { animation: playPress .42s cubic-bezier(.3, 1.5, .5, 1) forwards; }
 
 /* ---------------- scene ---------------- */
-#scene { position: absolute; inset: 0; z-index: 1; opacity: 0; }
+#scene { position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 1; opacity: 0; }
 
 /* The scene behind the game is left sharp. It used to carry a 4px
    blur to push it back behind the board and the line — and the 1.02
@@ -350,9 +372,10 @@ html, body {
   from { opacity: 0; filter: blur(4px); }
   to   { opacity: 1; filter: blur(0); }
 }
-@media (prefers-reduced-motion: reduce) {
-  .wd.in { animation-duration: .08s; }
-}
+/* Calm (html.calm — see CFG.MOTION): the word snaps in rather than
+   fading up. Off unless the game is set to it; the laptop's own
+   reduce-motion setting no longer decides it. */
+html.calm .wd.in { animation-duration: .08s; }
 
 /* Her balloon follows her up to the raised spot instead of being
    redrawn there — she flies the distance herself, so only the box she
@@ -472,6 +495,16 @@ html, body {
    riding the .45s transition so the fade comes with the push. */
 #gridPanel.framed #gridAxes .axes { opacity: .3; }
 
+/* A board with no numbers on it — `numbers: false` in the script, from
+   screen 30 on. By then every point carries its own coordinates, and
+   the child reads those, not the axes. The axes still sweep out and
+   their letters still land; only the numbering stays off. Not removed:
+   still laid out and measured, so every label on the board keeps the
+   place it has always had. Weighs more than every rule above that
+   lights a number or dims it, so none of them can bring one back. */
+#gridPanel.unnumbered #gridAxes .glabel.gnum,
+#gridPanel.unnumbered #gridAxes .glabel.gnum.pop { opacity: 0; animation: none; }
+
 /* The ruling is the one that cannot be dimmed by a declaration. The rule
    above runs ruleIn with `both`, so its filled last frame — opacity 1 —
    beats any rule, whatever its weight; the axes record the same trap a
@@ -523,9 +556,7 @@ html, body {
   70%  { transform: scale(1) translate(0, 0); }
   100% { opacity: 1; transform: scale(1) translate(0, 0); }
 }
-@media (prefers-reduced-motion: reduce) {
-  #nudge.on { animation: none; opacity: 1; }
-}
+html.calm #nudge.on { animation: none; opacity: 1; }
 
 #gridAxes .dots .gdot {
   opacity: 0;
@@ -554,11 +585,16 @@ html, body {
   animation: dotIn .42s cubic-bezier(.3, 1.7, .5, 1) both;
 }
 /* the tappable affordance: brighten and swell under the cursor */
-#gridAxes .dots.on .gdot:hover {
-  animation: none;               /* a paused animation still wins the cascade */
-  opacity: 1;
-  fill: #2E9BD4;
-  transform: scale(1.7);
+/* A mouse only: on a touch screen :hover sticks to the last thing
+   tapped, and a wrong dot stayed big and blue — looking chosen — until
+   the next tap somewhere else. */
+@media (hover: hover) and (pointer: fine) {
+  #gridAxes .dots.on .gdot:hover {
+    animation: none;               /* a paused animation still wins the cascade */
+    opacity: 1;
+    fill: #2E9BD4;
+    transform: scale(1.7);
+  }
 }
 #gridAxes .dots.on .gdot:active { transform: scale(1.35); }
 
@@ -613,6 +649,25 @@ html, body {
 #gridAxes .legline.draw.set,
 #gridAxes .segline.draw.set,
 #gridAxes .segdash-g.draw.set { animation: none; stroke-dashoffset: 0; }
+/* And the rest of a drawing put up already finished — what a screen
+   reached with the picker or with Back is given, so it opens looking
+   exactly as it does when it is played up to (see Board.seed). */
+#gridAxes .legdash-g.draw.set { animation: none; }
+/* Weighted with the panel's id as well: the rules that pop these in
+   (legcoord, legname and leglen's below, segres's and found's further
+   down) weigh the same as a plain `#gridAxes .x.set` and come later, so
+   they won — a screen reached with the picker still bounced C's letters
+   and both lengths in. `.hush` is !important and still beats this. */
+#gridPanel #gridAxes .legdot.set, #gridPanel #gridAxes .legcoord.set,
+#gridPanel #gridAxes .legname.set, #gridPanel #gridAxes .leglen.set,
+#gridPanel #gridAxes .segres.set { opacity: 1; animation: none; }
+#gridAxes .trifill.set { transition: none; }
+#gridAxes .rightangle.on.set { opacity: 1; animation: none; }
+#gridPanel #gridAxes .found.set { opacity: 1; animation: none; }
+/* A place in the town the screen is not about — its point and its
+   coordinates step back with its picture (Board.townFocus). */
+#gridAxes .found { transition: opacity .42s ease; }
+#gridPanel #gridAxes .found.dim { opacity: .3 !important; }
 #gridAxes .legcoord, #gridAxes .legname {
   opacity: 0;
   font-family: 'Nunito', system-ui, sans-serif;
@@ -643,6 +698,10 @@ html, body {
   transform-box: fill-box; transform-origin: center;
 }
 #gridAxes .leglen.pop { animation: labelPop .56s cubic-bezier(.22, .68, .3, 1) both; }
+/* A length put together a piece at a time (x₂ − x₁): a piece still to
+   come is laid out but not painted, and fades in where it lands. */
+#gridAxes .leglen .lpart { transition: fill-opacity .28s ease, stroke-opacity .28s ease; }
+#gridAxes .leglen .lpart.wait { fill-opacity: 0; stroke-opacity: 0; }
 
 /* The count's total. There are no squares behind it any more — the
    line walking out a unit at a time is the count, and a block of
@@ -779,12 +838,13 @@ html, body {
   transition: opacity var(--pen, .85s) cubic-bezier(.22, .61, .36, 1);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  #gridAxes .xeq-p.on { transition: none; }
-  #gridAxes .xeq-p.gone { animation: none; opacity: 0; }
-  #gridAxes .xword.on { animation: none; opacity: 1; }
-  #gridAxes .xsweep.draw { animation: none; opacity: .85; stroke-dashoffset: 0; }
-}
+html.calm #gridAxes .xeq-p.on { transition: none; }
+html.calm #gridAxes .xeq-p.gone { animation: none; opacity: 0; }
+html.calm #gridAxes .xword.on { animation: none; opacity: 1; }
+/* The sweep's offset is set inline by the script (runEquation), and an
+   inline style outranks any rule — so without !important the sweep was
+   left wound back to nothing, and never appeared at all. */
+html.calm #gridAxes .xsweep.draw { animation: none; opacity: .85; stroke-dashoffset: 0 !important; }
 
 
 
@@ -820,7 +880,9 @@ html, body {
   100% { transform: scale(1); }
 }
 /* it reached: leave it lit, the way a confirmed segment is */
-#gridAxes .measline.lit { animation: segLit 1.4s ease-in-out infinite; }
+/* Lit, and still: it used to pulse without end, so the answer's line
+   was still going off while the total was being written beside it. */
+#gridAxes .measline.lit { animation: none; }
 
 /* The board slides from the middle of the frame to its working place
    once the question has been put. Same size either end, so only the
@@ -832,6 +894,8 @@ html, body {
 
 /* the segment lit once it is the answer, with the answer on it */
 #gridAxes .segline.lit { animation: segLit 1.4s ease-in-out infinite; }
+/* The distance an axis case has just found, shown as found. */
+#gridAxes .segline.good { stroke: #27A348 !important; transition: stroke .5s ease; }
 @keyframes segLit {
   0%, 100% { filter: none; }
   50%      { filter: drop-shadow(0 0 10px rgba(255, 170, 40, .9)); }
@@ -878,6 +942,17 @@ html, body {
    dimming still eases over its 420ms. */
 #gridAxes .hush { opacity: .28 !important; }
 #gridAxes .spot { filter: drop-shadow(0 0 7px rgba(255, 196, 74, .95)); }
+/* Safari — every WebKit browser — does not draw a CSS filter on an SVG
+   shape at all, so on a Mac in Safari nothing on the board ever
+   glowed. There the same glows are drawn with SVG filters, which it
+   does draw (#fx… in the board's <defs>, game.js). `html.svgfx` is
+   set only on WebKit, so every other browser is untouched. The
+   !important is what beats a glow that is animated. */
+html.svgfx #gridAxes .spot { filter: url(#fxSpot) !important; }
+html.svgfx #gridAxes .spotbeat.spotbeat { animation: none; }
+html.svgfx #gridAxes .segline.lit,
+html.svgfx #gridAxes .measline.lit { animation: none; filter: url(#fxLit) !important; }
+html.svgfx #gridAxes.triangle-question-active .triangle-pulse-line.on { filter: url(#fxSoft) !important; }
 
 @keyframes partBeat {
   0%   { opacity: 1; }
@@ -1021,7 +1096,9 @@ html, body {
   flex-direction: column;
   justify-content: center;
   gap: 20px;
-  font-family: 'Lilita One', system-ui, sans-serif;
+  /* √ and the subscripts from the game's own Nunito, not the laptop's
+     font — Lilita One has neither. */
+  font-family: 'Lilita One', 'Nunito', system-ui, sans-serif;
   color: #14418c;
   text-align: center;
 }
@@ -1086,20 +1163,23 @@ html, body {
   0%   { clip-path: inset(0 100% 0 0); }
   100% { clip-path: inset(0 -8% 0 0); }
 }
-@media (prefers-reduced-motion: reduce) {
-  #formulaBoard .fb-inner > * { animation: none; }
-}
+/* Calm keeps the order: each line still waits its turn (its delay is
+   set inline, per line), and then simply appears instead of being
+   written on. With no animation at all every line came up at once,
+   the answer with them. */
+html.calm #formulaBoard .fb-inner > * { animation-name: fbAppear; animation-duration: .2s; }
+@keyframes fbAppear { from { opacity: 0; } to { opacity: 1; } }
 
 /* the leaf curtain that hides the changeover */
 #leafLayer {
-  position: absolute; inset: 0; z-index: 12;
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 12;
   overflow: hidden; pointer-events: none;
 }
 /* The ambient drift: one leaf off the tree at a time, looping away on
    the wind. Each piece rides the same SVG path with offset-path, so the
    loop is a real curve, and offset-rotate turns it to face the way it
    is travelling; the spin on top is what makes it tumble as it goes. */
-.drift-host { position: absolute; inset: 0; pointer-events: none; }
+.drift-host { position: absolute; top: 0; right: 0; bottom: 0; left: 0; pointer-events: none; }
 
 .fx-drift {
   position: absolute; left: 0; top: 0;
@@ -1136,7 +1216,7 @@ html, body {
 
 /* A gust: faint streaks sweeping the frame. Their own host so the wind
    can blow whether or not a leaf happens to be crossing. */
-.gust-host { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.gust-host { position: absolute; top: 0; right: 0; bottom: 0; left: 0; pointer-events: none; overflow: hidden; }
 .fx-sweep {
   position: absolute;
   animation-name: windSweep;
@@ -1162,9 +1242,9 @@ html, body {
   z-index: 0;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .drift-host, .gust-host { display: none; }
-}
+/* Calm: no drifting leaves or gusts — and the script does not start
+   them either, so no wind is heard with nothing moving (fx.js). */
+html.calm .drift-host, html.calm .gust-host { display: none; }
 
 /* Each leaf is the artwork, sized and tinted per copy by FX.leaves(). */
 .leaf {
@@ -1201,8 +1281,29 @@ html, body {
   box-shadow: 0 6px 0 #d4761a, 0 11px 18px rgba(0, 0, 0, .24);
   transition: transform .12s ease, box-shadow .12s ease;
 }
-#nextBtn .arrow { font-size: 20px; }
-#nextBtn:hover  { transform: translateY(-2px); box-shadow: 0 8px 0 #d4761a, 0 14px 20px rgba(0, 0, 0, .28); }
+/* The arrows, drawn: a small triangle seated where the ▶ glyph used to
+   sit on this Mac, pointing the way the button goes. Neither font has
+   the character, so as text every laptop drew its own. The shadow is
+   the one the button's text carries; it goes on the holder rather than
+   the shape, because the shape's clip would cut it off. */
+#nav .arrow {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  width: 15.6px; height: 23px;
+}
+#nav .arrow::before {
+  content: '';
+  position: absolute; top: 5.5px;
+  width: 13.5px; height: 14px;
+  background: currentColor;
+}
+#nextBtn .arrow { filter: drop-shadow(0 2px 0 rgba(180, 90, 0, .55)); }
+#nextBtn .arrow::before { left: 2px;   clip-path: polygon(0 0, 100% 50%, 0 100%); }
+#backBtn .arrow::before { left: .6px;  clip-path: polygon(100% 0, 0 50%, 100% 100%); }
+@media (hover: hover) and (pointer: fine) {
+  #nextBtn:hover  { transform: translateY(-2px); box-shadow: 0 8px 0 #d4761a, 0 14px 20px rgba(0, 0, 0, .28); }
+}
 #nextBtn:active { transform: translateY(4px); box-shadow: 0 2px 0 #d4761a, 0 5px 10px rgba(0, 0, 0, .28); }
 /* The button is on screen the whole time; it only nudges once she has
    finished her line, as a hint that you can move on. */
@@ -1224,8 +1325,9 @@ html, body {
   box-shadow: 0 6px 0 #E6AE55, 0 11px 18px rgba(0, 0, 0, .18);
   transition: transform .12s ease, box-shadow .12s ease;
 }
-#backBtn .arrow { font-size: 20px; }
-#backBtn:hover  { transform: translateY(-2px); box-shadow: 0 8px 0 #E6AE55, 0 14px 20px rgba(0, 0, 0, .22); }
+@media (hover: hover) and (pointer: fine) {
+  #backBtn:hover  { transform: translateY(-2px); box-shadow: 0 8px 0 #E6AE55, 0 14px 20px rgba(0, 0, 0, .22); }
+}
 #backBtn:active { transform: translateY(4px); box-shadow: 0 2px 0 #E6AE55, 0 5px 10px rgba(0, 0, 0, .22); }
 
 /* At either end of the script there is nowhere to go. The button says
@@ -1235,8 +1337,10 @@ html, body {
   cursor: default;
   box-shadow: 0 6px 0 rgba(120, 90, 40, .22);
 }
-#nav button:disabled:hover,
 #nav button:disabled:active { transform: none; box-shadow: 0 6px 0 rgba(120, 90, 40, .22); }
+@media (hover: hover) and (pointer: fine) {
+  #nav button:disabled:hover { transform: none; box-shadow: 0 6px 0 rgba(120, 90, 40, .22); }
+}
 #nextBtn:disabled.ready { animation: none; }
 
 /* The point being looked for, saying so on its own. */
@@ -1249,18 +1353,21 @@ html, body {
   50%      { transform: scale(1.9); opacity: 1; }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  /* 120 markers breathing at once is exactly what this setting is for.
-     They keep their arrival and then hold still; the hint below still
-     carries its colour, which is what does the pointing anyway. */
-  #gridAxes .dots.on .gdot {
-    animation: dotIn .42s cubic-bezier(.3, 1.7, .5, 1) both;
-  }
-  #gridAxes .dots.on .gdot.hint { animation: none; fill: #FFB020; }
+/* Calm: 120 markers breathing at once is exactly what it is for. They
+   keep their arrival and then hold still — they stay VISIBLE: a marker
+   is at opacity 0 until its arrival brings it up, so this rule must
+   never be overruled by an `animation: none` (it was, from the ambient
+   block below, and the locate screens had no dots to tap). The hint
+   keeps its colour, which is what does the pointing anyway; a wrong
+   tap still turns red. */
+html.calm #gridAxes .dots.on .gdot {
+  animation: dotIn .42s cubic-bezier(.3, 1.7, .5, 1) both;
 }
+html.calm #gridAxes .dots.on .gdot.hint { animation: none; opacity: 1; fill: #FFB020; }
+html.calm #gridAxes .dots.on .gdot.wrong { animation: none; opacity: 1; fill: #E8574A; }
 
 /* ---------------- effects layer ---------------- */
-#fxLayer { position: absolute; inset: 0; z-index: 9; pointer-events: none; overflow: hidden; }
+#fxLayer { position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 9; pointer-events: none; overflow: hidden; }
 
 /* A wrong answer, felt at the edges of the frame.
 
@@ -1275,7 +1382,7 @@ html, body {
    Over the scene and the sparkles, under the leaf sweep, so a screen
    change still covers it — and never in the way of a tap. */
 #missGlow {
-  position: absolute; inset: 0; z-index: 10; pointer-events: none;
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 10; pointer-events: none;
   opacity: 0;
   box-shadow: inset 0 0 120px 8px rgba(232, 72, 64, .28);
   background:
@@ -1292,11 +1399,9 @@ html, body {
   64%  { opacity: .8; }
   100% { opacity: 0; }
 }
-/* Without the motion: one soft fade in and out, no pulsing. */
-@media (prefers-reduced-motion: reduce) {
-  #missGlow.on { animation: missFade .9s ease; }
-  @keyframes missFade { 0%, 100% { opacity: 0; } 35% { opacity: .7; } }
-}
+/* Calm: one soft fade in and out, no pulsing. */
+html.calm #missGlow.on { animation: missFade .9s ease; }
+@keyframes missFade { 0%, 100% { opacity: 0; } 35% { opacity: .7; } }
 .fx { position: absolute; will-change: transform, opacity; }
 
 .fx-star {
@@ -1557,12 +1662,15 @@ html, body {
   100% { opacity: 0; transform: translate(calc(-50% + var(--dx)), calc(-50% - var(--rise))) scale(1.1); }
 }
 
-/* Respect a reduced-motion preference: keep the game usable, drop
-   the ambient looping animation. */
-@media (prefers-reduced-motion: reduce) {
-  .cloud, .fx-mote, #gridAxes .dots.on .gdot,
-  .loader-title, #playBtn.idle { animation: none !important; }
-}
+/* Calm drops the ambient looping animation and keeps everything where
+   it is. The clouds are PAUSED rather than stopped: their drift is the
+   only thing that places them across the sky, and with it removed
+   every cloud sat piled at the left edge. The motes are not spawned
+   (fx.js). The grid markers are not in this list — see their own calm
+   rule. */
+html.calm .cloud { animation-play-state: paused !important; }
+html.calm .fx-mote { display: none; }
+html.calm .loader-title, html.calm #playBtn.idle { animation: none !important; }
 
 /* =============================================================
    Highlights, last in the file on purpose.
@@ -1633,8 +1741,11 @@ html, body {
    plotted dot has a pop of its own that would otherwise compete. */
 #gridAxes.triangle-question-active .segline.lit { animation: none; }
 
-@media (prefers-reduced-motion: reduce) {
-  #gridAxes.triangle-question-active .triangle-pulse-line.on { animation: none; }
+/* Calm: the named sides are still lit — held at the middle of their
+   pulse rather than pulsing. With no animation they were at the base
+   rule's opacity 0, and nothing on the triangle was named at all. */
+html.calm #gridAxes.triangle-question-active .triangle-pulse-line.on {
+  animation: none; opacity: .55; stroke-width: 10px;
 }
 
 
@@ -1706,5 +1817,10 @@ html, body {
   opacity: 0;
   stroke-linejoin: miter;
   stroke-linecap: butt;
+  /* It pops about its own middle. With no box named it scaled about the
+     board's top-left corner, so the marker swooped in from there and
+     overshot the corner by 400px before settling. */
+  transform-box: fill-box;
+  transform-origin: center;
 }
 #gridAxes .rightangle.on { animation: labelPop .5s cubic-bezier(.22,.68,.3,1) both; }
