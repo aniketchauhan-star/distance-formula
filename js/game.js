@@ -6518,13 +6518,17 @@
     branch: null,
     nextIndex: function () {
       const to = this.branch;
-      this.branch = null;
-      if (to == null) return this.index + 1;
       /* A right answer on the last question steps over the beats that
          exist to teach a child who got it wrong — and there is nothing
          after those, so where it steps to is off the end. Both Next and
-         the hand-over below already stop there. */
+         the hand-over below already stop there.
+
+         And it stays the end. It was read once and forgotten, so the
+         first press of Next did nothing and the second walked a child
+         who had just got it right into "Oops! Let's check the sides." */
       if (to === 'end') return C.SCRIPT.length;
+      this.branch = null;
+      if (to == null) return this.index + 1;
       const k = C.SCRIPT.findIndex(function (s) { return s.id === to; });
       return k < 0 ? this.index + 1 : k;
     },
