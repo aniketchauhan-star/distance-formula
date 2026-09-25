@@ -91,7 +91,6 @@ window.TownMap = (function () {
           const n = nodes[i];
           if (!n) return;
           const s = at(p.x, p.y);
-          n.style.left = s.x + 'px';
           /* Its foot sits a little above the dot, so neither the dot
              nor the coordinates written under it are ever covered.
 
@@ -100,7 +99,14 @@ window.TownMap = (function () {
              tower standing on its point would stand off the edge, and a
              side leaving the point downwards would run through it. */
           n.classList.toggle('hang', !!p.hang);
-          n.style.top = (p.hang ? s.y : (s.y - T.liftCells * ch)) + 'px';
+          /* Or it stands in the corner of the first quadrant beside its
+             point (`corner`): the station is AT the origin, and standing
+             on it, centred, it covered the point, the first unit counted
+             out of it and both axes where they cross. */
+          n.classList.toggle('q1', !!p.corner);
+          const lift = T.liftCells * ch;
+          n.style.top = (p.hang ? (s.y + lift) : (s.y - lift)) + 'px';
+          n.style.left = (p.corner ? (s.x + lift * 1.6) : s.x) + 'px';
           /* Sized by its own height in cells, with its width taken
              from its own drawing so nothing is squashed — and the
              sheet behind it scaled so exactly that drawing fills the
@@ -147,12 +153,16 @@ window.TownMap = (function () {
           const wide = Math.max(n.offsetWidth || 0, pill ? pill.offsetWidth : 0);
           const tall = n.offsetHeight || 0;
           if (wide && tall && p.hang) {
-            /* Hung: the name above the point, the picture below it. */
-            const ph = pill ? pill.offsetHeight : 0;
-            const gap = parseFloat(getComputedStyle(n).rowGap) || 0;
-            n.style.setProperty('--hangUp', -(ph + gap) + 'px');
-            room.push({ l: s.x - wide / 2, t: s.y - ph - gap,
-                        r: s.x + wide / 2, b: s.y - ph - gap + tall,
+            /* Hung: the picture just under the point, its name under the
+               picture — nothing over the point or its coordinates. */
+            const lift = T.liftCells * ch;
+            room.push({ l: s.x - wide / 2, t: s.y + lift,
+                        r: s.x + wide / 2, b: s.y + lift + tall,
+                        what: p.name || p.kind });
+          } else if (wide && tall && p.corner) {
+            const lift = T.liftCells * ch;
+            room.push({ l: s.x + lift * 1.6, t: foot - tall,
+                        r: s.x + lift * 1.6 + wide, b: foot,
                         what: p.name || p.kind });
           } else if (wide && tall) {
             room.push({ l: s.x - wide / 2, t: foot - tall,

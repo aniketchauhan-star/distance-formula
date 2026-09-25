@@ -31,6 +31,19 @@
      already uses it; this brings the numbers themselves into line. */
   const numText = function (v) { return String(v).replace('-', '\u2212'); };
 
+  /* A line wound back out of sight, ready to draw itself on, without
+     the dots a round cap leaves behind. Wound back the plain way — a
+     dash as long as the line, offset by the same — every end sits on a
+     zero-length dash, and a round cap paints a dot there: the pair's
+     undrawn line left a navy dot beside each of its points. So the gap
+     is longer than the line by two cap widths and the line sits in the
+     middle of it, clear of both caps. Drawn, the offset is 0 as before. */
+  function windBack(line, len, drawn) {
+    const w = Math.max(+line.getAttribute('stroke-width') || 0, 10) + 4;
+    line.setAttribute('stroke-dasharray', len + ' ' + (len + 2 * w));
+    line.style.strokeDashoffset = drawn ? 0 : (len + w);
+  }
+
   /* Whether a row of a table carries anything in off the triangle — a
      part that says where on the drawing it was read from. */
   const carries = function (line) {
@@ -310,6 +323,11 @@
       return standGeom(C.BOARD.stand, {
         panelBox: { x: AX.grid.x, y: AX.grid.y, w: AX.grid.w, h: AX.grid.h }
       });
+    }
+    if (entry.keepTable) {
+      /* Back under the table the screen before wrote, the board where
+         that table pushed it. */
+      return standGeom(C.BOARD.tableStand, { panelBox: C.GRID.table.board });
     }
     if (entry.layout === 'recap') {
       // the result stated on its own: board to one side, nobody in shot
@@ -1210,8 +1228,7 @@
         l.setAttribute('stroke-width', G.axisWidth);
         l.setAttribute('class', 'axis');
         const len = Math.hypot(x2 - ox, y2 - oy);
-        l.setAttribute('stroke-dasharray', len);
-        l.style.strokeDashoffset = len;
+        windBack(l, len, false);
         axesG.appendChild(l);
         self.lines.push(l);
         return l;
@@ -1352,27 +1369,15 @@
       const ox = G.originX, oy = G.originY;
       const self = this;
 
-      /* The board's glows as SVG filters, for the browsers that will not
-         draw a CSS one on an SVG shape (html.svgfx — see style.css). In
-         user units over the whole board: a filter sized to its shape's
-         own box has no height on a horizontal line, and the line would
-         vanish instead of glowing. */
       const defs = document.createElementNS(NS, 'defs');
-      const R = ' filterUnits="userSpaceOnUse" x="-3000" y="-3000" width="8000" height="8000"';
-      const halo = function (id, color, opacity, sd) {
-        return '<filter id="' + id + '"' + R + '>' +
-          '<feGaussianBlur in="SourceAlpha" stdDeviation="' + sd + '" result="b"/>' +
-          '<feFlood flood-color="' + color + '" flood-opacity="' + opacity + '"/>' +
-          '<feComposite in2="b" operator="in" result="g"/>' +
-          '<feMerge><feMergeNode in="g"/><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge>' +
-          '</filter>';
-      };
-      defs.innerHTML = halo('fxSpot', 'rgb(255,196,74)', '.95', 2.6) +
-        halo('fxLit', 'rgb(255,170,40)', '.9', 3.6) +
-        '<filter id="fxSoft"' + R + '>' +
-          '<feGaussianBlur in="SourceGraphic" stdDeviation="3" result="b"/>' +
-          '<feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>' +
-        '</filter>';
+      /* The park (55–61): grass, laid in board units so it stays put as
+         the camera moves, with tufts scattered through it. */
+      const grass = '<pattern id="parkGrass" patternUnits="userSpaceOnUse" width="96" height="84">' +
+          '<rect width="96" height="84" fill="#CFE9B2"/>' +
+          '<path d="M14 22 l3 -7 l3 7 M50 58 l3 -7 l3 7 M78 18 l3 -7 l3 7 M30 74 l3 -7 l3 7 M70 70 l3 -7 l3 7"' +
+          ' stroke="#9CCB7A" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
+        '</pattern>';
+      defs.innerHTML = grass;
       svg.insertBefore(defs, svg.firstChild);
 
       this.buildAxes();
@@ -2128,7 +2133,7 @@
          proportion rather than scaled: a transform on an SVG <text> is
          the one thing this board will not do (see the axis numbers), and
          a size is a size wherever the camera is. */
-      const tk = Math.min(1, V.w / G.w);
+      const tk = Math.min(1, V.w / G.w) * (this.textScale || 1);
       const gs2 = el.gridAxes.style, SGt = G.segment, LGt = G.leg;
       gs2.setProperty('--coordFs', (SGt.coordSize * tk) + 'px');
       gs2.setProperty('--nameFs',  (SGt.nameSize  * tk) + 'px');
@@ -2164,7 +2169,30 @@
        meant to come closer when the board does. */
     typeScale: function () {
       const G = C.GRID, V = this.viewRect ? this.viewRect() : null;
-      return V ? Math.min(1, V.w / G.w) : 1;
+      return (V ? Math.min(1, V.w / G.w) : 1) * (this.textScale || 1);
+    },
+
+    /* Every label on the board set smaller by `k` (a screen's
+       `textScale`) — for the busy boards, a town with pictures standing
+       on it, where full-size coordinates crowd each other. Applied at
+       once, sizes and places both, so what is measured is what is
+       drawn. */
+    setTextScale: function (k) {
+      k = k || 1;
+      if (Math.abs((this.textScale || 1) - k) < 1e-6) return;
+      this.textScale = k;
+      if (!this.built || !this.box) return;
+      this.place(this.box);              // the type sizes, at the new scale
+      if (this.lastPlotted) this.relabel();   // and every label placed again at them
+    },
+
+    /* The sides labels are placed against: the whole shape a screen is
+       building (`shape`), or failing that the sides drawn so far. Known
+       from the start, every label is placed once, clear of sides that
+       are not drawn yet — it used to be placed against what was up,
+       and moved every time a side arrived. */
+    labelLegs: function () {
+      return (this.shapeLegs && this.shapeLegs.length) ? this.shapeLegs : (this.legPlaced || []);
     },
 
     /* What one cell measures on the stage. The board is stretched to
@@ -2323,7 +2351,57 @@
       const corner = L[0].to;
       this.triFill.setAttribute('points',
         [sp.a, corner, sp.b].map(function (p) { return px(p.x) + ',' + py(p.y); }).join(' '));
+      this.triFill.classList.toggle('park', !!this.park);
+      /* The grass is set on the element, not in the stylesheet: a
+         reference to something in the page, written in a stylesheet in
+         another folder, is not one every browser finds — and a fill that
+         cannot be found is no fill. The stylesheet's plain green stays
+         under it for the browser that still misses it. */
+      this.triFill.style.fill = this.park ? 'url(#parkGrass) #CFE9B2' : '';
       this.triFill.classList.add('on');
+      this.plantPark([sp.a, corner, sp.b].map(function (p) { return { x: px(p.x), y: py(p.y) }; }));
+    },
+
+    /* A few trees in the park — the middle of the triangle and part of
+       the way towards each corner, where no label or length is written
+       (they all keep out of the face). Only on the park's screens. */
+    plantPark: function (pts) {
+      const NS = 'http://www.w3.org/2000/svg', G = C.GRID;
+      if (!this.parkTrees) {
+        this.parkTrees = document.createElementNS(NS, 'g');
+        this.parkTrees.setAttribute('class', 'parktrees');
+        this.triFill.parentNode.insertBefore(this.parkTrees, this.triFill.nextSibling);
+      }
+      const g = this.parkTrees;
+      while (g.firstChild) g.removeChild(g.firstChild);
+      g.classList.toggle('on', !!this.park);
+      if (!this.park || !pts) return;
+      const cx = (pts[0].x + pts[1].x + pts[2].x) / 3, cy = (pts[0].y + pts[1].y + pts[2].y) / 3;
+      const r = G.stepX * 0.34;
+      const spots = [{ x: cx, y: cy }].concat(pts.map(function (p) {
+        return { x: cx + (p.x - cx) * 0.42, y: cy + (p.y - cy) * 0.42 };
+      }));
+      spots.forEach(function (q) {
+        const t = document.createElementNS(NS, 'g');
+        t.setAttribute('class', 'parktree');
+        t.innerHTML =
+          '<rect x="' + (q.x - r * 0.14) + '" y="' + (q.y + r * 0.35) + '" width="' + (r * 0.28) +
+          '" height="' + (r * 0.75) + '" rx="' + (r * 0.08) + '" fill="#8A6A3A"/>' +
+          '<circle cx="' + q.x + '" cy="' + q.y + '" r="' + r + '" fill="#6FB24F" stroke="#4E8E34" stroke-width="' + (r * 0.12) + '"/>' +
+          '<circle cx="' + (q.x - r * 0.3) + '" cy="' + (q.y - r * 0.3) + '" r="' + (r * 0.32) + '" fill="#8DCB6A"/>';
+        g.appendChild(t);
+      });
+    },
+
+    /* Whether the triangle is drawn as a park (a screen's `park`). */
+    setPark: function (on) {
+      this.park = !!on;
+      if (this.triFill) {
+        this.triFill.classList.toggle('park', this.park);
+        this.triFill.style.fill = this.park ? 'url(#parkGrass) #CFE9B2' : '';
+      }
+      if (this.parkTrees) this.parkTrees.classList.toggle('on', this.park &&
+        !!this.triFill && this.triFill.classList.contains('on'));
     },
 
     /* Does what is drawn run over an axis?
@@ -2365,6 +2443,7 @@
     clearLegs: function () {
       this.rightAngle(false);
       if (this.triFill) this.triFill.classList.remove('on');
+      if (this.parkTrees) this.parkTrees.classList.remove('on');
       this.legPlaced = [];
       this.labelFace = null;
       this.markCrossing();
@@ -2654,19 +2733,32 @@
 
     /* Every length the board is showing right now, as a box. Called at
        the top of a pass, and again whenever one lands. */
+    /* The box a side's length covers, turned or not. A length set up
+       its side (a column, a slant) is recorded as the words lying flat
+       otherwise — a wide, short box across the paper it does not cover,
+       with the strip it does cover left open. */
+    lenBox: function (L) {
+      const LG = C.GRID.leg, tk = this.typeScale();
+      const x = parseFloat(L.len.getAttribute('x'));
+      const y = parseFloat(L.len.getAttribute('y'));
+      if (!isFinite(x) || !isFinite(y)) return null;
+      const w = this.textW(L.len.textContent, LG.lenSize * tk);
+      const h = LG.lenSize * tk;
+      const m = /rotate\((-?[\d.]+)/.exec((L.lenTurn && L.lenTurn.getAttribute('transform')) || '');
+      const a = m ? parseFloat(m[1]) * Math.PI / 180 : 0;
+      const ca = Math.abs(Math.cos(a)), sa = Math.abs(Math.sin(a));
+      const bw = w * ca + h * sa, bh = w * sa + h * ca;
+      return { l: x - bw / 2, t: y - bh / 2, r: x + bw / 2, b: y + bh / 2 };
+    },
+
     inkLengths: function () {
       const G = C.GRID, LG = G.leg, SG = G.segment, self = this;
       const tk = this.typeScale();
       (this.legSlots || []).forEach(function (L, i) {
         if (!L || !L.len || !L.len.textContent) return;
         if (L.len.style.display === 'none') return;
-        const x = parseFloat(L.len.getAttribute('x'));
-        const y = parseFloat(L.len.getAttribute('y'));
-        if (!isFinite(x) || !isFinite(y)) return;
-        const w = self.textW(L.len.textContent, LG.lenSize * tk);
-        const h = LG.lenSize * tk;
-        self.inkBox(x - w / 2, y - h / 2, x + w / 2, y + h / 2,
-                    'leg ' + i + ' length', L.len);
+        const b = self.lenBox(L);
+        if (b) self.inkBox(b.l, b.t, b.r, b.b, 'leg ' + i + ' length', L.len);
       });
       const R = this.segRes;
       if (R && R.textContent && R.classList.contains('pop')) {
@@ -2787,7 +2879,7 @@
        nothing is closed, because two points and a line enclose
        nothing. */
     shapeFace: function () {
-      const G = C.GRID, sp = this.lastPlotted, L = this.legPlaced || [];
+      const G = C.GRID, sp = this.lastPlotted, L = this.labelLegs();
       if (!sp || !sp.a || !sp.b || !L[0] || !L[1] || !L[0].to) return null;
       const px = function (v) { return G.originX + v * G.stepX; };
       const py = function (v) { return G.originY - v * G.stepY; };
@@ -2954,6 +3046,14 @@
          an early guess is final. Where that goes wrong the board can
          say where the label belongs and be believed. */
       const pin = opt.pin ? [opt.pin.x, opt.pin.y] : null;
+      /* Its own last box out of the way first. Left in, a label placed
+         a second time found its own ghost on the spot it had chosen and
+         moved off it — C's label went left of C, then below-right of it,
+         in the same frame, and on the next screen somewhere else again. */
+      const mine = part.coord || part.name;
+      if (mine && this.inked) {
+        this.inked = this.inked.filter(function (o) { return o.owner !== mine; });
+      }
       const at = this.placeBlock(w, h, X, Y, gap,
                    pin ? opt.away : (part.heldDir ? opt.away : (wasFound ?
                      { x: 0, y: -wasFound[1] } : opt.away)),
@@ -3099,7 +3199,6 @@
       L.line.setAttribute('x1', le[0]); L.line.setAttribute('y1', le[1]);
       L.line.setAttribute('x2', le[2]); L.line.setAttribute('y2', le[3]);
       const len = Math.hypot(le[2] - le[0], le[3] - le[1]);
-      L.line.setAttribute('stroke-dasharray', len);
       /* Wound back to nothing, so the leg can draw itself on. A side
          the board is CARRYING OVER is already there and goes down at
          full length instead — and both that and the `set` mark are
@@ -3132,7 +3231,7 @@
          (L.dashG && L.dashG.classList.contains('draw'))));
       const held = !!spec.settled || L.line.classList.contains('draw') ||
                    shownAlready;
-      L.line.style.strokeDashoffset = held ? 0 : len;
+      windBack(L.line, len, held);
       const quietly = !!spec.settled || shownAlready;
       /* Read back by `placeLegs`, which decides whether this side
          arrives on a clock or is simply on. */
@@ -3144,8 +3243,23 @@
         L.dot.setAttribute('cx', x2); L.dot.setAttribute('cy', y2);
         // the corner can be drawn as a plotted point rather than a leg end
         L.dot.setAttribute('fill', spec.mark.fill || side);
-        L.coord.textContent = spec.mark.coordText ||
-                              ('(' + numText(t.x) + ',\u00A0' + numText(t.y) + ')');
+        if (spec.mark.coordParts) {
+          /* In parts, so a working can lift a half out of them — the same
+             words either way, so nothing on the paper changes. */
+          while (L.coord.firstChild) L.coord.removeChild(L.coord.firstChild);
+          spec.mark.coordParts.forEach(function (f) {
+            const ts = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+            ts.textContent = f.t;
+            if (f.glow) {
+              ts.classList.add('glowable');
+              if (typeof f.glow === 'string') ts.dataset.part = f.glow;
+            }
+            L.coord.appendChild(ts);
+          });
+        } else {
+          L.coord.textContent = spec.mark.coordText ||
+                                ('(' + numText(t.x) + ',\u00A0' + numText(t.y) + ')');
+        }
         L.name.textContent = spec.mark.name || '';
         /* The corner's letter and its coordinate are one block, placed
            by the same rule every other point's are — out of the shape,
@@ -3204,6 +3318,20 @@
       const py = function (v) { return G.originY - v * G.stepY; };
       const x1 = px(f.x), y1 = py(f.y), x2 = px(t.x), y2 = py(t.y);
       const tk = this.typeScale(), self2 = this;
+      /* A length already on the board, saying the same thing about the
+         same side at the same size, stays exactly where it is. Worked
+         out again on every screen, it came out somewhere else whenever
+         anything near it had changed — "2 units" jumped from beside C to
+         above B as the table screen opened, and took C's label with it. */
+      const norm = function (v) { return String(v || '').replace(/\u00A0/g, ' '); };
+      const sideKey = [Math.min(f.x, t.x), Math.min(f.y, t.y), Math.max(f.x, t.x), Math.max(f.y, t.y)].join(',');
+      const was = L.lenAt;
+      if (was && L.len.classList.contains('pop') && L.len.style.display !== 'none' &&
+          was.side === sideKey && norm(was.txt) === norm(txt) && Math.abs(was.tk - tk) < 1e-6 &&
+          norm(L.len.textContent) === norm(txt)) {
+        return;
+      }
+      L.lenAt = { side: sideKey, txt: txt, tk: tk };
       {
         const horiz = (f.y === t.y);
         /* Above a horizontal leg — inside the right angle, where the
@@ -3447,12 +3575,8 @@
       (this.legSlots || []).forEach(function (L, n) {
         const s = placed[n];
         if (!s || !L.len || !L.len.textContent || L.len.style.display === 'none') return;
-        const w = self.textW(L.len.textContent, LG.lenSize * tk);
-        const h = LG.lenSize * tk;
-        const x = parseFloat(L.len.getAttribute('x')), y = parseFloat(L.len.getAttribute('y'));
-        if (isFinite(x) && isFinite(y)) {
-          self.inkBox(x - w / 2, y - h / 2, x + w / 2, y + h / 2, 'a leg length');
-        }
+        const b = self.lenBox(L);
+        if (b) self.inkBox(b.l, b.t, b.r, b.b, 'leg ' + n + ' length', L.len);
       });
 
       (this.legSlots || []).forEach(function (L, i) {
@@ -3521,9 +3645,9 @@
           /* And this is the hand-over: the side the child measured is
              now drawn in its own colour with its own length, so the
              lit measuring line lying along it has been taken over and
-             can go. Same tick as the leg being drawn — the measure
-             must never travel to a screen that is not about it. */
-          Board.clearMeasure();
+             goes — faded into the side, which is already down under it,
+             rather than snatched away. */
+          Board.handOffMeasure();
           if (spec.mark) { L.dot.classList.add('pop'); L.coord.classList.add('pop'); L.name.classList.add('pop'); }
           if (spec.length) {
             const fly = self.flyIntoLeg(i, spec, later, delay + 200);
@@ -3838,7 +3962,14 @@
          animation on an element whose visibility IS the fill of another
          one, and take it off the board — the trap this file has fallen
          into four times already. */
-      const beat = union(stroke);
+      /* Lines only. A length is painted by its own pop animation, held
+         at its last frame — and an element has one `animation`, so the
+         beat REPLACED it: for the length of the beat the label fell back
+         to its resting opacity of 0, and when the beat came off the pop
+         played again from nothing. Every length on the board vanished
+         and came back whenever a side was named. It keeps its steady
+         glow (`spot`); only the line swells. */
+      const beat = union(stroke).filter(function (n) { return n.tagName !== 'text'; });
       Object.keys(stroke).forEach(function (k) {
         stroke[k].forEach(function (n) { if (n) n.classList.remove('spotbeat'); });
       });
@@ -3958,6 +4089,7 @@
 
     clearUnits: function () {
       if (this.segGroup) this.segGroup.classList.remove('counting');
+      if (el.gridAxes) el.gridAxes.classList.remove('counting');
       (this.countCells || []).forEach(function (c) {
         c.g.classList.remove('on');
         c.g.style.display = 'none';
@@ -4035,7 +4167,12 @@
        begins. */
     partSpot: function (which, part) {
       const SG = C.GRID.segment, self = this;
-      const p = this.segParts && this.segParts[which];
+      /* 'a' and 'b' are the pair; 'c' is the corner the sides meet at —
+         its coordinates are written in parts too when a working carries
+         numbers out of them (59). */
+      const p = which === 'c'
+        ? (this.legSlots && this.legSlots[0] ? { coord: this.legSlots[0].coord } : null)
+        : (this.segParts && this.segParts[which]);
       if (!p || !p.coord) return null;
       const kids = p.coord.children || [];
       if (!kids.length) return null;
@@ -4423,7 +4560,13 @@
          the pair runs along, which is also the side that cannot run off
          the board. The same rule the single band used. */
       const step = row ? (to.x > from.x ? 1 : -1) : (to.y > from.y ? 1 : -1);
-      const down = row ? (from.y > 0 ? 1 : -1) : 0;
+      /* A row ON the x-axis faces neither way. It went above, off the
+         axis numbers — but from 30 on the board carries none, and above
+         is where the points' own labels are: the count's numbers were
+         written over "(−5, 0)" and "(0, 0)". With no numbers under the
+         axis, it goes under. */
+      const bare = el.gridPanel.classList.contains('unnumbered');
+      const down = row ? (from.y > 0 ? 1 : from.y < 0 ? -1 : (bare ? 1 : -1)) : 0;
       const side = row ? 0 : (from.x > 0 ? -1 : 1);
 
       /* The coordinates hang under their points, which is exactly where
@@ -4431,6 +4574,9 @@
          step back out of them. They are the context, not the thing
          being counted. */
       if (this.segGroup) this.segGroup.classList.add('counting');
+      /* And the corner's, which is a side's label rather than the pair's
+         and so was left at full strength over the count. */
+      el.gridAxes.classList.add('counting');
 
       this.countCells.forEach(function (c, i) {
         if (i >= n) { c.g.classList.remove('on', 'num'); c.g.style.display = 'none'; return; }
@@ -4583,11 +4729,11 @@
         const qx = function (v) { return GG.originX + v * GG.stepX; };
         const qy = function (v) { return GG.originY - v * GG.stepY; };
         this.inkLine(qx(spec.a.x), qy(spec.a.y), qx(spec.b.x), qy(spec.b.y), 'the pair');
-        (this.legPlaced || []).forEach(function (L, i) {
+        this.labelLegs().forEach(function (L, i) {
           if (L) this.inkLine(qx(L.from.x), qy(L.from.y), qx(L.to.x), qy(L.to.y), 'leg ' + i);
         }, this);
         const dr = C.GRID.segment.dotR + 4;
-        [spec.a, spec.b].concat((this.legPlaced || []).filter(Boolean).map(function (L) { return L.to; }))
+        [spec.a, spec.b].concat(this.labelLegs().filter(Boolean).map(function (L) { return L.to; }))
           .forEach(function (pt) {
             this.inkBox(qx(pt.x) - dr, qy(pt.y) - dr, qx(pt.x) + dr, qy(pt.y) + dr, 'a point');
           }, this);
@@ -4669,8 +4815,7 @@
       }
       const len = Math.hypot(+T.segLine.getAttribute('x2') - +T.segLine.getAttribute('x1'),
                              +T.segLine.getAttribute('y2') - +T.segLine.getAttribute('y1'));
-      T.segLine.setAttribute('stroke-dasharray', len);
-      T.segLine.style.strokeDashoffset = len;
+      windBack(T.segLine, len, false);
 
       /* A vertical segment stacks its points, so labels above and
          below would collide with each other. Those go to the sides. */
@@ -4936,8 +5081,7 @@
       const len = Math.hypot(px(r2l.x) - px(l2r.x), py(r2l.y) - py(l2r.y));
       this.xSweep.setAttribute('x1', px(l2r.x)); this.xSweep.setAttribute('y1', py(l2r.y));
       this.xSweep.setAttribute('x2', px(r2l.x)); this.xSweep.setAttribute('y2', py(r2l.y));
-      this.xSweep.setAttribute('stroke-dasharray', len);
-      this.xSweep.style.strokeDashoffset = len;
+      windBack(this.xSweep, len, false);
       this.xSweep.style.setProperty('--sweep', X.sweepMs + 'ms');
 
       /* Carries a copy of one digit out of its label and up into the sum,
@@ -5085,6 +5229,24 @@
       const ax = px(spec.a.x), ay = py(spec.a.y);
       const bx = px(spec.b.x), by = py(spec.b.y);
       let X = (ax + bx) / 2, Y = (ay + by) / 2;
+      /* A slanted pair has its length written ALONG it, turned to the
+         line's own angle (never upside down) and a clear gap above it —
+         the way a slanted side's length already is (placeLegLength).
+         Laid flat over the middle, "√40 units" was written across the
+         very line it measures. */
+      const upright = (ax === bx);
+      const diag = !upright && (ay !== by);
+      let ang = 0, nx = 0, ny = -1;
+      if (diag) {
+        const ux = bx - ax, uy = by - ay, ml = Math.hypot(ux, uy) || 1;
+        ang = Math.atan2(uy, ux) * 180 / Math.PI;
+        if (ang > 90) ang -= 180;
+        if (ang < -90) ang += 180;
+        nx = -uy / ml; ny = ux / ml;
+        if (ny > 0) { nx = -nx; ny = -ny; }          // the side above it
+      }
+      const ca = Math.abs(Math.cos(ang * Math.PI / 180));
+      const sa = Math.abs(Math.sin(ang * Math.PI / 180));
       if (dx == null && dy == null) {
         const size = (SG.resSize || SG.coordSize) * this.typeScale();
         const m = this.textMetrics(text, size);
@@ -5112,6 +5274,12 @@
           while (this.onXAxisRow(Y, band) && moved < room && guard++ < 60) {
             Y += away * 6; moved += 6;
           }
+        } else if (diag) {
+          /* Its middle a clear gap off the line: half the line, the air
+             every length keeps, and half the type's own height. */
+          const off = gap + band / 2 + 5;
+          X += nx * off;
+          Y += ny * off;
         } else {
           Y -= gap + m.down;
           // over the line, unless over the line is the x-axis numbering
@@ -5121,8 +5289,10 @@
           const want = this.clearOfYAxis(X, m.w);
           X += Math.max(-room, Math.min(room, want - X));
         }
-        X = this.clampX(X, m.w);
-        Y = this.clampY(Y, band);
+        const cw0 = diag ? (m.w * ca + band * sa) : m.w;
+        const ch0 = diag ? (m.w * sa + band * ca) : band;
+        X = this.clampX(X, cw0);
+        Y = this.clampY(Y, ch0);
       } else { X += (dx || 0); Y += (dy || 0); }
       T.segRes.textContent = text;
       /* The pair's own length goes through the rule too. An example
@@ -5134,11 +5304,11 @@
          picture shows, on the board's own pair AND on the example
          beside it. An example is laid out against nothing, so it needs
          this more than the board's own does, not less. */
-      const upright = (ax === bx);
       const size2 = (SG.resSize || SG.coordSize) * this.typeScale();
       const m2 = this.textMetrics(text, size2);
-      const bw2 = upright ? Math.max(m2.h, size2) : m2.w;
-      const bh2 = upright ? m2.w : Math.max(m2.h, size2);
+      const band2 = Math.max(m2.h, size2);
+      const bw2 = upright ? band2 : diag ? (m2.w * ca + band2 * sa) : m2.w;
+      const bh2 = upright ? m2.w : diag ? (m2.w * sa + band2 * ca) : band2;
       if (upright) {
         /* Beside the line, a line's width out, on the side away from
            the y-axis so it does not land on the numbering. */
@@ -5146,9 +5316,18 @@
         Y = (ay + by) / 2;
       }
       let seat2 = { x: X, y: Y };
-      if (!into) {
-        const perp = upright ? { x: (spec.a.x >= 0 ? 1 : -1), y: 0 }
-                             : { x: 0, y: -1 };
+      if (!into && diag) {
+        /* Where it was put, always: just above its own line, turned to
+           it. The rule that seats a blocked label tests the upright box
+           round the words — and round slanted words that box always
+           crosses the line they lie beside, so every slanted length was
+           "blocked" and sent off somewhere else: one above its line, the
+           next below, one hard against it and one far away. */
+        T.segRes.setAttribute('x', X);
+        T.segRes.setAttribute('y', Y);
+        this.inkBox(X - bw2 / 2, Y - bh2 / 2, X + bw2 / 2, Y + bh2 / 2, 'the length', T.segRes);
+      } else if (!into) {
+        const perp = upright ? { x: (spec.a.x >= 0 ? 1 : -1), y: 0 } : { x: 0, y: -1 };
         seat2 = this.seatLength(T.segRes, X, Y, bw2, bh2,
                         perp, T.segRes, { x: (ax + bx) / 2, y: (ay + by) / 2 });
       } else {
@@ -5159,6 +5338,8 @@
       if (tw) {
         if (upright) tw.setAttribute('transform',
                        'rotate(-90 ' + seat2.x + ' ' + seat2.y + ')');
+        else if (diag) tw.setAttribute('transform',
+                       'rotate(' + ang.toFixed(2) + ' ' + seat2.x + ' ' + seat2.y + ')');
         else tw.removeAttribute('transform');
       }
       T.segRes.classList.add('pop');
@@ -5379,11 +5560,13 @@
        length turned on end. Read through the text's own screen
        transform, so whatever rotation or camera the label is under,
        the copy made from this starts exactly on top of the digit. */
-    digitSpot: function (i) {
+    digitSpot: function (i, whole) {
       const L = this.legSlots && this.legSlots[i];
       const t = L && L.len;
       if (!t || !(t.textContent || '').trim()) return null;
-      const num = (t.textContent || '').split('\u00A0')[0];
+      /* The number a length starts with ("4" of "4 units"), or — for a
+         length written in letters — the whole of it ("x₂ − x₁"). */
+      const num = whole ? (t.textContent || '') : (t.textContent || '').split('\u00A0')[0];
       /* The text's frame relative to the BOARD's, not to the screen: the
          product of the two screen transforms, so whatever both include
          above the board cancels out. Safari (and Firefox before 126)
@@ -5837,11 +6020,25 @@
       this.measCap.setAttribute('cy', y2);
       this.measCap.style.display = lands ? 'none' : '';
       /* A line being drawn is never a line going out: whatever the
-         last guess left fading, this one starts solid. */
+         last guess left fading, this one starts solid — and a hand-over
+         still waiting to clear the old one is called off. */
+      this.measTok = (this.measTok || 0) + 1;
       this.measLine.classList.remove('fade');
       this.measCap.classList.remove('fade');
       this.measLine.classList.add('on');
       this.measCap.classList.add('on');
+    },
+
+    /* The measured line handing over to the line that takes its place —
+       the side drawn in its own colour, the pair's solid line. It stays
+       until that line is down under it, then fades into it, instead of
+       going the instant the screen changed. */
+    handOffMeasure: function (ms) {
+      if (!this.measLine || !this.measLine.classList.contains('on')) return;
+      const self = this, t = ms || 450;
+      this.fadeMeasure(t);
+      const tok = this.measTok = (this.measTok || 0) + 1;
+      setTimeout(function () { if (self.measTok === tok) self.clearMeasure(); }, t + 60);
     },
 
     /* A wrong guess lets go where it stands. */
@@ -6088,6 +6285,12 @@
 
       el.gridPanel.classList.remove('hidden');
       void el.gridPanel.offsetWidth;
+      /* What stands on the board (a town) is measured by its laid-out
+         size, and it was last measured while the board was hidden — at
+         nothing. Measured again now it can be, before a single point is
+         placed, so the labels keep clear of the pictures from the start
+         instead of jumping away from them later. */
+      if (this.onPlaced) this.onPlaced();
       el.gridPanel.classList.add('magic-in');
       // the ruling washes in under the axes, a beat behind the panel
       el.gridImg.classList.remove('ruling');
@@ -6339,13 +6542,17 @@
     branch: null,
     nextIndex: function () {
       const to = this.branch;
-      this.branch = null;
-      if (to == null) return this.index + 1;
       /* A right answer on the last question steps over the beats that
          exist to teach a child who got it wrong — and there is nothing
          after those, so where it steps to is off the end. Both Next and
-         the hand-over below already stop there. */
+         the hand-over below already stop there.
+
+         And it stays the end. It was read once and forgotten, so the
+         first press of Next did nothing and the second walked a child
+         who had just got it right into "Oops! Let's check the sides." */
       if (to === 'end') return C.SCRIPT.length;
+      this.branch = null;
+      if (to == null) return this.index + 1;
       const k = C.SCRIPT.findIndex(function (s) { return s.id === to; });
       return k < 0 ? this.index + 1 : k;
     },
@@ -6546,7 +6753,10 @@
           if (plots && !measure && !e.pointsOnly) want.joined = true;
           if (plots && measure && t.measureLeg != null && !e.guideOnLine) want.joined = true;
           if (e.segment.dash) want.dash = true;
-          if (e.segment.result && !measure) want.result = e.segment.result;
+          /* A length written on the pair: said by a screen that draws it,
+             or by a question screen that keeps a pair already carrying it
+             (58, 59 carry 57's "13 units"). */
+          if (e.segment.result && (!measure || e.keepSegment)) want.result = e.segment.result;
         }
         if (e.joinSegment) want.joined = true;
         if (e.solidLine) { want.joined = true; want.dash = false; }
@@ -6563,6 +6773,26 @@
         if (measure && t.measureLeg != null && want.legs[t.measureLeg]) {
           const L = want.legs[t.measureLeg];
           L.length = true; L.dash = false;
+        }
+        /* So does a side whose length she writes as she names it (33,
+           34 — the `leg` word cue), and a side a question is about once
+           that question is answered (`writesLeg`). Left out, the board
+           the next screen expected had no such length, the one it was
+           holding did not match, and it was put up again without it:
+           the label blinked out and came back. */
+        /* And a question about the pair itself that keeps its answer
+           (57's AB): the length it came to stays on the pair, right or
+           worked out — the screens after compare all three. */
+        if (measure && t.keepLength && t.measureLeg == null && t.answer != null) {
+          want.result = { text: t.answer + '\u00A0unit' + (t.answer === 1 ? '' : 's') };
+        }
+        (e.wordCues || []).forEach(function (c) {
+          if (c && c.leg != null && want.legs[c.leg]) {
+            want.legs[c.leg].length = true; want.legs[c.leg].dash = false;
+          }
+        });
+        if (t.writesLeg != null && want.legs[t.writesLeg]) {
+          want.legs[t.writesLeg].length = true; want.legs[t.writesLeg].dash = false;
         }
         if (e.dropLegs) want.legs = [];
         if (e.mark) want.marks = e.mark.slice();
@@ -6656,6 +6886,11 @@
          here — at the change — rather than a third of a second later when
          the beat gets round to its own business. */
       const next = C.SCRIPT[i] || {};
+      /* The shape this screen's labels are placed against, and the size
+         they are set at — before anything on it is drawn. */
+      Board.shapeLegs = next.shape || null;
+      Board.setPark(!!next.park);
+      if (next.transition !== 'leaves') Board.setTextScale(next.textScale || 1);
       if (next.voiceOnly) Bubble.close();
       if (next.xEquation && Board.segRes) Board.segRes.classList.remove('pop');
       /* A screen carrying more than one pair lets the ruling, the axes
@@ -6755,14 +6990,8 @@
       this.raised = keepsControl;
       this.controlKind = wantKind;
       const geom = keepsControl ? controlGeom(wantKind) : geomFor(i);
-      /* The recap reached without a sweep (36): she has to fly off from
-         where she is standing, so the rig is not moved to the new
-         layout until she has gone — see runRecap below. */
-      const wasGeom = this.geom;
-      const recapSlide = entry.layout === 'recap' && entry.transition !== 'leaves' &&
-                         Board.shown;
-      this.geom = recapSlide ? (wasGeom || geom) : geom;
-      standPose = !!this.geom.stand;
+      this.geom = geom;
+      standPose = !!geom.stand;
       /* Reseating the rig also resizes the speech bubble, and a screen
          with nobody in shot sizes it to nothing — so behind a leaf
          sweep this waits for the cover too, or the last screen's
@@ -6787,7 +7016,7 @@
            something before she speaks, so the last screen's words go
            now, with the screen, not a second later when she arrives. */
         if (!speaks || entry.openLight) Bubble.close();
-        if (!recapSlide) applyGeom(geom);
+        applyGeom(geom);
       }
 
       const AX = axisOf(entry);
@@ -7198,7 +7427,10 @@
         /* Behind the leaves, a screen that keeps its drawing is given it
            here, under the cover, rather than in plain sight before the
            sweep arrives. */
-        if (entry.transition === 'leaves') { self.numberBoard(i); self.seedDrawing(i); }
+        if (entry.transition === 'leaves') {
+          Board.setTextScale(entry.textScale || 1);
+          self.numberBoard(i); self.seedDrawing(i);
+        }
         Bubble.close();
         applyGeom(geom);
         el.standSwifty.classList.add('hidden');
@@ -7209,8 +7441,9 @@
         if (entry.keepSegment) Board.clearUnits();
         else Board.clearSegment();
         /* A working written on the paper belongs to the screen that
-           wrote it. The one after gets clean paper. */
+           wrote it. The one after gets clean paper — and no table. */
         Board.clearWorkLines();
+        if (Table) Table.hide();
         /* The player's own measuring line is left lit when they get it
            right — on the screen they drew it, where it is the answer.
            It must not travel: it is 9px of light blue lying exactly
@@ -7284,7 +7517,12 @@
               return !keys || keys.indexOf(p.key) >= 0;
             }));
             Board.onPlaced();
-            Town.show();
+            /* A question that builds its board from nothing puts the town
+               up with its points (runMeasure), not over a grid still
+               being ruled — the pictures stood on bare paper while the
+               axes were drawing out under them. */
+            const builds = e.intro === 'measure' && !(e.transition !== 'leaves' && Board.shown);
+            if (builds) Town.hide(); else Town.show();
             Board.townFocus(e.townFocus || null);
           }
           /* A town that has gone takes its footprint with it, or the
@@ -7369,6 +7607,7 @@
             Table.build(X.rows);
             Table.el.style.setProperty('--ft-size', (X.tableSize || T.size) + 'px');
             Table.place({ x: A.x, w: A.w, top: A.y });
+            Table.fit();
             Table.open();
             SFX.sparkle();
             self.later(function () {
@@ -7517,6 +7756,7 @@
           laid(function () {
             /* The town's other places, plotted like the pair, and the
                ones this walk is not about stepped back. */
+            if (entry.town && Town && !Town.shown) Town.show();
             if (entry.town) {
               Board.markPlaces(entry.mark, self.later.bind(self));
               self.later(function () { Board.townFocus(entry.townFocus || null); }, 700);
@@ -7537,6 +7777,14 @@
                  it, and the control waits for the last of them rather
                  than landing on top of the thing being pointed at. */
               const speak = function () {
+                /* The side this question is about, held forward while she
+                   asks it and after (57: "First, find AB." — AB at full
+                   strength, the rest stepped back). It was only ever read
+                   on screens that ask nothing, so on these it never came. */
+                if (entry.focus) {
+                  Board.spotlightPart(entry.focus);
+                  self.hold(function () { Board.spotlightPart(null); });
+                }
                 FX.sparkles(geom.aim.x, geom.aim.y, 7, 170 * geom.scale);
                 /* Its words can carry cues like any other screen's. */
                 self.armWordCues(entry);
@@ -7685,9 +7933,13 @@
       };
 
       /* And a working written on the paper goes with the screen that
-         wrote it, however the next one is arrived at. */
+         wrote it, however the next one is arrived at — unless the screen
+         is the one that sums it up (`keepTable`: 37 says what 35's table
+         has just shown, with the table still there). */
       Board.clearWorkLines();
-      if (Table) Table.hide();
+      /* Behind the leaves, under the cover (dress), rather than popping
+         out in plain sight before a single leaf has arrived. */
+      if (Table && !entry.keepTable && entry.transition !== 'leaves') Table.hide();
 
       /* The picker is told where the game went, however it got there —
          her own hand-over, Back, Next, or a jump from the picker
@@ -7717,44 +7969,6 @@
       // a distance question rebuilds from an empty frame, every time
       if (entry.intro === 'measure') { runMeasure(); return; }
 
-      /* The recap without a sweep (36, from 35): nothing is covered, so
-         nothing jumps. She flies off from where she stood, the board
-         slides across to its side of the frame, the formula writes
-         itself beside it, and the screen rests there. */
-      if (recapSlide) {
-        const self2 = this;
-        this.state = 'entering';
-        Bubble.close();
-        if (Sel) Sel.hide();
-        if (Opts) Opts.hide();
-        if (Table) Table.hide();
-        el.formulaBoard.classList.add('hidden');
-        Board.clearUnits();
-        Board.clearMeasure();
-        const onStage = !el.standSwifty.classList.contains('hidden') ||
-                        !el.birdWin.classList.contains('hidden');
-        const slide = function () {
-          self2.geom = geom;
-          standPose = !!geom.stand;
-          applyGeom(geom);
-          el.standSwifty.classList.add('hidden');
-          el.birdWin.classList.add('hidden');
-          el.shadow.classList.add('lifted');
-          dressTown(entry);
-          self2.slideBoard(geom.panelBox);
-          self2.later(function () {
-            Formula.place(C.RECAP.formula);
-            Formula.setLines(C.RECAP.lines, C.RECAP.step);
-            el.formulaBoard.classList.remove('hidden');
-            SFX.sparkle();
-            self2.settle(entry.hold != null ? entry.hold : C.AUTO.afterSilent);
-          }, 760);
-        };
-        if (onStage) this.later(function () { self2.flyOut(slide); }, 200);
-        else slide();
-        return;
-      }
-
       if (geom.panelBox) Board.place(geom.panelBox);
       else Board.place(C.GRID.box);
 
@@ -7766,8 +7980,25 @@
         el.gridPanel.classList.remove('hidden');
         Board.shown = true;
         if (!entry.keepSegment) Board.clearSegment();
-        else Board.clearUnits();          // keep the drawing, drop any count-out
-        if (!entry.distance && !entry.entry) Board.clearMeasure();
+        else if (!entry.keepMeasure) Board.clearUnits();   // keep the drawing, drop any count-out
+        if (!entry.distance && !entry.entry && !entry.keepMeasure) Board.handOffMeasure();
+        /* A screen that keeps what the question before it measured —
+           the line the child laid down and the length written beside it
+           — keeps them exactly as they are (20 keeps 19's). They used
+           to be wiped with the screen change and drawn again a moment
+           later as a recalled pair: the line vanished and came back.
+           Reached from the picker there is nothing to keep, so they are
+           put up already drawn. */
+        if (entry.keepMeasure && !Board.measureIsLit() && entry.segment) {
+          const sa = entry.segment.a, sb = entry.segment.b;
+          const back = (sb.x < sa.x) || (sb.x === sa.x && sb.y > sa.y);
+          const f = back ? sb : sa, t2 = back ? sa : sb;
+          const span = Math.hypot(t2.x - f.x, t2.y - f.y) || 1;
+          Board.drawMeasure(f, t2.x, t2.y);
+          Board.litMeasure();
+          Board.showUnitTotal(f, (t2.x - f.x) / span, (t2.y - f.y) / span,
+                              Math.round(span), Math.round(span), true);
+        }
         /* A control that revealControl is going to bring in must not be
            up already: it rises into the space under her once she has
            asked the question, not before she has opened her mouth. */
@@ -8072,6 +8303,12 @@
           /* Or put up the right-angle marker, on the word that names the
              shape it belongs to. */
           if (c.mark) { Board.rightAngle(true); SFX.chime(); }
+          /* Or write a side's length on it as she names the side — put
+             together from the labels it is read off (33: "AC" — x₂,
+             then the sign, then x₁ — as she says "x₂ minus x₁"). */
+          if (c.leg != null && (entry.legs || [])[c.leg]) {
+            Board.writeLegLength(c.leg, entry.legs[c.leg], self.later.bind(self));
+          }
         });
       };
     },
@@ -8538,10 +8775,19 @@
             /* The two sides measured on the board first — they are what
                the working is about to square and add, so they have to be
                there before it does. */
-            const ms = self.showWorking(screen);
+            /* Not for a working done as a table (57, 59): its numbers
+               come out of the points' own coordinates, and the sides
+               measured here were the triangle's OTHER sides — "14 units"
+               and "15 units" put up to work out AB. */
+            const ms = t.spec.table ? 0 : self.showWorking(screen);
             self.later(function () {
               if (t.spec.formula) {
-                self.workThrough(t, function () { self.settle(C.AUTO.afterLine); });
+                self.workThrough(t, function () {
+                  /* And what it came to stays on the side, as a right
+                     answer's does: the screens after compare all three. */
+                  if (t.spec.table && t.spec.keepLength) self.writeLength(t);
+                  self.settle(C.AUTO.afterLine);
+                });
               } else {
                 self.settle(C.AUTO.afterReveal);
               }
@@ -9136,6 +9382,7 @@
               /* Higher than 28's, so there is room under it for her to
                  come back to and her balloon above her. */
               Table.place({ x: left, w: C.STAGE_W - T.margin - left, cy: T.pickCy });
+              Table.fit();
               Table.open();
               SFX.sparkle();
               self.later(function () {
@@ -9314,9 +9561,14 @@
             /* 2 — the table out of its right edge. */
             self.later(function () {
               const B = T.board, left = B.x + B.w - T.tuck;
+              Table.setColours(self.sideColours());
               Table.build(lines);
-              Table.el.style.setProperty('--ft-size', T.size + 'px');
-              Table.place({ x: left, w: C.STAGE_W - T.margin - left, cy: B.y + B.h / 2 });
+              Table.el.style.setProperty('--ft-size', (t.spec.tableSize || T.size) + 'px');
+              /* Up where 29c's sits when she is coming back under it
+                 (35: she lands under it on the screen after). */
+              Table.place({ x: left, w: C.STAGE_W - T.margin - left,
+                            cy: t.spec.tableHigh ? T.pickCy : B.y + B.h / 2 });
+              Table.fit();
               Table.open();
               SFX.sparkle();
               /* 3 — then the rows, one thing at a time. */
@@ -9383,7 +9635,7 @@
        the board it simply lands — the table is never left with a gap. */
     liftInto: function (r, k, p, colour) {
       const T = C.GRID.table, node = Table.target(r, k);
-      const src = (p.from.leg != null) ? Board.digitSpot(p.from.leg)
+      const src = (p.from.leg != null) ? Board.digitSpot(p.from.leg, !!p.from.whole)
                                        : this.sourceSpot(p.from);
       if (!src || !node) { Table.land(r, k); return; }
       const text = src.text || window.FormulaTable.split(p.t).inner.trim();
@@ -10265,16 +10517,6 @@
   /* Calm or not, decided by the game (CFG.MOTION) — not by a setting on
      the laptop that nobody can see. Before anything moves, so the sky
      and the weather start the way they are going to stay. */
-  /* WebKit (Safari on a Mac, every browser on an iPad) draws no CSS
-     filter on an SVG shape, so the board's glows are given SVG filters
-     there instead (style.css, `html.svgfx`). Chrome and Edge say
-     "Chrome/" in their name; WebKit browsers do not. */
-  function decideFilters() {
-    const ua = navigator.userAgent || '';
-    const webkit = /AppleWebKit/.test(ua) && !/(Chrome|Chromium|Edg)\//.test(ua);
-    document.documentElement.classList.toggle('svgfx', webkit);
-  }
-
   function decideMotion() {
     const M = (C.MOTION && C.MOTION.calm) || 'off';
     const mq = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
@@ -10288,8 +10530,7 @@
 
   function boot() {
     decideMotion();
-    decideFilters();
-    /* The two full-frame pictures take their source from config rather
+      /* The two full-frame pictures take their source from config rather
        than from the markup. They used to be hardcoded in the HTML,
        which meant a renamed file left ART pointing at the new name
        while the page still asked for the old one — and the background

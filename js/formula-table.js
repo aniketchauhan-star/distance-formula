@@ -234,6 +234,21 @@ window.FormulaTable = (function () {
         root.style.top = (free ? box.top : box.cy) + 'px';
       },
 
+      /* Its type made smaller, if it has to be, so the widest row fits
+         inside the panel. A row wider than the panel was centred past
+         both of its edges: its end ran over the frame and its start went
+         under the board. Measured with every row laid out (they are only
+         hidden, not taken out), so it is set once, before anything shows. */
+      fit: function () {
+        const cs = getComputedStyle(root);
+        const avail = root.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+        const need = grid.scrollWidth;
+        if (avail > 0 && need > avail) {
+          const size = parseFloat(cs.fontSize) || 40;
+          root.style.setProperty('--ft-size', Math.floor(size * (avail / need) * 0.97) + 'px');
+        }
+      },
+
       /* Out of the board's edge, like a drawer. */
       open: function () {
         root.classList.remove('hidden');
