@@ -1366,8 +1366,12 @@ window.CFG = (function () {
      (64, 650) and the perch did not, so she landed 30px into the Café B
      button and 30px to the left of it. Her feet are 300 and 208 natural
      units into this pose (264 and 183 at 0.88). */
+  /* On the panel's own top edge rather than on the button: standing on
+     the button she covered the top of "Cafe B". The panel's yellow
+     frame is its outer 9 natural units, so her feet rest on it 3 in —
+     above the right-hand button, in the panel's top right corner. */
   const OPTS_AT = { x: 64, y: 650 }, OPTS_K = 0.73;
-  const PERCH_FEET = { x: OPTS_AT.x + 377.5 * OPTS_K, y: OPTS_AT.y + 37 * OPTS_K };
+  const PERCH_FEET = { x: OPTS_AT.x + 377.5 * OPTS_K, y: OPTS_AT.y + 3 * OPTS_K };
   const STAND_PERCH = standAt(0.88, PERCH_FEET.x - 208 * 0.88, PERCH_FEET.y - 300 * 0.88);
 
   /* And a perch for the working panel, which sits higher up her column
@@ -1612,13 +1616,16 @@ window.CFG = (function () {
      `tall` is that height in cells. */
   TOWN.sheet = { src: ART.townSheet, w: 1774, h: 887 };
   TOWN.sprites = {
-    cafe:    { x:   52, y:  99, w: 346, h: 285, tall: 1.05 },
-    house:   { x:  484, y: 110, w: 356, h: 274, tall: 1.05 },
-    school:  { x:  912, y: 101, w: 397, h: 283, tall: 1.05 },
-    park:    { x: 1380, y: 129, w: 336, h: 271, tall: 1.05 },
+    /* A little smaller than they were drawn at first (1.05): at that
+       size the pictures crowded the points under them, their
+       coordinates and the sides running out of them. */
+    cafe:    { x:   52, y:  99, w: 346, h: 285, tall: 0.85 },
+    house:   { x:  484, y: 110, w: 356, h: 274, tall: 0.85 },
+    school:  { x:  912, y: 101, w: 397, h: 283, tall: 0.85 },
+    park:    { x: 1380, y: 129, w: 336, h: 271, tall: 0.85 },
     /* Not placed on any screen yet — screens 49 to 54 do not use this
        layer. Cut and ready for when they do. */
-    tower:   { x:  139, y: 470, w: 171, h: 324, tall: 1.55 },
+    tower:   { x:  139, y: 470, w: 171, h: 324, tall: 1.3 },
     station: { x:  468, y: 578, w: 396, h: 208, tall: 0.95 },
     van:     { x:  927, y: 618, w: 363, h: 173, tall: 0.78 }
   };
@@ -1647,8 +1654,8 @@ window.CFG = (function () {
        cell is a third the size — so drawn three times their usual
        height. The van hangs below its point, so the side that comes
        down to it arrives at the point rather than through the van. */
-    { key: 'station', x: 0,  y: 0,   name: 'Station', kind: 'station', tone: 'blue',   tall: 2.6 },
-    { key: 'van',     x: -5, y: -12, name: 'Van',     kind: 'van',     tone: 'violet', tall: 2.1, hang: true }
+    { key: 'station', x: 0,  y: 0,   name: 'Station', kind: 'station', tone: 'blue',   tall: 1.6, corner: true },
+    { key: 'van',     x: -5, y: -12, name: 'Van',     kind: 'van',     tone: 'violet', tall: 1.4, hang: true }
   ];
 
   /* -------------------------------------------------------------
@@ -1934,6 +1941,14 @@ window.CFG = (function () {
        done    where the table hands on to, if not the next screen
      ------------------------------------------------------------- */
   const SQRT = '√', SQ = '²', UNIT = ' units';
+  /* The whole triangle each run of screens builds, for its labels to be
+     placed against from the start (see `shape` and Board.labelLegs). */
+  const SHAPE_1 = [ { from: { x: 2, y: 1 }, to: { x: 6, y: 1 } },
+                    { from: { x: 6, y: 1 }, to: { x: 6, y: 4 } } ];     // 22–28
+  const SHAPE_2 = [ { from: { x: -2, y: 2 }, to: { x: 2, y: 2 } },
+                    { from: { x: 2, y: 2 }, to: { x: 2, y: 5 } } ];     // 29–29c
+  const SHAPE_G = [ { from: { x: -5, y: 1 }, to: { x: 5, y: 1 } },
+                    { from: { x: 5, y: 1 }, to: { x: 5, y: 4 } } ];     // 31–37
   function walk(w) {
     const pt = function (p, name) {
       return Object.assign({ x: p.x, y: p.y, name: name }, p.extra || {});
@@ -1957,9 +1972,13 @@ window.CFG = (function () {
     const res = whole ? Math.round(root) : SQRT + sum;
     const legA = { from: w.a, to: w.c, mark: { name: 'C', away: w.cAway } };
     const legB = { from: w.c, to: w.b };
+    /* The whole triangle, from the first screen of the three: every
+       label is placed once, clear of sides that are not drawn yet, and
+       stays there (Board.labelLegs). */
+    const shape = [ { from: w.a, to: w.c }, { from: w.c, to: w.b } ];
     const say = w.say || {};
     const firstWord = function (t) { return String(t).split(/[\s,.]+/)[0]; };
-    const base = w.base || {};
+    const base = Object.assign({ shape: shape }, w.base || {});
     const s1 = Object.assign({
       id: w.ids[0],
       line: say.first, line2: say.ask || 'How far is it from A to C?',
@@ -1973,7 +1992,9 @@ window.CFG = (function () {
                   { word: firstWord(say.ask || 'How'), in: say.ask || 'How far is it from A to C?',
                     spot: 'h' } ],
       lineLights: [ { legs: true, beat: ['c'], quiet: true }, { pulse: 'h' } ],
-      entrance: 'none', layout: 'board', quietBoard: true,
+      /* Not quiet: these two screens ask for a side to be COUNTED, and
+         a child counting squares needs to see them. */
+      entrance: 'none', layout: 'board',
       intro: 'measure', distance: true,
       segment: seg,
       legs: [ Object.assign({ dash: true }, legA) ],
@@ -1984,7 +2005,7 @@ window.CFG = (function () {
       line: say.second || 'Now find the distance from C to B.',
       wordCues: [ { word: firstWord(say.second || 'Now'), spot: 'v' } ],
       lineLights: [ { pulse: 'v' } ],
-      entrance: 'none', layout: 'board', quietBoard: true,
+      entrance: 'none', layout: 'board',
       intro: 'measure', distance: true, keepSegment: true,
       segment: seg,
       legs: [ Object.assign({ settled: true, length: true }, legA), legB ],
@@ -2324,14 +2345,17 @@ window.CFG = (function () {
         /* The row, laid out the way the argument laid it out: the
            coordinates under their points, the length over the line. */
         { a: { x: 3, y: 2 }, b: { x: 6, y: 2 },
-          coordSide: 'under', result: { text: '3\u00A0units' } },
-        /* And the column they measured on 19, with the answer they
-           gave it. */
-        { a: { x: -2, y: 3 }, b: { x: -2, y: 1 },
-          result: { text: '2\u00A0units' } }
+          coordSide: 'under', result: { text: '3\u00A0units' } }
       ],
+      /* The column is the very pair 19 has just measured, so it is not
+         drawn again: 19's line and its "2 units" stay exactly where the
+         child put them (keepMeasure), and on "vertically" its two points
+         pulse. It used to be wiped with the screen change and drawn
+         again as a recalled pair — the line vanished and came back. */
+      keepSegment: true, keepMeasure: true,
+      segment: { a: { x: -2, y: 3 }, b: { x: -2, y: 1 }, dash: true },
       wordCues: [ { word: 'horizontally', example: 0 },
-                  { word: 'vertically',   example: 1 } ] },
+                  { word: 'vertically',   beat: ['a', 'b'] } ] },
 
     /* Both lengths go where every length goes: the middle of the span
        it measures, out to the side of the line by the same air a
@@ -2360,7 +2384,7 @@ window.CFG = (function () {
        held across a screen change ("can the grid help?", then "how far
        apart are A and C?"). A statement about the problem is carried
        nowhere; the question on 24 stands on its own. */
-    { id: 22,
+    { id: 22, shape: SHAPE_1,
       /* Beats 1 to 3. She notices, she wonders, and then she tries
          something — and C arrives because she said she would look for
          a way, not because the screen opened carrying it.
@@ -2440,7 +2464,7 @@ window.CFG = (function () {
        because two beats asked the child to hold a hint across a screen
        change; what splits here is the sentence and its highlighting,
        not the beat. One board, one question, one control. */
-    { id: 24,
+    { id: 24, shape: SHAPE_1,
       /* Beats 4 and 5. A guess, and then the reason it is askable.
 
          "Hmm" is her thinking aloud rather than instructing, which is
@@ -2487,7 +2511,7 @@ window.CFG = (function () {
        And AC stays on the board while they do it, stepped back rather
        than cleared: they need to see they now have two measured sides,
        and the one being asked for has to be the loud one. */
-    { id: 25,
+    { id: 25, shape: SHAPE_1,
       /* Beat 6. From her first word the side she is talking about is
          the only one at full strength: C, B and the run between them
          stay, and A, AC and the dotted AB step back — through the
@@ -2527,7 +2551,7 @@ window.CFG = (function () {
 
        The panel was built for this: `triangle-options.js` carries these
        three as its own defaults and the game had stopped asking them. */
-    { id: 27,
+    { id: 27, shape: SHAPE_1,
       /* Beat 7. The result.
 
          AC and CB stay exactly as the child left them — both
@@ -2585,7 +2609,7 @@ window.CFG = (function () {
        says another — the same call screen 7 made. Re-record, or
        change the word here, and 17-what-kind-of-triangle-is-it.mp3
        comes back. */
-    { id: 26, line: 'What kind of triangle is this?',
+    { id: 26, shape: SHAPE_1, line: 'What kind of triangle is this?',
       askFirst: true,
       /* No "Triangle" on any of them. Every card on the screen is a
          triangle, the word was in all three, and it told the child
@@ -2646,7 +2670,7 @@ window.CFG = (function () {
        seven beats; it is just a better one. Here she simply says the
        theorem, which is the honest thing to do with a theorem they
        have not met, and the derivation follows on its own. */
-    { id: 28,
+    { id: 28, shape: SHAPE_1,
       /* The same drawing as the four beats before it — this screen
          keeps their triangle rather than making one — so it keeps
          their camera too. Without a view named here the push pulls
@@ -2757,7 +2781,7 @@ window.CFG = (function () {
        triangle, A(−2, 2), B(2, 5), C(2, 2) — ending in the same table
        as 28, filled by the child this time. Three screens on one board,
        one question each, with no sweep between them. */
-    { id: 29,
+    { id: 29, shape: SHAPE_2,
       /* Beats 0–3, one thing with each sentence.
          The grid fills and the camera frames the triangle before a point
          is drawn (frameDrawing); A and B go up. Then, with "Now, let's
@@ -2783,7 +2807,7 @@ window.CFG = (function () {
                 mark: { name: 'C', away: { x: 1, y: 0 } } } ],
       task: { kind: 'distance', measureLeg: 0, countLine: 'Count carefully!' } },
 
-    { id: '29b',
+    { id: '29b', shape: SHAPE_2,
       /* Beat 4. AC is settled with its length; CB is drawn, and asked
          the same way: from her first word C, B and the side between them
          are the only things at full strength — A, AC and the dotted AB
@@ -2799,7 +2823,7 @@ window.CFG = (function () {
               { from: { x: 2, y: 2 }, to: { x: 2, y: 5 } } ],
       task: { kind: 'distance', measureLeg: 1, countLine: 'Count carefully!' } },
 
-    { id: '29c',
+    { id: '29c', shape: SHAPE_2,
       /* Beats 5–7. The shape named, with its marker on the word — the
          reason the theorem applies — then the table, which the child
          fills blank by blank (runTable). The marker stays at full
@@ -2849,79 +2873,28 @@ window.CFG = (function () {
               { t: '5\u00A0units', lit: 'ab', offer: [5, 25] } ] }
         ] } },
 
-    { id: 30,
-      /* Question 2: the same argument on a harder triangle — A(−3, 3),
-         B(5, −3), C(5, 3), across three quadrants, so reading the sides
-         off the coordinates means subtracting a negative. The triangle
-         is built the way 29 built it, one thing with each sentence: A
-         and B go up and pulse as she says "Now find AB.", and the dotted
-         line between them is drawn on "AB". Then the question — and
-         only then AC, out to C, and CB down from it, with the right
-         angle once both are down. No lengths: AC and CB have to be
-         worked out from the coordinates, not read. The number control
-         comes last. */
-      view: 'triangle',
-      line: 'Now find AB.',
-      line2: 'What is the distance between the two points?',
-      guideOnLine: true,
-      wordCues: [ { word: 'Now', beat: ['a', 'b'] },
-                  { word: 'AB', guide: true } ],
-      lineLights: [ { hold: 900 }, { legs: true, beat: ['c'], mark: true } ],
-      /* From here to the end the board carries no numbers on its axes —
-         every point has its coordinates written beside it, and those
-         are what the child reads. The axes still sweep in. Said once,
-         here; it holds for every screen after (Game.numbersAt). */
-      numbers: false,
-      range: { min: 0, max: 12 },
-      entrance: 'none', layout: 'board', quietBoard: true, transition: 'leaves',
-      intro: 'measure', entry: true,
-      keepMark: true,
-      segment: { a: { x: -3, y: 3, name: 'A' }, b: { x: 5, y: -3, name: 'B' }, dash: true },
-      legs: [ { from: { x: -3, y: 3 }, to: { x: 5, y: 3 }, mark: { name: 'C' } },
-              { from: { x: 5, y: 3 }, to: { x: 5, y: -3 } } ],
-      task: {
-        kind: 'entry',
-        pair: 'AB',
-        answer: 10,
-        correctLine: 'That’s right!',
-        noCount: true,
-        /* One "try again", then the table 29c taught: she flies off,
-           the table comes out of the board's edge, and the names in the
-           theorem are carried in off the triangle — AB, CB, AC, each a
-           copy lifted off its side, the way 28 wrote it. Then the child
-           fills it: tap a blank, two numbers drop down, pick one. The
-           wrong ones here are this question's own mistakes — 0 and 2
-           are the sides read with the minus sign lost (3 + (−3), and
-           5 + (−3)); 12 and 16 square as doubling; 14 adds the sides
-           instead of their squares; 100 stops before the square root. */
-        feedback: [ 'Not quite! Try again!' ],
-        tableOnMiss: true,
-        formula: [
-          { kind: 'lead', parts: [
-              { t: '(AB)\u00B2', lit: 'ab', from: { side: 'ab' } }, { t: ' = ' },
-              { t: '(CB)\u00B2', lit: 'v',  from: { side: 'v'  } }, { t: ' + ' },
-              { t: '(AC)\u00B2', lit: 'h',  from: { side: 'h'  } } ] },
-          { kind: 'step', parts: [
-              { t: '= ' },
-              { t: '(6)\u00B2', lit: 'v', offer: [6, 0] }, { t: ' + ' },
-              { t: '(8)\u00B2', lit: 'h', offer: [2, 8] } ] },
-          { kind: 'step', parts: [
-              { t: '= ' },
-              { t: '36', lit: 'ab', offer: [12, 36] }, { t: ' + ' },
-              { t: '64', lit: 'ab', offer: [64, 16] } ] },
-          { kind: 'step', parts: [
-              { t: '= ' }, { t: '100', lit: 'ab', offer: [14, 100] } ] },
-          { kind: 'result', parts: [
-              { t: 'AB', lit: 'ab', from: { side: 'ab' } }, { t: ' = ' },
-              { t: '10\u00A0units', lit: 'ab', offer: [10, 100] } ] }
-        ] } },
-    /* 21 — leaves, back to the field layout, and the same idea stated
-       in general: the points are named rather than numbered. */
+    /* 30–30c — Question 2, the way 29 taught it, on a harder triangle:
+       A(−3, 3), B(5, −3), C(5, 3), across three quadrants. A and B go up
+       and pulse, the dotted line between them is drawn as she says
+       "AB"; then AC is drawn out to C and she asks for it; then CB; then
+       the table, which the child fills. 8, 6, 10.
+       From here to the end the board carries no numbers on its axes —
+       every point has its coordinates written beside it, and those are
+       what the child reads. The axes still sweep in. Said once, on 30;
+       it holds for every screen after (Game.numbersAt). */
+    ...walk({
+      ids: [30, '30b', '30c'],
+      a: { x: -3, y: 3 }, b: { x: 5, y: -3 }, c: { x: 5, y: 3 },
+      say: { first: 'Now find AB.', cue: 'AB' },
+      base: { view: 'triangle', range: { min: 0, max: 12 } },
+      first: { transition: 'leaves', numbers: false }
+    }),
+
     /* 31–36 — the general triangle, on the board layout the questions
        before it use, so the answers can rise under her. Subscripts and
        the minus sign are real characters now: the game carries its own
        font for them. */
-    { id: 31, line: 'The same idea works for any two points.', entrance: 'fly',
+    { id: 31, shape: SHAPE_G, line: 'The same idea works for any two points.', entrance: 'fly',
       layout: 'board', transition: 'leaves',
       segment: {
         a: { x: -5, y: 1, coordParts: [ { t: '(' }, { t: 'x₁', glow: 'x' }, { t: ',\u00A0' },
@@ -2933,7 +2906,7 @@ window.CFG = (function () {
     /* 32 — the same general segment, with the corner dropped and both
        legs drawn: the right-angled triangle in its general form. The
        corner is named from the two points' own coordinates. */
-    { id: 32, line: null, entrance: 'stay',
+    { id: 32, shape: SHAPE_G, line: null, entrance: 'stay',
       layout: 'board', keepSegment: true,
       segment: {
         a: { x: -5, y: 1, name: 'A', coordParts: [ { t: '(' }, { t: 'x₁', glow: 'x' }, { t: ',\u00A0' },
@@ -2947,30 +2920,15 @@ window.CFG = (function () {
         { from: { x:  5, y: 1 }, to: { x: 5, y: 4 } }
       ] },
 
-    /* 33 — the child's go at the horizontal side. A(x₁, y₁) and
-       C(x₂, y₁) share a row, so AC is the difference of their x's.
-       While she asks, AC and its two corners are the only things at
-       full strength; B, CB and AB step back. Right — or wrong twice,
-       when she names it herself — and x₂ − x₁ is put together on the
-       side as she says it: x₂ lifted off B's label, then the sign,
-       then x₁ off A's. */
-    { id: 33, line: 'How long is AC?', entrance: 'stay',
-      layout: 'board', keepSegment: true, askFirst: true,
-      wordCues: [ { word: 'How', spot: 'h' } ],
-      options: [
-        { key: 'x2-x1', cls: 'expr', label: 'x₂ − x₁' },
-        { key: 'x1+x2', cls: 'expr', label: 'x₁ + x₂' },
-        { key: 'y2-y1', cls: 'expr', label: 'y₂ − y₁' }
-      ],
-      task: {
-        kind: 'choice',
-        answer: 'x2-x1',
-        feedback: [ 'Look at the x-coordinates of A and C.' ],
-        correctLine: 'AC = x₂ − x₁',
-        spentLine: 'AC = x₂ − x₁',
-        writesLeg: 0
-      },
-      hold: 3200,
+    /* 33 — the horizontal side named. Nothing asked: as she says "AC",
+       AC and its two corners stay at full strength and the rest steps
+       back, and its length is put together in the middle of the side as
+       she says it — x₂ lifted off B's label, then the sign, then x₁ off
+       A's. */
+    { id: 33, shape: SHAPE_G, line: 'AC = x₂ − x₁', entrance: 'stay',
+      layout: 'board', keepSegment: true,
+      wordCues: [ { word: 'AC', spot: 'h', leg: 0 } ],
+      hold: 1800,
       segment: {
         a: { x: -5, y: 1, name: 'A', coordParts: [ { t: '(' }, { t: 'x₁', glow: 'x' }, { t: ',\u00A0' },
                            { t: 'y₁', glow: 'y' }, { t: ')' } ] },
@@ -2986,27 +2944,13 @@ window.CFG = (function () {
         { from: { x:  5, y: 1 }, to: { x: 5, y: 4 }, settled: true }
       ] },
 
-    /* 34 — and the vertical side, the same way: C(x₂, y₁) and B(x₂, y₂)
-       share a column, so CB is the difference of their y's. CB, C and B
-       stay at full strength while she asks and while she says it; A,
-       AC and AB step back. y₂, then the sign, then y₁. */
-    { id: 34, line: 'How long is CB?', entrance: 'stay',
-      layout: 'board', keepSegment: true, askFirst: true,
-      wordCues: [ { word: 'How', spot: 'v' } ],
-      options: [
-        { key: 'y1+y2', cls: 'expr', label: 'y₁ + y₂' },
-        { key: 'x2-x1', cls: 'expr', label: 'x₂ − x₁' },
-        { key: 'y2-y1', cls: 'expr', label: 'y₂ − y₁' }
-      ],
-      task: {
-        kind: 'choice',
-        answer: 'y2-y1',
-        feedback: [ 'Look at the y-coordinates of C and B.' ],
-        correctLine: 'CB = y₂ − y₁',
-        spentLine: 'CB = y₂ − y₁',
-        writesLeg: 1
-      },
-      hold: 3200,
+    /* 34 — and the vertical side, the same way: CB, C and B stay at full
+       strength while she says it; y₂, then the sign, then y₁, written
+       along CB, between C and B. */
+    { id: 34, shape: SHAPE_G, line: 'CB = y₂ − y₁', entrance: 'stay',
+      layout: 'board', keepSegment: true,
+      wordCues: [ { word: 'CB', spot: 'v', leg: 1 } ],
+      hold: 1800,
       segment: {
         a: { x: -5, y: 1, name: 'A', coordParts: [ { t: '(' }, { t: 'x₁', glow: 'x' }, { t: ',\u00A0' },
                            { t: 'y₁', glow: 'y' }, { t: ')' } ] },
@@ -3022,43 +2966,31 @@ window.CFG = (function () {
           lengthFrom: [ { p: 'b', half: 'y' }, { p: 'a', half: 'y' } ] }
       ] },
 
-    /* 35 — and AB. AB lights as she names it, then the whole triangle is
-       back for the answers: three formulas. Right, and the recap follows.
-       Wrong once, "try again"; wrong twice, and like screen 30 she flies
-       off, the board makes room, and the table opens out of its right
-       edge: AB, CB and AC carried in off the triangle, then the child
-       fills the two blanks — each side's difference — and the root is
-       written in. */
-    { id: 35, line: 'Now, let’s find AB.', entrance: 'stay',
-      layout: 'board', keepSegment: true, askFirst: true, optionWide: true,
+    /* 35 — and AB: it lights as she names it, then she flies off, the
+       board makes room and the formula opens out of its right edge,
+       every piece of it carried in off the triangle — AB, CB and AC off
+       their sides, y₂ − y₁ and x₂ − x₁ off the lengths just written —
+       ending on AB = √((y₂ − y₁)² + (x₂ − x₁)²). Nothing asked. */
+    { id: 35, shape: SHAPE_G, lines: [ 'Now, let’s find AB.' ], entrance: 'stay',
+      layout: 'board', keepSegment: true,
       wordCues: [ { word: 'AB', spot: 'ab' } ],
       lineLights: [ { unspot: true, after: 500 } ],
-      options: [
-        { key: 'sum',  cls: 'expr long', label: '(x₂ − x₁) + (y₂ − y₁)' },
-        { key: 'root', cls: 'expr long', label: '√((x₂ − x₁)² + (y₂ − y₁)²)' },
-        { key: 'plus', cls: 'expr long', label: '√((x₂ + x₁)² + (y₂ + y₁)²)' }
-      ],
-      task: {
-        kind: 'choice',
-        answer: 'root',
-        feedback: [ 'Not quite! Try again!' ],
-        correctLine: 'That’s right!',
-        tableOnMiss: true,
-        tableSize: 36,
+      derive: {
+        table: true, tableSize: 34, tableHigh: true,
         formula: [
-          { kind: 'lead', parts: [
-              { t: '(AB)\u00B2', lit: 'ab', from: { side: 'ab' } }, { t: ' = ' },
-              { t: '(CB)\u00B2', lit: 'v',  from: { side: 'v'  } }, { t: ' + ' },
-              { t: '(AC)\u00B2', lit: 'h',  from: { side: 'h'  } } ] },
-          { kind: 'step', parts: [
+          { inline: true, parts: [
+              { t: '(' }, { t: 'AB', lit: 'ab', from: { side: 'ab' } }, { t: ')\u00B2' },
+              { t: ' = ' },
+              { t: '(' }, { t: 'CB', lit: 'v', from: { side: 'v' } }, { t: ')\u00B2 + (' },
+              { t: 'AC', lit: 'h', from: { side: 'h' } }, { t: ')\u00B2' } ] },
+          { inline: true, parts: [
               { t: '= ' },
-              { t: '(y₂ − y₁)\u00B2', lit: 'v', answer: 'y₂ − y₁',
-                offer: [ 'y₁ + y₂', 'y₂ − y₁' ] }, { t: ' + ' },
-              { t: '(x₂ − x₁)\u00B2', lit: 'h', answer: 'x₂ − x₁',
-                offer: [ 'x₂ − x₁', 'x₁ + x₂' ] } ] },
-          { kind: 'result', inline: true, parts: [
+              { t: '(' }, { t: 'y₂ − y₁', lit: 'v', from: { leg: 1, whole: true } },
+              { t: ')\u00B2 + (' },
+              { t: 'x₂ − x₁', lit: 'h', from: { leg: 0, whole: true } }, { t: ')\u00B2' } ] },
+          { inline: true, parts: [
               { t: 'AB', lit: 'ab', from: { side: 'ab' } }, { t: ' = ' },
-              { t: '\u221A((y₂ − y₁)\u00B2 + (x₂ − x₁)\u00B2)', lit: 'ab' } ] }
+              { t: '\u221A((y₂ − y₁)\u00B2 + (x₂ − x₁)\u00B2)' } ] }
         ] },
       segment: {
         a: { x: -5, y: 1, name: 'A', coordParts: [ { t: '(' }, { t: 'x₁', glow: 'x' }, { t: ',\u00A0' },
@@ -3074,25 +3006,18 @@ window.CFG = (function () {
           settled: true, length: true, lengthText: 'y₂ − y₁' }
       ] },
 
-    /* 36 — the result on its own: board to the left, the working beside
-       it, and nobody in shot. No leaf sweep from 35: she flies off, the
-       board slides across, and the formula writes itself (runRecap). */
-    { id: 36, line: null, entrance: 'none',
-      layout: 'recap', keepSegment: true,
-      /* The formula the whole lesson has been building to. Nothing is
-         said over it, and the ordinary silent beat is 900ms — which
-         took it away before the last line had been read. Three lines
-         written on at 1500 apart finish around 5.6s in, and this leaves
-         four clear seconds after that. Next is armed throughout, so it
-         is a chance to look, not a wait. */
-      hold: 6600 },
+    /* 36 — the recap of the formula — is gone: 35 has just written it.
 
-    /* 27-28 — leaves, then back to the opening arrangement: no board,
-       no panels, Swifty alone in the field. */
-    { id: 37, line: 'And that gives us the distance between any two points!',
-      entrance: 'fly', transition: 'leaves' },
+       37 — what that formula is: no leaf sweep, the table stays where 35
+       wrote it, and she flies back under it to say so. */
+    { id: 37, shape: SHAPE_G, line: 'And that gives us the distance between any two points!',
+      entrance: 'fly', layout: 'board', keepSegment: true, keepTable: true },
 
-    { id: 38, line: 'What if both points are on the x-axis?', entrance: 'stay' },
+
+    /* Back to the field, behind the leaves: the scene changes here now
+       that 37 stays on the board with the table. */
+    { id: 38, line: 'What if both points are on the x-axis?', entrance: 'fly',
+      transition: 'leaves' },
 
     /* 29 — the x-axis case worked through: the general formula narrows
        to |x2 - x1| as the y terms fall away. She says which case it is
@@ -3141,7 +3066,7 @@ window.CFG = (function () {
       /* The house and the two cafes, and nothing else: the school and
          the park have nothing to do with this question. Every place on
          the map has its point and its coordinates. */
-      town: ['house', 'cafeA', 'cafeB'],
+      town: ['house', 'cafeA', 'cafeB'], textScale: 0.85,
       /* Plotted, not joined: a line between any two of them would say
          which pair the question is about, which is the question. */
       pointsOnly: true,
@@ -3176,7 +3101,7 @@ window.CFG = (function () {
        wrong before they can start learning. */
     { id: 43, line: 'Oops! Let’s find it together.',
       entrance: 'stay', layout: 'board', keepSegment: true,
-      town: ['house', 'cafeA', 'cafeB'],
+      town: ['house', 'cafeA', 'cafeB'], textScale: 0.85,
       hold: 1500 },
 
     /* 44–44c — the house to Cafe A, the way 29 taught it: the house and
@@ -3189,7 +3114,7 @@ window.CFG = (function () {
       a: { x: 1, y: 1 }, b: { x: 5, y: 4 }, c: { x: 5, y: 1 },
       seg: { coordSide: 'under' },
       say: { first: 'First, the house to Cafe A.' },
-      base: { town: ['house', 'cafeA', 'cafeB'], townFocus: ['house', 'cafeA'],
+      base: { textScale: 0.85, town: ['house', 'cafeA', 'cafeB'], townFocus: ['house', 'cafeA'],
               mark: [ { x: -5, y: 3 } ], range: { min: 0, max: 7 } },
       first: { keepSegment: true }
     }),
@@ -3202,7 +3127,7 @@ window.CFG = (function () {
       a: { x: 1, y: 1 }, b: { x: -5, y: 3 }, c: { x: -5, y: 1 },
       seg: { coordSide: 'under' },
       say: { first: 'Now, the house to Cafe B.' },
-      base: { town: ['house', 'cafeA', 'cafeB'], townFocus: ['house', 'cafeB'],
+      base: { textScale: 0.85, town: ['house', 'cafeA', 'cafeB'], townFocus: ['house', 'cafeB'],
               mark: [ { x: 5, y: 4 } ], range: { min: 0, max: 8 } },
       first: { transition: 'leaves', entrance: 'fly' }
     }),
@@ -3211,7 +3136,7 @@ window.CFG = (function () {
        lengths, and the smaller one named. */
     { id: 46, line: '5 is less than √40 — so Cafe A is closer.',
       entrance: 'fly', layout: 'board', transition: 'leaves',
-      town: ['house', 'cafeA', 'cafeB'],
+      town: ['house', 'cafeA', 'cafeB'], textScale: 0.85,
       segment: { a: { x: 1, y: 1 }, b: { x: 5, y: 4 },
                  coordSide: 'under', result: { text: '5 units' } },
       /* Its far end is the house, which the pair above already names. */
@@ -3224,7 +3149,7 @@ window.CFG = (function () {
        closes it; wrong twice, and both walks are worked. */
     { id: 47, entrance: 'fly', layout: 'board', transition: 'leaves',
       line: 'Which is closer to Maya’s house — the school or the park?',
-      town: ['house', 'school', 'park'],
+      town: ['house', 'school', 'park'], textScale: 0.85,
       pointsOnly: true,
       segment: { a: { x: 1, y: 1 }, b: { x: 5, y: -4 }, coordSide: 'under' },
       mark: [ { x: -3, y: 2 } ],
@@ -3246,7 +3171,7 @@ window.CFG = (function () {
 
     { id: '47a', line: 'Oops! Let’s find it together.',
       entrance: 'stay', layout: 'board', keepSegment: true,
-      town: ['house', 'school', 'park'],
+      town: ['house', 'school', 'park'], textScale: 0.85,
       hold: 1500 },
 
     /* The house to the school: down first, then across — five, four,
@@ -3257,7 +3182,7 @@ window.CFG = (function () {
       a: { x: 1, y: 1 }, b: { x: 5, y: -4 }, c: { x: 1, y: -4 },
       seg: { coordSide: 'under' },
       say: { first: 'First, the house to the school.' },
-      base: { town: ['house', 'school', 'park'], townFocus: ['house', 'school'],
+      base: { textScale: 0.85, town: ['house', 'school', 'park'], townFocus: ['house', 'school'],
               mark: [ { x: -3, y: 2 } ], range: { min: 0, max: 8 } },
       first: { keepSegment: true }
     }),
@@ -3268,14 +3193,14 @@ window.CFG = (function () {
       a: { x: 1, y: 1 }, b: { x: -3, y: 2 }, c: { x: -3, y: 1 },
       seg: { coordSide: 'under' },
       say: { first: 'Now, the house to the park.' },
-      base: { town: ['house', 'school', 'park'], townFocus: ['house', 'park'],
+      base: { textScale: 0.85, town: ['house', 'school', 'park'], townFocus: ['house', 'park'],
               mark: [ { x: 5, y: -4 } ], range: { min: 0, max: 6 } },
       first: { transition: 'leaves', entrance: 'fly' }
     }),
 
     { id: 48, line: '√17 is less than √41 — so the park is closer.',
       entrance: 'fly', layout: 'board', transition: 'leaves',
-      town: ['house', 'school', 'park'],
+      town: ['house', 'school', 'park'], textScale: 0.85,
       segment: { a: { x: 1, y: 1 }, b: { x: -3, y: 2 },
                  coordSide: 'under', result: { text: '√17 units' } },
       examples: [ { a: { x: 5, y: -4 }, b: { x: 1, y: 1, quiet: true },
@@ -3293,7 +3218,7 @@ window.CFG = (function () {
       a: { x: -2, y: 5 }, b: { x: 4, y: -3 }, c: { x: 4, y: 5 },
       seg: { coordSide: 'under' },
       say: { first: 'How long should this connection be?', cue: 'connection' },
-      base: { town: ['towerA', 'towerB'], range: { min: 0, max: 12 } },
+      base: { textScale: 0.85, town: ['towerA', 'towerB'], range: { min: 0, max: 12 } },
       first: { transition: 'leaves', entrance: 'fly' },
       done: 54
     }),
@@ -3306,7 +3231,7 @@ window.CFG = (function () {
       ids: [54, '54b', '54c'],
       a: { x: 0, y: 0 }, b: { x: -5, y: -12 }, c: { x: -5, y: 0 },
       say: { first: 'The station is right at zero.', cue: 'station' },
-      base: { town: ['station', 'van'], board: 'wide', range: { min: 0, max: 15 } },
+      base: { textScale: 0.85, town: ['station', 'van'], board: 'wide', range: { min: 0, max: 15 } },
       first: { transition: 'leaves', entrance: 'fly' }
     }),
 
@@ -3327,8 +3252,7 @@ window.CFG = (function () {
     { id: 55, line: 'What kind of triangle is this park?',
       transition: 'leaves', entrance: 'fly', layout: 'board',
       board: 'mid', askFirst: true, optionTrio: true,
-      quietBoard: true, fillTriangle: true,
-      hint: 'Measure all three. Looking is not enough.',
+      quietBoard: true, park: true,
       segment: { a: { x: -6, y: -2, name: 'A', coordSide: 'under' },
                  b: { x:  6, y: -7, name: 'B', coordSide: 'under' } },
       legs: [
@@ -3359,7 +3283,7 @@ window.CFG = (function () {
        the same reason. */
     { id: 56, line: 'Oops! Let\u2019s check the sides.',
       entrance: 'stay', layout: 'board', board: 'mid', keepSegment: true,
-      quietBoard: true, fillTriangle: true,
+      quietBoard: true, park: true,
       segment: { a: { x: -6, y: -2, name: 'A', coordSide: 'under' },
                  b: { x:  6, y: -7, name: 'B', coordSide: 'under' } },
       legs: [
@@ -3373,7 +3297,7 @@ window.CFG = (function () {
        back, and the board fills up in front of them. */
     { id: 57, line: 'First, find AB.', focus: 'ab',
       entrance: 'stay', layout: 'board', board: 'mid', keepSegment: true,
-      quietBoard: true, fillTriangle: true,
+      quietBoard: true, park: true,
       intro: 'measure', entry: true, range: { min: 0, max: 18 },
       hint: 'Twelve across and five up.',
       segment: { a: { x: -6, y: -2, name: 'A', coordSide: 'under' },
@@ -3407,7 +3331,7 @@ window.CFG = (function () {
       /* The board stays at full strength here, alone of the seven: this
          is the beat that asks a child to COUNT, and counting squares
          needs the squares. */
-      fillTriangle: true,
+      park: true,
       intro: 'measure', distance: true, range: { min: 0, max: 18 },
       hint: 'This one runs straight up. You can count it.',
       segment: { a: { x: -6, y: -2, name: 'A', coordSide: 'under' },
@@ -3424,7 +3348,7 @@ window.CFG = (function () {
 
     { id: 59, line: 'One more. Find CA.', focus: 'v',
       entrance: 'none', layout: 'board', board: 'mid', keepSegment: true,
-      quietBoard: true, fillTriangle: true,
+      quietBoard: true, park: true,
       intro: 'measure', entry: true, range: { min: 0, max: 18 },
       hint: 'Twelve across and nine down.',
       segment: { a: { x: -6, y: -2, name: 'A', coordSide: 'under' },
@@ -3457,7 +3381,7 @@ window.CFG = (function () {
        same. */
     { id: 60, line: 'What do you notice about the side lengths?',
       entrance: 'stay', layout: 'board', board: 'mid', keepSegment: true,
-      askFirst: true, optionRow: false, quietBoard: true, fillTriangle: true,
+      askFirst: true, optionRow: false, quietBoard: true, park: true,
       pulse: 'triangle',
       hint: 'Are any two of them the same number?',
       segment: { a: { x: -6, y: -2, name: 'A', coordSide: 'under' },
@@ -3487,7 +3411,7 @@ window.CFG = (function () {
        by getting it wrong is closed by them getting it right. */
     { id: 61, line: 'So, which triangle is it?',
       entrance: 'stay', layout: 'board', board: 'mid', keepSegment: true,
-      askFirst: true, optionTrio: true, quietBoard: true, fillTriangle: true,
+      askFirst: true, optionTrio: true, quietBoard: true, park: true,
       hint: 'No two sides are the same length.',
       segment: { a: { x: -6, y: -2, name: 'A', coordSide: 'under' },
                  b: { x:  6, y: -7, name: 'B', coordSide: 'under' },

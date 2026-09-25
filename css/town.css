@@ -77,10 +77,14 @@
   filter: drop-shadow(0 3px 4px rgba(40, 30, 10, .20));
 }
 
-/* Hung from its point (a tower whose top is the point): the name above
-   the point and the picture below it. The offset that lifts the name
-   clear is set from town.js, which has measured it. */
-.town-place.hang { transform: translate(-50%, var(--hangUp, -30px)); }
+/* Hung from its point (a tower whose top is the point, a van parked
+   under it): the picture just below the point and its name below the
+   picture, so nothing sits on the point or its coordinates. */
+.town-place.hang { transform: translate(-50%, 0); flex-direction: column-reverse; }
+/* Standing in the corner of the first quadrant beside its point, its
+   foot on the x-axis's line and its left edge just right of the
+   y-axis — the station, at the origin. */
+.town-place.q1 { transform: translate(0, -100%); }
 
 /* Phones and short windows scale through --cell like everything else,
    so there is nothing width-specific to undo here. */

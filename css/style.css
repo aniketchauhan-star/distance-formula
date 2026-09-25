@@ -622,6 +622,14 @@ html.calm #nudge.on { animation: none; opacity: 1; }
   transition: opacity .5s ease;
 }
 #gridAxes .trifill.on { opacity: 1; }
+/* The park (55–61): grass inside the triangle, opaque, so the ruling
+   does not run through it — its three sides are its fence. When a side
+   is being found it goes paler rather than see-through, so the grid
+   never shows inside it. */
+#gridAxes .trifill.park { fill: url(#parkGrass); }
+#gridPanel #gridAxes .trifill.park.hush { opacity: 1 !important; filter: saturate(.55) brightness(1.07); }
+#gridAxes .parktrees { opacity: 0; transition: opacity .5s ease; pointer-events: none; }
+#gridAxes .parktrees.on { opacity: 1; }
 
 #gridAxes .legline { fill: none; }
 /* The dotted guide. The solid line's draw wipes with stroke-dasharray,
@@ -1027,6 +1035,7 @@ html.svgfx #gridAxes.triangle-question-active .triangle-pulse-line.on { filter: 
    its own opacity with `both`, and only an animation beats that. Equal
    weight to it, so this has to stay below it. */
 #gridAxes .seg.counting .segcoord { animation: coordAside .3s ease both; }
+#gridAxes.counting .legcoord.pop { animation: coordAside .3s ease both; }
 @keyframes coordAside { to { opacity: .22; } }
 
 /* the found point, left behind once it has been located */
