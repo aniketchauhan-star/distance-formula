@@ -6990,8 +6990,16 @@
       this.raised = keepsControl;
       this.controlKind = wantKind;
       const geom = keepsControl ? controlGeom(wantKind) : geomFor(i);
-      this.geom = geom;
-      standPose = !!geom.stand;
+      /* A walk that follows another's table with no leaf sweep (45, 47e,
+         `flyBack`): she is standing under that table, and the new screen
+         has her in her own column. Rather than jump there, she flies off
+         from where she stands and back in to ask — so the rig is not
+         moved to the new place until she has gone (runMeasure). */
+      const flyBack = !!entry.flyBack && entry.transition !== 'leaves' && Board.shown &&
+                      (!el.standSwifty.classList.contains('hidden') ||
+                       !el.birdWin.classList.contains('hidden'));
+      this.geom = flyBack ? (this.geom || geom) : geom;
+      standPose = !!this.geom.stand;
       /* Reseating the rig also resizes the speech bubble, and a screen
          with nobody in shot sizes it to nothing — so behind a leaf
          sweep this waits for the cover too, or the last screen's
@@ -7016,7 +7024,7 @@
            something before she speaks, so the last screen's words go
            now, with the screen, not a second later when she arrives. */
         if (!speaks || entry.openLight) Bubble.close();
-        applyGeom(geom);
+        if (!flyBack) applyGeom(geom);
       }
 
       const AX = axisOf(entry);
@@ -7695,6 +7703,21 @@
          the board move aside for the banner and the slider. */
       const runMeasure = function () {
         self.state = 'entering';
+        if (flyBack) {
+          Bubble.close();
+          self.flyOut(function () {
+            self.geom = geom;
+            standPose = !!geom.stand;
+            applyGeom(geom);
+            el.standSwifty.classList.add('hidden');
+            el.birdWin.classList.add('hidden');
+            measure();
+          });
+          return;
+        }
+        measure();
+      };
+      const measure = function () {
         /* Kept: emptied for the new question rather than taken away, and
            live from the moment the points are down, so a child who is
            ahead of her can answer while she is still asking. */
@@ -7803,7 +7826,7 @@
                 step(0);
               };
 
-              if (inherited) {
+              if (inherited && !flyBack) {
                 // already standing here from the screen before
                 self.stay(speak);
                 return;
@@ -7863,7 +7886,12 @@
           if (!frames) { plot(); return; }
           self.later(plot, self.frameDrawing(entry));
         };
-        if (inherited) {
+        if (inherited && flyBack) {
+          /* Back from where the table pushed it, sliding rather than
+             jumping, and only then the new points. */
+          self.slideBoard(geom.panelBox);
+          self.later(framed, 760);
+        } else if (inherited) {
           Board.place(geom.panelBox);
           framed();
         } else {

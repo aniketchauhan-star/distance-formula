@@ -3137,7 +3137,9 @@ window.CFG = (function () {
       say: { first: 'Now, the house to Cafe B.' },
       base: { textScale: 0.85, town: ['house', 'cafeA', 'cafeB'], townFocus: ['house', 'cafeB'],
               mark: [ { x: 5, y: 4 } ], range: { min: 0, max: 8 } },
-      first: { transition: 'leaves', entrance: 'fly' }
+      /* No leaf sweep: it follows the last walk's table on the same
+         town, so she flies off from under it and back in (flyBack). */
+      first: { flyBack: true }
     }),
 
     /* The comparison, not the winner: both walks on the map with their
@@ -3203,7 +3205,9 @@ window.CFG = (function () {
       say: { first: 'Now, the house to the park.' },
       base: { textScale: 0.85, town: ['house', 'school', 'park'], townFocus: ['house', 'park'],
               mark: [ { x: 5, y: -4 } ], range: { min: 0, max: 6 } },
-      first: { transition: 'leaves', entrance: 'fly' }
+      /* No leaf sweep: it follows the last walk's table on the same
+         town, so she flies off from under it and back in (flyBack). */
+      first: { flyBack: true }
     }),
 
     { id: 48, line: '√17 is less than √41 — so the park is closer.',
