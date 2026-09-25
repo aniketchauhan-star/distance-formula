@@ -626,7 +626,7 @@ html.calm #nudge.on { animation: none; opacity: 1; }
    does not run through it — its three sides are its fence. When a side
    is being found it goes paler rather than see-through, so the grid
    never shows inside it. */
-#gridAxes .trifill.park { fill: url(#parkGrass); }
+#gridAxes .trifill.park { fill: #CFE9B2; }   /* the grass itself is set on the element: Board.showTriangle */
 #gridPanel #gridAxes .trifill.park.hush { opacity: 1 !important; filter: saturate(.55) brightness(1.07); }
 #gridAxes .parktrees { opacity: 0; transition: opacity .5s ease; pointer-events: none; }
 #gridAxes .parktrees.on { opacity: 1; }
@@ -950,17 +950,12 @@ html.calm #gridAxes .xsweep.draw { animation: none; opacity: .85; stroke-dashoff
    dimming still eases over its 420ms. */
 #gridAxes .hush { opacity: .28 !important; }
 #gridAxes .spot { filter: drop-shadow(0 0 7px rgba(255, 196, 74, .95)); }
-/* Safari — every WebKit browser — does not draw a CSS filter on an SVG
-   shape at all, so on a Mac in Safari nothing on the board ever
-   glowed. There the same glows are drawn with SVG filters, which it
-   does draw (#fx… in the board's <defs>, game.js). `html.svgfx` is
-   set only on WebKit, so every other browser is untouched. The
-   !important is what beats a glow that is animated. */
-html.svgfx #gridAxes .spot { filter: url(#fxSpot) !important; }
-html.svgfx #gridAxes .spotbeat.spotbeat { animation: none; }
-html.svgfx #gridAxes .segline.lit,
-html.svgfx #gridAxes .measline.lit { animation: none; filter: url(#fxLit) !important; }
-html.svgfx #gridAxes.triangle-question-active .triangle-pulse-line.on { filter: url(#fxSoft) !important; }
+/* Safari draws no CSS filter on an SVG shape, so there these glows
+   simply do not show and the lines are drawn plain. They were given SVG
+   filters there for a while (`filter: url(#fx…)`), and that is how a
+   measured line vanished the moment it was lit, just before its "3
+   units" came up: an element whose filter cannot be drawn is not drawn
+   at all. A plain line is better than a missing one. */
 
 @keyframes partBeat {
   0%   { opacity: 1; }

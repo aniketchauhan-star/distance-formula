@@ -1369,21 +1369,7 @@
       const ox = G.originX, oy = G.originY;
       const self = this;
 
-      /* The board's glows as SVG filters, for the browsers that will not
-         draw a CSS one on an SVG shape (html.svgfx — see style.css). In
-         user units over the whole board: a filter sized to its shape's
-         own box has no height on a horizontal line, and the line would
-         vanish instead of glowing. */
       const defs = document.createElementNS(NS, 'defs');
-      const R = ' filterUnits="userSpaceOnUse" x="-3000" y="-3000" width="8000" height="8000"';
-      const halo = function (id, color, opacity, sd) {
-        return '<filter id="' + id + '"' + R + '>' +
-          '<feGaussianBlur in="SourceAlpha" stdDeviation="' + sd + '" result="b"/>' +
-          '<feFlood flood-color="' + color + '" flood-opacity="' + opacity + '"/>' +
-          '<feComposite in2="b" operator="in" result="g"/>' +
-          '<feMerge><feMergeNode in="g"/><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge>' +
-          '</filter>';
-      };
       /* The park (55–61): grass, laid in board units so it stays put as
          the camera moves, with tufts scattered through it. */
       const grass = '<pattern id="parkGrass" patternUnits="userSpaceOnUse" width="96" height="84">' +
@@ -1391,12 +1377,7 @@
           '<path d="M14 22 l3 -7 l3 7 M50 58 l3 -7 l3 7 M78 18 l3 -7 l3 7 M30 74 l3 -7 l3 7 M70 70 l3 -7 l3 7"' +
           ' stroke="#9CCB7A" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
         '</pattern>';
-      defs.innerHTML = grass + halo('fxSpot', 'rgb(255,196,74)', '.95', 2.6) +
-        halo('fxLit', 'rgb(255,170,40)', '.9', 3.6) +
-        '<filter id="fxSoft"' + R + '>' +
-          '<feGaussianBlur in="SourceGraphic" stdDeviation="3" result="b"/>' +
-          '<feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>' +
-        '</filter>';
+      defs.innerHTML = grass;
       svg.insertBefore(defs, svg.firstChild);
 
       this.buildAxes();
@@ -2371,6 +2352,12 @@
       this.triFill.setAttribute('points',
         [sp.a, corner, sp.b].map(function (p) { return px(p.x) + ',' + py(p.y); }).join(' '));
       this.triFill.classList.toggle('park', !!this.park);
+      /* The grass is set on the element, not in the stylesheet: a
+         reference to something in the page, written in a stylesheet in
+         another folder, is not one every browser finds — and a fill that
+         cannot be found is no fill. The stylesheet's plain green stays
+         under it for the browser that still misses it. */
+      this.triFill.style.fill = this.park ? 'url(#parkGrass) #CFE9B2' : '';
       this.triFill.classList.add('on');
       this.plantPark([sp.a, corner, sp.b].map(function (p) { return { x: px(p.x), y: py(p.y) }; }));
     },
@@ -2409,7 +2396,10 @@
     /* Whether the triangle is drawn as a park (a screen's `park`). */
     setPark: function (on) {
       this.park = !!on;
-      if (this.triFill) this.triFill.classList.toggle('park', this.park);
+      if (this.triFill) {
+        this.triFill.classList.toggle('park', this.park);
+        this.triFill.style.fill = this.park ? 'url(#parkGrass) #CFE9B2' : '';
+      }
       if (this.parkTrees) this.parkTrees.classList.toggle('on', this.park &&
         !!this.triFill && this.triFill.classList.contains('on'));
     },
@@ -3640,9 +3630,9 @@
           /* And this is the hand-over: the side the child measured is
              now drawn in its own colour with its own length, so the
              lit measuring line lying along it has been taken over and
-             can go. Same tick as the leg being drawn — the measure
-             must never travel to a screen that is not about it. */
-          Board.clearMeasure();
+             goes — faded into the side, which is already down under it,
+             rather than snatched away. */
+          Board.handOffMeasure();
           if (spec.mark) { L.dot.classList.add('pop'); L.coord.classList.add('pop'); L.name.classList.add('pop'); }
           if (spec.length) {
             const fly = self.flyIntoLeg(i, spec, later, delay + 200);
@@ -6010,11 +6000,25 @@
       this.measCap.setAttribute('cy', y2);
       this.measCap.style.display = lands ? 'none' : '';
       /* A line being drawn is never a line going out: whatever the
-         last guess left fading, this one starts solid. */
+         last guess left fading, this one starts solid — and a hand-over
+         still waiting to clear the old one is called off. */
+      this.measTok = (this.measTok || 0) + 1;
       this.measLine.classList.remove('fade');
       this.measCap.classList.remove('fade');
       this.measLine.classList.add('on');
       this.measCap.classList.add('on');
+    },
+
+    /* The measured line handing over to the line that takes its place —
+       the side drawn in its own colour, the pair's solid line. It stays
+       until that line is down under it, then fades into it, instead of
+       going the instant the screen changed. */
+    handOffMeasure: function (ms) {
+      if (!this.measLine || !this.measLine.classList.contains('on')) return;
+      const self = this, t = ms || 450;
+      this.fadeMeasure(t);
+      const tok = this.measTok = (this.measTok || 0) + 1;
+      setTimeout(function () { if (self.measTok === tok) self.clearMeasure(); }, t + 60);
     },
 
     /* A wrong guess lets go where it stands. */
@@ -7947,7 +7951,7 @@
         Board.shown = true;
         if (!entry.keepSegment) Board.clearSegment();
         else if (!entry.keepMeasure) Board.clearUnits();   // keep the drawing, drop any count-out
-        if (!entry.distance && !entry.entry && !entry.keepMeasure) Board.clearMeasure();
+        if (!entry.distance && !entry.entry && !entry.keepMeasure) Board.handOffMeasure();
         /* A screen that keeps what the question before it measured —
            the line the child laid down and the length written beside it
            — keeps them exactly as they are (20 keeps 19's). They used
@@ -10472,16 +10476,6 @@
   /* Calm or not, decided by the game (CFG.MOTION) — not by a setting on
      the laptop that nobody can see. Before anything moves, so the sky
      and the weather start the way they are going to stay. */
-  /* WebKit (Safari on a Mac, every browser on an iPad) draws no CSS
-     filter on an SVG shape, so the board's glows are given SVG filters
-     there instead (style.css, `html.svgfx`). Chrome and Edge say
-     "Chrome/" in their name; WebKit browsers do not. */
-  function decideFilters() {
-    const ua = navigator.userAgent || '';
-    const webkit = /AppleWebKit/.test(ua) && !/(Chrome|Chromium|Edg)\//.test(ua);
-    document.documentElement.classList.toggle('svgfx', webkit);
-  }
-
   function decideMotion() {
     const M = (C.MOTION && C.MOTION.calm) || 'off';
     const mq = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
@@ -10495,8 +10489,7 @@
 
   function boot() {
     decideMotion();
-    decideFilters();
-    /* The two full-frame pictures take their source from config rather
+      /* The two full-frame pictures take their source from config rather
        than from the markup. They used to be hardcoded in the HTML,
        which meant a renamed file left ART pointing at the new name
        while the page still asked for the old one — and the background
