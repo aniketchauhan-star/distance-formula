@@ -1550,7 +1550,9 @@ window.CFG = (function () {
        cells of headroom, which is what it needs. */
     house: { x:  1, y: 1 },
     cafeA: { x:  5, y: 4 },
-    cafeB: { x: -5, y: 1 },
+    /* Two rows up from the house's row, so its walk is a real triangle
+       — six across and two up — and it is worked the way Cafe A's is. */
+    cafeB: { x: -5, y: 3 },
     /* And two more for the walk after it. The prompt asked for (-4,-2)
        and (4, 4); neither survives its own rule that a marker needs the
        room it stands in. A place is drawn standing ON its coordinate,
@@ -1622,11 +1624,11 @@ window.CFG = (function () {
   };
   TOWN.places = [
     { key: 'cafeB',  x: TOWN.cafeB.x,  y: TOWN.cafeB.y,
-      name: 'Café B',        kind: 'cafe',   tone: 'red' },
+      name: 'Cafe B',        kind: 'cafe',   tone: 'yellow' },
     { key: 'house',  x: TOWN.house.x,  y: TOWN.house.y,
       name: 'Maya’s House',  kind: 'house',  tone: 'violet' },
     { key: 'cafeA',  x: TOWN.cafeA.x,  y: TOWN.cafeA.y,
-      name: 'Café A',        kind: 'cafe',   tone: 'teal' },
+      name: 'Cafe A',        kind: 'cafe',   tone: 'teal' },
     /* Up from the closing beat: the same town, two more places in it.
        They are on the map from the first beat that uses them and stay
        for the last — a town that gains a building between one question
@@ -1634,7 +1636,19 @@ window.CFG = (function () {
     { key: 'school', x: TOWN.school.x, y: TOWN.school.y,
       name: 'School',             kind: 'school', tone: 'blue' },
     { key: 'park',   x: TOWN.park.x,   y: TOWN.park.y,
-      name: 'Park',               kind: 'park',   tone: 'green' }
+      name: 'Park',               kind: 'park',   tone: 'green' },
+    /* The two towers the connection runs between (49). Each hangs from
+       its point — the point is the top of the tower — so the one at
+       y = 5 stays on the paper and the sides leave the points clear of
+       the pictures. */
+    { key: 'towerA', x: -2, y: 5,  name: 'Tower A', kind: 'tower', tone: 'yellow', hang: true },
+    { key: 'towerB', x:  4, y: -3, name: 'Tower B', kind: 'tower', tone: 'teal',   hang: true },
+    /* The station and the rescue van (54), on the wide board, where a
+       cell is a third the size — so drawn three times their usual
+       height. The van hangs below its point, so the side that comes
+       down to it arrives at the point rather than through the van. */
+    { key: 'station', x: 0,  y: 0,   name: 'Station', kind: 'station', tone: 'blue',   tall: 2.6 },
+    { key: 'van',     x: -5, y: -12, name: 'Van',     kind: 'van',     tone: 'violet', tall: 2.1, hang: true }
   ];
 
   /* -------------------------------------------------------------
@@ -1757,7 +1771,23 @@ window.CFG = (function () {
       [ { t: 'd = √((x₂ − x₁)²' }, { t: ' + (0 − 0)²', fade: true }, { t: ')' } ],
       [ { t: 'd = √((x₂ − x₁)²)' } ]
     ],
-    result: 'd = |x₂ − x₁|'
+    result: 'd = |x₂ − x₁|',
+    /* The table the child fills (39): both y's are 0 — read off the
+       labels — so the second term is (0 − 0)², then 0, then gone; and
+       what is left is picked from three. Each blank offers the right
+       term and the ones a child reaches for instead. */
+    picks: [
+      { inline: true, parts: [ { t: 'd' }, { t: ' = ' },
+          { t: '\u221A((x₂ − x₁)\u00B2 + (y₂ − y₁)\u00B2)' } ] },
+      { inline: true, parts: [ { t: '= ' }, { t: '\u221A((x₂ − x₁)\u00B2 + (' },
+          { t: '0', lit: 'v', offer: [ '0', 'y₂', 'x₂' ] }, { t: ' − ' },
+          { t: '0', lit: 'v', offer: [ 'y₁', '0', 'x₁' ] }, { t: ')\u00B2)' } ] },
+      { inline: true, parts: [ { t: '= ' }, { t: '\u221A((x₂ − x₁)\u00B2 + 0)' } ] },
+      { inline: true, parts: [ { t: '= ' }, { t: '\u221A((x₂ − x₁)\u00B2)' } ] },
+      { inline: true, parts: [ { t: 'd' }, { t: ' = ' },
+          { t: '|x₂ − x₁|', lit: 'h', answer: '|x₂ − x₁|',
+            offer: [ '|x₂ − x₁|', '|y₂ − y₁|', 'x₂ + x₁' ] } ] }
+    ]
   };
 
   /* The same thing turned on its side. The pair reads as one idea, so
@@ -1805,7 +1835,20 @@ window.CFG = (function () {
       [ { t: 'd = √(' }, { t: '(0 − 0)² + ', fade: true }, { t: '(y₂ − y₁)²)' } ],
       [ { t: 'd = √((y₂ − y₁)²)' } ]
     ],
-    result: 'd = |y₂ − y₁|'
+    result: 'd = |y₂ − y₁|',
+    // the same table turned on its side (41): the x's are the 0s
+    picks: [
+      { inline: true, parts: [ { t: 'd' }, { t: ' = ' },
+          { t: '\u221A((x₂ − x₁)\u00B2 + (y₂ − y₁)\u00B2)' } ] },
+      { inline: true, parts: [ { t: '= ' }, { t: '\u221A((' },
+          { t: '0', lit: 'h', offer: [ 'x₂', '0', 'y₂' ] }, { t: ' − ' },
+          { t: '0', lit: 'h', offer: [ '0', 'x₁', 'y₁' ] }, { t: ')\u00B2 + (y₂ − y₁)\u00B2)' } ] },
+      { inline: true, parts: [ { t: '= ' }, { t: '\u221A(0 + (y₂ − y₁)\u00B2)' } ] },
+      { inline: true, parts: [ { t: '= ' }, { t: '\u221A((y₂ − y₁)\u00B2)' } ] },
+      { inline: true, parts: [ { t: 'd' }, { t: ' = ' },
+          { t: '|y₂ − y₁|', lit: 'v', answer: '|y₂ − y₁|',
+            offer: [ '|x₂ − x₁|', '|y₂ − y₁|', 'y₂ + y₁' ] } ] }
+    ]
   };
 
   /* ---------- Audio ---------- */
@@ -1866,6 +1909,125 @@ window.CFG = (function () {
     duckDown: 0.22,      // seconds
     duckUp: 0.65
   };
+
+  /* -------------------------------------------------------------
+     A WALK — the three screens 29 to 29c taught, for any two points.
+
+       1  the two points named A and B, and the dotted line between
+          them as she says it; then the first side drawn out to the
+          corner C, and measured on the reel;
+       2  the second side, measured the same way;
+       3  the table out of the board's right edge, which the child
+          fills: (AB)² = (CB)² + (AC)², the two sides, their squares,
+          the sum, and the root.
+
+     Used by every walk after 30 — the two cafés, the school and the
+     park, the towers, the station — so each is taught the same way.
+
+       ids     the three screens' ids
+       a, b, c the two points and the corner, in grid units; the first
+               side runs a → c, the second c → b (either may be the
+               level one — the table takes its colours from the sides)
+       say     { first, ask, second, table } — her lines
+       base    what all three share (the town, the board, the range)
+       first   what only the first screen has (its entrance, a sweep)
+       done    where the table hands on to, if not the next screen
+     ------------------------------------------------------------- */
+  const SQRT = '√', SQ = '²', UNIT = ' units';
+  function walk(w) {
+    const pt = function (p, name) {
+      return Object.assign({ x: p.x, y: p.y, name: name }, p.extra || {});
+    };
+    const seg = Object.assign({ a: pt(w.a, 'A'), b: pt(w.b, 'B'), dash: true },
+                              w.seg || {});
+    const len = function (p, q) { return Math.round(Math.hypot(q.x - p.x, q.y - p.y)); };
+    const ac = len(w.a, w.c), cb = len(w.c, w.b);
+    const sum = ac * ac + cb * cb, root = Math.sqrt(sum);
+    const whole = Math.abs(root - Math.round(root)) < 1e-9;
+    /* Two tiles for each blank: the right one, and the mistake that
+       blank is there to catch — the other side; squaring as doubling;
+       adding the sides instead of their squares; stopping before the
+       root. Which comes first alternates, so the right one is not
+       always on top. */
+    const pair = function (right, wrong, first) {
+      if (wrong === right) wrong = right + 1;
+      return first ? [right, wrong] : [wrong, right];
+    };
+    const dbl = function (n) { return (n * n === 2 * n) ? n : 2 * n; };
+    const res = whole ? Math.round(root) : SQRT + sum;
+    const legA = { from: w.a, to: w.c, mark: { name: 'C', away: w.cAway } };
+    const legB = { from: w.c, to: w.b };
+    const say = w.say || {};
+    const firstWord = function (t) { return String(t).split(/[\s,.]+/)[0]; };
+    const base = w.base || {};
+    const s1 = Object.assign({
+      id: w.ids[0],
+      line: say.first, line2: say.ask || 'How far is it from A to C?',
+      /* The dotted line waits for her first word, and A and B pulse
+         with it; the corner comes after her sentence, drawn out along
+         the first side; then she asks, and while she asks only A, C and
+         the side between them are at full strength. */
+      guideOnLine: true,
+      wordCues: [ { word: say.cue || firstWord(say.first), in: say.first,
+                    guide: true, beat: ['a', 'b'] },
+                  { word: firstWord(say.ask || 'How'), in: say.ask || 'How far is it from A to C?',
+                    spot: 'h' } ],
+      lineLights: [ { legs: true, beat: ['c'], quiet: true }, { pulse: 'h' } ],
+      entrance: 'none', layout: 'board', quietBoard: true,
+      intro: 'measure', distance: true,
+      segment: seg,
+      legs: [ Object.assign({ dash: true }, legA) ],
+      task: { kind: 'distance', measureLeg: 0, countLine: 'Count carefully!' }
+    }, base, w.first || {});
+    const s2 = Object.assign({
+      id: w.ids[1],
+      line: say.second || 'Now find the distance from C to B.',
+      wordCues: [ { word: firstWord(say.second || 'Now'), spot: 'v' } ],
+      lineLights: [ { pulse: 'v' } ],
+      entrance: 'none', layout: 'board', quietBoard: true,
+      intro: 'measure', distance: true, keepSegment: true,
+      segment: seg,
+      legs: [ Object.assign({ settled: true, length: true }, legA), legB ],
+      task: { kind: 'distance', measureLeg: 1, countLine: 'Count carefully!' }
+    }, base);
+    const s3 = Object.assign({
+      id: w.ids[2],
+      lines: say.table || [ 'We know AC and CB.', 'Let’s use Pythagoras to find AB.' ],
+      wordCues: [ { word: 'We', spot: ['h', 'v'] } ],
+      lineLights: [ { unspot: true, hold: 600 }, {} ],
+      rightAngle: true, keepMark: true,
+      entrance: 'none', layout: 'board', quietBoard: true, keepSegment: true,
+      segment: seg,
+      legs: [ Object.assign({ settled: true, length: true }, legA),
+              Object.assign({ settled: true, length: true }, legB) ],
+      task: {
+        kind: 'table',
+        correctLine: 'That’s right!',
+        rightAt: w.done,
+        formula: [
+          { kind: 'lead', parts: [
+              { t: '(AB)' + SQ, lit: 'ab' }, { t: ' = ' },
+              { t: '(CB)' + SQ, lit: 'v' }, { t: ' + ' },
+              { t: '(AC)' + SQ, lit: 'h' } ] },
+          { kind: 'step', parts: [
+              { t: '= ' },
+              { t: '(' + cb + ')' + SQ, lit: 'v', offer: pair(cb, ac, true) }, { t: ' + ' },
+              { t: '(' + ac + ')' + SQ, lit: 'h', offer: pair(ac, cb, false) } ] },
+          { kind: 'step', parts: [
+              { t: '= ' },
+              { t: String(cb * cb), lit: 'ab', offer: pair(cb * cb, dbl(cb), false) }, { t: ' + ' },
+              { t: String(ac * ac), lit: 'ab', offer: pair(ac * ac, dbl(ac), true) } ] },
+          { kind: 'step', parts: [
+              { t: '= ' }, { t: String(sum), lit: 'ab', offer: pair(sum, ac + cb, false) } ] },
+          { kind: 'result', parts: [
+              { t: 'AB', lit: 'ab' }, { t: ' = ' },
+              whole
+                ? { t: res + UNIT, lit: 'ab', offer: pair(res, sum, true) }
+                : { t: res + UNIT, lit: 'ab', answer: res, offer: [res, String(sum)] } ] }
+        ] }
+    }, base);
+    return [s1, s2, s3];
+  }
 
   /* -------------------------------------------------------------
      SCRIPT — one entry per screen
@@ -2935,14 +3097,13 @@ window.CFG = (function () {
     /* 29 — the x-axis case worked through: the general formula narrows
        to |x2 - x1| as the y terms fall away. She says which case it is
        from her own bubble, standing beside the board. */
-    { id: 39, line: 'Both points are on the x-axis.', entrance: 'stay',
+    { id: 39, line: 'Both points are on the x-axis.', entrance: 'none',
       layout: 'xaxis', transition: 'leaves',
-      /* The working runs for ten seconds after she has finished saying
-         which case it is, and the ordinary 1500 took the screen away
-         two steps in — the x terms never fell away and |x2 - x1| was
-         never reached. The y-axis screen only escaped this by being
-         the last one, where nothing advances. */
-      hold: 7800 },
+      /* The child's own go (runAxisPick): the board builds in the middle
+         and moves across, she says which case it is and goes, and the
+         table opens out of the board for the child to fill. */
+      task: { kind: 'table', formula: XAXIS.picks, tableSize: 32,
+              correctLine: 'Exactly! There\u2019s no vertical distance.' } },
 
     /* 30 — leaves again, and the same empty field as 25: board and
        working left behind, Swifty flying back in alone to put the next
@@ -2952,8 +3113,10 @@ window.CFG = (function () {
 
     /* 31 — the same working as 27 with the axes swapped: the x terms
        are the pair that falls away this time. */
-    { id: 41, line: 'Both points are on the y-axis.', entrance: 'stay',
-      layout: 'yaxis', transition: 'leaves' },
+    { id: 41, line: 'Both points are on the y-axis.', entrance: 'none',
+      layout: 'yaxis', transition: 'leaves',
+      task: { kind: 'table', formula: YAXIS.picks, tableSize: 32,
+              correctLine: 'Exactly! There\u2019s no horizontal distance.' } },
 
     /* ---- 42-46: the closer cafe.
 
@@ -2974,511 +3137,178 @@ window.CFG = (function () {
        child who missed twice, and a child who did not never sees them
        — `rightAt` steps over them. */
     { id: 42, entrance: 'fly', layout: 'board', transition: 'leaves',
-      line: 'Maya wants to walk to the closer caf\u00E9. Which caf\u00E9 is closer to her house?',
-      town: true,
+      line: 'Maya wants to walk to the closer cafe. Which cafe is closer to her house?',
+      /* The house and the two cafes, and nothing else: the school and
+         the park have nothing to do with this question. Every place on
+         the map has its point and its coordinates. */
+      town: ['house', 'cafeA', 'cafeB'],
       /* Plotted, not joined: a line between any two of them would say
          which pair the question is about, which is the question. */
       pointsOnly: true,
-      /* Built in halves rather than as one run of text. Nothing looks
-         different — it is the same label — but each half is then a node
-         the board can point at, which is what lets screen 45 lift the
-         numbers out of it into the working. A plain label has no halves
-         to lift. */
-      segment: { a: { x: 1, y: 1, coordParts: [ { t: '(' }, { t: '1', glow: 'x' },
-                      { t: ',\u00A0' }, { t: '1', glow: 'y' }, { t: ')' } ] },
-                 b: { x: 5, y: 4, coordParts: [ { t: '(' }, { t: '5', glow: 'x' },
-                      { t: ',\u00A0' }, { t: '4', glow: 'y' }, { t: ')' } ] },
-                 coordSide: 'under' },
+      segment: { a: { x: 1, y: 1 }, b: { x: 5, y: 4 }, coordSide: 'under' },
       // the third place, plotted the same way and labelled the same way
-      mark: [ { x: -5, y: 1 } ],
-      /* The answers and the hint go up FIRST and she arrives after —
-         the reverse of every other question in the game. The child
-         looks at a town with two cafes in it and has begun to wonder
-         before anyone says anything, so her line lands on a question
-         they have already started asking themselves. */
+      mark: [ { x: -5, y: 3 } ],
+      /* The answers go up FIRST and she arrives after — the reverse of
+         every other question in the game. The child looks at a town
+         with two cafes in it and has begun to wonder before anyone says
+         anything. No hint under them: the question is the whole screen. */
       askLast: true,
       options: [
-        { key: 'a', label: 'Caf\u00E9 A', cls: 'cafe-a' },
-        { key: 'b', label: 'Caf\u00E9 B', cls: 'cafe-b' }
+        { key: 'a', label: 'Cafe A', cls: 'cafe-a' },
+        { key: 'b', label: 'Cafe B', cls: 'cafe-b' }
       ],
       optionRow: true,              // side by side, as the two places are
-      perch: 'b',                   // and she lands on the right-hand one
-      /* The method, never the answer. The moment a hint names a cafe it
-         has stopped being a scaffold. */
-      hint: 'Count across and up from the house to each caf\u00E9.',
+      perch: 'b',                   // and she stands on the top right corner
       task: {
         kind: 'choice',
         answer: 'a',
         /* One rung, and it must not narrow the field: on a two-answer
            question "try the other one" is the answer. */
-        feedback: ['Not quite \u2014 have another look.'],
-        /* Said, not written. She is telling the child to look at the
-           map, and a balloon is drawn over the map — so the words that
-           send them back to it must not cover it. */
+        feedback: ['Not quite — have another look.'],
         voiceOnly: true,
-        /* Right: past the teaching, to the line that closes it. */
+        /* Right: past the walks, to the line that closes it. */
         rightAt: 46,
-        /* Wrong twice: two misses on a two-answer question means the
-           method is not there to be used, and asking a third time is
-           asking a child to guess. The asking stops and the beat that
-           teaches takes over. */
+        /* Wrong twice: the two walks, worked the way 29 taught them. */
         teachAt: 43
       } },
 
-    /* One sentence and a breath. No line, no control, no working — a
-       child needs a moment to stop being wrong before they can start
-       learning. The word is "together", not "let me show you". */
-    { id: 43, line: 'Oops! Let\u2019s find it together.',
-      entrance: 'stay', layout: 'board', keepSegment: true, town: true,
+    /* One sentence and a breath — a child needs a moment to stop being
+       wrong before they can start learning. */
+    { id: 43, line: 'Oops! Let’s find it together.',
+      entrance: 'stay', layout: 'board', keepSegment: true,
+      town: ['house', 'cafeA', 'cafeB'],
       hold: 1500 },
 
-    /* One distance, not both. Cafe B is a row and rows are the first
-       thing this game taught; Cafe A is the one that needs the formula,
-       so it is the one that gets asked about. "First" promises a second
-       step, and it asks for a number rather than for a cafe — the
-       conclusion stays the child's. */
-    { id: 44, line: 'First, find this distance.',
-      entrance: 'stay', layout: 'board', keepSegment: true, town: true,
-      joinSegment: true, hold: 1200 },
+    /* 44–44c — the house to Cafe A, the way 29 taught it: the house and
+       Cafe A stay at full strength and Cafe B steps back; they are
+       named A and B and joined by the dotted line as she says it; AC
+       is drawn out and measured on the reel, then CB; then the table.
+       3, 4, 5. */
+    ...walk({
+      ids: [44, '44b', '44c'],
+      a: { x: 1, y: 1 }, b: { x: 5, y: 4 }, c: { x: 5, y: 1 },
+      seg: { coordSide: 'under' },
+      say: { first: 'First, the house to Cafe A.' },
+      base: { town: ['house', 'cafeA', 'cafeB'], townFocus: ['house', 'cafeA'],
+              mark: [ { x: -5, y: 3 } ], range: { min: 0, max: 7 } },
+      first: { keepSegment: true }
+    }),
 
-    /* And they answer it themselves. The same shape as screens 29 and
-       30 — the pair is already on the board, the legs are dropped when
-       the working needs them, and AB is the one length here that cannot
-       be counted off the grid. */
-    { id: 45,
-      /* The working goes on the paper, not in a panel beside it: the
-         board comes to the middle, pushes in on the drawing and the
-         room the working needs, and writes it there. */
-      stage: 'working', line: 'How far is it from the house to Caf\u00E9 A?',
-      entrance: 'none', layout: 'board',
-      /* The working is about the drawing, so the paper steps back:
-         the ruling, the axes and their numbering fade and the triangle
-         and its lengths are what is left at full strength. The screens
-         that write a solution on the board all do this now — it was on
-         only the last two of them, so the same beat came up loud on one
-         screen and quiet on the next. */
-      quietBoard: true, intro: 'measure', entry: true,
-      keepSegment: true, town: true,
-      /* As far as the paper goes along this walk and no further:
-         a miss is counted out on the board, and a number the line
-         cannot reach is a miss with nothing to look at. Seven
-         still leaves two steps past the answer to overshoot by. */
-      range: { min: 0, max: 7 },
-      segment: { a: { x: 1, y: 1 }, b: { x: 5, y: 4 }, coordSide: 'under' },
-      /* Declared, but not drawn with the question. The triangle is not
-         what is being asked about, and one drawn round the line before
-         the child has answered hands them the two numbers the working
-         is there to find. It goes down when the working starts. */
-      legsLater: true,
-      legs: [
-        { from: { x: 1, y: 1 }, to: { x: 5, y: 1 } },
-        { from: { x: 5, y: 1 }, to: { x: 5, y: 4 } }
-      ],
-      task: { kind: 'entry', pair: 'AB', answer: 5,
-              correctLine: 'That\u2019s it \u2014 5 units.',
-              noCount: true,
-              feedback: [ 'Not quite. Count across, then up, and use the formula.' ],
-              showWorking: true,
-              /* The formula they were taught, then this town's own
-                 numbers put into it, then the arithmetic — one idea to
-                 a line. Each part carries the side it names so the
-                 board lights the same thing at the same moment: the
-                 whole difficulty of this formula is that it looks like
-                 symbol-pushing, and a child who watches the 4 light up
-                 four squares they could have counted is being shown
-                 that the algebra and the picture are one object. */
-              formula: [
-                { kind: 'lead', small: true, parts: [
-                    { t: 'd = \u221A((x₂ − x₁)\u00B2 + (y₂ − y₁)\u00B2)' } ] },
-                /* The substitution, and the only line whose numbers were
-                   READ rather than worked out — so the only line that
-                   flies. Each half comes out of the coordinate it is
-                   the half of. */
-                { kind: 'step', parts: [
-                    { t: 'd = \u221A((' },
-                    { t: '5', lit: 'h', from: { p: 'b', half: 'x' } },
-                    { t: ' \u2212 ' },
-                    { t: '1', lit: 'h', from: { p: 'a', half: 'x' } },
-                    { t: ')\u00B2 + (' },
-                    { t: '4', lit: 'v', from: { p: 'b', half: 'y' } },
-                    { t: ' \u2212 ' },
-                    { t: '1', lit: 'v', from: { p: 'a', half: 'y' } },
-                    { t: ')\u00B2)' } ] },
-                { kind: 'step', parts: [
-                    { t: 'd = \u221A(' }, { t: '4\u00B2', lit: 'h' }, { t: ' + ' },
-                    { t: '3\u00B2', lit: 'v' }, { t: ')' } ] },
-                { kind: 'step', parts: [
-                    { t: 'd = \u221A(' }, { t: '16', lit: 'h' }, { t: ' + ' },
-                    { t: '9', lit: 'v' }, { t: ')' } ] },
-                { kind: 'result', parts: [
-                    { t: 'd = \u221A25 = ' }, { t: '5\u00A0units', lit: 'ab', home: true } ] }
-              ] } },
+    /* 45–45c — and the house to Cafe B, the same way, on a fresh board:
+       six across, two up, and a root that does not come out whole —
+       √40, which is more than 6 and so more than Cafe A's 5. */
+    ...walk({
+      ids: [45, '45b', '45c'],
+      a: { x: 1, y: 1 }, b: { x: -5, y: 3 }, c: { x: -5, y: 1 },
+      seg: { coordSide: 'under' },
+      say: { first: 'Now, the house to Cafe B.' },
+      base: { town: ['house', 'cafeA', 'cafeB'], townFocus: ['house', 'cafeB'],
+              mark: [ { x: 5, y: 4 } ], range: { min: 0, max: 8 } },
+      first: { transition: 'leaves', entrance: 'fly' }
+    }),
 
-    /* The comparison, not the winner. Children compute 5, compute 6 and
-       stop, because the maths is finished — and the maths being
-       finished is not the question being answered. Both numbers are on
-       the board as she says it, so the comparison is something they can
-       see rather than something they are told: Cafe B's own line is
-       drawn here and measured, which costs one row and a second. */
-    { id: 46, line: '5 is less than 6 \u2014 so Caf\u00E9 A is closer.',
-      entrance: 'stay', layout: 'board', town: true,
-      /* Kept and joined rather than replotted: this beat is reached
-         from the question itself or from the end of the teaching, and
-         on both the points are already up. Redrawing them would make
-         the last screen of the game look like a new board. */
-      keepSegment: true, joinSegment: true,
-      /* And the triangle the working drew goes with them. A child who
-         reached this beat by missing twice arrives with 45's scaffolding
-         still on the board, and this screen is about the two walks. */
-      dropLegs: true,
-      /* Cafe B was a marked place while it was one of two answers; here
-         it is one end of a line that gets measured, so the example
-         below owns it — and two dots on one coordinate is one dot too
-         many. */
-      dropMarks: true,
+    /* The comparison, not the winner: both walks on the map with their
+       lengths, and the smaller one named. */
+    { id: 46, line: '5 is less than √40 — so Cafe A is closer.',
+      entrance: 'fly', layout: 'board', transition: 'leaves',
+      town: ['house', 'cafeA', 'cafeB'],
       segment: { a: { x: 1, y: 1 }, b: { x: 5, y: 4 },
-                 coordSide: 'under', result: { text: '5\u00A0units' } },
-      /* Its far end is the house, which the pair above already names —
-         so this line is drawn to it and says nothing about it. Two
-         labels on one point is one label written over another. */
-      examples: [ { a: { x: -5, y: 1 }, b: { x: 1, y: 1, quiet: true },
-                    coordSide: 'under', result: { text: '6\u00A0units' } } ],
+                 coordSide: 'under', result: { text: '5 units' } },
+      /* Its far end is the house, which the pair above already names. */
+      examples: [ { a: { x: -5, y: 3 }, b: { x: 1, y: 1, quiet: true },
+                    coordSide: 'under', result: { text: '√40 units' } } ],
       hold: 5200 },
 
-    /* ---- 47-48: one more walk.
-
-       The cafe beat asked the child to RECOGNISE a distance question,
-       and gave them something to lean on while they did: two answers, a
-       comparison, and a guided walk through one of the distances if
-       they missed twice. None of that is here. One question, asked
-       outright, answered alone — the last rung of that scaffold, and
-       the only one that tells anybody whether it landed.
-
-       And it makes exactly one thing harder. Every distance this game
-       has worked has had both points up and to the right, so every
-       subtraction has been two positives, larger first. This pair
-       straddles both axes: -3 - 5 and 2 - (-4). That is the single
-       step of the formula children actually get wrong, and the lesson
-       has earned it — screens 15-18 worked 2 - (-3) slowly, on a
-       column, with the board building the subtraction. This is the
-       first time it has to be done inside the formula with nobody
-       helping.
-
-       Nothing on the screen points at it. A child who has it will do
-       it; a child who has not will answer 6 — from 2 - 4, or from
-       counting only the rise — and the working shows them exactly
-       where. That is what the working is for, and it is why there is
-       no special message for that answer. */
-    { id: 47,
-      /* The working goes on the paper, not in a panel beside it: the
-         board comes to the middle, pushes in on the drawing and the
-         room the working needs, and writes it there. */
-      stage: 'working', line: 'Now this one. Maya walks from the school to the park. How far is that?',
-      entrance: 'fly', layout: 'board',
-      /* The working is about the drawing, so the paper steps back:
-         the ruling, the axes and their numbering fade and the triangle
-         and its lengths are what is left at full strength. The screens
-         that write a solution on the board all do this now — it was on
-         only the last two of them, so the same beat came up loud on one
-         screen and quiet on the next. */
-      quietBoard: true, transition: 'leaves',
-      intro: 'measure', entry: true, town: true,
-      /* Same rule as 45: twelve is where this walk leaves the
-         paper, and the answer is ten. */
-      range: { min: 0, max: 12 },
-      // in halves, so the working can lift them out — see screen 42
-      segment: { a: { x: 5, y: -4, coordParts: [ { t: '(' }, { t: '5', glow: 'x' },
-                      { t: ',\u00A0' }, { t: '\u22124', glow: 'y' }, { t: ')' } ] },
-                 b: { x: -3, y: 2, coordParts: [ { t: '(' }, { t: '\u22123', glow: 'x' },
-                      { t: ',\u00A0' }, { t: '2', glow: 'y' }, { t: ')' } ] },
-                 coordSide: 'under' },
-      /* Held back from the question, as on screen 45: a right-angled
-         triangle drawn round the line before the child has answered
-         hands them the two numbers the working exists to find. */
-      legsLater: true,
-      legs: [
-        { from: { x:  5, y: -4 }, to: { x: -3, y: -4 } },
-        { from: { x: -3, y: -4 }, to: { x: -3, y:  2 } }
+    /* 47 — the same question with the other two places: the house, the
+       school and the park, and no cafes. Right, and the comparison
+       closes it; wrong twice, and both walks are worked. */
+    { id: 47, entrance: 'fly', layout: 'board', transition: 'leaves',
+      line: 'Which is closer to Maya’s house — the school or the park?',
+      town: ['house', 'school', 'park'],
+      pointsOnly: true,
+      segment: { a: { x: 1, y: 1 }, b: { x: 5, y: -4 }, coordSide: 'under' },
+      mark: [ { x: -3, y: 2 } ],
+      askLast: true,
+      options: [
+        { key: 'school', label: 'School', cls: 'school' },
+        { key: 'park',   label: 'Park',   cls: 'park' }
       ],
-      task: { kind: 'entry', pair: 'AB', answer: 10,
-              correctLine: 'Ten units. Nicely done.',
-              noCount: true,
-              /* One rung, and it names the trap without solving it. A
-                 child stuck on 3 - (-5) is stuck all day without it; a
-                 child who is not stuck loses nothing by reading it. */
-              feedback: [ 'Not quite. Count across, then up \u2014 watch the minus signs.' ],
-              showWorking: true,
-              formula: [
-                { kind: 'lead', small: true, parts: [
-                    { t: 'd = \u221A((x₂ − x₁)\u00B2 + (y₂ − y₁)\u00B2)' } ] },
-                /* With its brackets. "3 - -5" reads as a typo; the
-                   bracket is what makes the minus-a-minus visible, and
-                   this line is the whole reason the beat exists. */
-                { kind: 'step', small: true, parts: [
-                    { t: 'd = \u221A((' },
-                    { t: '\u22123', lit: 'h', from: { p: 'b', half: 'x' } },
-                    { t: ' \u2212 ' },
-                    { t: '5', lit: 'h', from: { p: 'a', half: 'x' } },
-                    { t: ')\u00B2 + (' },
-                    { t: '2', lit: 'v', from: { p: 'b', half: 'y' } },
-                    { t: ' \u2212 ' },
-                    { t: '(\u22124)', lit: 'v', from: { p: 'a', half: 'y' } },
-                    { t: ')\u00B2)' } ] },
-                { kind: 'step', parts: [
-                    { t: 'd = \u221A(' }, { t: '8\u00B2', lit: 'h' }, { t: ' + ' },
-                    { t: '6\u00B2', lit: 'v' }, { t: ')' } ] },
-                { kind: 'step', parts: [
-                    { t: 'd = \u221A(' }, { t: '64', lit: 'h' }, { t: ' + ' },
-                    { t: '36', lit: 'v' }, { t: ')' } ] },
-                { kind: 'result', parts: [
-                    { t: 'd = \u221A100 = ' }, { t: '10\u00A0units', lit: 'ab', home: true } ] }
-              ] } },
+      optionRow: true,
+      perch: 'park',
+      task: {
+        kind: 'choice',
+        answer: 'park',
+        feedback: ['Not quite — have another look.'],
+        voiceOnly: true,
+        rightAt: 48,
+        teachAt: '47a'
+      } },
 
-    /* Both walks on one picture. One worked example is a trick that
-       happened to work; two, with different numbers, in different
-       quadrants, measured the same way, is a method — and that is the
-       thing the child should be looking at when the game stops. */
-    { id: 48, line: 'Two walks, one way to measure them.',
-      entrance: 'stay', layout: 'board', town: true,
-      keepSegment: true, joinSegment: true, dropMarks: true,
-      /* The triangle goes. It was the working's own scaffolding, and
-         this screen is about the two walks, not about how one of them
-         was worked out. */
-      dropLegs: true,
-      segment: { a: { x: 5, y: -4 }, b: { x: -3, y: 2 },
-                 coordSide: 'under', result: { text: '10\u00A0units' } },
-      examples: [ { a: { x: 1, y: 1 }, b: { x: 5, y: 4 },
-                    coordSide: 'under', result: { text: '5\u00A0units' } } ],
-      hold: 6000 },
-
-    /* ================= the towers, the repair, the rescue =========
-       Everything up to here has been taught. These six find out
-       whether what was learned was the method or the wrapper, and
-       what happens when it was the wrapper.
-       ============================================================== */
-
-    /* 49 — the same mathematics as 47 and nothing at all that says so.
-       No town, no walk, no "now this one": a question, a board and a
-       control. It is the only beat in the game that offers no help of
-       any kind until it is asked for.
-
-       (−2, 5) to (4, −3): six across, eight down, a whole ten. Both
-       subtractions cross zero and one of them crosses it DOWNWARDS —
-       47 did 2 − (−4), this does −3 − 5, which is the direction a
-       child is likelier to write as −2. The numbers are deliberately
-       another 6-8-10: a retest that changed the sum as well as the
-       costume would measure two things at once and tell you neither. */
-    { id: 49, line: 'How long should this connection be?',
-      transition: 'leaves', entrance: 'fly', layout: 'board',
-      intro: 'measure', entry: true, legsLater: true,
-      range: { min: 0, max: 12 },
-      hint: 'How far across? How far up?',
-      segment: { a: { x: -2, y: 5, name: 'A', coordSide: 'under' },
-                 b: { x: 4, y: -3, name: 'B', coordSide: 'under' },
-                 dash: true },
-      legs: [
-        { from: { x: -2, y: 5 }, to: { x: 4, y: 5 }, mark: { name: 'C' } },
-        { from: { x:  4, y: 5 }, to: { x: 4, y: -3 } }
-      ],
-      task: { kind: 'entry', pair: 'AB', answer: 10, noCount: true,
-              correctLine: 'Ten units — exactly right.',
-              /* One rung, and then the repair takes over. No working
-                 here: a worked solution answers an arithmetic slip and
-                 says nothing at all to a child who paired x with y,
-                 which is the mistake people actually make with this
-                 formula. The next four screens find out which it was. */
-              feedback: ['Not quite. Count across, then up.'],
-              /* Right, and the repair is stepped over: it is for a
-                 child who did not get here. */
-              rightAt: 54,
-              teachAt: 50 } },
-
-    /* 50 — one line, and nothing to do.
-
-       It exists so that 51 is not landing on a child who is still
-       absorbing being wrong. Screens 43 and 44 are two screens for
-       exactly this reason and it is why that beat lands. */
-    { id: 50, line: 'Oops! Let\u2019s find it together.',
+    { id: '47a', line: 'Oops! Let’s find it together.',
       entrance: 'stay', layout: 'board', keepSegment: true,
-      /* The line between them, and nothing else on the board moves. */
-      pulse: 'ab',
-      segment: { a: { x: -2, y: 5, name: 'A', coordSide: 'under' },
-                 b: { x: 4, y: -3, name: 'B', coordSide: 'under' },
-                 dash: true },
+      town: ['house', 'school', 'park'],
       hold: 1500 },
 
-    /* 51 — the formula, stated rather than asked for. Written beside
-       a board that still has both towers and both coordinates on it,
-       which is the whole reason it is written here and not in a panel
-       of its own. */
-    { id: 51, line: 'Start with the Distance Formula.',
-      entrance: 'stay', layout: 'board',
-      /* The working is about the drawing, so the paper steps back:
-         the ruling, the axes and their numbering fade and the triangle
-         and its lengths are what is left at full strength. The screens
-         that write a solution on the board all do this now — it was on
-         only the last two of them, so the same beat came up loud on one
-         screen and quiet on the next. */
-      quietBoard: true, keepSegment: true,
-      /* Written on the paper beside the two towers, not in a panel of
-         its own: the formula and the thing it is about have to be one
-         picture, or the child has to choose which to look at. The
-         board comes to the middle and pushes in, the way every other
-         working in this lesson does — this one just has one line and
-         states it rather than deriving it. */
-      stage: 'working',
-      segment: { a: { x: -2, y: 5, name: 'A', coordSide: 'under' },
-                 b: { x: 4, y: -3, name: 'B', coordSide: 'under' },
-                 dash: true },
-      derive: { formula: [
-        { kind: 'lead', small: true, parts: [
-            { t: 'd = \u221A((x\u2082 \u2212 x\u2081)\u00B2 + (y\u2082 \u2212 y\u2081)\u00B2)' } ] }
-      ] },
-      hold: 3600 },
+    /* The house to the school: down first, then across — five, four,
+       and √41. The first side leaves the house downwards, clear of the
+       house's picture, which stands above its point. */
+    ...walk({
+      ids: ['47b', '47c', '47d'],
+      a: { x: 1, y: 1 }, b: { x: 5, y: -4 }, c: { x: 1, y: -4 },
+      seg: { coordSide: 'under' },
+      say: { first: 'First, the house to the school.' },
+      base: { town: ['house', 'school', 'park'], townFocus: ['house', 'school'],
+              mark: [ { x: -3, y: 2 } ], range: { min: 0, max: 8 } },
+      first: { keepSegment: true }
+    }),
 
-    /* 52 — the diagnosis. The formula with its numbers taken out and
-       the four numbers underneath as chips.
+    /* The house to the park: four across, one up, and √17. */
+    ...walk({
+      ids: ['47e', '47f', '47g'],
+      a: { x: 1, y: 1 }, b: { x: -3, y: 2 }, c: { x: -3, y: 1 },
+      seg: { coordSide: 'under' },
+      say: { first: 'Now, the house to the park.' },
+      base: { town: ['house', 'school', 'park'], townFocus: ['house', 'park'],
+              mark: [ { x: 5, y: -4 } ], range: { min: 0, max: 6 } },
+      first: { transition: 'leaves', entrance: 'fly' }
+    }),
 
-       Chips rather than typing: four text fields with minus signs in
-       them is a test of a keyboard, and this screen is not about
-       typing. Each chip carries its own tower's colour, which says
-       WHICH POINT it came from and never which axis — so "one of each
-       colour in a bracket" is visible and "x with x" is still the
-       child's to work out. */
-    { id: 52, line: 'Put the coordinates in.',
-      entrance: 'stay', layout: 'board', keepSegment: true,
-      segment: { a: { x: -2, y: 5, name: 'A', coordSide: 'under' },
-                 b: { x: 4, y: -3, name: 'B', coordSide: 'under' },
-                 dash: true },
-      task: { kind: 'slots',
-              correctLine: 'That\u2019s where they go.',
-              feedback: ['x with x, y with y — across first, then up.'],
-              voiceOnly: true,
-              spentLine: 'x with x, y with y — like this.' } },
+    { id: 48, line: '√17 is less than √41 — so the park is closer.',
+      entrance: 'fly', layout: 'board', transition: 'leaves',
+      town: ['house', 'school', 'park'],
+      segment: { a: { x: 1, y: 1 }, b: { x: -3, y: 2 },
+                 coordSide: 'under', result: { text: '√17 units' } },
+      examples: [ { a: { x: 5, y: -4 }, b: { x: 1, y: 1, quiet: true },
+                    coordSide: 'under', result: { text: '√41 units' } } ],
+      hold: 5200 },
 
-    /* 53 — and only now the arithmetic, with the substitution locked
-       above it. A child who filled 52 first try is being asked the one
-       thing that was actually wrong; a child who did not has just been
-       shown it. */
-    { id: 53, line: 'Now calculate.',
-      stage: 'working',
-      entrance: 'stay', layout: 'board',
-      /* The working is about the drawing, so the paper steps back:
-         the ruling, the axes and their numbering fade and the triangle
-         and its lengths are what is left at full strength. The screens
-         that write a solution on the board all do this now — it was on
-         only the last two of them, so the same beat came up loud on one
-         screen and quiet on the next. */
-      quietBoard: true, keepSegment: true,
-      intro: 'measure', entry: true, range: { min: 0, max: 12 },
-      hint: 'The two sides are 6 and 8.',
-      segment: { a: { x: -2, y: 5, name: 'A', coordSide: 'under' },
-                 b: { x: 4, y: -3, name: 'B', coordSide: 'under' },
-                 dash: true },
-      legs: [
-        { from: { x: -2, y: 5 }, to: { x: 4, y: 5 }, mark: { name: 'C' }, length: true },
-        { from: { x:  4, y: 5 }, to: { x: 4, y: -3 }, length: true }
-      ],
-      substituted: '(4 − (−2))² + (−3 − 5)²',
-      task: { kind: 'entry', pair: 'AB', answer: 10, noCount: true,
-              correctLine: 'Ten units. That is the connection.',
-              /* Everything except the last step, because the last step
-                 is the only one still to take — and said in one
-                 sentence, because a hint that takes as long to hear as
-                 the working takes to write is not a hint. The two
-                 numbers are already written on the legs; what a child
-                 stuck here is missing is what to DO with them. */
-              feedback: ['Square them, add, then take the root.'],
-              showWorking: true,
-              formula: [
-                { kind: 'lead', parts: [
-                    { t: '(AB)\u00B2', lit: 'ab', from: { side: 'ab' } }, { t: ' = ' },
-                    { t: '(6)\u00B2', lit: 'h', from: { leg: 0 } }, { t: ' + ' },
-                    { t: '(8)\u00B2', lit: 'v', from: { leg: 1 } } ] },
-                { kind: 'step', parts: [
-                    { t: '= ' }, { t: '36', lit: 'h' }, { t: ' + ' }, { t: '64', lit: 'v' } ] },
-                { kind: 'step', parts: [
-                    { t: '= ' }, { t: '100', lit: 'ab' } ] },
-                { kind: 'result', parts: [
-                    { t: 'AB = ' }, { t: '10\u00A0units', lit: 'ab', home: true } ] }
-              ] } },
+    /* ================= the towers and the rescue =================
+       No town, and no help with the method: two towers, then the
+       station and the van — each worked as a walk, on the child's own. */
 
-    /* 54 — the special case, and the last thing in the game.
+    /* 49–49c — the connection between the two towers: across, then
+       down; six, eight, ten. Then on to the station. */
+    ...walk({
+      ids: [49, '49b', '49c'],
+      a: { x: -2, y: 5 }, b: { x: 4, y: -3 }, c: { x: 4, y: 5 },
+      seg: { coordSide: 'under' },
+      say: { first: 'How long should this connection be?', cue: 'connection' },
+      base: { town: ['towerA', 'towerB'], range: { min: 0, max: 12 } },
+      first: { transition: 'leaves', entrance: 'fly' },
+      done: 54
+    }),
 
-       One point is the origin, and that is the beat: every distance so
-       far has cost two subtractions and this one costs none. A child
-       who sees why has understood what the subtraction was FOR — it
-       was never a ritual, it was the gap, and the gap from zero is the
-       number itself.
-
-       (−5, −12) is a 5-12-13, after the café's 3-4-5 and the walk's
-       6-8-10. It does not fit the plane the lesson is taught on, so
-       this screen asks for the wide board — the same plane at two
-       fifths, where a unit is still a cell and the vehicle still lands
-       on an intersection twelve rows down.
-
-       Answered on the ruler rather than the reel: the question means
-       "how far?", and a slider is an instrument for measuring where a
-       keypad is an instrument for spelling a number. */
-    { id: 54, line: 'The station is right at zero.',
-      line2: 'How far is the rescue vehicle from it?',
-      /* Missed twice and the working goes on the paper, beside the
-         drawing, the way every other one in this lesson does. */
-      stage: 'working',
-      transition: 'leaves', entrance: 'fly', layout: 'board',
-      /* The working is about the drawing, so the paper steps back:
-         the ruling, the axes and their numbering fade and the triangle
-         and its lengths are what is left at full strength. The screens
-         that write a solution on the board all do this now — it was on
-         only the last two of them, so the same beat came up loud on one
-         screen and quiet on the next. */
-      quietBoard: true,
-      board: 'wide', control: 'slider',
-      intro: 'measure', entry: true, legsLater: true,
-      range: { min: 0, max: 15 },
-      hint: 'One of them is zero. What is left to take away?',
-      /* The station is ON the origin — the first point in this game
-         that is — so its coordinate cannot go under it: that is where
-         the axis numbers live, and (0, 0) written over the 0 is two
-         labels in one place. It goes up and to the right instead,
-         away from the vehicle and clear of both axes; the vehicle,
-         down in the third quadrant with nothing near it, keeps the
-         ordinary treatment. */
-      /* The station is ON the origin — the first point in this game
-         that is — so underneath it is the x numbering, to its left is
-         the y numbering, and the two axis letters are the nearest
-         things on the board to it. Both points used to be told where
-         their labels went, the station's pushed two and a half cells
-         off its own dot to clear all of that. Nothing is told now:
-         the rule keeps clear of the numbering and the letters both,
-         and it puts a label against its point rather than near it. */
-      segment: { a: { x: 0, y: 0, name: 'S' },
-                 b: { x: -5, y: -12, name: 'R' },
-                 dash: true },
-      legs: [
-        { from: { x: 0, y: 0 }, to: { x: -5, y: 0 }, mark: { name: 'C' } },
-        { from: { x: -5, y: 0 }, to: { x: -5, y: -12 } }
-      ],
-      task: { kind: 'entry', pair: 'SR', answer: 13, noCount: true,
-              correctLine: 'Thirteen. From zero, the coordinates are the distance.',
-              feedback: ['Nothing to subtract from zero — it is just 5 and 12.'],
-              /* The scaffold arrives when it is needed: they have had
-                 their ungiven go, and now the slider is a ruler. */
-              rulerAfterMiss: true,
-              showWorking: true,
-              formula: [
-                { kind: 'lead', parts: [
-                    { t: '(SR)\u00B2', lit: 'ab', from: { side: 'ab' } }, { t: ' = ' },
-                    { t: '(5)\u00B2', lit: 'h', from: { leg: 0 } }, { t: ' + ' },
-                    { t: '(12)\u00B2', lit: 'v', from: { leg: 1 } } ] },
-                { kind: 'step', parts: [
-                    { t: '= ' }, { t: '25', lit: 'h' }, { t: ' + ' }, { t: '144', lit: 'v' } ] },
-                { kind: 'step', parts: [
-                    { t: '= ' }, { t: '169', lit: 'ab' } ] },
-                { kind: 'result', parts: [
-                    { t: 'SR = ' }, { t: '13\u00A0units', lit: 'ab', home: true } ] }
-              ] },
-      hold: 6000 },
+    /* 54–54c — the station is at zero and the van at (−5, −12): along
+       the x-axis to the corner, then down; five, twelve, thirteen. On
+       the reel, like every other walk; on the wide board, where a unit
+       is still a cell. */
+    ...walk({
+      ids: [54, '54b', '54c'],
+      a: { x: 0, y: 0 }, b: { x: -5, y: -12 }, c: { x: -5, y: 0 },
+      say: { first: 'The station is right at zero.', cue: 'station' },
+      base: { town: ['station', 'van'], board: 'wide', range: { min: 0, max: 15 } },
+      first: { transition: 'leaves', entrance: 'fly' }
+    }),
 
     /* ================= what kind of triangle is this park? =========
        The last beat, and the first one where the distance formula is

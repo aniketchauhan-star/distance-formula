@@ -108,6 +108,25 @@ window.FormulaTable = (function () {
               const t = p.t || '';
               if (!seenEq && t.trim() === '=') { seenEq = true; side = rhs; cells[k] = { kind: 'op', el: eq }; return; }
               const colour = p.lit ? colours[p.lit] : null;
+              /* A blank inside the expression (the axis cases): the same
+                 box and scroller as a blank in a column, sitting in the
+                 line where the term goes. Its part's text is the answer,
+                 or `answer` names it. */
+              if (p.offer) {
+                const want = p.answer != null ? String(p.answer) : t.trim();
+                const box = mk('span', 'ft-pick');
+                const wide = p.offer.map(String).reduce(function (a, b) {
+                  return b.length > a.length ? b : a; }, want);
+                box.appendChild(mk('span', 'ft-sizer', wide));
+                const shown = mk('span', 'ft-num');
+                if (colour) shown.style.color = colour;
+                box.appendChild(shown);
+                side.appendChild(box);
+                cells[k] = { kind: 'pick', el: box, box: box, num: shown,
+                             answer: /^-?\d+(?:\.\d+)?$/.test(want) ? parseFloat(want) : want,
+                             offer: p.offer.slice() };
+                return;
+              }
               if (p.from) {
                 const slot = mk('span', 'ft-slot');
                 const fill = mk('span', 'ft-fill', t.trim());
@@ -292,12 +311,13 @@ window.FormulaTable = (function () {
         const open = function () {
           if (c.drop) return;
           const drop = mk('span', 'ft-drop');
+          /* A scroller that carries letters on any tile is set in the
+             table's own face throughout: Lilita One has no ₁ or ₂, and a
+             pair of tiles in two faces reads as a mistake. */
+          const words = c.offer.some(function (v) { return !/^-?\d+(?:\.\d+)?$/.test(String(v)); });
           c.offer.forEach(function (v) {
             const tile = mk('button', 'ft-tile', String(v));
-            /* A tile that carries letters rather than a number is set in
-               the table's own face: Lilita One has no ₁ or ₂, and a tile
-               half in one face and half in another reads as a mistake. */
-            if (!/^-?\d+(?:\.\d+)?$/.test(String(v))) tile.classList.add('ft-word');
+            if (words) tile.classList.add('ft-word');
             tile.type = 'button';
             tile.setAttribute('aria-label', String(v));
             tile.addEventListener('click', function (e) {
@@ -352,6 +372,12 @@ window.FormulaTable = (function () {
             if (last && rows.length) setRoom(0);
           }, 380);
         } else if (last) setRoom(0);
+      },
+
+      /* The working's answer, shown as the answer: its blank goes green. */
+      mark: function (r, k) {
+        const c = rows[r] && rows[r].cells[k];
+        if (c && c.box) c.box.classList.add('good');
       },
 
       /* Wrong: that tile shakes where it is, its number red while it

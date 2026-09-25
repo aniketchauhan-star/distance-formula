@@ -5656,7 +5656,7 @@
       if (!this.segGroup) return;
       this.glowCoords(false);
       if (this.segRes) this.segRes.classList.remove('pop', 'set');
-      if (this.segLine) this.segLine.classList.remove('lit');
+      if (this.segLine) this.segLine.classList.remove('lit', 'good');
       this.segGroup.classList.remove('on');
       this.markCrossing();
       const parts = this.segParts;
@@ -5906,10 +5906,17 @@
        there. Each one gets its own marker rather than the single one
        being moved, so the first stays locked in place while the second
        is being found. */
-    solve: function (gx, gy) {
+    solve: function (gx, gy, opts) {
       const NS2 = 'http://www.w3.org/2000/svg';
       const G = C.GRID, F = G.found;
       const px = G.originX + gx * G.stepX, py = G.originY - gy * G.stepY;
+      /* A place in the town is one of several plotted together, so it is
+         written the way the pair beside it is — at the pair's own size
+         and the pair's own distance under its point. At the size a
+         located point is written, (−5, 1) came out a third bigger than
+         the (1, 1) next to it. */
+      const size = (opts && opts.size) || F.labelSize;
+      const under = (opts && opts.under != null) ? opts.under : -F.labelDy;
 
       const g = document.createElementNS(NS2, 'g');
       g.setAttribute('class', 'found');
@@ -5928,7 +5935,7 @@
          so a point the child locates keeps its label exactly where they
          first saw it rather than shuffling when the pair is joined. */
       const ctext = '(' + numText(gx) + ',\u00A0' + numText(gy) + ')';
-      const cw = this.textW(ctext, F.labelSize);
+      const cw = this.textW(ctext, size);
       t.setAttribute('x', this.clampLabel(px, cw));
       /* And remembered, so the pair this point is about to become is
          labelled where the child already saw it. A located mark and the
@@ -5942,9 +5949,10 @@
          the same number. Both have to agree: a pair tapped out with its
          coordinates under it and then joined with them over it looks
          like two different pairs. */
-      t.setAttribute('y', py + (F.side === 'under' ? -F.labelDy : F.labelDy));
+      t.setAttribute('y', py + (F.side === 'under' ? under : -under));
       t.setAttribute('fill', G.ink);
-      t.setAttribute('font-size', F.labelSize);
+      t.setAttribute('font-size', size);
+      g.dataset.at = gx + ',' + gy;
       t.setAttribute('class', 'flabel');
       t.textContent = ctext;
       g.appendChild(c); g.appendChild(t);
@@ -5954,6 +5962,38 @@
       if (this.dotGroup) this.dotGroup.classList.remove('on');   // highlighters away
       void g.getBoundingClientRect();
       g.classList.add('on');
+    },
+
+    /* The other places on a town screen, each a point with its
+       coordinates under it — so every place on the map can be read,
+       not only the two a question is about. */
+    markPlaces: function (list, later) {
+      const self = this, SG = C.GRID.segment, tk = this.typeScale();
+      const size = SG.coordSize * tk;
+      const under = SG.dotR + 6 + size * 0.62;
+      (list || []).forEach(function (m, n) {
+        const at = self.dataAt(m.x, m.y);
+        if (at) return;                            // already there
+        later(function () { self.solve(m.x, m.y, { size: size, under: under }); SFX.tick(n + 1); },
+              260 + n * 220);
+      });
+    },
+    dataAt: function (gx, gy) {
+      return (this.foundMarks || []).filter(function (g) {
+        return g.dataset.at === gx + ',' + gy;
+      })[0] || null;
+    },
+
+    /* The places a town screen is about stay at full strength; every
+       other place, and its point, steps back. Null puts them all back. */
+    townFocus: function (keys) {
+      const places = (C.TOWN.places || []);
+      const dim = keys ? places.filter(function (p) { return keys.indexOf(p.key) < 0; }) : [];
+      const dimAt = dim.map(function (p) { return p.x + ',' + p.y; });
+      (this.foundMarks || []).forEach(function (g) {
+        g.classList.toggle('dim', dimAt.indexOf(g.dataset.at) >= 0);
+      });
+      if (Town && Town.focus) Town.focus(dim.map(function (p) { return p.key; }));
     },
 
     clearFound: function () {
@@ -6493,12 +6533,18 @@
             // a different pair is a different drawing
             want.joined = false; want.dash = false; want.legs = []; want.result = null; want.marker = false;
           }
+          /* Only the screen that PLOTS the pair decides whether it is
+             joined — the first of the run, or one bringing a different
+             pair. A screen keeping the same pair draws no line of its
+             own (the table after a walk, "Oops" after a question). */
+          const plots = j === r || !want.pair || !same(want.pair, e.segment);
           want.pair = e.segment;
           /* Joined by the screen that plots it, unless the question is
              about the pair itself (then the line is the answer, and the
-             child lays it down) or it is only asking which pair. */
-          if (!measure && !e.pointsOnly) want.joined = true;
-          if (measure && t.measureLeg != null) want.joined = true;
+             child lays it down), or it is only asking which pair, or AB
+             is the unknown of a walk (only its dotted guide is drawn). */
+          if (plots && !measure && !e.pointsOnly) want.joined = true;
+          if (plots && measure && t.measureLeg != null && !e.guideOnLine) want.joined = true;
           if (e.segment.dash) want.dash = true;
           if (e.segment.result && !measure) want.result = e.segment.result;
         }
@@ -7068,10 +7114,12 @@
           /* Places on the board that are not one of the pair — the
              third corner of a town. Plotted and labelled exactly as
              the pair is, because they are the same kind of thing. */
-          (entry.mark || []).forEach(function (m, n) {
+          if (entry.town) Board.markPlaces(entry.mark, self.later.bind(self));
+          else (entry.mark || []).forEach(function (m, n) {
             self.later(function () { Board.solve(m.x, m.y); SFX.tick(n + 1); },
                        260 + n * 220);
           });
+          if (entry.town) self.later(function () { Board.townFocus(entry.townFocus || null); }, 900);
           /* A pair already on the board, joined here. The beat that
              says "first, find this distance" is the one that draws the
              line the distance is along — before it there is nothing on
@@ -7176,8 +7224,15 @@
         /* A distance question arrives with the frame empty and brings
            the board, the question and the controls in itself, in that
            order — so the sweep must not put any of them up early. */
-        const holds = entry.intro === 'measure';
+        const holds = entry.intro === 'measure' ||
+                      (!!AX && !!entry.task && entry.task.kind === 'table');
         if (onBoard && !holds) {
+          /* Up without being built in front of anyone — so built here,
+             axes and all. Reached from the picker, a screen behind the
+             leaves put the paper up with no axes on it: they are only
+             ever drawn by the sweep of a screen that builds the board. */
+          Board.build();
+          Board.settleFurniture();
           Board.place(geom.panelBox || C.GRID.box);
           el.gridPanel.classList.remove('hidden');
           Board.shown = true;
@@ -7219,7 +7274,19 @@
          screen after is a town on the wrong board. */
       const dressTown = function (e) {
         if (Town) {
-          if (e.town) { Town.set(C.TOWN.places); Board.onPlaced(); Town.show(); }
+          /* `town: true` is every place; a list names the ones this
+             screen is about — the cafés and the house, or the school,
+             the park and the house. A place that has nothing to do with
+             the question is not on the map. */
+          const keys = Array.isArray(e.town) ? e.town : null;
+          if (e.town) {
+            Town.set((C.TOWN.places || []).filter(function (p) {
+              return !keys || keys.indexOf(p.key) >= 0;
+            }));
+            Board.onPlaced();
+            Town.show();
+            Board.townFocus(e.townFocus || null);
+          }
           /* A town that has gone takes its footprint with it, or the
              next board keeps its labels clear of buildings that are no
              longer standing there. */
@@ -7242,7 +7309,43 @@
       /* An axis case: plot the segment, then narrow the formula a step
          at a time until only the one difference that matters is left.
          Which axis it is lives entirely in the config passed in. */
+      /* The axis case as the child's own go (39, 41): the board builds in
+         the middle of an empty frame with the two points on it and moves
+         across to its side; she flies in and says what the case is; then
+         she goes, the board comes back to make room, and the table opens
+         out of its right edge for the child to fill — both y's (or x's)
+         are 0, the zero term goes, and the child picks what is left. The
+         working is theirs: nothing is carried across for them. */
+      const runAxisPick = function (X) {
+        const spec = { a: X.a, b: X.b, color: C.GRID.leg.color,
+                       coordDy: X.coordDy, nameDy: X.nameDy };
+        self.state = 'entering';
+        el.nextBtn.classList.remove('ready');
+        el.standSwifty.classList.add('hidden');
+        el.birdWin.classList.add('hidden');
+        Board.viewName = null;
+        Board.viewTo(null, 0);
+        Board.place(C.GRID.centre);
+        Board.run(self.later.bind(self), function () {
+          Board.runSegment(spec, self.later.bind(self), function () {
+            self.slideBoard(geom.panelBox);
+            self.later(function () {
+              self.flyIn(function () {
+                const g = self.geom || {};
+                const aim = g.aim || { x: C.ANCHOR.x, y: C.ANCHOR.y - 200 * C.CHAR_SCALE };
+                self.state = 'speaking';
+                FX.sparkles(aim.x, aim.y, 7, 170 * (g.scale || C.CHAR_SCALE));
+                Bubble.open(entry.line, function () {
+                  self.later(function () { self.runTable(entry); }, Bubble.voiceTail + 700);
+                });
+              });
+            }, 760);
+          });
+        });
+      };
+
       const runAxisCase = function (X) {
+        if (entry.task && entry.task.kind === 'table') { runAxisPick(X); return; }
         const spec = { a: X.a, b: X.b, color: C.GRID.leg.color,
                        coordDy: X.coordDy, nameDy: X.nameDy };
         /* The working as a TABLE, the way 28's arrives: she stays in
@@ -7403,9 +7506,21 @@
                cue): the points go up now, the guide with her line. */
             const spec = entry.guideOnLine ? Object.assign({}, entry.segment, { dash: false })
                                            : entry.segment;
-            Board.runPoints(spec, self.later.bind(self), done, measuringLeg);
+            /* And no solid AB on such a screen: a side question draws
+               the pair's line along with its points, but where AB is
+               the unknown (29, every walk) the dotted guide is all of
+               it there is — a solid line under the dots read as AB
+               already known. */
+            Board.runPoints(spec, self.later.bind(self), done,
+                            measuringLeg && !entry.guideOnLine);
           };
           laid(function () {
+            /* The town's other places, plotted like the pair, and the
+               ones this walk is not about stepped back. */
+            if (entry.town) {
+              Board.markPlaces(entry.mark, self.later.bind(self));
+              self.later(function () { Board.townFocus(entry.townFocus || null); }, 700);
+            }
             const asks = function () {
               /* A screen resting on the right angle has its marker up
                  once its sides are — the measuring intro speaks through
@@ -7646,6 +7761,8 @@
       /* Screens 9-11 stay on the board they inherited: no leaves, no
          rebuild — just clear the last segment and plot the next. */
       if (entry.layout === 'board' && entry.transition !== 'leaves') {
+        // and here too, for the same reason — see dress()
+        if (!Board.shown) { Board.build(); Board.settleFurniture(); }
         el.gridPanel.classList.remove('hidden');
         Board.shown = true;
         if (!entry.keepSegment) Board.clearSegment();
@@ -7906,6 +8023,9 @@
         const bare = String(w || '').toLowerCase().replace(/[^a-z0-9]/g, '');
         cues.forEach(function (c, n) {
           if (spent[n] || bare !== String(c.word || '').toLowerCase()) return;
+          /* A cue can belong to one line (`in`: words from it), so the
+             same word in an earlier sentence does not set it off. */
+          if (c.in && String(Bubble.full || '').indexOf(c.in) < 0) return;
           spent[n] = 1;
           if (c.example != null && (entry.examples || [])[c.example]) {
             Board.runExamples([entry.examples[c.example]],
@@ -8997,12 +9117,18 @@
              control up: it goes with her. */
           if (Opts) Opts.hide();
           if (Sel) Sel.hide();
-          if (Town) Town.hide();
-          Board.clearFound();
+          /* A walk across the town keeps its town: the places and their
+             points stay on the map while the working is done beside it. */
+          if (Town && !entry.town) Town.hide();
+          if (!entry.town) Board.clearFound();
           self.later(function () {
             self.slideBoard(T.board);
             self.later(function () {
               const B = T.board, left = B.x + B.w - T.tuck;
+              /* Each side's name and numbers in that side's own colour,
+                 read off the drawing: the first side of a walk is not
+                 always the level one (the school walk goes down first). */
+              Table.setColours(self.sideColours());
               Table.build(lines);
               /* A table of letters (the general triangle) is wider than
                  one of numbers, and can ask for smaller type. */
@@ -9021,6 +9147,7 @@
                 let at = T.rowMs;
                 if (carries(lead)) at = self.carryRow(lead, 0, 0);
                 else { Table.writeRow(0); SFX.draw(); }
+                self.tableRow = 0;
                 const blanks = Table.blanks();
                 self.later(function () { self.nextBlank(lines, blanks, 0); }, at + 300);
               }, T.openMs);
@@ -9039,7 +9166,7 @@
         /* Rows after the last blank have nothing to ask — the square
            root the working ends on — so they are written in, carried
            where they carry something, and then the table is done. */
-        const from = blanks.length ? blanks[blanks.length - 1][0] + 1 : 1;
+        const from = (this.tableRow || 0) + 1;
         let at = 0;
         for (let r2 = from; r2 < lines.length; r2++) {
           if (carries(lines[r2])) at = this.carryRow(lines[r2], r2, at);
@@ -9052,17 +9179,25 @@
         return;
       }
       const r = blanks[n][0], k = blanks[n][1];
-      /* A row's first blank brings the row: written whole, or — where a
-         part in it says where it comes from, like the result's "AB" —
-         its skeleton, then that part carried in off the triangle, and
-         only then the blank. */
-      if (n === 0 || blanks[n - 1][0] !== r) {
-        if (carries(lines[r])) {
-          this.later(function () { self.askBlank(lines, blanks, n); },
-                     this.carryRow(lines[r], r, 0));
-          return;
+      /* A row's first blank brings the row — and any row before it that
+         asks nothing (the axis cases write two lines of working between
+         their blanks). Each is written whole, or — where a part in it
+         says where it comes from, like the result's "AB" — as its
+         skeleton with that part carried in off the triangle; and only
+         then the blank. */
+      if (r > (this.tableRow || 0)) {
+        let at = 0;
+        for (let r2 = (this.tableRow || 0) + 1; r2 <= r; r2++) {
+          if (carries(lines[r2])) at = this.carryRow(lines[r2], r2, at);
+          else {
+            (function (row, when) {
+              self.later(function () { Table.writeRow(row); SFX.draw(); }, when);
+            })(r2, at);
+            if (r2 < r) at += C.GRID.table.rowMs + 400;
+          }
         }
-        Table.writeRow(r);
+        this.tableRow = r;
+        if (at) { this.later(function () { self.askBlank(lines, blanks, n); }, at); return; }
       }
       this.askBlank(lines, blanks, n);
     },
@@ -9099,6 +9234,25 @@
       const self = this, t = this.task;
       if (!t) return;
       t.done = true;
+      /* A walk can hand on past the screens after it (the towers' table
+         goes on to the station). */
+      if (t.spec.rightAt != null) this.branch = t.spec.rightAt;
+      /* An axis case ends on its answer shown as the answer: the last
+         blank goes green, so does the line it measures, and both points
+         sparkle as she says so. */
+      const AXd = axisOf(C.SCRIPT[this.index] || {});
+      if (AXd) {
+        const bl = Table.blanks(), last = bl[bl.length - 1];
+        if (last) Table.mark(last[0], last[1]);
+        if (Board.segLine) Board.segLine.classList.add('good');
+        [AXd.a, AXd.b].forEach(function (p, n) {
+          self.later(function () {
+            const at = Board.stagePos(p.x, p.y);
+            FX.sparkles(at.x, at.y, 10, 90);
+            SFX.sparkle();
+          }, 500 + n * 260);
+        });
+      }
       const g = standGeom(C.BOARD.tableStand, {});
       this.geom = g;
       this.raised = false;
@@ -9191,12 +9345,21 @@
        turn — a copy carried in off the triangle where the term was read
        from it, written in place where it was worked out. A blank is
        left for the child. Returns when the row is done. */
+    /* The colour each side is drawn in right now: 'h' is the first
+       side, 'v' the second, whichever way each runs. */
+    sideColours: function () {
+      const LG = C.GRID.leg, S = Board.legSlots || [];
+      const of = function (i, dflt) {
+        const L = S[i];
+        return (L && L.line && L.line.getAttribute('stroke')) || dflt;
+      };
+      return { h: of(0, LG.hColor), v: of(1, LG.vColor), ab: '#1F6FD0' };
+    },
+
     carryRow: function (l, r, at) {
       const self = this, T = C.GRID.table, FT = window.FormulaTable;
-      const colourOf = function (p) {
-        return p.lit === 'h' ? C.GRID.leg.hColor
-             : p.lit === 'v' ? C.GRID.leg.vColor : '#1F6FD0';
-      };
+      const cols = this.sideColours();
+      const colourOf = function (p) { return cols[p.lit] || cols.ab; };
       self.later(function () { Table.showRow(r); SFX.draw(); }, at);
       at += T.rowMs;
       (l.parts || []).forEach(function (p, k) {

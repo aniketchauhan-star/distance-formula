@@ -664,6 +664,10 @@ html.calm #nudge.on { animation: none; opacity: 1; }
 #gridAxes .trifill.set { transition: none; }
 #gridAxes .rightangle.on.set { opacity: 1; animation: none; }
 #gridPanel #gridAxes .found.set { opacity: 1; animation: none; }
+/* A place in the town the screen is not about — its point and its
+   coordinates step back with its picture (Board.townFocus). */
+#gridAxes .found { transition: opacity .42s ease; }
+#gridPanel #gridAxes .found.dim { opacity: .3 !important; }
 #gridAxes .legcoord, #gridAxes .legname {
   opacity: 0;
   font-family: 'Nunito', system-ui, sans-serif;
@@ -890,6 +894,8 @@ html.calm #gridAxes .xsweep.draw { animation: none; opacity: .85; stroke-dashoff
 
 /* the segment lit once it is the answer, with the answer on it */
 #gridAxes .segline.lit { animation: segLit 1.4s ease-in-out infinite; }
+/* The distance an axis case has just found, shown as found. */
+#gridAxes .segline.good { stroke: #27A348 !important; transition: stroke .5s ease; }
 @keyframes segLit {
   0%, 100% { filter: none; }
   50%      { filter: drop-shadow(0 0 10px rgba(255, 170, 40, .9)); }
