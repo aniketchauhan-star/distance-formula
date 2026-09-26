@@ -3524,9 +3524,15 @@
            and the same row it measures against. */
         let lyOut = ly;
         if (!horiz && !diag) {
+          /* Turned, it stands as tall as its words are long, and that
+             whole height has to clear the row, not the type's own. Tested
+             against the type's height it stopped half across the axis
+             and was handed to seatLength as blocked, which carried it a
+             long way out from its side ("6 units" on 30c, 27 units off
+             the line where every other length is 3 or 4). */
           const band = LG.lenSize * tk;
           let guard = 0;
-          while (this.onXAxisRow(lyOut, band) && guard++ < 12) {
+          while (this.onXAxisRow(lyOut, bh) && guard++ < 16) {
             lyOut += towardCorner * band * 0.55;
           }
         }
@@ -9341,10 +9347,15 @@
       const t = this.task;
       if (!t || t.done) return;
 
-      // only axis-aligned pairs are asked about, so one term is zero
+      /* How long the pair really is. It used to add the two steps, which
+         is the length only along a row or a column (one of them is
+         zero) — and 30 asks for a slanted AB outright, 6 across and 8
+         down, which is 10, not 14. Whole, as the reel only has whole
+         numbers. */
       const pair = this.measurePair();
+      const d = pair ? Math.hypot(pair.to.x - pair.from.x, pair.to.y - pair.from.y) : null;
       const answer = t.spec.answer != null ? t.spec.answer
-        : (pair ? Math.abs(pair.to.x - pair.from.x) + Math.abs(pair.to.y - pair.from.y) : null);
+        : (d == null ? null : (Math.abs(d - Math.round(d)) < 1e-9 ? Math.round(d) : d));
 
       this.revealAnswer(v, v === answer, t.spec.correctLine);
     },

@@ -1939,6 +1939,11 @@ window.CFG = (function () {
        base    what all three share (the town, the board, the range)
        first   what only the first screen has (its entrance, a sweep)
        done    where the table hands on to, if not the next screen
+       askFirst  { id, rightAt, line } — AB asked for outright first, on
+               a screen of its own (it takes the first of `ids`): right,
+               and the walk is stepped over to `rightAt`; wrong, and the
+               walk is how it is found — its first screen, now `id`,
+               opens "Oops! Let’s find it together." and brings C (30).
      ------------------------------------------------------------- */
   const SQRT = '√', SQ = '²', UNIT = ' units';
   /* The whole triangle each run of screens builds, for its labels to be
@@ -1990,10 +1995,50 @@ window.CFG = (function () {
     const shape = [ { from: w.a, to: w.c }, { from: w.c, to: w.b } ];
     const say = w.say || {};
     const firstWord = function (t) { return String(t).split(/[\s,.]+/)[0]; };
+    /* Every question in a walk is asked one way: "What is the distance
+       between A and C?" — never "How far is it from A to C?" or "Now
+       find the distance from C to B." (the same words the pair screens
+       and the first question use). */
+    const askAC = say.ask || 'What is the distance between A and C?';
+    const askCB = say.second || 'What is the distance between C and B?';
     const base = Object.assign({ shape: shape }, w.base || {});
-    const s1 = Object.assign({
+    /* AB asked for outright, before any of the walk: A and B, the dotted
+       line between them on her word and AB drawn over it, then "What is
+       the distance between A and B?" with AB lit, and the reel. A right
+       answer steps over the walk; a wrong one — seen as the line falling
+       short of B or running past it — hands on to the walk, which finds
+       it. */
+    const ask = w.askFirst ? (w.askFirst.line || 'What is the distance between A and B?') : null;
+    const s0 = w.askFirst ? Object.assign({
       id: w.ids[0],
-      line: say.first, line2: say.ask || 'How far is it from A to C?',
+      line: say.first, line2: ask,
+      guideOnLine: true,
+      wordCues: [ { word: say.cue || firstWord(say.first), in: say.first,
+                    guide: true, beat: ['a', 'b'] },
+                  { word: firstWord(ask), in: ask, spot: 'ab' } ],
+      lineLights: [ {}, { pulse: 'ab' } ],
+      entrance: 'none', layout: 'board',
+      intro: 'measure', distance: true,
+      segment: seg,
+      task: { kind: 'distance', correctLine: 'That’s right!',
+              rightAt: w.askFirst.rightAt, teachAt: w.askFirst.id }
+    }, base, w.first || {}) : null;
+    const s1 = w.askFirst ? Object.assign({
+      id: w.askFirst.id,
+      /* Reached from the question above, wrong: AB is on the board
+         already, so this screen keeps it and brings only the corner —
+         on the first word of her question about AC, as below. */
+      line: 'Oops! Let’s find it together.', line2: askAC,
+      wordCues: [ { word: firstWord(askAC), in: askAC, spot: 'h', legs: true, beat: ['c'] } ],
+      lineLights: [ {}, { pulse: 'h' } ],
+      entrance: 'none', layout: 'board', keepSegment: true,
+      intro: 'measure', distance: true,
+      segment: seg,
+      legs: [ Object.assign({ dash: true }, legA) ],
+      task: { kind: 'distance', measureLeg: 0, countLine: 'Count carefully!' }
+    }, base) : Object.assign({
+      id: w.ids[0],
+      line: say.first, line2: askAC,
       /* Her first sentence has only A and B in it: the dotted line waits
          for its word, A and B pulse with it, and AB is drawn solid over
          the dots (drawGuide). Her next sentence brings the corner: from
@@ -2006,8 +2051,7 @@ window.CFG = (function () {
       guideOnLine: true,
       wordCues: [ { word: say.cue || firstWord(say.first), in: say.first,
                     guide: true, beat: ['a', 'b'] },
-                  { word: firstWord(say.ask || 'How'), in: say.ask || 'How far is it from A to C?',
-                    spot: 'h', legs: true, beat: ['c'] } ],
+                  { word: firstWord(askAC), in: askAC, spot: 'h', legs: true, beat: ['c'] } ],
       lineLights: [ {}, { pulse: 'h' } ],
       /* Not quiet: these two screens ask for a side to be COUNTED, and
          a child counting squares needs to see them. */
@@ -2019,8 +2063,8 @@ window.CFG = (function () {
     }, base, w.first || {});
     const s2 = Object.assign({
       id: w.ids[1],
-      line: say.second || 'Now find the distance from C to B.',
-      wordCues: [ { word: firstWord(say.second || 'Now'), spot: 'v' } ],
+      line: askCB,
+      wordCues: [ { word: firstWord(askCB), spot: 'v' } ],
       lineLights: [ { pulse: 'v' } ],
       entrance: 'none', layout: 'board',
       intro: 'measure', distance: true, keepSegment: true,
@@ -2031,14 +2075,18 @@ window.CFG = (function () {
     const s3 = Object.assign({
       id: w.ids[2],
       lines: say.table || [ 'We know AC and CB.', 'Let’s use Pythagoras to find AB.' ],
-      /* The two known sides on "We know AC and CB."; then AB on the
-         line that names it — as on 29c: AB and its points forward, AB
-         pulsing and A and B ringing, the rest stepped back until just
-         after the sentence, and the square left up for Pythagoras. */
-      wordCues: [ { word: 'We', spot: ['h', 'v'] },
+      /* The two known sides on "We know AC and CB." — lit and pulsing,
+         the rest stepped back, for as long as the sentence is up: they
+         used to go back the instant its last word was typed, so the
+         sentence sat there naming two sides nothing was showing. Then AB
+         takes the light on the line that names it — as on 29c: AB and
+         its points forward, AB pulsing and A and B ringing, the rest
+         stepped back until just after the sentence, and the square left
+         up for Pythagoras. */
+      wordCues: [ { word: 'We', spot: ['h', 'v'], pulse: ['h', 'v'], run: 2200 },
                   { word: firstWord((say.table || [])[1] || 'Let’s'), spot: 'ab', pulse: 'ab',
                     beat: ['a', 'b'], run: 1700 } ],
-      lineLights: [ { unspot: true, hold: 600 }, { unspot: true, after: 550 } ],
+      lineLights: [ { hold: 1000 }, { unspot: true, after: 550 } ],
       rightAngle: true, keepMark: true,
       entrance: 'none', layout: 'board', quietBoard: true, keepSegment: true,
       segment: seg,
@@ -2070,7 +2118,7 @@ window.CFG = (function () {
                 : { t: res + UNIT, lit: 'ab', answer: res, offer: [res, String(sum)] } ] }
         ] }
     }, base);
-    return [s1, s2, s3];
+    return s0 ? [s0, s1, s2, s3] : [s1, s2, s3];
   }
 
   /* -------------------------------------------------------------
@@ -2543,8 +2591,8 @@ window.CFG = (function () {
          stay, and A, AC and the dotted AB step back — through the
          question, until the screen goes. It used to wait for the end of
          the sentence, so "from C to B" was said over the whole drawing. */
-      line: 'Now find the distance from C to B.',
-      wordCues: [ { word: 'Now', spot: 'v' } ],
+      line: 'What is the distance between C and B?',
+      wordCues: [ { word: 'What', spot: 'v' } ],
       entrance: 'none', view: 'triangle', quietBoard: true,
       layout: 'board', distance: true, intro: 'measure', keepSegment: true,
       segment: { a: { x: 2, y: 1, name: 'A' },
@@ -2880,10 +2928,13 @@ window.CFG = (function () {
          and A and B ringing, AC, CB and C stepped back — until just
          after the sentence, before the table opens. The square stays up:
          it is what lets Pythagoras be used, named in the same breath. */
-      wordCues: [ { word: 'Look', spot: ['h', 'v'] },
+      /* The two sides stay lit, pulsing, for as long as her sentence is
+         up — until AB takes the light on the next one — rather than going
+         back the instant its last word is typed. */
+      wordCues: [ { word: 'Look', spot: ['h', 'v'], pulse: ['h', 'v'], run: 2600 },
                   { word: 'triangle', mark: true },
                   { word: 'Let’s', spot: 'ab', pulse: 'ab', beat: ['a', 'b'], run: 1700 } ],
-      lineLights: [ { unspot: true, hold: 600 }, { unspot: true, after: 550 } ],
+      lineLights: [ { hold: 1000 }, { unspot: true, after: 550 } ],
       keepMark: true,
       entrance: 'none', view: 'triangle', quietBoard: true, layout: 'board', keepSegment: true,
       segment: { a: { x: -2, y: 2, name: 'A' }, b: { x: 2, y: 5, name: 'B' }, dash: true },
@@ -2934,7 +2985,10 @@ window.CFG = (function () {
       a: { x: -3, y: 3 }, b: { x: 5, y: -3 }, c: { x: 5, y: 3 },
       say: { first: 'Now find AB.', cue: 'AB' },
       base: { view: 'triangle', range: { min: 0, max: 12 } },
-      first: { transition: 'leaves', numbers: false }
+      first: { transition: 'leaves', numbers: false },
+      /* AB first, outright: 10 on the reel steps over the walk to 31; a
+         miss and the walk works it out, from 30a. */
+      askFirst: { id: '30a', rightAt: 31 }
     }),
 
     /* 31–36 — the general triangle, on the board layout the questions
@@ -2963,7 +3017,7 @@ window.CFG = (function () {
       },
       legs: [
         { from: { x: -5, y: 1 }, to: { x: 5, y: 1 },
-          mark: { name: 'C', coordText: '(x₂, y₁)', fill: '#3B7DD8' } },
+          mark: { name: 'C', coordText: '(x₂, y₁)', fill: '#3B7DD8', away: { x: 1, y: 0 } } },
         { from: { x:  5, y: 1 }, to: { x: 5, y: 4 } }
       ] },
 
@@ -2984,7 +3038,7 @@ window.CFG = (function () {
       },
       legs: [
         { from: { x: -5, y: 1 }, to: { x: 5, y: 1 },
-          mark: { name: 'C', coordText: '(x₂, y₁)', fill: '#3B7DD8' },
+          mark: { name: 'C', coordText: '(x₂, y₁)', fill: '#3B7DD8', away: { x: 1, y: 0 } },
           settled: true, lengthText: 'x₂ − x₁',
           /* both symbols read straight off the two labels */
           lengthFrom: [ { p: 'b', half: 'x' }, { p: 'a', half: 'x' } ] },
@@ -3006,7 +3060,7 @@ window.CFG = (function () {
       },
       legs: [
         { from: { x: -5, y: 1 }, to: { x: 5, y: 1 },
-          mark: { name: 'C', coordText: '(x₂, y₁)', fill: '#3B7DD8' },
+          mark: { name: 'C', coordText: '(x₂, y₁)', fill: '#3B7DD8', away: { x: 1, y: 0 } },
           settled: true, length: true, lengthText: 'x₂ − x₁' },
         { from: { x:  5, y: 1 }, to: { x: 5, y: 4 },
           settled: true, lengthText: 'y₂ − y₁',
@@ -3055,7 +3109,7 @@ window.CFG = (function () {
       },
       legs: [
         { from: { x: -5, y: 1 }, to: { x: 5, y: 1 },
-          mark: { name: 'C', coordText: '(x₂, y₁)', fill: '#3B7DD8' },
+          mark: { name: 'C', coordText: '(x₂, y₁)', fill: '#3B7DD8', away: { x: 1, y: 0 } },
           settled: true, length: true, lengthText: 'x₂ − x₁' },
         { from: { x:  5, y: 1 }, to: { x: 5, y: 4 },
           settled: true, length: true, lengthText: 'y₂ − y₁' }
