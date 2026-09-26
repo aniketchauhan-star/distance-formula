@@ -34,6 +34,11 @@ window.CFG = (function () {
     swiftyTalk:  stamped('assets/swifty talk.png'),
     swiftyStand: stamped('assets/normal stand swifty.png'),
     townSheet:   stamped('assets/sheet.png'),
+    /* Maya walking: eight frames in a row, each in a cell of its own
+       (160 x 295) — cut from the drawing supplied as "maya walk .png",
+       halved, each figure kept where that drawing's even grid put it so
+       the walk does not jitter. She faces left. */
+    mayaWalk:    stamped('assets/maya-walk.png'),
     /* The number selector, drawn. Every piece of the control is a crop
        of this one sheet, so `preload` waiting for it is the whole of
        the loading story: it is about 940KB, and a control that rises
@@ -1260,6 +1265,13 @@ window.CFG = (function () {
        the answer is something measured rather than guessed: a short
        guess visibly falls short of the other point, a long one runs
        past it. */
+    /* Maya herself (46): small — a little over half a cell, under her
+       house's height — walking out of her house along the line to the
+       cafe that is closer, and in. `feet` is where her soles are in her
+       frame; she faces left in the drawing and is turned to walk right. */
+    maya: { frames: 8, w: 160, h: 295, feet: 287, facesLeft: true,
+            tall: 0.58, frameMs: 85, speed: 1.25, inMs: 350, outMs: 500 },
+
     measure: {
       color: '#2E9BD4',
       width: 9,
@@ -3417,7 +3429,10 @@ window.CFG = (function () {
          whose answers would otherwise be kept and simply rewritten. */
       askFirst: true,
       task: { kind: 'choice', answer: 'cafeA', blinkOnMiss: true, voiceOnly: true,
-              correctLine: '5 is less than \u221A40 \u2014 so Cafe A is closer.' } },
+              correctLine: '5 is less than \u221A40 \u2014 so Cafe A is closer.',
+              /* Right, and Maya comes out of her house and walks along the
+                 line to Cafe A, and goes in (Board.mayaWalk). */
+              walkOnRight: { from: { x: 1, y: 1 }, to: { x: 5, y: 4 } } } },
 
     /* ================= the towers and the rescue =================
        No town, and no help with the method: two towers, then the
