@@ -38,10 +38,19 @@
      undrawn line left a navy dot beside each of its points. So the gap
      is longer than the line by two cap widths and the line sits in the
      middle of it, clear of both caps. Drawn, the offset is 0 as before. */
+  /* A side or a pair's line — a line that meets points — is also given
+     a round head for the draw (`inking`). At rest its ends are square,
+     set to meet the points' rings (Board.meetPoint), but a square head
+     crossing the paper reads as a cut rather than a pen; commitDraw
+     takes `inking` off as the draw ends, when both round ends are under
+     points, so the change shows nowhere. */
   function windBack(line, len, drawn) {
     const w = Math.max(+line.getAttribute('stroke-width') || 0, 10) + 4;
     line.setAttribute('stroke-dasharray', len + ' ' + (len + 2 * w));
     line.style.strokeDashoffset = drawn ? 0 : (len + w);
+    if (line.classList.contains('legline') || line.classList.contains('segline')) {
+      line.classList.toggle('inking', !drawn);
+    }
   }
 
   /* Whether a row of a table carries anything in off the triangle — a
@@ -1434,7 +1443,8 @@
 
         /* The dotted guide, under the solid line and under the
            measuring stroke — the legs are appended before the segment
-           group, which is where that stroke lives. It grows out of its
+           group, which is where that stroke lives (and in this group it
+           goes in after the guide and the line: measLayer). It grows out of its
            own start, so it sits in a group that can carry a transform
            origin; the dots themselves are held at size by
            non-scaling-stroke, or they would swell as it grows. */
@@ -1452,7 +1462,15 @@
         ln.setAttribute('class', 'legline');
         ln.setAttribute('stroke', LG.color);
         ln.setAttribute('stroke-width', LG.width);
-        ln.setAttribute('stroke-linecap', 'round');
+        /* Square ends, set so each end's two corners sit on the ring of
+           the point it meets (meetPoint): the side reaches the point all
+           the way across its width, with no paper showing between them,
+           and goes a hair under the ring in the middle and no further.
+           A round end cannot do that — tangent to the ring, it left paper
+           either side of the join; pushed in until it closed, it ran a
+           cap's depth under the dot, and showed through whenever the dot
+           was faded. */
+        ln.setAttribute('stroke-linecap', 'butt');
 
         const dt = document.createElementNS(NS, 'circle');
         dt.setAttribute('class', 'legdot');
@@ -1498,6 +1516,14 @@
         this.legSlots.push({ g: lg, line: ln, dot: dt, coord: co, name: nm,
                              plate: lp, len: lt, lenTurn: lturn,
                              dash: dl, dashG: dg });
+      }
+      /* The first side's layer on top of the others. Its corner C is the
+         point the second side starts from, and a point has to be above
+         every line that meets it — a line's end now goes a hair under
+         the ring it meets (meetPoint). The second side is drawn first,
+         then the first over it. */
+      for (let i = 1; i < this.legSlots.length; i++) {
+        svg.insertBefore(this.legSlots[i].g, this.legSlots[0].g);
       }
 
       /* Three spare lines that do nothing but pulse, laid behind the
@@ -1681,8 +1707,9 @@
         exl.setAttribute('class', 'segline');
         exl.setAttribute('stroke', SG.lineColor);
         exl.setAttribute('stroke-width', SG.lineWidth);
-        exl.setAttribute('stroke-linecap', 'round');
+        exl.setAttribute('stroke-linecap', 'butt');     // see the sides' ends
         exg.appendChild(exl);
+        this.commitDraw(exl);
         const exParts = { a: {}, b: {} };
         ['a', 'b'].forEach(function (key) {
           const c = document.createElementNS(NS, 'circle');
@@ -1745,7 +1772,7 @@
       segLine.setAttribute('class', 'segline');
       segLine.setAttribute('stroke', SG.lineColor);
       segLine.setAttribute('stroke-width', SG.lineWidth);
-      segLine.setAttribute('stroke-linecap', 'round');
+      segLine.setAttribute('stroke-linecap', 'butt');   // see the sides' ends
       segLine.id = 'lineAB';          // the line between the two points
       /* Its own widths, for the highlight to grow between. Read off the
          line rather than restated in CSS, because a leg and the segment
@@ -1757,12 +1784,16 @@
       this.commitDraw(segLine);
 
       /* The player's own line, laid down with the slider. It sits in
-         the same group as the segment so it is cleared alongside it. */
+         the same group as the segment so it is cleared alongside it —
+         except while it touches the corner C, when it lies just under
+         C's dot in the first side's layer (measLayer). */
       const ml = document.createElementNS(NS, 'line');
       ml.setAttribute('class', 'measline');
       ml.setAttribute('stroke', G.measure.color);
       ml.setAttribute('stroke-width', G.measure.width);
-      ml.setAttribute('stroke-linecap', 'round');
+      /* Square ends like every line that meets a point; between points
+         the round head (the cap, below) is drawn over its free end. */
+      ml.setAttribute('stroke-linecap', 'butt');
       const mc = document.createElementNS(NS, 'circle');
       mc.setAttribute('class', 'mescap');
       mc.setAttribute('r', G.measure.capR);
@@ -2043,7 +2074,9 @@
         const was = L ? parseFloat(getComputedStyle(L).strokeDashoffset) : NaN;
         const drawn = len > 1 && was <= 1;
         this.placeSegment(this.lastPlotted);
-        if (drawn) L.style.strokeDashoffset = 0;
+        /* Drawn, it has no draw to come, so no round head waiting on one
+           (windBack): square-ended where it meets its points. */
+        if (drawn) { L.style.strokeDashoffset = 0; L.classList.remove('inking'); }
       }
       (this.legPlaced || []).forEach(function (s, i) {
         if (s && self.legSlots && self.legSlots[i]) self.placeLeg(i, s);
@@ -2258,7 +2291,9 @@
       if (!node || node.__committed) return;
       node.__committed = true;
       node.addEventListener('animationend', function (e) {
-        if (e.animationName === 'drawOut') node.style.strokeDashoffset = 0;
+        if (e.animationName !== 'drawOut') return;
+        node.style.strokeDashoffset = 0;
+        node.classList.remove('inking');     // square-ended again: windBack
       });
     },
 
@@ -2445,6 +2480,7 @@
     },
 
     clearLegs: function () {
+      this.measLayer();          // out of a side's layer before it goes
       this.rightAngle(false);
       if (this.triFill) this.triFill.classList.remove('on');
       if (this.parkTrees) this.parkTrees.classList.remove('on');
@@ -3212,11 +3248,17 @@
          it does not run on to the centre. Every leg lives in a layer of
          its own, and a later layer paints over an earlier one's dots:
          CB was drawn straight across C's orange. Stopping at the ring
-         keeps the joint clean whatever order the layers are in. (The
+         kept the joint clean whatever order the layers were in. (The
          dotted guide above stops short with air; a solid line touches.)*/
-      const lw = +L.line.getAttribute('stroke-width') || 0;
-      const le = inset(x1, y1, x2, y2, this.clearPoint(x1, y1, lw) - 4,
-                       this.clearPoint(x2, y2, lw) - 4);
+      /* …and exactly TO it, with no paper between: stopped a cap's width
+         short, the round end only touched the round ring at one spot and
+         left a gap either side of it. The end is square now, its corners
+         on the ring (meetPoint), and the point is drawn over it — every
+         point is above every side (the second side's layer sits under
+         the first's, so the corner C is on top of both). */
+      const lw = +L.line.getAttribute('stroke-width') || LG.width || 0;
+      const le = inset(x1, y1, x2, y2, this.meetPoint(x1, y1, lw),
+                       this.meetPoint(x2, y2, lw));
       L.line.setAttribute('x1', le[0]); L.line.setAttribute('y1', le[1]);
       L.line.setAttribute('x2', le[2]); L.line.setAttribute('y2', le[3]);
       const len = Math.hypot(le[2] - le[0], le[3] - le[1]);
@@ -4804,9 +4846,15 @@
          and plainly there, running into the middle of A, whenever the
          dot was faded: a highlight on another side, or the dot still
          fading in. */
+      /* …and exactly TO it, with no paper between: square ends, their
+         corners on the ring, the point drawn over the rest — the join
+         every side makes (placeLeg, meetPoint). Stopped a cap's width
+         short, the round end only touched the ring at one spot and left
+         a gap either side of it. */
       {
         const lw = +T.segLine.getAttribute('stroke-width') || SG.lineWidth || 0;
-        const r = SG.dotR + (SG.dotStrokeW || 0) / 2 + lw / 2;
+        const R = SG.dotR + (SG.dotStrokeW || 0) / 2;
+        const r = Math.sqrt(Math.max(0, R * R - lw * lw / 4));
         const e = inset(px(a.x), py(a.y), px(b.x), py(b.y), r, r);
         T.segLine.setAttribute('x1', e[0]); T.segLine.setAttribute('y1', e[1]);
         T.segLine.setAttribute('x2', e[2]); T.segLine.setAttribute('y2', e[3]);
@@ -5653,6 +5701,12 @@
     },
 
     clearPoint: function (x, y, capW) {
+      return this.ringR(x, y) + (capW || 0) / 2 + 4;
+    },
+
+    /* The outside of the white ring of the point at board (x, y): one of
+       the pair's, or the corner's. */
+    ringR: function (x, y) {
       const G = C.GRID, SG = G.segment, LG = G.leg;
       const px = function (v) { return G.originX + v * G.stepX; };
       const py = function (v) { return G.originY - v * G.stepY; };
@@ -5660,9 +5714,48 @@
       const onPair = !!(d && d.a && d.b && [d.a, d.b].some(function (p) {
         return Math.abs(px(p.x) - x) < 1 && Math.abs(py(p.y) - y) < 1;
       }));
-      const r = onPair ? SG.dotR + (SG.dotStrokeW || 0) / 2
-                       : LG.dotR + 3 / 2;          // the corner's 3px ring
-      return r + (capW || 0) / 2 + 4;
+      return onPair ? SG.dotR + (SG.dotStrokeW || 0) / 2
+                    : LG.dotR + 3 / 2;             // the corner's 3px ring
+    },
+
+    /* How far from a point's middle a solid line `w` wide stops: where
+       the two corners of its square end land on the ring's outside. So
+       the line meets the point across its whole width — no paper either
+       side of the join — and goes under the ring only in the middle, by
+       less than a pixel; the point is drawn over it. */
+    meetPoint: function (x, y, w) {
+      const R = this.ringR(x, y), h = (w || 0) / 2;
+      return Math.sqrt(Math.max(0, R * R - h * h));
+    },
+
+    /* Which layer the measuring line lies in. Its own is the pair's
+       group: over the pair's guide and line, which it is laid along on
+       the pair screens, and under the pair's two points. But the corner
+       C is drawn in the first side's layer, under the pair's group, and
+       a line over C runs on over its ring — so while a measurement from
+       `from` to (ex, ey) touches C, at an end or on the way past, it
+       goes into that layer instead, just under C's dot: still over both
+       sides and their guides, under the corner. With no measurement it
+       goes home. */
+    measLayer: function (from, ex, ey) {
+      const ml = this.measLine, mc = this.measCap;
+      if (!ml || !this.segGroup) return;
+      const L0 = this.legSlots && this.legSlots[0];
+      const corner = (this.legPlaced || [])[0];
+      const c = corner && corner.mark ? corner.to : null;
+      let underC = false;
+      if (from && c && L0 && L0.g.classList.contains('on')) {
+        const sx = ex - from.x, sy = ey - from.y, s = Math.hypot(sx, sy);
+        const qx = c.x - from.x, qy = c.y - from.y;
+        const along = s ? (qx * sx + qy * sy) / (s * s) : 0;
+        const off = s ? Math.abs(qx * sy - qy * sx) / s : Math.hypot(qx, qy);
+        underC = off < 1e-6 && along > -1e-6 && along < 1 + 1e-6;
+      }
+      const host = underC ? L0.g : this.segGroup;
+      if (ml.parentNode === host) return;
+      const before = underC ? L0.dot : this.segParts.a.dot;
+      host.insertBefore(ml, before);
+      host.insertBefore(mc, before);
     },
 
     /* The pair, finished.
@@ -5682,6 +5775,7 @@
       this.segGroup.classList.add('on');
       this.segLine.classList.add('draw');
       this.segLine.style.strokeDashoffset = 0;
+      this.segLine.classList.remove('inking');        // drawn: see windBack
       const p = this.segParts;
       if (!p) return;
       ['a', 'b'].forEach(function (k) {
@@ -5714,6 +5808,7 @@
       if (want.joined) {
         this.segLine.classList.add('draw', 'set');
         this.segLine.style.strokeDashoffset = 0;
+        this.segLine.classList.remove('inking');      // drawn: see windBack
       }
       /* The dotted guide is its own thing: a pair can carry both (29b,
          29c, 51–53 show the line and the guide along it). */
@@ -5860,6 +5955,7 @@
         if (this.segDashG) this.segDashG.classList.remove('draw');
         this.segLine.classList.add('draw', 'set');
         this.segLine.style.strokeDashoffset = 0;
+        this.segLine.classList.remove('inking');      // drawn: see windBack
       }
     },
 
@@ -6044,9 +6140,13 @@
       const x1 = px(from.x), y1 = py(from.y), x2 = px(ex), y2 = py(ey);
       const w = +this.measLine.getAttribute('stroke-width') || G.measure.width || 0;
       const lands = this.isPoint(ex, ey);
+      /* Square ends with their corners on the rings, as every side meets
+         a point (meetPoint) — and laid under the point at each end, C
+         included (measLayer), so nothing of it shows over one. */
       const e = inset(x1, y1, x2, y2,
-                      this.isPoint(from.x, from.y) ? this.clearPoint(x1, y1, w) - 4 : 0,
-                      lands ? this.clearPoint(x2, y2, w) - 4 : 0);
+                      this.isPoint(from.x, from.y) ? this.meetPoint(x1, y1, w) : 0,
+                      lands ? this.meetPoint(x2, y2, w) : 0);
+      this.measLayer(from, ex, ey);
       this.measLine.setAttribute('x1', e[0]);
       this.measLine.setAttribute('y1', e[1]);
       this.measLine.setAttribute('x2', e[2]);
@@ -6254,6 +6354,7 @@
        taken away, the pair left as it is: a comparison after a walk. */
     fadeLegs: function (later, then) {
       const self = this;
+      this.measLayer();          // the pair's, not the sides': it stays
       this.fadeOut([this.triFill, this.rightMark, this.parkTrees]
         .concat((this.legSlots || []).map(function (L) { return L && L.g; })), later, function () {
           self.clearLegs();

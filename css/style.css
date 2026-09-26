@@ -1002,6 +1002,11 @@ html.calm #gridAxes .xsweep.draw { animation: none; opacity: .85; stroke-dashoff
 
 #gridAxes .segline { fill: none; stroke-dashoffset: inherit; }
 #gridAxes .segline.draw { animation: drawOut .62s cubic-bezier(.3, .85, .35, 1) forwards; }
+/* Round-headed while it draws itself on, square-ended at rest — a side
+   the same (windBack). Put up already drawn (`set`) there is no draw,
+   so no round head either. */
+#gridAxes .segline.inking, #gridAxes .legline.inking { stroke-linecap: round; }
+#gridAxes .segline.inking.set, #gridAxes .legline.inking.set { stroke-linecap: butt; }
 
 /* Pushed in, the whole viewBox is magnified and the type with it, so
    every label on the board takes its size from the board's camera
