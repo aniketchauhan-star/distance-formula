@@ -128,7 +128,7 @@ window.TriangleOptions = (function () {
         }
         /* Or a picture of the place it names, cut from the town's own
            sheet (`pic`: the drawing's rect on it), so the card and the
-           map show the same building — a card for a place (46, 48). */
+           map show the same building — a card for a place (46). */
         if (c.pic) {
           const P = c.pic, H = 128, k = H / P.h;
           const pic = document.createElement('span');

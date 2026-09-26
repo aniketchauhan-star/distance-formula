@@ -6440,7 +6440,7 @@
     /* The whole drawing — the pair, its sides, their labels and lengths,
        the face and its marker, the recalled pairs, the places' points —
        faded out and then cleared: a walk arriving after another's table
-       (45, 47e). */
+       (45). */
     fadeDrawing: function (later, then) {
       const self = this;
       this.fadeOut([this.segGroup, this.triFill, this.rightMark, this.parkTrees,
@@ -6467,7 +6467,7 @@
         });
     },
 
-    /* The two walks' lengths on the map (46, 48, on a miss): written on
+    /* The two walks' lengths on the map (46, on a miss): written on
        their lines if they are not yet, and blinking a few times, so the
        child reads which is shorter off the board itself. Left up after. */
     blinkLengths: function () {
@@ -7390,7 +7390,7 @@
       this.raised = keepsControl;
       this.controlKind = wantKind;
       const geom = keepsControl ? controlGeom(wantKind) : geomFor(i);
-      /* A walk that follows another's table with no leaf sweep (45, 47e,
+      /* A walk that follows another's table with no leaf sweep (45,
          `flyBack`): she is standing under that table, and the new screen
          has her in her own column. Rather than jump there, she flies off
          from where she stands and back in to ask — so the rig is not
@@ -8168,7 +8168,7 @@
            ahead of her can answer while she is still asking. */
         if (Sel) { if (keepsControl) Sel.reset(); else Sel.hide(); }
         /* And the last screen's answers — this one brings its own, once it
-           has asked (47e after 47b, both answered on the buttons). */
+           has asked (a screen after one answered on the buttons). */
         if (Opts && !keepsControl) Opts.hide();
         if (Slots && !(entry.task && entry.task.kind === 'slots')) Slots.hide();
 
@@ -10539,7 +10539,7 @@
         /* How long the working takes to play. The screen has to stay
            open for all of it, and the ordinary pause after a right
            answer is nowhere near that. */
-        /* A formula kept for a miss (`tableOnMiss`: 45, 47b, 47e) is not
+        /* A formula kept for a miss (`tableOnMiss`: 45) is not
            a working to play after a right answer. */
         const work = (t.spec.formula && !t.spec.tableOnMiss && Opts)
           ? Opts.formulaMs(t.spec.formula, C.GRID.fly.pickMs + C.GRID.fly.ms) : 0;
@@ -10575,7 +10575,7 @@
         t.wrong++;
         SFX.wrong();
         FX.missGlow();
-        /* Which is shorter (46, 48): the map answers it, not her. The two
+        /* Which is shorter (46): the map answers it, not her. The two
            lengths come up on their lines and blink — no words, no voice —
            and the cards stay live for another go. */
         if (t.spec.blinkOnMiss) {
@@ -10656,7 +10656,7 @@
       }
     },
 
-    /* The two walks of a comparison (46, 48). Whichever of them the
+    /* The two walks of a comparison (46). Whichever of them the
        board is holding stays exactly as it is — the walk just worked, or
        the pair the question was asked on — and its line is drawn solid
        over its guide and its length written on it. The other is drawn
@@ -10677,7 +10677,7 @@
         later(function () { if (Board.segDashG) Board.segDashG.classList.remove('draw', 'set'); }, 240 + 720);
         at = 240 + 720;
       }
-      /* A screen asking which is shorter (46, 48) holds the lengths back:
+      /* A screen asking which is shorter (46) holds the lengths back:
          they are on its answer cards, and the map shows them only on a
          miss (blinkLengths). */
       const R = entry.hideLengths ? null : main.result;
@@ -10747,7 +10747,7 @@
        not the browser has laid them out yet. */
     optionSpot: function (key) {
       /* Off the button itself where it is laid out — cards side by side
-         (46, 48) are not where a stack of buttons would put them. */
+         (46) are not where a stack of buttons would put them. */
       const btn = Opts && Opts.el && Opts.el.querySelector('.triangle-option[data-key="' + key + '"]');
       if (btn) {
         const r = btn.getBoundingClientRect(), st = el.stage.getBoundingClientRect();

@@ -414,7 +414,7 @@ html.calm .triangle-options-panel.rising { animation: none; }
   box-shadow: 0 7px 0 #244C20, 0 10px 15px rgba(40, 90, 30, .18),
               inset 0 3px 0 rgba(255, 255, 255, .35);
 }
-/* A card for a place (46, 48): its picture, its name, and how far it
+/* A card for a place (46): its picture, its name, and how far it
    is, in a green box — paper rather than a coloured button, so the
    distance written on it is the thing to read. The verdicts (the green
    and the red border) work on it as on any answer. */

@@ -1954,22 +1954,11 @@ window.CFG = (function () {
                     { from: { x: 2, y: 2 }, to: { x: 2, y: 5 } } ];     // 29–29c
   const SHAPE_G = [ { from: { x: -5, y: 1 }, to: { x: 5, y: 1 } },
                     { from: { x: 5, y: 1 }, to: { x: 5, y: 4 } } ];     // 31–37
-  /* Where the park's coordinates are written: right of its trees and a
-     little up — the same spot whether the park is a point of the walk
-     (with its letter over it) or one of the other places. In squares
-     from the point. */
-  const PARK_LABEL = { x: 1.04, y: 0.376 };
-  /* And the house's, on the school-and-park screens (47 to 48): right of
-     the house, level with its point. Every line out of the house there
-     — to the school, down to the corner under it, left to the park's
-     corner, up to the park — leaves on another side, so nothing is ever
-     written across it and it never has to move. */
-  const HOUSE_LABEL = { x: 0.95, y: 0.12 };
 
   /* A number as the working writes it: its minus is the arithmetic sign. */
   const MINUS = function (v) { return String(v).replace('-', '\u2212'); };
 
-  /* A place's picture for an answer card (46, 48): where its drawing is
+  /* A place's picture for an answer card (46): where its drawing is
      on the town's sheet, so the card shows the building the map does. */
   const PIC = function (kind) {
     const s = TOWN.sprites[kind];
@@ -3428,91 +3417,6 @@ window.CFG = (function () {
       askFirst: true,
       task: { kind: 'choice', answer: 'cafeA', blinkOnMiss: true, voiceOnly: true,
               correctLine: '5 is less than \u221A40 \u2014 so Cafe A is closer.' } },
-
-    /* 47 — the same question with the other two places: the house, the
-       school and the park, and no cafes. Right, and the comparison
-       closes it; wrong twice, and both walks are worked. */
-    { id: 47, entrance: 'fly', layout: 'board', transition: 'leaves',
-      line: 'Which is closer to Maya’s house — the school or the park?',
-      town: ['house', 'school', 'park'], textScale: 0.85,
-      pointsOnly: true,
-      segment: { a: { x: 1, y: 1, labelAt: HOUSE_LABEL }, b: { x: 5, y: -4 }, coordSide: 'under' },
-      mark: [ { x: -3, y: 2, labelAt: PARK_LABEL } ],
-      /* As 42: she asks, then the answers come up; one miss and the two
-         walks work it out. */
-      options: [
-        { key: 'school', label: 'School', cls: 'school' },
-        { key: 'park',   label: 'Park',   cls: 'park' }
-      ],
-      optionRow: true,
-      perch: 'park',
-      task: {
-        kind: 'choice',
-        answer: 'park',
-        feedback: [],
-        voiceOnly: true,
-        rightAt: 48,
-        teachAt: '47a'
-      } },
-
-    { id: '47a', line: 'Oops! Let’s find it together.',
-      entrance: 'stay', layout: 'board', keepSegment: true,
-      town: ['house', 'school', 'park'], textScale: 0.85,
-      hold: 1500 },
-
-    /* The house to the school: down first, then across — five, four,
-       and √41. The first side leaves the house downwards, clear of the
-       house's picture, which stands above its point. */
-    ...walk({
-      ids: ['47b'], formula: true,
-      a: { x: 1, y: 1, extra: { labelAt: HOUSE_LABEL } }, b: { x: 5, y: -4 }, c: { x: 1, y: -4 },
-      seg: { coordSide: 'under' },
-      say: { first: 'First, the house to the school.' },
-      base: { textScale: 0.85, town: ['house', 'school', 'park'], townFocus: ['house', 'school'],
-              mark: [ { x: -3, y: 2, labelAt: PARK_LABEL } ], range: { min: 0, max: 8 } },
-      first: { keepSegment: true }
-    }),
-
-    /* The house to the park: four across, one up, and √17. */
-    ...walk({
-      ids: ['47e'], formula: true,
-      /* B's label to the right of the park's trees, above the dotted line
-         — anywhere the rule looked, the trees or a line was in the way,
-         and it ended up behind them. Named, it stays there. */
-      a: { x: 1, y: 1, extra: { labelAt: HOUSE_LABEL } }, b: { x: -3, y: 2, extra: { labelAt: PARK_LABEL } },
-      /* And C's under C, clear of the short side CB — so CB's "1 unit"
-         can sit beside its own line. */
-      c: { x: -3, y: 1 }, cAway: { x: 0, y: 1 },
-      seg: { coordSide: 'under' },
-      say: { first: 'Now, the house to the park.' },
-      base: { textScale: 0.85, town: ['house', 'school', 'park'], townFocus: ['house', 'park'],
-              mark: [ { x: 5, y: -4 } ], range: { min: 0, max: 6 } },
-      /* No leaf sweep: it follows the last walk's table on the same
-         town, so she flies off from under it and back in (flyBack). */
-      first: { flyBack: true }
-    }),
-
-    { id: 48, line: 'Which distance is shorter?',
-      /* As 46: no leaf sweep, the pair on the board kept as it is, its
-         line drawn solid with its length, the other walk beside it. */
-      entrance: 'fly', layout: 'board', flyBack: true,
-      town: ['house', 'school', 'park'], textScale: 0.85,
-      keepSegment: true, dropLegs: true, dropNames: true,
-      /* As 46: the lengths on the cards, the map blinking them on a miss. */
-      hideLengths: true,
-      compare: [
-        { a: { x: 1, y: 1, labelAt: HOUSE_LABEL }, b: { x: -3, y: 2, labelAt: PARK_LABEL }, coordSide: 'under',
-          result: { text: '\u221A17\u00A0units' } },
-        { a: { x: 1, y: 1, labelAt: HOUSE_LABEL }, b: { x: 5, y: -4 }, coordSide: 'under',
-          result: { text: '\u221A41\u00A0units' } }
-      ],
-      options: [
-        { key: 'school', label: 'School', dist: '\u221A41\u00A0units', pic: PIC('school') },
-        { key: 'park', label: 'Park', dist: '\u221A17\u00A0units', pic: PIC('park') }
-      ],
-      optionRow: true, optionWide: true, askFirst: true,
-      task: { kind: 'choice', answer: 'park', blinkOnMiss: true, voiceOnly: true,
-              correctLine: '\u221A17 is less than \u221A41 \u2014 so the park is closer.' } },
 
     /* ================= the towers and the rescue =================
        No town, and no help with the method: two towers, then the
