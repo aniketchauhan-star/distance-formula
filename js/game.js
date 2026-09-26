@@ -8597,7 +8597,9 @@
           /* Or pulse sides on the word that names them — the overlay
              that swells round each one, for as long as the sentence
              runs. */
-          if (c.pulse) Board.pulseSides(self.later.bind(self), 0, [].concat(c.pulse), c.run || 1800);
+          /* 'triangle' is all three, as a screen's own `pulse` names it. */
+          if (c.pulse) Board.pulseSides(self.later.bind(self), 0,
+            c.pulse === 'triangle' ? null : [].concat(c.pulse), c.run || 1800);
           /* Or draw the dotted guide a screen held back, and pulse the
              points it runs between (29: "the distance between A and B"). */
           if (c.guide) Board.drawGuide();

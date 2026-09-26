@@ -2603,7 +2603,16 @@ window.CFG = (function () {
          1.25s — so for over two seconds she was naming a triangle
          with two sides on the board. The shape closes as she says
          what it is. */
-      wordCues: [ { word: 'triangle', settle: true } ],
+      /* And the three sides light on that same word — the glow that
+         used to wait for the question on 26. "Look! We made a triangle"
+         is the moment the shape is named, so this is where the board
+         shows which three lines she means: two full swells, the third
+         side coming up as the light goes round all three. */
+      wordCues: [ { word: 'triangle', settle: true, pulse: 'triangle', run: 1800 } ],
+      /* Long enough after her last word for the light to finish before
+         26 arrives: the word lands one beat (~0.4s) before her balloon
+         closes, and the light runs 1.8s from it. */
+      hold: 1900,
       segment: { a: { x: 2, y: 1, name: 'A' },
                  b: { x: 6, y: 4, name: 'B' } },
       legs: [
@@ -2654,17 +2663,11 @@ window.CFG = (function () {
         marksRightAngle: true
       },
       entrance: 'stay', view: 'triangle', quietBoard: true,
-      /* The three sides light as she names the shape. They used to light
-         on the question after this one — and that question is gone, so
-         the beat that says "triangle" is the one that should show which
-         three lines it means. */
-      pulse: 'triangle',
+      /* No glow on the question. The three sides light on 27, as she says
+         "Look! We made a triangle" — the words that name the shape — and
+         lighting the same triangle again here made one moment look like
+         it was happening twice. */
       layout: 'board', keepSegment: true,
-      /* No highlight here. This screen and the one after it show the
-         same triangle on the same board, so lighting it on both made
-         one moment look like it was happening twice. It belongs to the
-         question — move `pulse: 'triangle'` up here and off screen 25
-         to have it land on the question instead. */
       hold: 3400,
       segment: { a: { x: 2, y: 1, name: 'A' },
                  b: { x: 6, y: 4, name: 'B' } },
