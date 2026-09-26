@@ -1179,7 +1179,10 @@
        ARRIVES; a board that is already here and has only changed its
        numbering has nothing to announce. */
     showAxes: function () {
-      this.lines.forEach(function (l) { l.classList.add('draw'); });
+      /* Drawn outright: the offset itself set to nothing, as
+         settleFurniture does, not left to an animation — a browser that
+         drops an animation's held last frame then drops the axes. */
+      this.lines.forEach(function (l) { l.style.strokeDashoffset = 0; l.classList.add('draw'); });
       this.arrows.forEach(function (a) { a.classList.add('pop'); });
       this.labels.forEach(function (t) { t.classList.add('pop'); });
     },
@@ -1228,6 +1231,7 @@
         l.setAttribute('stroke-width', G.axisWidth);
         l.setAttribute('class', 'axis');
         const len = Math.hypot(x2 - ox, y2 - oy);
+        l._len = len;                 // kept, so reset can wind it back again
         windBack(l, len, false);
         axesG.appendChild(l);
         self.lines.push(l);
@@ -6331,7 +6335,15 @@
          worth keeping, and leaving it meant a replayed board came up
          still holding the last run's coordinates. */
       this.blankLabels();
-      this.lines.forEach(function (l) { l.classList.remove('draw'); });
+      /* Wound back out of sight, not just un-drawn. The last screen's
+         board had its axes drawn outright (settleFurniture sets their
+         offset to nothing), and taking the class off left them drawn:
+         a board being built showed its axes at once, before the paper
+         had even arrived, and the sweep then had nothing to draw. */
+      this.lines.forEach(function (l) {
+        l.classList.remove('draw');
+        if (l._len) windBack(l, l._len, false);
+      });
       this.arrows.forEach(function (a) { a.classList.remove('pop'); });
       this.labels.forEach(function (t) { t.classList.remove('pop'); });
       this.clearFound();
@@ -6401,6 +6413,12 @@
           halves.forEach(function (l) { l.classList.add('draw'); });
           SFX.draw();
         }, at);
+        /* And once the sweep is over, drawn for good: the animation's
+           last frame made the line's own state, so the axes stay drawn
+           even where a browser lets go of that frame. */
+        later(function () {
+          halves.forEach(function (l) { l.style.strokeDashoffset = 0; });
+        }, at + SWEEP + 60);
         self.axisLabels.forEach(function (L) {
           if (L.axis !== which) return;
           const d = Math.abs(L.v);
