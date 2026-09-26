@@ -2041,6 +2041,28 @@
       requestAnimationFrame(step);
     },
 
+    /* The pair laid out again where it stands, without winding back a
+       line that is already drawn — see relabel, and nameSegment, which
+       lays it out again when its letters arrive (every walk's AB is a
+       solid line by then: drawGuide). */
+    relayPair: function () {
+      if (!this.lastPlotted) return;
+      const L = this.segLine;
+      /* Its length from its own two ends. getTotalLength is 0 in Safari
+         while the board is still hidden, as it is when a screen is
+         reached with the picker and its drawing is put up before the
+         board shows — and a line of no length is a line never drawn, so
+         the solid AB put up a moment before was wound back out of sight. */
+      const len = L ? Math.hypot(+L.getAttribute('x2') - +L.getAttribute('x1'),
+                                 +L.getAttribute('y2') - +L.getAttribute('y1')) || 0 : 0;
+      const was = L ? parseFloat(getComputedStyle(L).strokeDashoffset) : NaN;
+      const drawn = len > 1 && was <= 1;
+      this.placeSegment(this.lastPlotted);
+      /* Drawn, it has no draw to come, so no round head waiting on one
+         (windBack): square-ended where it meets its points. */
+      if (drawn) { L.style.strokeDashoffset = 0; L.classList.remove('inking'); }
+    },
+
     /* Everything written on the board, put back where it belongs for
        the camera it is under now. The type is set smaller as the board
        pushes in, so every offset worked out from its size has to be
@@ -2069,14 +2091,7 @@
            at nothing is a stroke somebody can see, whatever it is
            wearing. Only a finished one is restored: a line caught
            halfway through its own draw is left to finish. */
-        const L = this.segLine;
-        const len = (L && L.getTotalLength) ? L.getTotalLength() : 0;
-        const was = L ? parseFloat(getComputedStyle(L).strokeDashoffset) : NaN;
-        const drawn = len > 1 && was <= 1;
-        this.placeSegment(this.lastPlotted);
-        /* Drawn, it has no draw to come, so no round head waiting on one
-           (windBack): square-ended where it meets its points. */
-        if (drawn) { L.style.strokeDashoffset = 0; L.classList.remove('inking'); }
+        this.relayPair();
       }
       (this.legPlaced || []).forEach(function (s, i) {
         if (s && self.legSlots && self.legSlots[i]) self.placeLeg(i, s);
@@ -5664,6 +5679,15 @@
       /* The number a length starts with ("4" of "4 units"), or — for a
          length written in letters — the whole of it ("x₂ − x₁"). */
       const num = whole ? (t.textContent || '') : (t.textContent || '').split('\u00A0')[0];
+      return this.textSpot(t, num);
+    },
+
+    /* Where the first `num.length` characters of a text on the board
+       are on the STAGE: their middle, the size they are set at there and
+       the angle they are turned to — what a copy flying off them, or
+       onto them, needs. */
+    textSpot: function (t, num) {
+      if (!t || !num) return null;
       /* The text's frame relative to the BOARD's, not to the screen: the
          product of the two screen transforms, so whatever both include
          above the board cancels out. Safari (and Firefox before 126)
@@ -6120,8 +6144,9 @@
       if (!any) return false;
       /* A letter is half of its point's block. Now that the point has
          two halves, the block is laid out again — otherwise the letter
-         stays wherever the screen before it left one. */
-      if (this.lastPlotted) this.placeSegment(this.lastPlotted);
+         stays wherever the screen before it left one. The line between
+         them stays as it is. */
+      this.relayPair();
       ['a', 'b'].forEach(function (k, i) {
         later(function () {
           self.segParts[k].name.classList.add('pop');
@@ -9129,7 +9154,7 @@
                 self.workThrough(t, function () {
                   /* And what it came to stays on the side, as a right
                      answer's does: the screens after compare all three. */
-                  if (t.spec.table && t.spec.keepLength) self.writeLength(t);
+                  if (t.spec.table && t.spec.keepLength && !t.flewHome) self.writeLength(t);
                   self.settle(C.AUTO.afterLine);
                 });
               } else {
@@ -9866,9 +9891,12 @@
       this.raised = false;
       standPose = !!g.stand;
       applyGeom(g);
-      this.later(function () {
-        self.flyIn(function () { self.speak(t.spec.correctLine || 'That’s right!'); });
-      }, 400);
+      /* What it came to goes onto AB first; then she comes in to say so. */
+      this.flyResultOut(t.spec.formula, function () {
+        self.later(function () {
+          self.flyIn(function () { self.speak(t.spec.correctLine || 'That’s right!'); });
+        }, 200);
+      });
     },
 
     /* The camera, on a drawing this screen is ABOUT to make — after the
@@ -9900,8 +9928,9 @@
        right. Then one thing at a time: a row's skeleton comes in, each
        name and number in it is lifted off the triangle as a copy and
        carried slowly to its slot, and what was worked out is written in
-       place. Nothing on the triangle is lit, stepped back or moved, and
-       the answer stays in the table rather than flying home onto AB. */
+       place. Nothing on the triangle is lit, stepped back or moved. The
+       answer stays in the table, and a copy of it is carried onto the
+       side it measures (flyResultOut). */
     workAsTable: function (t, then) {
       const self = this, G = C.GRID, T = G.table;
       const lines = t.spec.formula || [];
@@ -9948,10 +9977,17 @@
       const self = this;
       let at = 0;
       lines.forEach(function (l, r) { at = self.carryRow(l, r, at); });
+      /* Written, and then what it came to is carried onto the side it
+         measures (flyResultOut) before the screen is handed on. */
       self.later(function () {
-        self.writing = false;                // written; it can be handed on
-        if (then) then();
-      }, at + C.AUTO.afterWorking);
+        const t0 = performance.now();
+        self.flyResultOut(lines, function () {
+          self.later(function () {
+            self.writing = false;            // written; it can be handed on
+            if (then) then();
+          }, Math.max(0, C.AUTO.afterWorking - (performance.now() - t0)));
+        });
+      }, at);
     },
 
     /* One row of a table, from `at`: its skeleton, then each term in
@@ -10010,6 +10046,100 @@
         color: colour, appearMs: T.appearMs, pulseMs: T.pulseMs,
         travelMs: T.travelMs, lift: T.lift
       }, function () { Table.land(r, k); SFX.blip(); });
+    },
+
+    /* What a table worked out, carried out of it onto the side it
+       measures. The answer stays in the table; a copy lifts off it and
+       flies to the place that side's length is written — the middle of
+       AB, or of the side a question was about (59: CA) — turning to the
+       side and taking on the label's size and colour as it goes, and
+       the length is written there as it lands. So the working ends on
+       the drawing, the way every number in it began there.
+
+       The length is the last thing in the table's last row with a
+       number in it, read from its "=" onward: "5 units", "√40 units",
+       "13 units" out of "√169 = 13 units". A last row with no number
+       (a formula in letters: 35, 39, 41) sends nothing. `then` runs
+       once it has landed — or at once, if there was nothing to send. */
+    flyResultOut: function (lines, then) {
+      const self = this, T = C.GRID.table, entry = C.SCRIPT[this.index] || {};
+      const done = function () { if (then) then(); };
+      const r = (lines || []).length - 1, row = r >= 0 ? lines[r] : null;
+      let k = -1;
+      if (row) (row.parts || []).forEach(function (p, i) { if (/\d/.test(p.t || '')) k = i; });
+      const node = (Table && k >= 0) ? Table.target(r, k) : null;
+      const text = k >= 0 ? String(row.parts[k].t).split('=').pop().trim() : '';
+      if (!node || !/\d/.test(text)) { done(); return; }
+
+      /* Where it goes: the side the question asked for, or the pair. */
+      const t = entry.task || {}, leg = t.measureLeg;
+      const pair = entry.segment || Board.lastPlotted;
+      let label, place, show;
+      if (leg != null && (entry.legs || [])[leg] && Board.legSlots) {
+        label = Board.legSlots[leg].len;
+        place = function () {
+          Board.placeLeg(leg, Object.assign({}, entry.legs[leg], { length: true }));
+        };
+        show = function () { Board.showLegLength(leg); };
+      } else if (pair && pair.a && pair.b && Board.segRes) {
+        label = Board.segRes;
+        place = function () {
+          Board.showSegResult(pair, text);
+          Board.segRes.classList.remove('pop');          // written, not yet shown
+        };
+        show = function () { Board.segRes.classList.add('pop'); };
+      }
+      if (!label || label.classList.contains('pop')) { done(); return; }
+      if (this.task) this.task.flewHome = true;
+      /* Written in place now, unseen, so the copy flies to exactly where
+         it will be read — and put up at once if the screen is left
+         before it lands. */
+      place();
+      const landed = this.hold(function () { show(); SFX.chime(); });
+
+      /* After a breath: the answer has just gone in, and the paper the
+         last blank's tiles took is still going back (0.38s + 0.3s). */
+      this.later(function () {
+        const to = Board.textSpot(label, label.textContent || '');
+        if (!to) { landed(); self.later(done, 300); return; }
+        /* Off the answer's own words where they are a run of text
+           ("13 units" at the end of "√169 = 13 units"), else off its cell. */
+        let b = node.getBoundingClientRect();
+        const want = text.replace(/\u00A0/g, ' ');
+        const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+        for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+          const at = n.textContent.replace(/\u00A0/g, ' ').lastIndexOf(want);
+          if (at < 0) continue;
+          const range = document.createRange();
+          range.setStart(n, at); range.setEnd(n, at + want.length);
+          const rb = range.getBoundingClientRect();
+          if (rb.width) b = rb;
+          break;
+        }
+        const st = el.stage.getBoundingClientRect(), sk = st.width / C.STAGE_W || 1;
+        const from = { x: (b.x + b.width / 2 - st.x) / sk, y: (b.y + b.height / 2 - st.y) / sk,
+                       size: parseFloat(getComputedStyle(node).fontSize) || T.size };
+        /* In the colour its number is written in there (a blank takes
+           its side's colour; the words round it may not). */
+        let tint = node.querySelector('.ft-num') || node;
+        if (tint === node) {
+          const digits = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+          for (let n = digits.nextNode(); n; n = digits.nextNode()) {
+            const host = n.parentElement;
+            if (host && host.classList.contains('ft-sizer')) continue;   // sizing only, unseen
+            if (/\d/.test(n.textContent)) { tint = host || node; break; }
+          }
+        }
+        SFX.tick(2);
+        FX.liftAndFly(want, from, { x: to.x, y: to.y, size: to.size, rot: to.rot }, {
+          color: getComputedStyle(tint).color, toColor: label.getAttribute('fill'),
+          appearMs: T.appearMs, pulseMs: 0, travelMs: T.travelMs, lift: 0
+        }, function () {
+          landed();
+          SFX.sparkle();
+          self.later(done, 600);
+        });
+      }, 750);
     },
 
     /* The answer leaving the working for the line it measures — the

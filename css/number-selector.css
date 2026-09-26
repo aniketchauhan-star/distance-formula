@@ -48,7 +48,7 @@
      there and invisible. Tried, measured, reverted.
 
      If this ever needs to move, change the path here. */
-  --sheet: url('../assets/buttons.png?v=20260926174816');
+  --sheet: url('../assets/buttons.png?v=20260926181328');
 
   /* ---- the layout ------------------------------------------------
      Unchanged. The dials overhang the housing's ends, the pointer sits

@@ -583,6 +583,23 @@ window.FX = (function () {
 
      Kept on the flight list, so a screen change lands it with every
      other flight rather than leaving it in the air. */
+  /* A colour as [r, g, b], from #rgb, #rrggbb or rgb()/rgba() — what a
+     stylesheet or an SVG attribute hands back. Null if it is none of
+     those. */
+  function rgbOf(c) {
+    c = String(c || '').trim();
+    let m = c.match(/^#([0-9a-f]{3})$/i);
+    if (m) return m[1].split('').map(function (h) { return parseInt(h + h, 16); });
+    m = c.match(/^#([0-9a-f]{6})$/i);
+    if (m) return [0, 2, 4].map(function (i) { return parseInt(m[1].substr(i, 2), 16); });
+    m = c.match(/^rgba?\(([^)]+)\)$/i);
+    if (m) return m[1].split(',').slice(0, 3).map(function (v) { return parseFloat(v); });
+    return null;
+  }
+
+  /* `to.rot` lands the copy turned — a length written along a slanted
+     side — and `o.toColor` carries it from the colour it left in to the
+     colour of the label it becomes, both over the travel. */
   function liftAndFly(text, from, to, o, done) {
     o = o || {};
     if (!layer) { if (done) done(); return function () {}; }
@@ -595,7 +612,9 @@ window.FX = (function () {
     /* No pulse is a real choice (0), not a missing one. */
     const P = o.pulseMs != null ? o.pulseMs : 1000;
     const lift = (o.lift == null ? 0.6 : o.lift) * from.size;
-    const rot0 = from.rot || 0;
+    const rot0 = from.rot || 0, rot1 = to.rot || 0;
+    const c0 = o.toColor ? rgbOf(o.color || getComputedStyle(d).color) : null;
+    const c1 = c0 ? rgbOf(o.toColor) : null;
     const out = function (t) { return 1 - Math.pow(1 - t, 3); };
     /* cubic-bezier(.22, .61, .36, 1), as `flyGlyph` and the camera
        solve it, so the copy is carried the way the board moves. */
@@ -644,7 +663,11 @@ window.FX = (function () {
            to straighten it in leaves the board as it is written and turns
            level on the way — most of the turn in the middle of the flight,
            none of it at either end. */
-        const turn = P > 0 ? 0 : rot0 * (1 - e * e * (3 - 2 * e));
+        const s = e * e * (3 - 2 * e), r0 = P > 0 ? 0 : rot0;
+        const turn = r0 + (rot1 - r0) * s;
+        if (c1) d.style.color = 'rgb(' + c0.map(function (v, i) {
+          return Math.round(v + (c1[i] - v) * e);
+        }).join(',') + ')';
         put(from.x + (to.x - from.x) * e, y0 + (to.y - y0) * e,
             from.size + (to.size - from.size) * e, turn, 1, 1);
       } else {
