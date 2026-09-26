@@ -2412,14 +2412,14 @@ window.CFG = (function () {
       lines: [ 'But these two aren’t.',
                'How can we find the distance between these two?',
                'Let’s explore.' ],
-      /* The pair on the first. Nothing at all on the second — the beat
-         only stays open, which is what a question needs. And on the
-         third, the side that puts C on the board, with A and C lit
-         once it has got there: the dot lands 980ms into that draw, and
-         a corner must not be lit before the line that puts it there
-         has arrived. */
-      lineLights: [ { pulse: 'ab' },
-                    { hold: 900 },
+      /* Only the two points on the first — no line, no glow: "these two
+         aren't" is about where the points are. The line between them
+         comes after the second, the question about their distance: it
+         draws, and then it glows (join, then the pulse once it is down).
+         And on the third, the side that puts C on the board. */
+      pointsOnly: true,
+      lineLights: [ {},
+                    { join: true, pulse: 'ab', pulseAt: 700 },
                     /* Nothing lit: the side drawing in to C is the
                        thing to look at. But the beat stays open until
                        it has arrived, so nobody is handed on with C

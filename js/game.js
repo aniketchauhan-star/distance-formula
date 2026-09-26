@@ -6868,6 +6868,8 @@
           if (e.segment.result && (!measure || e.keepSegment)) want.result = e.segment.result;
         }
         if (e.joinSegment) want.joined = true;
+        // …or a line of the screen draws it (22)
+        if ((e.lineLights || []).some(function (L) { return L && L.join; })) want.joined = true;
         if (e.solidLine) { want.joined = true; want.dash = false; }
         if (e.legs && !e.legsLater) {
           /* Every setting a side carries (where its length is written,
@@ -9365,7 +9367,16 @@
       /* There is no way to light a POINT here, on purpose: a beat
          names a side, and the side is what lights. `after` holds a
          side's light back for a beat that needs it. */
-      if (L.pulse) ms = Math.max(ms, Board.pulseSides(later, 0, [].concat(L.pulse), run));
+      /* The pair's own line, drawn now: a screen that puts up only the
+         points (22) draws the line between them on the sentence about
+         their distance. */
+      if (L.join && Board.segLine && !Board.segLine.classList.contains('draw')) {
+        later(function () { Board.segLine.classList.add('draw'); SFX.draw(); }, L.joinAt || 0);
+        ms = Math.max(ms, (L.joinAt || 0) + 700);
+      }
+      /* `pulseAt` holds the glow back — until the line it glows round
+         has been drawn, when the same light draws it. */
+      if (L.pulse) ms = Math.max(ms, Board.pulseSides(later, L.pulseAt || 0, [].concat(L.pulse), run));
       /* A pulse brings its own sound with it. When a line both pulses a
          side and holds it forward, the two land in the same tick, and
          two bells on one beat read as a stumble rather than emphasis. */
