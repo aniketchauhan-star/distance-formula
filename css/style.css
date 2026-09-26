@@ -395,6 +395,9 @@ html.calm .wd.in { animation-duration: .08s; }
    at 0,0 of it, and every offset measured for the old artwork still
    lands where it did. Every size comes from Board.place(), scaled with
    the panel, so one board reads the same at any of its sizes. */
+/* The board going from a screen that has none, with no leaf sweep to
+   hide it (40): faded where it stands. */
+#gridPanel.leaving { opacity: 0; transition: opacity .5s ease; }
 #gridPanel {
   position: absolute; z-index: 2; transform-origin: center center;
   border-radius: var(--radius, 46px);

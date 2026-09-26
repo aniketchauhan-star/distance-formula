@@ -6701,9 +6701,57 @@
         host.appendChild(rad);
         emit(host, cs, r.close + 1, cs.length, parts);
         return true;
-      }
+      },
+      sign: sign
     };
   })();
+
+  /* A table's roots drawn whole, the way the formula board draws its own:
+     in an inline row, from a "√(" to the bracket that closes it — across
+     any blanks in between — the sign is drawn, a bar runs over all of it
+     and the two brackets go. "AB = √((y₂ − y₁)² + (x₂ − x₁)²)" was the
+     sign typed and both brackets written round the whole of it. Each
+     piece keeps its own node, so a blank inside a root is still the
+     blank the table fills and the rows still show piece by piece. A
+     root whose brackets do not open and close whole pieces is left as it
+     was written. */
+  function drawRoots(tableEl) {
+    if (!tableEl) return;
+    tableEl.querySelectorAll('.ft-inline').forEach(function (cell) {
+      const kids = Array.prototype.slice.call(cell.children);
+      const first = kids.findIndex(function (n) {
+        return n.classList.contains('ft-text') && n.textContent.indexOf('\u221A(') >= 0;
+      });
+      if (first < 0) return;
+      const t0 = kids[first].textContent, s0 = t0.indexOf('\u221A(');
+      if (t0.slice(0, s0).trim()) return;
+      let depth = 0, last = -1, cut = -1;
+      for (let k = first; k < kids.length && last < 0; k++) {
+        if (!kids[k].classList.contains('ft-text')) continue;
+        const t = kids[k].textContent;
+        for (let c = (k === first ? s0 + 1 : 0); c < t.length; c++) {
+          if (t[c] === '(') depth++;
+          else if (t[c] === ')' && --depth === 0) { last = k; cut = c; break; }
+        }
+      }
+      if (last < 0 || kids[last].textContent.slice(cut + 1).trim()) return;
+      if (first === last) kids[first].textContent = t0.slice(s0 + 2, cut);
+      else {
+        kids[first].textContent = t0.slice(s0 + 2);
+        kids[last].textContent = kids[last].textContent.slice(0, cut);
+      }
+      const rad = document.createElement('span');
+      rad.className = 'rad';
+      /* In the colour of what it covers (AB's blue on 35), bar and all. */
+      if (kids[first].style.color) rad.style.color = kids[first].style.color;
+      const body = document.createElement('span');
+      body.className = 'rad-body';
+      cell.insertBefore(rad, kids[first]);
+      rad.appendChild(Radical.sign());
+      for (let k = first; k <= last; k++) body.appendChild(kids[k]);
+      rad.appendChild(body);
+    });
+  }
 
   /* The formula panel. Shows either a fixed set of lines (the recap)
      or one line that is replaced step by step (the x-axis case). */
@@ -7313,14 +7361,17 @@
          sight, before a single leaf had arrived. */
       if (entry.transition !== 'leaves') {
         // the board only exists on its own screens
-        if (!onBoard) {
+        /* …but on a fly-back screen it goes with the table, faded once she
+           has flown off it (40) — see the fly-back below — not in a frame. */
+        if (!onBoard && !flyBack) {
           el.gridPanel.classList.add('hidden');
           el.standSwifty.classList.add('hidden');
           Board.shown = false;
           Board.setDots(false);
         }
         if (entry.layout !== 'recap' && !AX) el.formulaBoard.classList.add('hidden');
-        if (!entry.segment && !entry.keepSegment && !(entry.fadeOld && Board.shown)) Board.clearSegment();
+        if (!entry.segment && !entry.keepSegment && !(entry.fadeOld && Board.shown) &&
+            !(flyBack && !onBoard)) Board.clearSegment();
         /* Not from under her: on a fly-back screen she may be standing
            on it, and it goes once she has. */
         if (Opts && !entry.options && !flyBack) Opts.hide();
@@ -7921,6 +7972,7 @@
           Board.viewTo(Board.viewFor('triangle'), C.GRID.zoom.ms);
           self.later(function () {
             Table.build(X.rows);
+            drawRoots(Table.el);
             Table.el.style.setProperty('--ft-size', (X.tableSize || T.size) + 'px');
             Table.place({ x: A.x, w: A.w, top: A.y });
             Table.fit();
@@ -8416,8 +8468,24 @@
           if (Opts && !entry.options) Opts.hide();
           if (Sel && !(entry.distance || entry.entry)) Sel.hide();
           dressTown(entry, true);
-          self.slideBoard(geom.panelBox || C.GRID.box);
-          self.later(settleIn, 760);
+          if (onBoard) {
+            self.slideBoard(geom.panelBox || C.GRID.box);
+            self.later(settleIn, 760);
+            return;
+          }
+          /* A screen with no board (40, after 39's table): the board goes
+             too — faded where it stands once the table has folded into
+             it — and she comes back in to an empty field. */
+          self.later(function () {
+            el.gridPanel.classList.add('leaving');
+            self.later(function () {
+              el.gridPanel.classList.add('hidden');
+              el.gridPanel.classList.remove('leaving');
+              Board.clearSegment();
+              Board.shown = false;
+              settleIn();
+            }, 540);
+          }, 700);
         });
         return;
       }
@@ -9825,6 +9893,7 @@
                  always the level one (the school walk goes down first). */
               Table.setColours(self.sideColours());
               Table.build(lines);
+              drawRoots(Table.el);
               /* A table of letters (the general triangle) is wider than
                  one of numbers, and can ask for smaller type. */
               Table.el.style.setProperty('--ft-size', (entry.task.tableSize || T.size) + 'px');
@@ -9936,10 +10005,13 @@
       /* An axis case ends on its answer shown as the answer: the last
          blank goes green, so does the line it measures, and both points
          sparkle as she says so. */
+      /* The line it ends on, on the green — the whole of it, "d =" and
+         all, on every table (it was the last blank alone, and only on
+         the axis cases). */
+      const lastRow = (t.spec.formula || []).length - 1;
+      if (Table && lastRow >= 0) Table.markRow(lastRow);
       const AXd = axisOf(C.SCRIPT[this.index] || {});
       if (AXd) {
-        const bl = Table.blanks(), last = bl[bl.length - 1];
-        if (last) Table.mark(last[0], last[1]);
         if (Board.segLine) Board.segLine.classList.add('good');
         [AXd.a, AXd.b].forEach(function (p, n) {
           self.later(function () {
@@ -10016,6 +10088,7 @@
               const B = T.board, left = B.x + B.w - T.tuck;
               Table.setColours(self.sideColours());
               Table.build(lines);
+              drawRoots(Table.el);
               Table.el.style.setProperty('--ft-size', (t.spec.tableSize || T.size) + 'px');
               /* Up where 29c's sits when she is coming back under it
                  (35: she lands under it on the screen after). */
@@ -10041,8 +10114,10 @@
       let at = 0;
       lines.forEach(function (l, r) { at = self.carryRow(l, r, at); });
       /* Written, and then what it came to is carried onto the side it
-         measures (flyResultOut) before the screen is handed on. */
+         measures (flyResultOut) before the screen is handed on — its line
+         on the green first, as a child's own answer's is. */
       self.later(function () {
+        if (Table && lines.length) Table.markRow(lines.length - 1);
         const t0 = performance.now();
         self.flyResultOut(lines, function () {
           self.later(function () {

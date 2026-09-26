@@ -3147,12 +3147,16 @@ window.CFG = (function () {
        working left behind, Swifty flying back in alone to put the next
        question. */
     { id: 40, line: 'And what if they’re on the y-axis?',
-      entrance: 'fly', transition: 'leaves' },
+      /* No leaf sweep: she flies off from under 39's table, the table
+         folds back and the board fades, and she flies back in to ask. */
+      entrance: 'fly', flyBack: true },
 
     /* 31 — the same working as 27 with the axes swapped: the x terms
        are the pair that falls away this time. */
-    { id: 41, line: 'Both points are on the y-axis.', entrance: 'none',
-      layout: 'yaxis', transition: 'leaves',
+    { id: 41, entrance: 'none', layout: 'yaxis',
+      /* As 39: no leaf sweep and no Swifty — the grid, its two points,
+         then the table. */
+      noIntro: true,
       task: { kind: 'table', formula: YAXIS.picks, tableSize: 32,
               correctLine: 'Exactly! There\u2019s no horizontal distance.' } },
 
@@ -3186,11 +3190,10 @@ window.CFG = (function () {
       segment: { a: { x: 1, y: 1 }, b: { x: 5, y: 4 }, coordSide: 'under' },
       // the third place, plotted the same way and labelled the same way
       mark: [ { x: -5, y: 3 } ],
-      /* The answers go up FIRST and she arrives after — the reverse of
-         every other question in the game. The child looks at a town
-         with two cafes in it and has begun to wonder before anyone says
-         anything. No hint under them: the question is the whole screen. */
-      askLast: true,
+      /* She asks, and then the two answers come up under her — the order
+         every other question in the game has. (They used to go up first,
+         with her arriving after.) No hint under them: the question is the
+         whole screen. */
       options: [
         { key: 'a', label: 'Cafe A', cls: 'cafe-a' },
         { key: 'b', label: 'Cafe B', cls: 'cafe-b' }
@@ -3200,13 +3203,13 @@ window.CFG = (function () {
       task: {
         kind: 'choice',
         answer: 'a',
-        /* One rung, and it must not narrow the field: on a two-answer
-           question "try the other one" is the answer. */
-        feedback: ['Not quite — have another look.'],
+        /* No second go: on a two-answer question the second try is only
+           the other button. One miss and the walks work it out. */
+        feedback: [],
         voiceOnly: true,
         /* Right: past the walks, to the line that closes it. */
         rightAt: 46,
-        /* Wrong twice: the two walks, worked the way 29 taught them. */
+        /* Wrong: the two walks, worked the way 29 taught them. */
         teachAt: 43
       } },
 
@@ -3277,7 +3280,8 @@ window.CFG = (function () {
       pointsOnly: true,
       segment: { a: { x: 1, y: 1, labelAt: HOUSE_LABEL }, b: { x: 5, y: -4 }, coordSide: 'under' },
       mark: [ { x: -3, y: 2, labelAt: PARK_LABEL } ],
-      askLast: true,
+      /* As 42: she asks, then the answers come up; one miss and the two
+         walks work it out. */
       options: [
         { key: 'school', label: 'School', cls: 'school' },
         { key: 'park',   label: 'Park',   cls: 'park' }
@@ -3287,7 +3291,7 @@ window.CFG = (function () {
       task: {
         kind: 'choice',
         answer: 'park',
-        feedback: ['Not quite — have another look.'],
+        feedback: [],
         voiceOnly: true,
         rightAt: 48,
         teachAt: '47a'

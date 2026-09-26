@@ -415,6 +415,36 @@ window.FormulaTable = (function () {
         if (c && c.box) c.box.classList.add('good');
       },
 
+      /* …or the whole line it ends on, name and = and all: "d = |x₂ − x₁|"
+         on one green, not the blank alone. Laid behind the words, over
+         the box every piece of the row covers. */
+      markRow: function (r) {
+        const row = rows[r];
+        if (!row) return;
+        const els = (row.boxes && row.boxes.length) ? row.boxes
+          : row.cells.filter(Boolean).map(function (c) { return c.el; });
+        const g = grid.getBoundingClientRect();
+        const k = g.width / (grid.offsetWidth || g.width || 1) || 1;   // the stage's scale
+        let l = Infinity, t = Infinity, rt = -Infinity, b = -Infinity;
+        els.forEach(function (e) {
+          const q = e.getBoundingClientRect();
+          if (!q.width && !q.height) return;
+          l = Math.min(l, q.left); t = Math.min(t, q.top);
+          rt = Math.max(rt, q.right); b = Math.max(b, q.bottom);
+        });
+        if (!isFinite(l)) return;
+        const old = grid.querySelector('.ft-answer');
+        if (old) old.parentNode.removeChild(old);
+        const band = mk('span', 'ft-answer');
+        band.style.left = ((l - g.left) / k) + 'px';
+        band.style.top = ((t - g.top) / k) + 'px';
+        band.style.width = ((rt - l) / k) + 'px';
+        band.style.height = ((b - t) / k) + 'px';
+        grid.insertBefore(band, grid.firstChild);
+        void band.offsetWidth;
+        band.classList.add('on');
+      },
+
       /* Wrong: that tile shakes where it is, its number red while it
          shakes, and stays. Both numbers are still there — the child
          sees what they chose and that it was not it, and chooses again.

@@ -45,12 +45,46 @@
 /* One column of equals signs, a column per term; every row lines up
    under the one above it. */
 .formula-table .ft-grid {
+  position: relative;          /* what the answer's green is laid against */
   display: grid;
   grid-template-columns: repeat(5, auto);
   justify-content: center;
   align-items: baseline;
   column-gap: .34em;
   row-gap: .55em;
+}
+/* The line the working ends on, shown as the answer (markRow): the green
+   a right blank takes, under the whole line — "d =" as well. */
+.formula-table .ft-answer {
+  /* Under the words, over the panel: the panel is the stacking context
+     (it is positioned with a z-index), so -1 lies on its paper. The cells
+     are left unpositioned — made layers of their own, a blank's tiles
+     would slide under the row beneath it. */
+  position: absolute; z-index: -1;
+  box-sizing: content-box;
+  margin: -.12em 0 0 -.3em;
+  padding: .12em .3em;
+  border-radius: .3em;
+  background: #DDF3DF;
+  opacity: 0;
+  transition: opacity .4s ease;
+  pointer-events: none;
+}
+.formula-table .ft-answer.on { opacity: 1; }
+
+/* A square root drawn whole (drawRoots): the sign stretched to the height
+   of what it covers and a bar over all of it, blanks too — no brackets
+   standing in for the bar. */
+.formula-table .rad {
+  display: inline-flex;
+  align-items: stretch;
+  white-space: nowrap;
+}
+.formula-table .rad-sign { flex: none; width: .6em; }
+.formula-table .rad-sign svg { display: block; width: 100%; height: 100%; }
+.formula-table .rad-body {
+  border-top: .08em solid currentColor;
+  padding: .06em .22em 0 .04em;
 }
 .formula-table .ft-col0 { justify-self: end; }      /* the left-hand side meets its = */
 .formula-table .ft-col1,
@@ -185,7 +219,7 @@ html.calm .formula-table .ft-cell { transition: opacity .2s linear; transform: n
   display: grid; place-items: center;
   margin: 0;
   border-style: solid; border-width: 0;
-  border-image: url('../assets/tile.png?v=20260926184027') 64 fill / .506em stretch;
+  border-image: url('../assets/tile.png?v=20260926204215') 64 fill / .506em stretch;
   background: none;
   font-family: 'Lilita One', 'Nunito', system-ui, sans-serif;
   /* One weight, and the bold the browser used to fake drawn as a fixed
