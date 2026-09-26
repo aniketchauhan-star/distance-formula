@@ -124,7 +124,7 @@ window.FormulaTable = (function () {
                 box.appendChild(shown);
                 side.appendChild(box);
                 cells[k] = { kind: 'pick', el: box, box: box, num: shown,
-                             answer: /^-?\d+(?:\.\d+)?$/.test(want) ? parseFloat(want) : want,
+                             answer: /^[-\u2212]?\d+(?:\.\d+)?$/.test(want) ? parseFloat(want.replace('\u2212', '-')) : want,
                              offer: p.offer.slice() };
                 return;
               }
@@ -349,7 +349,8 @@ window.FormulaTable = (function () {
           /* A scroller that carries letters on any tile is set in the
              table's own face throughout: Lilita One has no ₁ or ₂, and a
              pair of tiles in two faces reads as a mistake. */
-          const words = c.offer.some(function (v) { return !/^-?\d+(?:\.\d+)?$/.test(String(v)); });
+          /* A negative number is a number, whichever minus it is written with. */
+          const words = c.offer.some(function (v) { return !/^[-\u2212]?\d+(?:\.\d+)?$/.test(String(v)); });
           c.offer.forEach(function (v) {
             const tile = mk('button', 'ft-tile', String(v));
             if (words) tile.classList.add('ft-word');
@@ -413,6 +414,36 @@ window.FormulaTable = (function () {
       mark: function (r, k) {
         const c = rows[r] && rows[r].cells[k];
         if (c && c.box) c.box.classList.add('good');
+      },
+
+      /* …or the whole line it ends on, name and = and all: "d = |x₂ − x₁|"
+         on one green, not the blank alone. Laid behind the words, over
+         the box every piece of the row covers. */
+      markRow: function (r) {
+        const row = rows[r];
+        if (!row) return;
+        const els = (row.boxes && row.boxes.length) ? row.boxes
+          : row.cells.filter(Boolean).map(function (c) { return c.el; });
+        const g = grid.getBoundingClientRect();
+        const k = g.width / (grid.offsetWidth || g.width || 1) || 1;   // the stage's scale
+        let l = Infinity, t = Infinity, rt = -Infinity, b = -Infinity;
+        els.forEach(function (e) {
+          const q = e.getBoundingClientRect();
+          if (!q.width && !q.height) return;
+          l = Math.min(l, q.left); t = Math.min(t, q.top);
+          rt = Math.max(rt, q.right); b = Math.max(b, q.bottom);
+        });
+        if (!isFinite(l)) return;
+        const old = grid.querySelector('.ft-answer');
+        if (old) old.parentNode.removeChild(old);
+        const band = mk('span', 'ft-answer');
+        band.style.left = ((l - g.left) / k) + 'px';
+        band.style.top = ((t - g.top) / k) + 'px';
+        band.style.width = ((rt - l) / k) + 'px';
+        band.style.height = ((b - t) / k) + 'px';
+        grid.insertBefore(band, grid.firstChild);
+        void band.offsetWidth;
+        band.classList.add('on');
       },
 
       /* Wrong: that tile shakes where it is, its number red while it

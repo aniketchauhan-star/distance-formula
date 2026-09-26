@@ -414,6 +414,52 @@ html.calm .triangle-options-panel.rising { animation: none; }
   box-shadow: 0 7px 0 #244C20, 0 10px 15px rgba(40, 90, 30, .18),
               inset 0 3px 0 rgba(255, 255, 255, .35);
 }
+/* A card for a place (46): its picture, its name, and how far it
+   is, in a green box — paper rather than a coloured button, so the
+   distance written on it is the thing to read. The verdicts (the green
+   and the red border) work on it as on any answer. */
+.triangle-option.card {
+  height: auto;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 14px 16px;
+  background: #FFFFFF;
+  border: 4px solid #B9D3F2;
+  box-shadow: 0 6px 0 #9DB8DA, 0 10px 16px rgba(40, 70, 120, .14);
+  color: #1D2744;
+  text-shadow: none;
+}
+.triangle-option.card::before { display: none; }
+.triangle-option.card .opt-pic {
+  display: block; flex: none;
+  background-repeat: no-repeat;
+}
+.triangle-option.card .opt-label { font-size: 52px; line-height: 1; }
+.triangle-option.card .opt-dist {
+  display: flex; flex-direction: column; align-items: center;
+  align-self: stretch;
+  gap: 2px;
+  padding: 12px 8px 14px;
+  border-radius: 20px;
+  background: #DDF3DF;
+  font-family: 'Nunito', system-ui, sans-serif;
+  font-weight: 700;
+  color: #1E4630;
+}
+.triangle-option.card .opt-dist-k { font-size: 32px; line-height: 1.1; }
+.triangle-option.card .opt-dist-v { font-size: 44px; line-height: 1.15; white-space: nowrap; }
+/* The verdicts again, after the card's own border: the same weight and
+   later, or the card's border would be the one that shows. */
+.triangle-option.card.correct {
+  border-color: #17A64A;
+  box-shadow: 0 0 0 5px rgba(23, 166, 74, .34), 0 6px 0 #0F7C36,
+              0 10px 16px rgba(14, 110, 50, .2);
+}
+.triangle-option.card.incorrect {
+  border-color: #E23A3A;
+  box-shadow: 0 0 0 5px rgba(226, 58, 58, .32), 0 6px 0 #B02A2A,
+              0 10px 16px rgba(150, 30, 30, .2);
+}
 .triangle-option.cafe-b {
   background: linear-gradient(180deg, #4FC2DE 0%, #2AA2C4 48%, #1786A8 100%);
   border: 4px solid #12708E;

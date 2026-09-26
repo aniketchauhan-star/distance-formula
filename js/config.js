@@ -1939,6 +1939,11 @@ window.CFG = (function () {
        base    what all three share (the town, the board, the range)
        first   what only the first screen has (its entrance, a sweep)
        done    where the table hands on to, if not the next screen
+       askFirst  { id, rightAt, line } — AB asked for outright first, on
+               a screen of its own (it takes the first of `ids`): right,
+               and the walk is stepped over to `rightAt`; wrong, and the
+               walk is how it is found — its first screen, now `id`,
+               opens "Oops! Let’s find it together." and brings C (30).
      ------------------------------------------------------------- */
   const SQRT = '√', SQ = '²', UNIT = ' units';
   /* The whole triangle each run of screens builds, for its labels to be
@@ -1949,17 +1954,96 @@ window.CFG = (function () {
                     { from: { x: 2, y: 2 }, to: { x: 2, y: 5 } } ];     // 29–29c
   const SHAPE_G = [ { from: { x: -5, y: 1 }, to: { x: 5, y: 1 } },
                     { from: { x: 5, y: 1 }, to: { x: 5, y: 4 } } ];     // 31–37
-  /* Where the park's coordinates are written: right of its trees and a
-     little up — the same spot whether the park is a point of the walk
-     (with its letter over it) or one of the other places. In squares
-     from the point. */
-  const PARK_LABEL = { x: 1.04, y: 0.376 };
-  /* And the house's, on the school-and-park screens (47 to 48): right of
-     the house, level with its point. Every line out of the house there
-     — to the school, down to the corner under it, left to the park's
-     corner, up to the park — leaves on another side, so nothing is ever
-     written across it and it never has to move. */
-  const HOUSE_LABEL = { x: 0.95, y: 0.12 };
+
+  /* A number as the working writes it: its minus is the arithmetic sign. */
+  const MINUS = function (v) { return String(v).replace('-', '\u2212'); };
+
+  /* A place's picture for an answer card (46): where its drawing is
+     on the town's sheet, so the card shows the building the map does. */
+  const PIC = function (kind) {
+    const s = TOWN.sprites[kind];
+    return { src: TOWN.sheet.src, x: s.x, y: s.y, w: s.w, h: s.h,
+             sw: TOWN.sheet.w, sh: TOWN.sheet.h };
+  };
+
+  /* The distance formula worked for two points, as a table the child
+     fills: the formula, given; the four coordinates carried into it off
+     the board one at a time; then the child's — the two differences,
+     their squares, the sum, and the root:
+
+         d = √((x₂ − x₁)² + (y₂ − y₁)²)
+           = √((5 − 1)² + (4 − 1)²)
+           = √(4² + 3²)
+           = √(16 + 9)
+         d = √25 = 5 units
+
+     P is (x₁, y₁) and Q is (x₂, y₂); each `key` names the point on the
+     board its numbers are read off ('a', 'b', or 'c' for the corner,
+     which must be written in parts — coordParts). The x's are in the
+     orange of a level side and the y's in the green of an upright one,
+     as the sides were on the triangle this formula came from. Every
+     blank has two tiles: the answer and the mistake it is there to
+     catch, and which comes first changes. */
+  function distanceTable(P, Q) {
+    const n = MINUS;
+    const two = function (right, wrong, first) {
+      if (wrong === right) wrong = right + 1;
+      return first ? [n(right), n(wrong)] : [n(wrong), n(right)];
+    };
+    const dx = Q.x - P.x, dy = Q.y - P.y;
+    const sx = dx * dx, sy = dy * dy, sum = sx + sy, root = Math.sqrt(sum);
+    const whole = Math.abs(root - Math.round(root)) < 1e-9;
+    /* A difference: the two added, a sign slipped — or, where that is no
+       slip because the second is 0, the sign dropped. A square: a
+       negative's sign kept, or the number doubled. The sum: the two
+       differences added instead of their squares. The root: stopping
+       before it. */
+    const slip = function (b, a) { return (b + a !== b - a) ? b + a : (-(b - a) || 1); };
+    const sq = function (d) { return d < 0 ? -(d * d) : (2 * d !== d * d ? 2 * d : d * d + 1); };
+    const blank = function (v, lit, offer) {
+      return { t: n(v), lit: lit, answer: n(v), offer: offer };
+    };
+    const U = '\u00A0units';
+    const rows = [
+      { inline: true, parts: [
+          { t: 'd' }, { t: ' = ' }, { t: '\u221A((' },
+          { t: 'x\u2082 \u2212 x\u2081', lit: 'x' }, { t: ')\u00B2 + (' },
+          { t: 'y\u2082 \u2212 y\u2081', lit: 'y' }, { t: ')\u00B2)' } ] },
+      { inline: true, parts: [
+          { t: '= ' }, { t: '\u221A((' },
+          { t: n(Q.x), lit: 'x', from: { p: Q.key, half: 'x' } },
+          { t: P.x < 0 ? ' \u2212 (' : ' \u2212 ' },
+          { t: n(P.x), lit: 'x', from: { p: P.key, half: 'x' } },
+          { t: (P.x < 0 ? ')' : '') + ')\u00B2 + (' },
+          { t: n(Q.y), lit: 'y', from: { p: Q.key, half: 'y' } },
+          { t: P.y < 0 ? ' \u2212 (' : ' \u2212 ' },
+          { t: n(P.y), lit: 'y', from: { p: P.key, half: 'y' } },
+          { t: (P.y < 0 ? ')' : '') + ')\u00B2)' } ] },
+      { inline: true, parts: [
+          { t: '= ' }, { t: dx < 0 ? '\u221A((' : '\u221A(' },
+          blank(dx, 'x', two(dx, slip(Q.x, P.x), true)),
+          { t: (dx < 0 ? ')' : '') + '\u00B2 + ' + (dy < 0 ? '(' : '') },
+          blank(dy, 'y', two(dy, slip(Q.y, P.y), false)),
+          { t: (dy < 0 ? ')' : '') + '\u00B2)' } ] },
+      { inline: true, parts: [
+          { t: '= ' }, { t: '\u221A(' },
+          blank(sx, 'x', two(sx, sq(dx), false)), { t: ' + ' },
+          blank(sy, 'y', two(sy, sq(dy), true)), { t: ')' } ] }
+    ];
+    const sumBlank = blank(sum, 'ab', two(sum, Math.abs(dx) + Math.abs(dy), !whole));
+    /* The last line says what it came to (`result`), which is what flies
+       onto the side it measures; `resultFrom` is where on the line that
+       is written — the root's value, or the root itself. */
+    rows.push(whole
+      ? { inline: true, result: Math.round(root) + U, resultFrom: 6, parts: [
+            { t: 'd' }, { t: ' = ' }, { t: '\u221A(' }, sumBlank, { t: ')' },
+            { t: ' = ' }, blank(Math.round(root), 'ab', two(Math.round(root), sum, true)),
+            { t: U } ] }
+      : { inline: true, result: '\u221A' + sum + U, resultFrom: 2, parts: [
+            { t: 'd' }, { t: ' = ' }, { t: '\u221A(' }, sumBlank, { t: ')' },
+            { t: U } ] });
+    return rows;
+  }
 
   function walk(w) {
     const pt = function (p, name) {
@@ -1990,20 +2074,114 @@ window.CFG = (function () {
     const shape = [ { from: w.a, to: w.c }, { from: w.c, to: w.b } ];
     const say = w.say || {};
     const firstWord = function (t) { return String(t).split(/[\s,.]+/)[0]; };
+
+    /* A walk after the formula has been taught (44 on): one screen. AB
+       is asked for outright — A and B, the dotted line between them on
+       her word and AB drawn over it, then "What is the distance between A
+       and B?" — on the reel where it comes out whole, and as three answers
+       where it is a root the reel cannot hold (√40, and the two mistakes:
+       40, the root not taken, and the steps along the grid). Right, and
+       on. Wrong once, and she flies off, the board makes room and the
+       distance formula opens out of its edge (distanceTable): the child
+       works it, and what it comes to flies onto AB. No corner and no
+       sides: the formula needs only the two points' coordinates, which
+       are written in parts so the numbers can be carried out of them. */
+    if (w.formula) {
+      const parts = function (p) {
+        return { coordParts: [ { t: '(' }, { t: MINUS(p.x), glow: 'x' }, { t: ',\u00A0' },
+                               { t: MINUS(p.y), glow: 'y' }, { t: ')' } ] };
+      };
+      const segF = Object.assign({}, seg, {
+        a: Object.assign({}, seg.a, parts(w.a)), b: Object.assign({}, seg.b, parts(w.b)) });
+      const d2 = Math.pow(w.b.x - w.a.x, 2) + Math.pow(w.b.y - w.a.y, 2);
+      const rt = Math.sqrt(d2), whole = Math.abs(rt - Math.round(rt)) < 1e-9;
+      const q = say.ask || 'What is the distance between A and B?';
+      const table = distanceTable({ x: w.a.x, y: w.a.y, key: 'a' },
+                                  { x: w.b.x, y: w.b.y, key: 'b' });
+      const steps = Math.abs(w.b.x - w.a.x) + Math.abs(w.b.y - w.a.y);
+      const three = [ { key: 'root', label: '\u221A' + d2 + UNIT, cls: 'expr' },
+                      { key: 'sum', label: d2 + UNIT, cls: 'expr' },
+                      { key: 'steps', label: steps + UNIT, cls: 'expr' } ];
+      const turn = d2 % 3;                    // the right one is not always first
+      const answers = three.slice(turn).concat(three.slice(0, turn));
+      return [ Object.assign({
+        id: w.ids[0],
+        line: say.first, line2: q,
+        guideOnLine: true,
+        wordCues: [ { word: say.cue || firstWord(say.first), in: say.first,
+                      guide: true, beat: ['a', 'b'] },
+                    { word: firstWord(q), in: q, spot: 'ab' } ],
+        lineLights: [ {}, { pulse: 'ab' } ],
+        entrance: 'none', layout: 'board', intro: 'measure',
+        /* The control is taken away while she asks and comes in after —
+           the last screen's may be a different one, or answered. */
+        askFirst: true,
+        segment: segF,
+        task: Object.assign({ correctLine: 'That\u2019s right!', tableOnMiss: true,
+                              tableSize: 34, formula: table, rightAt: w.done },
+          whole ? { kind: 'distance' }
+                : { kind: 'choice', answer: 'root', feedback: [], voiceOnly: true })
+      }, whole ? { distance: true } : { options: answers },
+         w.base || {}, w.first || {}) ];
+    }
+    /* Every question in a walk is asked one way: "What is the distance
+       between A and C?" — never "How far is it from A to C?" or "Now
+       find the distance from C to B." (the same words the pair screens
+       and the first question use). */
+    const askAC = say.ask || 'What is the distance between A and C?';
+    const askCB = say.second || 'What is the distance between C and B?';
     const base = Object.assign({ shape: shape }, w.base || {});
-    const s1 = Object.assign({
+    /* AB asked for outright, before any of the walk: A and B, the dotted
+       line between them on her word and AB drawn over it, then "What is
+       the distance between A and B?" with AB lit, and the reel. A right
+       answer steps over the walk; a wrong one — seen as the line falling
+       short of B or running past it — hands on to the walk, which finds
+       it. */
+    const ask = w.askFirst ? (w.askFirst.line || 'What is the distance between A and B?') : null;
+    const s0 = w.askFirst ? Object.assign({
       id: w.ids[0],
-      line: say.first, line2: say.ask || 'How far is it from A to C?',
-      /* The dotted line waits for her first word, and A and B pulse
-         with it; the corner comes after her sentence, drawn out along
-         the first side; then she asks, and while she asks only A, C and
-         the side between them are at full strength. */
+      line: say.first, line2: ask,
       guideOnLine: true,
       wordCues: [ { word: say.cue || firstWord(say.first), in: say.first,
                     guide: true, beat: ['a', 'b'] },
-                  { word: firstWord(say.ask || 'How'), in: say.ask || 'How far is it from A to C?',
-                    spot: 'h' } ],
-      lineLights: [ { legs: true, beat: ['c'], quiet: true }, { pulse: 'h' } ],
+                  { word: firstWord(ask), in: ask, spot: 'ab' } ],
+      lineLights: [ {}, { pulse: 'ab' } ],
+      entrance: 'none', layout: 'board',
+      intro: 'measure', distance: true,
+      segment: seg,
+      task: { kind: 'distance', correctLine: 'That’s right!',
+              rightAt: w.askFirst.rightAt, teachAt: w.askFirst.id }
+    }, base, w.first || {}) : null;
+    const s1 = w.askFirst ? Object.assign({
+      id: w.askFirst.id,
+      /* Reached from the question above, wrong: AB is on the board
+         already, so this screen keeps it and brings only the corner —
+         on the first word of her question about AC, as below. */
+      line: 'Oops! Let’s find it together.', line2: askAC,
+      wordCues: [ { word: firstWord(askAC), in: askAC, spot: 'h', legs: true, beat: ['c'] } ],
+      lineLights: [ {}, { pulse: 'h' } ],
+      entrance: 'none', layout: 'board', keepSegment: true,
+      intro: 'measure', distance: true,
+      segment: seg,
+      legs: [ Object.assign({ dash: true }, legA) ],
+      task: { kind: 'distance', measureLeg: 0, countLine: 'Count carefully!' }
+    }, base) : Object.assign({
+      id: w.ids[0],
+      line: say.first, line2: askAC,
+      /* Her first sentence has only A and B in it: the dotted line waits
+         for its word, A and B pulse with it, and AB is drawn solid over
+         the dots (drawGuide). Her next sentence brings the corner: from
+         its first word the dotted side grows out of A with the ease-in
+         every dotted line has, and C lands — ringing — as the dots reach
+         it, while only A, C and the side between them are at full
+         strength. The corner used to come between the two, in silence,
+         with her balloon taken away. The second sentence waits for AB to
+         finish (lightAfterLine). */
+      guideOnLine: true,
+      wordCues: [ { word: say.cue || firstWord(say.first), in: say.first,
+                    guide: true, beat: ['a', 'b'] },
+                  { word: firstWord(askAC), in: askAC, spot: 'h', legs: true, beat: ['c'] } ],
+      lineLights: [ {}, { pulse: 'h' } ],
       /* Not quiet: these two screens ask for a side to be COUNTED, and
          a child counting squares needs to see them. */
       entrance: 'none', layout: 'board',
@@ -2014,8 +2192,8 @@ window.CFG = (function () {
     }, base, w.first || {});
     const s2 = Object.assign({
       id: w.ids[1],
-      line: say.second || 'Now find the distance from C to B.',
-      wordCues: [ { word: firstWord(say.second || 'Now'), spot: 'v' } ],
+      line: askCB,
+      wordCues: [ { word: firstWord(askCB), spot: 'v' } ],
       lineLights: [ { pulse: 'v' } ],
       entrance: 'none', layout: 'board',
       intro: 'measure', distance: true, keepSegment: true,
@@ -2026,8 +2204,18 @@ window.CFG = (function () {
     const s3 = Object.assign({
       id: w.ids[2],
       lines: say.table || [ 'We know AC and CB.', 'Let’s use Pythagoras to find AB.' ],
-      wordCues: [ { word: 'We', spot: ['h', 'v'] } ],
-      lineLights: [ { unspot: true, hold: 600 }, {} ],
+      /* The two known sides on "We know AC and CB." — lit and pulsing,
+         the rest stepped back, for as long as the sentence is up: they
+         used to go back the instant its last word was typed, so the
+         sentence sat there naming two sides nothing was showing. Then AB
+         takes the light on the line that names it — as on 29c: AB and
+         its points forward, AB pulsing and A and B ringing, the rest
+         stepped back until just after the sentence, and the square left
+         up for Pythagoras. */
+      wordCues: [ { word: 'We', spot: ['h', 'v'], pulse: ['h', 'v'], run: 2200 },
+                  { word: firstWord((say.table || [])[1] || 'Let’s'), spot: 'ab', pulse: 'ab',
+                    beat: ['a', 'b'], run: 1700 } ],
+      lineLights: [ { hold: 1000 }, { unspot: true, after: 550 } ],
       rightAngle: true, keepMark: true,
       entrance: 'none', layout: 'board', quietBoard: true, keepSegment: true,
       segment: seg,
@@ -2059,7 +2247,7 @@ window.CFG = (function () {
                 : { t: res + UNIT, lit: 'ab', answer: res, offer: [res, String(sum)] } ] }
         ] }
     }, base);
-    return [s1, s2, s3];
+    return s0 ? [s0, s1, s2, s3] : [s1, s2, s3];
   }
 
   /* -------------------------------------------------------------
@@ -2357,17 +2545,20 @@ window.CFG = (function () {
         /* The row, laid out the way the argument laid it out: the
            coordinates under their points, the length over the line. */
         { a: { x: 3, y: 2 }, b: { x: 6, y: 2 },
-          coordSide: 'under', result: { text: '3\u00A0units' } }
+          coordSide: 'under', result: { text: '3\u00A0units' } },
+        /* And the column they measured on 19, with the answer they
+           gave it — revealed again on its word, like the row. */
+        { a: { x: -2, y: 3 }, b: { x: -2, y: 1 },
+          result: { text: '2\u00A0units' } }
       ],
-      /* The column is the very pair 19 has just measured, so it is not
-         drawn again: 19's line and its "2 units" stay exactly where the
-         child put them (keepMeasure), and on "vertically" its two points
-         pulse. It used to be wiped with the screen change and drawn
-         again as a recalled pair — the line vanished and came back. */
-      keepSegment: true, keepMeasure: true,
-      segment: { a: { x: -2, y: 3 }, b: { x: -2, y: 1 }, dash: true },
+      /* 19's pair, its line and its "2 units" do not stay: as the screen
+         opens they fade out together (fadeOld), and the board is clear
+         for the two pairs to be revealed on their words. They used to be
+         wiped in one frame and the column drawn straight back — which
+         read as the line vanishing and coming back. */
+      fadeOld: true,
       wordCues: [ { word: 'horizontally', example: 0 },
-                  { word: 'vertically',   beat: ['a', 'b'] } ] },
+                  { word: 'vertically',   example: 1 } ] },
 
     /* Both lengths go where every length goes: the middle of the span
        it measures, out to the side of the line by the same air a
@@ -2409,14 +2600,14 @@ window.CFG = (function () {
       lines: [ 'But these two aren’t.',
                'How can we find the distance between these two?',
                'Let’s explore.' ],
-      /* The pair on the first. Nothing at all on the second — the beat
-         only stays open, which is what a question needs. And on the
-         third, the side that puts C on the board, with A and C lit
-         once it has got there: the dot lands 980ms into that draw, and
-         a corner must not be lit before the line that puts it there
-         has arrived. */
-      lineLights: [ { pulse: 'ab' },
-                    { hold: 900 },
+      /* Only the two points on the first — no line, no glow: "these two
+         aren't" is about where the points are. The line between them
+         comes after the second, the question about their distance: it
+         draws, and then it glows (join, then the pulse once it is down).
+         And on the third, the side that puts C on the board. */
+      pointsOnly: true,
+      lineLights: [ {},
+                    { join: true, pulse: 'ab', pulseAt: 700 },
                     /* Nothing lit: the side drawing in to C is the
                        thing to look at. But the beat stays open until
                        it has arrived, so nobody is handed on with C
@@ -2529,8 +2720,8 @@ window.CFG = (function () {
          stay, and A, AC and the dotted AB step back — through the
          question, until the screen goes. It used to wait for the end of
          the sentence, so "from C to B" was said over the whole drawing. */
-      line: 'Now find the distance from C to B.',
-      wordCues: [ { word: 'Now', spot: 'v' } ],
+      line: 'What is the distance between C and B?',
+      wordCues: [ { word: 'What', spot: 'v' } ],
       entrance: 'none', view: 'triangle', quietBoard: true,
       layout: 'board', distance: true, intro: 'measure', keepSegment: true,
       segment: { a: { x: 2, y: 1, name: 'A' },
@@ -2600,7 +2791,16 @@ window.CFG = (function () {
          1.25s — so for over two seconds she was naming a triangle
          with two sides on the board. The shape closes as she says
          what it is. */
-      wordCues: [ { word: 'triangle', settle: true } ],
+      /* And the three sides light on that same word — the glow that
+         used to wait for the question on 26. "Look! We made a triangle"
+         is the moment the shape is named, so this is where the board
+         shows which three lines she means: two full swells, the third
+         side coming up as the light goes round all three. */
+      wordCues: [ { word: 'triangle', settle: true, pulse: 'triangle', run: 1800 } ],
+      /* Long enough after her last word for the light to finish before
+         26 arrives: the word lands one beat (~0.4s) before her balloon
+         closes, and the light runs 1.8s from it. */
+      hold: 1900,
       segment: { a: { x: 2, y: 1, name: 'A' },
                  b: { x: 6, y: 4, name: 'B' } },
       legs: [
@@ -2651,17 +2851,11 @@ window.CFG = (function () {
         marksRightAngle: true
       },
       entrance: 'stay', view: 'triangle', quietBoard: true,
-      /* The three sides light as she names the shape. They used to light
-         on the question after this one — and that question is gone, so
-         the beat that says "triangle" is the one that should show which
-         three lines it means. */
-      pulse: 'triangle',
+      /* No glow on the question. The three sides light on 27, as she says
+         "Look! We made a triangle" — the words that name the shape — and
+         lighting the same triangle again here made one moment look like
+         it was happening twice. */
       layout: 'board', keepSegment: true,
-      /* No highlight here. This screen and the one after it show the
-         same triangle on the same board, so lighting it on both made
-         one moment look like it was happening twice. It belongs to the
-         question — move `pulse: 'triangle'` up here and off screen 25
-         to have it land on the question instead. */
       hold: 3400,
       segment: { a: { x: 2, y: 1, name: 'A' },
                  b: { x: 6, y: 4, name: 'B' } },
@@ -2731,8 +2925,18 @@ window.CFG = (function () {
       /* The pulse and the fade end together, just after the sentence
          has finished — the pulse used to run on into "But we still
          need AB." with AB already back. */
-      wordCues: [ { word: 'We', spot: ['h', 'v'], pulse: ['h', 'v'], run: 1500 } ],
-      lineLights: [ { unspot: true, after: 550, hold: 500 }, { hold: 700 }, {} ],
+      /* "But we still need AB." — the same again for the side still to
+         find, from her first word: AB and its two points come forward, AB
+         pulses and A and B ring, and everything else steps back — AC and
+         CB, their lengths, C, and the square at C, which is only the
+         reason on the next line. The fade ends with the pulse, just after
+         the sentence, so "Since it’s a right triangle…" has the whole
+         triangle and its square at full strength. */
+      wordCues: [ { word: 'We', spot: ['h', 'v'], pulse: ['h', 'v'], run: 1500 },
+                  { word: 'But', spot: 'ab', pulse: 'ab', beat: ['a', 'b'], run: 1500,
+                    hushMark: true } ],
+      lineLights: [ { unspot: true, after: 550, hold: 500 },
+                    { unspot: true, after: 550, hold: 500 }, {} ],
       /* The right angle is what the theorem rests on, so the marker is
          asserted on arrival (a jump from the picker would otherwise
          land without it) and exempt from every highlight's hush —
@@ -2798,20 +3002,22 @@ window.CFG = (function () {
          The grid fills and the camera frames the triangle before a point
          is drawn (frameDrawing); A and B go up. Then, with "Now, let's
          find the distance between A and B.", A and B pulse and the dotted
-         line between them is drawn as she says "distance" — and nothing
-         else is on the board. Her balloon goes; C arrives with a pulse,
-         the dotted side from A running out to it; and only then "What is
-         the difference between these two points?" — from its first word
-         AC is the only side at full strength, B and the dotted AB
-         stepping back — with AC glowing after it. CB is not drawn here:
+         line between them is drawn as she says "distance", then the line
+         itself drawn over it from A to B — and nothing else is on the
+         board. Then "What is the difference between these two points?",
+         and from its first word C arrives with a pulse, the dotted side
+         from A running out to it, AC the only side at full strength, B
+         and AB stepping back — with AC glowing after it. CB is not drawn here:
          it comes on the next screen, once AC has been answered. */
       view: 'triangle',
       line: 'Now, let’s find the distance between A and B.',
       line2: 'What is the difference between these two points?',
       guideOnLine: true,
+      /* C and the dotted side out to it come with "What is the
+         difference…", from its first word — see the walks (walk, s1). */
       wordCues: [ { word: 'distance', guide: true, beat: ['a', 'b'] },
-                  { word: 'What', spot: 'h' } ],
-      lineLights: [ { legs: true, beat: ['c'], quiet: true }, { pulse: 'h' } ],
+                  { word: 'What', spot: 'h', legs: true, beat: ['c'] } ],
+      lineLights: [ {}, { pulse: 'h' } ],
       entrance: 'none', layout: 'board', quietBoard: true, transition: 'leaves',
       intro: 'measure', distance: true,
       segment: { a: { x: -2, y: 2, name: 'A' }, b: { x: 2, y: 5, name: 'B' }, dash: true },
@@ -2846,9 +3052,18 @@ window.CFG = (function () {
          together and AB steps back — from her first word, not after
          the sentence — and the marker comes up on "triangle". When the
          line is done the triangle goes back to normal. */
-      wordCues: [ { word: 'Look', spot: ['h', 'v'] },
-                  { word: 'triangle', mark: true } ],
-      lineLights: [ { unspot: true, hold: 600 }, {} ],
+      /* Then AB, the side to find, from the first word of "Let’s use
+         Pythagoras to find AB.": AB and its points forward, AB pulsing
+         and A and B ringing, AC, CB and C stepped back — until just
+         after the sentence, before the table opens. The square stays up:
+         it is what lets Pythagoras be used, named in the same breath. */
+      /* The two sides stay lit, pulsing, for as long as her sentence is
+         up — until AB takes the light on the next one — rather than going
+         back the instant its last word is typed. */
+      wordCues: [ { word: 'Look', spot: ['h', 'v'], pulse: ['h', 'v'], run: 2600 },
+                  { word: 'triangle', mark: true },
+                  { word: 'Let’s', spot: 'ab', pulse: 'ab', beat: ['a', 'b'], run: 1700 } ],
+      lineLights: [ { hold: 1000 }, { unspot: true, after: 550 } ],
       keepMark: true,
       entrance: 'none', view: 'triangle', quietBoard: true, layout: 'board', keepSegment: true,
       segment: { a: { x: -2, y: 2, name: 'A' }, b: { x: 2, y: 5, name: 'B' }, dash: true },
@@ -2899,7 +3114,10 @@ window.CFG = (function () {
       a: { x: -3, y: 3 }, b: { x: 5, y: -3 }, c: { x: 5, y: 3 },
       say: { first: 'Now find AB.', cue: 'AB' },
       base: { view: 'triangle', range: { min: 0, max: 12 } },
-      first: { transition: 'leaves', numbers: false }
+      first: { transition: 'leaves', numbers: false },
+      /* AB first, outright: 10 on the reel steps over the walk to 31; a
+         miss and the walk works it out, from 30a. */
+      askFirst: { id: '30a', rightAt: 31 }
     }),
 
     /* 31–36 — the general triangle, on the board layout the questions
@@ -2928,7 +3146,7 @@ window.CFG = (function () {
       },
       legs: [
         { from: { x: -5, y: 1 }, to: { x: 5, y: 1 },
-          mark: { name: 'C', coordText: '(x₂, y₁)', fill: '#3B7DD8' } },
+          mark: { name: 'C', coordText: '(x₂, y₁)', fill: '#3B7DD8', away: { x: 1, y: 0 } } },
         { from: { x:  5, y: 1 }, to: { x: 5, y: 4 } }
       ] },
 
@@ -2949,7 +3167,7 @@ window.CFG = (function () {
       },
       legs: [
         { from: { x: -5, y: 1 }, to: { x: 5, y: 1 },
-          mark: { name: 'C', coordText: '(x₂, y₁)', fill: '#3B7DD8' },
+          mark: { name: 'C', coordText: '(x₂, y₁)', fill: '#3B7DD8', away: { x: 1, y: 0 } },
           settled: true, lengthText: 'x₂ − x₁',
           /* both symbols read straight off the two labels */
           lengthFrom: [ { p: 'b', half: 'x' }, { p: 'a', half: 'x' } ] },
@@ -2971,7 +3189,7 @@ window.CFG = (function () {
       },
       legs: [
         { from: { x: -5, y: 1 }, to: { x: 5, y: 1 },
-          mark: { name: 'C', coordText: '(x₂, y₁)', fill: '#3B7DD8' },
+          mark: { name: 'C', coordText: '(x₂, y₁)', fill: '#3B7DD8', away: { x: 1, y: 0 } },
           settled: true, length: true, lengthText: 'x₂ − x₁' },
         { from: { x:  5, y: 1 }, to: { x: 5, y: 4 },
           settled: true, lengthText: 'y₂ − y₁',
@@ -3020,7 +3238,7 @@ window.CFG = (function () {
       },
       legs: [
         { from: { x: -5, y: 1 }, to: { x: 5, y: 1 },
-          mark: { name: 'C', coordText: '(x₂, y₁)', fill: '#3B7DD8' },
+          mark: { name: 'C', coordText: '(x₂, y₁)', fill: '#3B7DD8', away: { x: 1, y: 0 } },
           settled: true, length: true, lengthText: 'x₂ − x₁' },
         { from: { x:  5, y: 1 }, to: { x: 5, y: 4 },
           settled: true, length: true, lengthText: 'y₂ − y₁' }
@@ -3031,7 +3249,11 @@ window.CFG = (function () {
        37 — what that formula is: no leaf sweep, the table stays where 35
        wrote it, and she flies back under it to say so. */
     { id: 37, shape: SHAPE_G, line: 'And that gives us the distance between any two points!',
-      entrance: 'stay', layout: 'board', keepSegment: true, keepTable: true },
+      entrance: 'stay', layout: 'board', keepSegment: true, keepTable: true,
+      /* The formula is what this line is about, so it is made big: the
+         board steps back to 85% against its left edge and the table
+         comes into the room at 125%. */
+      tableGrow: { board: 0.85, table: 1.25 } },
 
 
     /* Back to the field, behind the leaves: the scene changes here now
@@ -3042,8 +3264,12 @@ window.CFG = (function () {
     /* 29 — the x-axis case worked through: the general formula narrows
        to |x2 - x1| as the y terms fall away. She says which case it is
        from her own bubble, standing beside the board. */
-    { id: 39, line: 'Both points are on the x-axis.', entrance: 'none',
-      layout: 'xaxis', transition: 'leaves',
+    { id: 39, entrance: 'none', layout: 'xaxis',
+      /* No leaf sweep and no Swifty: the grid builds in the middle, moves
+         to its side, and the table opens for the child — she only comes
+         back to say it was right. "Both points are on the x-axis." was
+         hers, between the grid and the table. */
+      noIntro: true,
       /* The child's own go (runAxisPick): the board builds in the middle
          and moves across, she says which case it is and goes, and the
          table opens out of the board for the child to fill. */
@@ -3054,12 +3280,16 @@ window.CFG = (function () {
        working left behind, Swifty flying back in alone to put the next
        question. */
     { id: 40, line: 'And what if they’re on the y-axis?',
-      entrance: 'fly', transition: 'leaves' },
+      /* No leaf sweep: she flies off from under 39's table, the table
+         folds back and the board fades, and she flies back in to ask. */
+      entrance: 'fly', flyBack: true },
 
     /* 31 — the same working as 27 with the axes swapped: the x terms
        are the pair that falls away this time. */
-    { id: 41, line: 'Both points are on the y-axis.', entrance: 'none',
-      layout: 'yaxis', transition: 'leaves',
+    { id: 41, entrance: 'none', layout: 'yaxis',
+      /* As 39: no leaf sweep and no Swifty — the grid, its two points,
+         then the table. */
+      noIntro: true,
       task: { kind: 'table', formula: YAXIS.picks, tableSize: 32,
               correctLine: 'Exactly! There\u2019s no horizontal distance.' } },
 
@@ -3093,11 +3323,10 @@ window.CFG = (function () {
       segment: { a: { x: 1, y: 1 }, b: { x: 5, y: 4 }, coordSide: 'under' },
       // the third place, plotted the same way and labelled the same way
       mark: [ { x: -5, y: 3 } ],
-      /* The answers go up FIRST and she arrives after — the reverse of
-         every other question in the game. The child looks at a town
-         with two cafes in it and has begun to wonder before anyone says
-         anything. No hint under them: the question is the whole screen. */
-      askLast: true,
+      /* She asks, and then the two answers come up under her — the order
+         every other question in the game has. (They used to go up first,
+         with her arriving after.) No hint under them: the question is the
+         whole screen. */
       options: [
         { key: 'a', label: 'Cafe A', cls: 'cafe-a' },
         { key: 'b', label: 'Cafe B', cls: 'cafe-b' }
@@ -3107,13 +3336,13 @@ window.CFG = (function () {
       task: {
         kind: 'choice',
         answer: 'a',
-        /* One rung, and it must not narrow the field: on a two-answer
-           question "try the other one" is the answer. */
-        feedback: ['Not quite — have another look.'],
+        /* No second go: on a two-answer question the second try is only
+           the other button. One miss and the walks work it out. */
+        feedback: [],
         voiceOnly: true,
         /* Right: past the walks, to the line that closes it. */
         rightAt: 46,
-        /* Wrong twice: the two walks, worked the way 29 taught them. */
+        /* Wrong: the two walks, worked the way 29 taught them. */
         teachAt: 43
       } },
 
@@ -3130,7 +3359,7 @@ window.CFG = (function () {
        is drawn out and measured on the reel, then CB; then the table.
        3, 4, 5. */
     ...walk({
-      ids: [44, '44b', '44c'],
+      ids: [44], formula: true,
       a: { x: 1, y: 1 }, b: { x: 5, y: 4 }, c: { x: 5, y: 1 },
       seg: { coordSide: 'under' },
       say: { first: 'First, the house to Cafe A.' },
@@ -3143,7 +3372,7 @@ window.CFG = (function () {
        six across, two up, and a root that does not come out whole —
        √40, which is more than 6 and so more than Cafe A's 5. */
     ...walk({
-      ids: [45, '45b', '45c'],
+      ids: [45], formula: true,
       a: { x: 1, y: 1 }, b: { x: -5, y: 3 }, c: { x: -5, y: 1 },
       seg: { coordSide: 'under' },
       say: { first: 'Now, the house to Cafe B.' },
@@ -3156,7 +3385,7 @@ window.CFG = (function () {
 
     /* The comparison, not the winner: both walks on the map with their
        lengths, and the smaller one named. */
-    { id: 46, line: '5 is less than \u221A40 \u2014 so Cafe A is closer.',
+    { id: 46, line: 'Which distance is shorter?',
       /* No leaf sweep: she flies off from under the second walk's table
          (or from the answers, answered right on 42), the table folds away
          and the board slides back, the walk's triangle fades — and the
@@ -3167,89 +3396,27 @@ window.CFG = (function () {
       entrance: 'fly', layout: 'board', flyBack: true,
       town: ['house', 'cafeA', 'cafeB'], textScale: 0.85,
       keepSegment: true, dropLegs: true, dropNames: true,
+      /* The two walks on the map, without their lengths: the lengths are
+         on the two cards (below), and the question is which is shorter.
+         A wrong card and they come up on the map instead, blinking, with
+         nothing said (blinkOnMiss). */
+      hideLengths: true,
       compare: [
         { a: { x: 1, y: 1 }, b: { x: -5, y: 3 }, coordSide: 'under',
           result: { text: '\u221A40\u00A0units' } },
         { a: { x: 1, y: 1 }, b: { x: 5, y: 4 }, coordSide: 'under',
           result: { text: '5\u00A0units' } }
       ],
-      hold: 5200 },
-
-    /* 47 — the same question with the other two places: the house, the
-       school and the park, and no cafes. Right, and the comparison
-       closes it; wrong twice, and both walks are worked. */
-    { id: 47, entrance: 'fly', layout: 'board', transition: 'leaves',
-      line: 'Which is closer to Maya’s house — the school or the park?',
-      town: ['house', 'school', 'park'], textScale: 0.85,
-      pointsOnly: true,
-      segment: { a: { x: 1, y: 1, labelAt: HOUSE_LABEL }, b: { x: 5, y: -4 }, coordSide: 'under' },
-      mark: [ { x: -3, y: 2, labelAt: PARK_LABEL } ],
-      askLast: true,
       options: [
-        { key: 'school', label: 'School', cls: 'school' },
-        { key: 'park',   label: 'Park',   cls: 'park' }
+        { key: 'cafeA', label: 'Cafe A', dist: '5\u00A0units', pic: PIC('cafe') },
+        { key: 'cafeB', label: 'Cafe B', dist: '\u221A40\u00A0units', pic: PIC('cafe') }
       ],
-      optionRow: true,
-      perch: 'park',
-      task: {
-        kind: 'choice',
-        answer: 'park',
-        feedback: ['Not quite — have another look.'],
-        voiceOnly: true,
-        rightAt: 48,
-        teachAt: '47a'
-      } },
-
-    { id: '47a', line: 'Oops! Let’s find it together.',
-      entrance: 'stay', layout: 'board', keepSegment: true,
-      town: ['house', 'school', 'park'], textScale: 0.85,
-      hold: 1500 },
-
-    /* The house to the school: down first, then across — five, four,
-       and √41. The first side leaves the house downwards, clear of the
-       house's picture, which stands above its point. */
-    ...walk({
-      ids: ['47b', '47c', '47d'],
-      a: { x: 1, y: 1, extra: { labelAt: HOUSE_LABEL } }, b: { x: 5, y: -4 }, c: { x: 1, y: -4 },
-      seg: { coordSide: 'under' },
-      say: { first: 'First, the house to the school.' },
-      base: { textScale: 0.85, town: ['house', 'school', 'park'], townFocus: ['house', 'school'],
-              mark: [ { x: -3, y: 2, labelAt: PARK_LABEL } ], range: { min: 0, max: 8 } },
-      first: { keepSegment: true }
-    }),
-
-    /* The house to the park: four across, one up, and √17. */
-    ...walk({
-      ids: ['47e', '47f', '47g'],
-      /* B's label to the right of the park's trees, above the dotted line
-         — anywhere the rule looked, the trees or a line was in the way,
-         and it ended up behind them. Named, it stays there. */
-      a: { x: 1, y: 1, extra: { labelAt: HOUSE_LABEL } }, b: { x: -3, y: 2, extra: { labelAt: PARK_LABEL } },
-      /* And C's under C, clear of the short side CB — so CB's "1 unit"
-         can sit beside its own line. */
-      c: { x: -3, y: 1 }, cAway: { x: 0, y: 1 },
-      seg: { coordSide: 'under' },
-      say: { first: 'Now, the house to the park.' },
-      base: { textScale: 0.85, town: ['house', 'school', 'park'], townFocus: ['house', 'park'],
-              mark: [ { x: 5, y: -4 } ], range: { min: 0, max: 6 } },
-      /* No leaf sweep: it follows the last walk's table on the same
-         town, so she flies off from under it and back in (flyBack). */
-      first: { flyBack: true }
-    }),
-
-    { id: 48, line: '\u221A17 is less than \u221A41 \u2014 so the park is closer.',
-      /* As 46: no leaf sweep, the pair on the board kept as it is, its
-         line drawn solid with its length, the other walk beside it. */
-      entrance: 'fly', layout: 'board', flyBack: true,
-      town: ['house', 'school', 'park'], textScale: 0.85,
-      keepSegment: true, dropLegs: true, dropNames: true,
-      compare: [
-        { a: { x: 1, y: 1, labelAt: HOUSE_LABEL }, b: { x: -3, y: 2, labelAt: PARK_LABEL }, coordSide: 'under',
-          result: { text: '\u221A17\u00A0units' } },
-        { a: { x: 1, y: 1, labelAt: HOUSE_LABEL }, b: { x: 5, y: -4 }, coordSide: 'under',
-          result: { text: '\u221A41\u00A0units' } }
-      ],
-      hold: 5200 },
+      optionRow: true, optionWide: true,     // two cards side by side, the width of the trio
+      /* She asks first, then the cards come up — even straight after 42,
+         whose answers would otherwise be kept and simply rewritten. */
+      askFirst: true,
+      task: { kind: 'choice', answer: 'cafeA', blinkOnMiss: true, voiceOnly: true,
+              correctLine: '5 is less than \u221A40 \u2014 so Cafe A is closer.' } },
 
     /* ================= the towers and the rescue =================
        No town, and no help with the method: two towers, then the
@@ -3258,7 +3425,7 @@ window.CFG = (function () {
     /* 49–49c — the connection between the two towers: across, then
        down; six, eight, ten. Then on to the station. */
     ...walk({
-      ids: [49, '49b', '49c'],
+      ids: [49], formula: true,
       a: { x: -2, y: 5 }, b: { x: 4, y: -3 }, c: { x: 4, y: 5 },
       seg: { coordSide: 'under' },
       say: { first: 'How long should this connection be?', cue: 'connection' },
@@ -3272,7 +3439,7 @@ window.CFG = (function () {
        the reel, like every other walk; on the wide board, where a unit
        is still a cell. */
     ...walk({
-      ids: [54, '54b', '54c'],
+      ids: [54], formula: true,
       a: { x: 0, y: 0 }, b: { x: -5, y: -12 }, c: { x: -5, y: 0 },
       say: { first: 'The station is right at zero.', cue: 'station' },
       base: { textScale: 0.85, town: ['station', 'van'], board: 'wide', range: { min: 0, max: 15 } },
@@ -3354,29 +3521,13 @@ window.CFG = (function () {
       task: { kind: 'entry', pair: 'AB', answer: 13, noCount: true,
               keepLength: true,
               correctLine: 'Thirteen. That one stays.',
-              feedback: ['Square them, add, then take the root.'],
-              /* Missed twice: she flies off, the board makes room, and the
-                 working opens out of its right edge as a table — AB
-                 carried in off its side, then the four numbers lifted out
-                 of A's and B's coordinates into the formula, then worked
-                 through to 13. It stays on AB after. */
-              showWorking: true, table: true, tableSize: 36,
-              formula: [
-                { inline: true, parts: [
-                    { t: '(' }, { t: 'AB', lit: 'ab', from: { side: 'ab' } }, { t: ')\u00B2' },
-                    { t: ' = ' },
-                    { t: '(x\u2082 \u2212 x\u2081)\u00B2 + (y\u2082 \u2212 y\u2081)\u00B2' } ] },
-                { inline: true, parts: [
-                    { t: '= ' }, { t: '(' },
-                    { t: '6', from: { p: 'b', half: 'x' } }, { t: ' \u2212 (' },
-                    { t: '\u22126', from: { p: 'a', half: 'x' } }, { t: '))\u00B2 + (' },
-                    { t: '\u22127', from: { p: 'b', half: 'y' } }, { t: ' \u2212 (' },
-                    { t: '\u22122', from: { p: 'a', half: 'y' } }, { t: '))\u00B2' } ] },
-                { inline: true, parts: [ { t: '= ' }, { t: '12\u00B2 + (\u22125)\u00B2' } ] },
-                { inline: true, parts: [ { t: '= ' }, { t: '144 + 25 = 169' } ] },
-                { inline: true, parts: [
-                    { t: 'AB' }, { t: ' = ' }, { t: '\u221A169 = 13\u00A0units', lit: 'ab' } ] }
-              ] } },
+              /* Missed once: she flies off, the board makes room, and the
+                 distance formula opens out of its right edge for the child
+                 to work — A's and B's numbers carried into it off their
+                 coordinates, then the rest theirs, blank by blank. What it
+                 comes to flies onto AB and stays there. */
+              feedback: [], tableOnMiss: true, tableSize: 34,
+              formula: distanceTable({ x: -6, y: -2, key: 'a' }, { x: 6, y: -7, key: 'b' }) } },
 
     /* The one side of this triangle that runs straight up the grid — so
        it is the one a child can COUNT, and counting a side you can count
@@ -3419,27 +3570,11 @@ window.CFG = (function () {
       task: { kind: 'entry', measureLeg: 1, answer: 15, noCount: true,
               keepLength: true,
               correctLine: 'Fifteen. All three are down.',
-              feedback: ['Square them, add, then take the root.'],
-              /* As on 57: missed twice, the working comes as a table, CA
-                 carried in off its side and the numbers lifted out of C's
-                 and A's coordinates, read from C to A. */
-              showWorking: true, table: true, tableSize: 36,
-              formula: [
-                { inline: true, parts: [
-                    { t: '(' }, { t: 'CA', lit: 'v', from: { side: 'v' } }, { t: ')\u00B2' },
-                    { t: ' = ' },
-                    { t: '(x\u2082 \u2212 x\u2081)\u00B2 + (y\u2082 \u2212 y\u2081)\u00B2' } ] },
-                { inline: true, parts: [
-                    { t: '= ' }, { t: '(' },
-                    { t: '\u22126', from: { p: 'a', half: 'x' } }, { t: ' \u2212 ' },
-                    { t: '6', from: { p: 'c', half: 'x' } }, { t: ')\u00B2 + (' },
-                    { t: '\u22122', from: { p: 'a', half: 'y' } }, { t: ' \u2212 ' },
-                    { t: '7', from: { p: 'c', half: 'y' } }, { t: ')\u00B2' } ] },
-                { inline: true, parts: [ { t: '= ' }, { t: '(\u221212)\u00B2 + (\u22129)\u00B2' } ] },
-                { inline: true, parts: [ { t: '= ' }, { t: '144 + 81 = 225' } ] },
-                { inline: true, parts: [
-                    { t: 'CA' }, { t: ' = ' }, { t: '\u221A225 = 15\u00A0units', lit: 'v' } ] }
-              ] } },
+              /* As 57: missed once, the distance formula for the child to
+                 work, read from C to A — C's numbers out of the corner's
+                 own coordinates. It comes to 15, which flies onto CA. */
+              feedback: [], tableOnMiss: true, tableSize: 34,
+              formula: distanceTable({ x: 6, y: 7, key: 'c' }, { x: -6, y: -2, key: 'a' }) } },
 
     /* 60 — the screen the whole repair is for. Three numbers become a
        property here, and a child who computed all three perfectly can
@@ -3479,7 +3614,8 @@ window.CFG = (function () {
     { id: 61, line: 'So, which triangle is it?',
       entrance: 'stay', layout: 'board', board: 'mid', keepSegment: true,
       askFirst: true, optionTrio: true, quietBoard: true, park: true,
-      hint: 'No two sides are the same length.',
+      /* No hint under the cards: the three lengths are on the board,
+         and the three cards are the whole question — as on 55. */
       segment: { a: { x: -6, y: -2, name: 'A', coordSide: 'under' },
                  b: { x:  6, y: -7, name: 'B', coordSide: 'under' },
                  result: { text: '13\u00A0units' } },
