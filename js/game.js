@@ -3699,8 +3699,10 @@
             }, base + 120);
           }
         }
-        // the dots take 900ms to reach the far end where the line takes 600
-        const lands = base + (spec.dash ? 980 : 760);
+        /* The corner lands as the line reaches it: a solid side draws in
+           600ms; a dotted one grows for 900ms (dashGrow), and its dots
+           reach the far end only at the very end of that. */
+        const lands = base + (spec.dash ? 1030 : 760);
         if (!spec.noLine) closes = Math.max(closes, lands);
         if (spec.mark) {
           later(function () { L.dot.classList.add('pop'); SFX.tick(1); }, lands);
@@ -9348,7 +9350,7 @@
          first side reaches it (runLegs: 980ms along a dotted side). */
       if (L.beat) [].concat(L.beat).forEach(function (k) {
         const first = (entry.legs || [])[0];
-        const at = (k === 'c' && L.legs && first) ? (first.dash ? 980 : 760) : (L.beatAt || 0);
+        const at = (k === 'c' && L.legs && first) ? (first.dash ? 1030 : 760) : (L.beatAt || 0);
         Board.beatPoint(k, later, at);
       });
       /* The right-angle marker, once the two sides it stands between

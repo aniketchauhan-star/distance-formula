@@ -641,14 +641,16 @@ html.calm #nudge.on { animation: none; opacity: 1; }
    keyframe is invisible the moment anything stops that keyframe
    running, and an invisible guide is worse than an unanimated one. The
    animation only introduces it. */
-#gridAxes .legdash-g { opacity: 0; }
+/* And it arrives the way the pair's dotted guide does (dashGrow, below):
+   growing out of its own start with the same ease-in, the dots held at
+   size, so every dotted line in the game comes in one way. It used to
+   fade in where it lay — and the corner at its far end, timed to land
+   as the dots reach it (runLegs: 980ms), landed on a line already
+   there. The start is set per side in placeLeg (transform-origin). */
+#gridAxes .legdash-g { transform-box: view-box; opacity: 0; }
 #gridAxes .legdash-g.draw {
   opacity: 1;
-  animation: legDashIn .46s ease-out;
-}
-@keyframes legDashIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  animation: dashGrow .9s cubic-bezier(.42, 0, .9, .62);
 }
 #gridAxes .legdash { fill: none; }
 #gridAxes .legline.draw { animation: drawOut .6s cubic-bezier(.3, .85, .35, 1) forwards; }

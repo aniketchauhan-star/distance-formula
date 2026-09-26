@@ -185,7 +185,7 @@ html.calm .formula-table .ft-cell { transition: opacity .2s linear; transform: n
   display: grid; place-items: center;
   margin: 0;
   border-style: solid; border-width: 0;
-  border-image: url('../assets/tile.png?v=20260926124448') 64 fill / .506em stretch;
+  border-image: url('../assets/tile.png?v=20260926124953') 64 fill / .506em stretch;
   background: none;
   font-family: 'Lilita One', 'Nunito', system-ui, sans-serif;
   /* One weight, and the bold the browser used to fake drawn as a fixed
