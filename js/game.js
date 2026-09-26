@@ -6467,6 +6467,81 @@
         });
     },
 
+    /* Maya walking out of her house along a line to a place, and in (46,
+       when the closer cafe has been named). She is drawn on the board, in
+       its own units, so the camera carries her with everything else; and
+       she is under the town's pictures, so she steps out from behind her
+       house and disappears behind the cafe as she reaches it — which is
+       the going in. A frame at a time out of her strip, in a window the
+       size of one frame; turned to face the way she walks. */
+    mayaWalk: function (from, to) {
+      const G = C.GRID, M = G.maya, NS = 'http://www.w3.org/2000/svg', self = this;
+      if (!M || !C.ART.mayaWalk || document.documentElement.classList.contains('calm')) return 0;
+      const px = function (v) { return G.originX + v * G.stepX; };
+      const py = function (v) { return G.originY - v * G.stepY; };
+      if (!this.maya) {
+        const g = document.createElementNS(NS, 'g');
+        g.setAttribute('class', 'maya');
+        g.setAttribute('pointer-events', 'none');
+        const turn = document.createElementNS(NS, 'g');
+        const win = document.createElementNS(NS, 'svg');
+        win.setAttribute('preserveAspectRatio', 'xMidYMax meet');
+        win.setAttribute('overflow', 'hidden');
+        const im = document.createElementNS(NS, 'image');
+        im.setAttribute('href', C.ART.mayaWalk);
+        im.setAttributeNS('http://www.w3.org/1999/xlink', 'href', C.ART.mayaWalk);
+        im.setAttribute('width', M.w * M.frames);
+        im.setAttribute('height', M.h);
+        win.appendChild(im); turn.appendChild(win); g.appendChild(turn);
+        this.maya = { g: g, turn: turn, win: win };
+      }
+      const E = this.maya;
+      el.gridAxes.appendChild(E.g);                 // on top of the drawing, under the town
+      const H = M.tall * G.stepY, W = H * M.w / M.h;
+      E.win.setAttribute('width', W);
+      E.win.setAttribute('height', H);
+      E.win.setAttribute('x', -W / 2);
+      E.win.setAttribute('y', -H * M.feet / M.h);   // her soles on the point
+      const x0 = px(from.x), y0 = py(from.y), x1 = px(to.x), y1 = py(to.y);
+      const right = x1 > x0;
+      E.turn.setAttribute('transform', (right === !!M.facesLeft) ? 'scale(-1,1)' : '');
+      const len = Math.hypot(x1 - x0, y1 - y0);
+      const walkMs = len / (M.speed * G.stepX) * 1000;
+      const inside = 0.14 * G.stepY;                // on through the door, up past her point
+      const total = walkMs + M.outMs;
+      const token = (this.mayaTok = (this.mayaTok || 0) + 1);
+      const stop = function () {
+        if (self.mayaTok === token) self.mayaTok++;
+        E.g.style.opacity = 0;
+        if (E.g.parentNode) E.g.parentNode.removeChild(E.g);
+      };
+      const off = Game.hold(stop);                   // gone with the screen, whenever it goes
+      const t0 = performance.now();
+      const step = function () {
+        if (self.mayaTok !== token) return;
+        const t = performance.now() - t0;
+        const f = Math.floor(t / M.frameMs) % M.frames;
+        E.win.setAttribute('viewBox', (f * M.w) + ' 0 ' + M.w + ' ' + M.h);
+        let x, y, k = 1, o = 1;
+        if (t < walkMs) {
+          const u = t / walkMs;
+          x = x0 + (x1 - x0) * u; y = y0 + (y1 - y0) * u;
+          o = Math.min(1, t / M.inMs);
+        } else {
+          const u = Math.min(1, (t - walkMs) / M.outMs);
+          x = x1; y = y1 - inside * u;
+          k = 1 - 0.12 * u; o = 1 - u;
+        }
+        E.g.setAttribute('transform', 'translate(' + x.toFixed(2) + ',' + y.toFixed(2) + ') scale(' + k.toFixed(3) + ')');
+        E.g.style.opacity = o.toFixed(3);
+        if (t < total) requestAnimationFrame(step);
+        else off();
+      };
+      E.g.style.opacity = 0;
+      requestAnimationFrame(step);
+      return total;
+    },
+
     /* The two walks' lengths on the map (46, on a miss): written on
        their lines if they are not yet, and blinking a few times, so the
        child reads which is shorter off the board itself. Left up after. */
@@ -10535,6 +10610,10 @@
         /* A question about a side (33, 34): its length is written on it
            as she says it — put together from the labels it is read off. */
         if (t.spec.writesLeg != null) this.writeAskedLeg(t, 420);
+        /* The closer place named: Maya walks there (46). */
+        if (t.spec.walkOnRight) this.later(function () {
+          Board.mayaWalk(t.spec.walkOnRight.from, t.spec.walkOnRight.to);
+        }, 500);
         SFX.correct();
         /* How long the working takes to play. The screen has to stay
            open for all of it, and the ordinary pause after a right
