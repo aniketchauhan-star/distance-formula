@@ -3120,7 +3120,11 @@ window.CFG = (function () {
        37 — what that formula is: no leaf sweep, the table stays where 35
        wrote it, and she flies back under it to say so. */
     { id: 37, shape: SHAPE_G, line: 'And that gives us the distance between any two points!',
-      entrance: 'stay', layout: 'board', keepSegment: true, keepTable: true },
+      entrance: 'stay', layout: 'board', keepSegment: true, keepTable: true,
+      /* The formula is what this line is about, so it is made big: the
+         board steps back to 85% against its left edge and the table
+         comes into the room at 125%. */
+      tableGrow: { board: 0.85, table: 1.25 } },
 
 
     /* Back to the field, behind the leaves: the scene changes here now

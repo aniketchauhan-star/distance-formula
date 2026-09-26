@@ -2203,10 +2203,58 @@
       el.gridAxes.setAttribute('preserveAspectRatio', 'none');
       el.gridAxes.style.width = box.w + 'px';
       el.gridAxes.style.height = box.h + 'px';
+      this.fitArrows(V, sx, sy, inset);
       /* Anything drawn OVER the board rather than in it has to follow
          the box the same way the ruling does. The board does not know
          what that is; it only says that it moved. */
       if (this.onPlaced) this.onPlaced();
+    },
+
+    /* Pushed in, the board is clipped to the cream — and an arrowhead
+       the clip runs through was drawn cut in half against the frame
+       (30c's x-axis, with the table open). So an arrowhead the edge of
+       the window would cut is not drawn, and its half of the axis runs
+       on to its tip instead: a plain line out to the edge. One wholly in
+       the window keeps its arrow; one wholly outside needs nothing, its
+       line already running off the edge. Worked out in board units from
+       the arrow's own points, so the pop that brings it in (a scale from
+       nothing) cannot fool it; run on every placing, so it holds through
+       the camera's move. */
+    fitArrows: function (V, sx, sy, inset) {
+      if (!this.arrows || !this.arrows.length || !this.lines) return;
+      const x0 = V.x + inset / sx, x1 = V.x + V.w - inset / sx;
+      const y0 = V.y + inset / sy, y1 = V.y + V.h - inset / sy;
+      const halves = [this.axisX && this.axisX[0], this.axisX && this.axisX[1],
+                      this.axisY && this.axisY[0], this.axisY && this.axisY[1]];
+      const framed = !!this.view;
+      this.arrows.forEach(function (a, i) {
+        if (!a._pts) {
+          a._pts = (a.getAttribute('points') || '').trim().split(/\s+/).map(function (q) {
+            const xy = q.split(','); return { x: +xy[0], y: +xy[1] };
+          });
+        }
+        const P = a._pts;
+        if (P.length < 3) return;
+        const l = Math.min(P[0].x, P[1].x, P[2].x), r = Math.max(P[0].x, P[1].x, P[2].x);
+        const t = Math.min(P[0].y, P[1].y, P[2].y), b = Math.max(P[0].y, P[1].y, P[2].y);
+        const inside = l >= x0 && r <= x1 && t >= y0 && b <= y1;
+        const outside = r <= x0 || l >= x1 || b <= y0 || t >= y1;
+        const cut = framed && !inside && !outside;
+        if (a._cut === cut) return;
+        a._cut = cut;
+        a.classList.toggle('cut', cut);
+        const line = halves[i];
+        if (!line) return;
+        if (!line._base) line._base = { x: +line.getAttribute('x2'), y: +line.getAttribute('y2') };
+        const end = cut ? P[0] : line._base;             // the tip, or the arrow's base
+        line.setAttribute('x2', end.x); line.setAttribute('y2', end.y);
+        const len = Math.hypot(end.x - +line.getAttribute('x1'), end.y - +line.getAttribute('y1'));
+        /* Drawn, it stays drawn at its new length; still drawing, the
+           sweep carries on and the next placing settles it. */
+        const drawn = Math.abs(parseFloat(getComputedStyle(line).strokeDashoffset) || 0) < 1;
+        line._len = len;
+        if (drawn) windBack(line, len, true);
+      });
     },
 
     /* How big the type on the board actually is, against what the
@@ -8391,6 +8439,33 @@
       const settleIn = function () {
       if (geom.panelBox) Board.place(geom.panelBox);
       else Board.place(C.GRID.box);
+      /* A screen about the table the one before wrote (37: "that gives us
+         the distance between any two points!") gives it the room: the
+         board steps back, a little smaller, against its left edge, and
+         the table comes out into the space and grows. Scaled rather than
+         re-laid, so nothing on either moves inside it; undone when the
+         screen goes. */
+      if (entry.keepTable && entry.tableGrow && Table && Table.el) {
+        const TG = entry.tableGrow, T = C.GRID.table, B = geom.panelBox || T.board;
+        const gp = el.gridPanel, te = Table.el;
+        const right = B.x + B.w * TG.board;
+        const left = right - T.tuck;
+        self.later(function () {
+          gp.classList.add('stepping');
+          te.classList.add('growing');
+          gp.style.transformOrigin = 'left center';
+          gp.style.scale = String(TG.board);
+          te.style.transformOrigin = 'left center';
+          te.style.left = left + 'px';
+          te.style.scale = String(TG.table);
+        }, 300);
+        self.hold(function () {
+          gp.classList.remove('stepping');
+          te.classList.remove('growing');
+          gp.style.scale = ''; gp.style.transformOrigin = '';
+          te.style.scale = ''; te.style.transformOrigin = '';
+        });
+      }
 
       /* Screens 9-11 stay on the board they inherited: no leaves, no
          rebuild — just clear the last segment and plot the next. */
