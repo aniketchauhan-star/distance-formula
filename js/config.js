@@ -1995,9 +1995,10 @@ window.CFG = (function () {
       id: w.ids[0],
       line: say.first, line2: say.ask || 'How far is it from A to C?',
       /* The dotted line waits for her first word, and A and B pulse
-         with it; the corner comes after her sentence, drawn out along
-         the first side; then she asks, and while she asks only A, C and
-         the side between them are at full strength. */
+         with it, and then AB is drawn solid over the dots (drawGuide);
+         the corner comes after her sentence, drawn out along the first
+         side; then she asks, and while she asks only A, C and the side
+         between them are at full strength. */
       guideOnLine: true,
       wordCues: [ { word: say.cue || firstWord(say.first), in: say.first,
                     guide: true, beat: ['a', 'b'] },
@@ -2820,8 +2821,9 @@ window.CFG = (function () {
          The grid fills and the camera frames the triangle before a point
          is drawn (frameDrawing); A and B go up. Then, with "Now, let's
          find the distance between A and B.", A and B pulse and the dotted
-         line between them is drawn as she says "distance" — and nothing
-         else is on the board. Her balloon goes; C arrives with a pulse,
+         line between them is drawn as she says "distance", then the line
+         itself drawn over it from A to B — and nothing else is on the
+         board. Her balloon goes; C arrives with a pulse,
          the dotted side from A running out to it; and only then "What is
          the difference between these two points?" — from its first word
          AC is the only side at full strength, B and the dotted AB

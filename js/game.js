@@ -3785,11 +3785,35 @@
 
     /* The pair's dotted guide, drawn now — for a screen that holds it back
        until she names the distance it stands for. */
-    drawGuide: function () {
+    /* …and then the line itself, drawn out from A to B over the dots once
+       they have grown in: the dotted line shows the way, the solid one
+       is the side. AB used to stay dotted wherever it was the unknown
+       (29 and every walk), and read as a line that was not there. The
+       dots are taken away once the solid line lies on them. If the
+       screen is left before the line has come, it is put up drawn, so
+       the next screen never inherits a dotted AB. */
+    drawGuide: function (later) {
+      const self = this;
       if (this.segDashG && !this.segDashG.classList.contains('draw')) {
         this.segDashG.classList.add('draw');
         SFX.draw();
       }
+      if (!later || !this.segLine || this.segLine.classList.contains('draw')) return;
+      const GROW = 900, INK = 620;              // dashGrow, then drawOut (style.css)
+      const solid = function () {
+        if (!self.segLine.classList.contains('draw')) {
+          self.segLine.style.strokeDashoffset = 0;
+          self.segLine.classList.add('draw');
+        }
+        if (self.segDashG) self.segDashG.classList.remove('draw');
+      };
+      const release = Game.hold(solid);          // run now, or when the screen goes
+      later(function () { self.segLine.classList.add('draw'); SFX.draw(); }, GROW + 60);
+      later(release, GROW + 60 + INK + 80);      // drawn: the dots go
+      /* When AB is finished, with a breath after — a line bringing the
+         sides on waits for it (lightAfterLine), so one line is drawn at
+         a time and C does not land while AB is still drawing. */
+      this.guideUntil = performance.now() + GROW + 60 + INK + 150;
     },
 
     /* The three sides lit while she says what they make — A to C, C to
@@ -6962,7 +6986,7 @@
              is the unknown of a walk (only its dotted guide is drawn). */
           if (plots && !measure && !e.pointsOnly) want.joined = true;
           if (plots && measure && t.measureLeg != null && !e.guideOnLine) want.joined = true;
-          if (e.segment.dash) want.dash = true;
+          if (e.segment.dash && !want.joined) want.dash = true;
           /* A length written on the pair: said by a screen that draws it,
              or by a question screen that keeps a pair already carrying it
              (58, 59 carry 57's "13 units"). */
@@ -6971,6 +6995,11 @@
         if (e.joinSegment) want.joined = true;
         // …or a line of the screen draws it (22)
         if ((e.lineLights || []).some(function (L) { return L && L.join; })) want.joined = true;
+        /* …or its dotted guide, drawn on a word, turns into the line (29,
+           every walk: drawGuide) — solid from then on, the dots gone. */
+        if ((e.wordCues || []).some(function (c) { return c && c.guide; })) {
+          want.joined = true; want.dash = false;
+        }
         if (e.solidLine) { want.joined = true; want.dash = false; }
         if (e.legs && !e.legsLater) {
           /* Every setting a side carries (where its length is written,
@@ -8009,11 +8038,11 @@
                cue): the points go up now, the guide with her line. */
             const spec = entry.guideOnLine ? Object.assign({}, entry.segment, { dash: false })
                                            : entry.segment;
-            /* And no solid AB on such a screen: a side question draws
-               the pair's line along with its points, but where AB is
-               the unknown (29, every walk) the dotted guide is all of
-               it there is — a solid line under the dots read as AB
-               already known. */
+            /* And no solid AB with the points on such a screen: a side
+               question draws the pair's line along with its points, but
+               where AB is the unknown (29, every walk) it arrives with
+               the guide instead — dotted first, then drawn solid over
+               the dots (drawGuide). */
             Board.runPoints(spec, self.later.bind(self), done,
                             measuringLeg && !entry.guideOnLine);
           };
@@ -8613,7 +8642,7 @@
             c.pulse === 'triangle' ? null : [].concat(c.pulse), c.run || 1800);
           /* Or draw the dotted guide a screen held back, and pulse the
              points it runs between (29: "the distance between A and B"). */
-          if (c.guide) Board.drawGuide();
+          if (c.guide) Board.drawGuide(self.later.bind(self));
           if (c.beat) [].concat(c.beat).forEach(function (k) { Board.beatPoint(k, self.later.bind(self), 0); });
           /* Or put up the right-angle marker, on the word that names the
              shape it belongs to. */
@@ -9439,7 +9468,15 @@
     lightAfterLine: function (entry, n) {
       const L = ((entry || {}).lineLights || [])[n];
       if (!L) return 0;
-      const later = this.later.bind(this), run = L.run || 1700;
+      /* A light that brings the sides on waits for AB to finish drawing
+         over its dotted guide (drawGuide) — AB first, then C and its
+         side, one line at a time. Everything it sets going moves back by
+         the wait, and so does whatever waits on it. */
+      const self = this;
+      const wait = L.legs ? Math.max(0, (Board.guideUntil || 0) - performance.now()) : 0;
+      const later = wait ? function (fn, t) { self.later(fn, (t || 0) + wait); }
+                         : this.later.bind(this);
+      const run = L.run || 1700;
       let ms = 0;
       /* The balloon goes first when a light brings something NEW onto the
          board: the sentence it follows is finished, and left up, it read
@@ -9535,7 +9572,7 @@
          board moves; the beat simply stays open, because a question
          answered in the same breath was not a question. */
       if (L.hold) ms = Math.max(ms, L.hold);
-      return ms;
+      return ms + wait;
     },
 
     /* The feedback ladder: each wrong attempt gets the next message,
