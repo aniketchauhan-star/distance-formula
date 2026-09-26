@@ -2414,14 +2414,14 @@ window.CFG = (function () {
 
     /* 6 first, then 2 — the order the subtraction is read in, so the
        two numbers light as she says them rather than together. */
-    { id: 12, line: '6 - 3 = 3',
+    { id: 12,
       entrance: 'stay', layout: 'board', keepSegment: true, quietBoard: true,
-      /* She says it; the board works it out. The balloon is left shut on
-         purpose — a bubble reading "6 - 3 = 3" beside a board building
-         that very sum is the answer twice over, and the built one is the
-         half that teaches. No `highlight` here: the sequence does all of
-         its own lighting, in its own order. */
-      voiceOnly: true, xEquation: true, hold: XEQ_HOLD },
+      /* The board works it out, and nobody reads it out: 6 − 3 = 3 built
+         on the board is the whole of this beat. It used to be said as
+         well — a voice reading the sum out while the board built it,
+         the answer twice over. No `highlight` here: the sequence does all
+         of its own lighting, in its own order. */
+      xEquation: true, hold: XEQ_HOLD },
 
     { id: 13, line: 'What is the distance between the two points?', entrance: 'none', layout: 'board',
       distance: true, intro: 'measure',
@@ -2479,9 +2479,10 @@ window.CFG = (function () {
        12. The 2 is taken first, out of (1, 2), then the -3, the order
        the points are read down the column. The balloon stays shut and
        the sequence does its own lighting, so no `highlight` here. */
-    { id: 18, line: '2 - (-3) = 5',
+    /* As 12: 2 − (−3) = 5 built on the board, and not read out. */
+    { id: 18,
       entrance: 'stay', layout: 'board', keepSegment: true, quietBoard: true,
-      voiceOnly: true, xEquation: true, hold: XEQ_HOLD },
+      xEquation: true, hold: XEQ_HOLD },
 
     { id: 19, line: 'What is the distance between the two points?', entrance: 'none', layout: 'board',
       distance: true, intro: 'measure',
