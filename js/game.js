@@ -6236,9 +6236,11 @@
        (45, 47e). */
     fadeDrawing: function (later, then) {
       const self = this;
-      this.fadeOut([this.segGroup, this.triFill, this.rightMark, this.parkTrees]
+      this.fadeOut([this.segGroup, this.triFill, this.rightMark, this.parkTrees,
+                    this.measLine, this.measCap, this.unitLabel, this.unitBand]
         .concat((this.legSlots || []).map(function (L) { return L && L.g; }))
         .concat((this.exSlots || []).map(function (X) { return X && X.g; }))
+        .concat((this.countCells || []).map(function (c) { return c && c.g; }))
         .concat(this.foundMarks || []), later, function () {
           self.clearSegment();
           self.clearFound();
@@ -7153,7 +7155,7 @@
           Board.setDots(false);
         }
         if (entry.layout !== 'recap' && !AX) el.formulaBoard.classList.add('hidden');
-        if (!entry.segment && !entry.keepSegment) Board.clearSegment();
+        if (!entry.segment && !entry.keepSegment && !(entry.fadeOld && Board.shown)) Board.clearSegment();
         /* Not from under her: on a fly-back screen she may be standing
            on it, and it goes once she has. */
         if (Opts && !entry.options && !flyBack) Opts.hide();
@@ -8143,8 +8145,13 @@
         // and here too, for the same reason — see dress()
         if (!Board.shown) { Board.build(); Board.settleFurniture(); }
         el.gridPanel.classList.remove('hidden');
+        /* The last screen's drawing, faded out rather than wiped in one
+           frame, where the screen asks (20: 19's pair and its length go,
+           and the board is clear for what this screen reveals). */
+        const fading = entry.fadeOld && Board.shown && !entry.keepSegment;
         Board.shown = true;
-        if (!entry.keepSegment) Board.clearSegment();
+        if (fading) Board.fadeDrawing(self.later.bind(self));
+        else if (!entry.keepSegment) Board.clearSegment();
         else if (!entry.keepMeasure) Board.clearUnits();   // keep the drawing, drop any count-out
         if (!entry.distance && !entry.entry && !entry.keepMeasure) Board.handOffMeasure();
         /* A screen that keeps what the question before it measured —

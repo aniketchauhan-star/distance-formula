@@ -2357,17 +2357,20 @@ window.CFG = (function () {
         /* The row, laid out the way the argument laid it out: the
            coordinates under their points, the length over the line. */
         { a: { x: 3, y: 2 }, b: { x: 6, y: 2 },
-          coordSide: 'under', result: { text: '3\u00A0units' } }
+          coordSide: 'under', result: { text: '3\u00A0units' } },
+        /* And the column they measured on 19, with the answer they
+           gave it — revealed again on its word, like the row. */
+        { a: { x: -2, y: 3 }, b: { x: -2, y: 1 },
+          result: { text: '2\u00A0units' } }
       ],
-      /* The column is the very pair 19 has just measured, so it is not
-         drawn again: 19's line and its "2 units" stay exactly where the
-         child put them (keepMeasure), and on "vertically" its two points
-         pulse. It used to be wiped with the screen change and drawn
-         again as a recalled pair — the line vanished and came back. */
-      keepSegment: true, keepMeasure: true,
-      segment: { a: { x: -2, y: 3 }, b: { x: -2, y: 1 }, dash: true },
+      /* 19's pair, its line and its "2 units" do not stay: as the screen
+         opens they fade out together (fadeOld), and the board is clear
+         for the two pairs to be revealed on their words. They used to be
+         wiped in one frame and the column drawn straight back — which
+         read as the line vanishing and coming back. */
+      fadeOld: true,
       wordCues: [ { word: 'horizontally', example: 0 },
-                  { word: 'vertically',   beat: ['a', 'b'] } ] },
+                  { word: 'vertically',   example: 1 } ] },
 
     /* Both lengths go where every length goes: the middle of the span
        it measures, out to the side of the line by the same air a
