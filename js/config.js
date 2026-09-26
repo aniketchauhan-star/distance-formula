@@ -1966,6 +1966,88 @@ window.CFG = (function () {
      written across it and it never has to move. */
   const HOUSE_LABEL = { x: 0.95, y: 0.12 };
 
+  /* A number as the working writes it: its minus is the arithmetic sign. */
+  const MINUS = function (v) { return String(v).replace('-', '\u2212'); };
+
+  /* The distance formula worked for two points, as a table the child
+     fills: the formula, given; the four coordinates carried into it off
+     the board one at a time; then the child's — the two differences,
+     their squares, the sum, and the root:
+
+         d = √((x₂ − x₁)² + (y₂ − y₁)²)
+           = √((5 − 1)² + (4 − 1)²)
+           = √(4² + 3²)
+           = √(16 + 9)
+         d = √25 = 5 units
+
+     P is (x₁, y₁) and Q is (x₂, y₂); each `key` names the point on the
+     board its numbers are read off ('a', 'b', or 'c' for the corner,
+     which must be written in parts — coordParts). The x's are in the
+     orange of a level side and the y's in the green of an upright one,
+     as the sides were on the triangle this formula came from. Every
+     blank has two tiles: the answer and the mistake it is there to
+     catch, and which comes first changes. */
+  function distanceTable(P, Q) {
+    const n = MINUS;
+    const two = function (right, wrong, first) {
+      if (wrong === right) wrong = right + 1;
+      return first ? [n(right), n(wrong)] : [n(wrong), n(right)];
+    };
+    const dx = Q.x - P.x, dy = Q.y - P.y;
+    const sx = dx * dx, sy = dy * dy, sum = sx + sy, root = Math.sqrt(sum);
+    const whole = Math.abs(root - Math.round(root)) < 1e-9;
+    /* A difference: the two added, a sign slipped — or, where that is no
+       slip because the second is 0, the sign dropped. A square: a
+       negative's sign kept, or the number doubled. The sum: the two
+       differences added instead of their squares. The root: stopping
+       before it. */
+    const slip = function (b, a) { return (b + a !== b - a) ? b + a : (-(b - a) || 1); };
+    const sq = function (d) { return d < 0 ? -(d * d) : (2 * d !== d * d ? 2 * d : d * d + 1); };
+    const blank = function (v, lit, offer) {
+      return { t: n(v), lit: lit, answer: n(v), offer: offer };
+    };
+    const U = '\u00A0units';
+    const rows = [
+      { inline: true, parts: [
+          { t: 'd' }, { t: ' = ' }, { t: '\u221A((' },
+          { t: 'x\u2082 \u2212 x\u2081', lit: 'x' }, { t: ')\u00B2 + (' },
+          { t: 'y\u2082 \u2212 y\u2081', lit: 'y' }, { t: ')\u00B2)' } ] },
+      { inline: true, parts: [
+          { t: '= ' }, { t: '\u221A((' },
+          { t: n(Q.x), lit: 'x', from: { p: Q.key, half: 'x' } },
+          { t: P.x < 0 ? ' \u2212 (' : ' \u2212 ' },
+          { t: n(P.x), lit: 'x', from: { p: P.key, half: 'x' } },
+          { t: (P.x < 0 ? ')' : '') + ')\u00B2 + (' },
+          { t: n(Q.y), lit: 'y', from: { p: Q.key, half: 'y' } },
+          { t: P.y < 0 ? ' \u2212 (' : ' \u2212 ' },
+          { t: n(P.y), lit: 'y', from: { p: P.key, half: 'y' } },
+          { t: (P.y < 0 ? ')' : '') + ')\u00B2)' } ] },
+      { inline: true, parts: [
+          { t: '= ' }, { t: dx < 0 ? '\u221A((' : '\u221A(' },
+          blank(dx, 'x', two(dx, slip(Q.x, P.x), true)),
+          { t: (dx < 0 ? ')' : '') + '\u00B2 + ' + (dy < 0 ? '(' : '') },
+          blank(dy, 'y', two(dy, slip(Q.y, P.y), false)),
+          { t: (dy < 0 ? ')' : '') + '\u00B2)' } ] },
+      { inline: true, parts: [
+          { t: '= ' }, { t: '\u221A(' },
+          blank(sx, 'x', two(sx, sq(dx), false)), { t: ' + ' },
+          blank(sy, 'y', two(sy, sq(dy), true)), { t: ')' } ] }
+    ];
+    const sumBlank = blank(sum, 'ab', two(sum, Math.abs(dx) + Math.abs(dy), !whole));
+    /* The last line says what it came to (`result`), which is what flies
+       onto the side it measures; `resultFrom` is where on the line that
+       is written — the root's value, or the root itself. */
+    rows.push(whole
+      ? { inline: true, result: Math.round(root) + U, resultFrom: 6, parts: [
+            { t: 'd' }, { t: ' = ' }, { t: '\u221A(' }, sumBlank, { t: ')' },
+            { t: ' = ' }, blank(Math.round(root), 'ab', two(Math.round(root), sum, true)),
+            { t: U } ] }
+      : { inline: true, result: '\u221A' + sum + U, resultFrom: 2, parts: [
+            { t: 'd' }, { t: ' = ' }, { t: '\u221A(' }, sumBlank, { t: ')' },
+            { t: U } ] });
+    return rows;
+  }
+
   function walk(w) {
     const pt = function (p, name) {
       return Object.assign({ x: p.x, y: p.y, name: name }, p.extra || {});
@@ -1995,6 +2077,56 @@ window.CFG = (function () {
     const shape = [ { from: w.a, to: w.c }, { from: w.c, to: w.b } ];
     const say = w.say || {};
     const firstWord = function (t) { return String(t).split(/[\s,.]+/)[0]; };
+
+    /* A walk after the formula has been taught (44 on): one screen. AB
+       is asked for outright — A and B, the dotted line between them on
+       her word and AB drawn over it, then "What is the distance between A
+       and B?" — on the reel where it comes out whole, and as three answers
+       where it is a root the reel cannot hold (√40, and the two mistakes:
+       40, the root not taken, and the steps along the grid). Right, and
+       on. Wrong once, and she flies off, the board makes room and the
+       distance formula opens out of its edge (distanceTable): the child
+       works it, and what it comes to flies onto AB. No corner and no
+       sides: the formula needs only the two points' coordinates, which
+       are written in parts so the numbers can be carried out of them. */
+    if (w.formula) {
+      const parts = function (p) {
+        return { coordParts: [ { t: '(' }, { t: MINUS(p.x), glow: 'x' }, { t: ',\u00A0' },
+                               { t: MINUS(p.y), glow: 'y' }, { t: ')' } ] };
+      };
+      const segF = Object.assign({}, seg, {
+        a: Object.assign({}, seg.a, parts(w.a)), b: Object.assign({}, seg.b, parts(w.b)) });
+      const d2 = Math.pow(w.b.x - w.a.x, 2) + Math.pow(w.b.y - w.a.y, 2);
+      const rt = Math.sqrt(d2), whole = Math.abs(rt - Math.round(rt)) < 1e-9;
+      const q = say.ask || 'What is the distance between A and B?';
+      const table = distanceTable({ x: w.a.x, y: w.a.y, key: 'a' },
+                                  { x: w.b.x, y: w.b.y, key: 'b' });
+      const steps = Math.abs(w.b.x - w.a.x) + Math.abs(w.b.y - w.a.y);
+      const three = [ { key: 'root', label: '\u221A' + d2 + UNIT, cls: 'expr' },
+                      { key: 'sum', label: d2 + UNIT, cls: 'expr' },
+                      { key: 'steps', label: steps + UNIT, cls: 'expr' } ];
+      const turn = d2 % 3;                    // the right one is not always first
+      const answers = three.slice(turn).concat(three.slice(0, turn));
+      return [ Object.assign({
+        id: w.ids[0],
+        line: say.first, line2: q,
+        guideOnLine: true,
+        wordCues: [ { word: say.cue || firstWord(say.first), in: say.first,
+                      guide: true, beat: ['a', 'b'] },
+                    { word: firstWord(q), in: q, spot: 'ab' } ],
+        lineLights: [ {}, { pulse: 'ab' } ],
+        entrance: 'none', layout: 'board', intro: 'measure',
+        /* The control is taken away while she asks and comes in after —
+           the last screen's may be a different one, or answered. */
+        askFirst: true,
+        segment: segF,
+        task: Object.assign({ correctLine: 'That\u2019s right!', tableOnMiss: true,
+                              tableSize: 34, formula: table, rightAt: w.done },
+          whole ? { kind: 'distance' }
+                : { kind: 'choice', answer: 'root', feedback: [], voiceOnly: true })
+      }, whole ? { distance: true } : { options: answers },
+         w.base || {}, w.first || {}) ];
+    }
     /* Every question in a walk is asked one way: "What is the distance
        between A and C?" — never "How far is it from A to C?" or "Now
        find the distance from C to B." (the same words the pair screens
@@ -3230,7 +3362,7 @@ window.CFG = (function () {
        is drawn out and measured on the reel, then CB; then the table.
        3, 4, 5. */
     ...walk({
-      ids: [44, '44b', '44c'],
+      ids: [44], formula: true,
       a: { x: 1, y: 1 }, b: { x: 5, y: 4 }, c: { x: 5, y: 1 },
       seg: { coordSide: 'under' },
       say: { first: 'First, the house to Cafe A.' },
@@ -3243,7 +3375,7 @@ window.CFG = (function () {
        six across, two up, and a root that does not come out whole —
        √40, which is more than 6 and so more than Cafe A's 5. */
     ...walk({
-      ids: [45, '45b', '45c'],
+      ids: [45], formula: true,
       a: { x: 1, y: 1 }, b: { x: -5, y: 3 }, c: { x: -5, y: 1 },
       seg: { coordSide: 'under' },
       say: { first: 'Now, the house to Cafe B.' },
@@ -3310,7 +3442,7 @@ window.CFG = (function () {
        and √41. The first side leaves the house downwards, clear of the
        house's picture, which stands above its point. */
     ...walk({
-      ids: ['47b', '47c', '47d'],
+      ids: ['47b'], formula: true,
       a: { x: 1, y: 1, extra: { labelAt: HOUSE_LABEL } }, b: { x: 5, y: -4 }, c: { x: 1, y: -4 },
       seg: { coordSide: 'under' },
       say: { first: 'First, the house to the school.' },
@@ -3321,7 +3453,7 @@ window.CFG = (function () {
 
     /* The house to the park: four across, one up, and √17. */
     ...walk({
-      ids: ['47e', '47f', '47g'],
+      ids: ['47e'], formula: true,
       /* B's label to the right of the park's trees, above the dotted line
          — anywhere the rule looked, the trees or a line was in the way,
          and it ended up behind them. Named, it stays there. */
@@ -3359,7 +3491,7 @@ window.CFG = (function () {
     /* 49–49c — the connection between the two towers: across, then
        down; six, eight, ten. Then on to the station. */
     ...walk({
-      ids: [49, '49b', '49c'],
+      ids: [49], formula: true,
       a: { x: -2, y: 5 }, b: { x: 4, y: -3 }, c: { x: 4, y: 5 },
       seg: { coordSide: 'under' },
       say: { first: 'How long should this connection be?', cue: 'connection' },
@@ -3373,7 +3505,7 @@ window.CFG = (function () {
        the reel, like every other walk; on the wide board, where a unit
        is still a cell. */
     ...walk({
-      ids: [54, '54b', '54c'],
+      ids: [54], formula: true,
       a: { x: 0, y: 0 }, b: { x: -5, y: -12 }, c: { x: -5, y: 0 },
       say: { first: 'The station is right at zero.', cue: 'station' },
       base: { textScale: 0.85, town: ['station', 'van'], board: 'wide', range: { min: 0, max: 15 } },
@@ -3455,29 +3587,13 @@ window.CFG = (function () {
       task: { kind: 'entry', pair: 'AB', answer: 13, noCount: true,
               keepLength: true,
               correctLine: 'Thirteen. That one stays.',
-              feedback: ['Square them, add, then take the root.'],
-              /* Missed twice: she flies off, the board makes room, and the
-                 working opens out of its right edge as a table — AB
-                 carried in off its side, then the four numbers lifted out
-                 of A's and B's coordinates into the formula, then worked
-                 through to 13. It stays on AB after. */
-              showWorking: true, table: true, tableSize: 36,
-              formula: [
-                { inline: true, parts: [
-                    { t: '(' }, { t: 'AB', lit: 'ab', from: { side: 'ab' } }, { t: ')\u00B2' },
-                    { t: ' = ' },
-                    { t: '(x\u2082 \u2212 x\u2081)\u00B2 + (y\u2082 \u2212 y\u2081)\u00B2' } ] },
-                { inline: true, parts: [
-                    { t: '= ' }, { t: '(' },
-                    { t: '6', from: { p: 'b', half: 'x' } }, { t: ' \u2212 (' },
-                    { t: '\u22126', from: { p: 'a', half: 'x' } }, { t: '))\u00B2 + (' },
-                    { t: '\u22127', from: { p: 'b', half: 'y' } }, { t: ' \u2212 (' },
-                    { t: '\u22122', from: { p: 'a', half: 'y' } }, { t: '))\u00B2' } ] },
-                { inline: true, parts: [ { t: '= ' }, { t: '12\u00B2 + (\u22125)\u00B2' } ] },
-                { inline: true, parts: [ { t: '= ' }, { t: '144 + 25 = 169' } ] },
-                { inline: true, parts: [
-                    { t: 'AB' }, { t: ' = ' }, { t: '\u221A169 = 13\u00A0units', lit: 'ab' } ] }
-              ] } },
+              /* Missed once: she flies off, the board makes room, and the
+                 distance formula opens out of its right edge for the child
+                 to work — A's and B's numbers carried into it off their
+                 coordinates, then the rest theirs, blank by blank. What it
+                 comes to flies onto AB and stays there. */
+              feedback: [], tableOnMiss: true, tableSize: 34,
+              formula: distanceTable({ x: -6, y: -2, key: 'a' }, { x: 6, y: -7, key: 'b' }) } },
 
     /* The one side of this triangle that runs straight up the grid — so
        it is the one a child can COUNT, and counting a side you can count
@@ -3520,27 +3636,11 @@ window.CFG = (function () {
       task: { kind: 'entry', measureLeg: 1, answer: 15, noCount: true,
               keepLength: true,
               correctLine: 'Fifteen. All three are down.',
-              feedback: ['Square them, add, then take the root.'],
-              /* As on 57: missed twice, the working comes as a table, CA
-                 carried in off its side and the numbers lifted out of C's
-                 and A's coordinates, read from C to A. */
-              showWorking: true, table: true, tableSize: 36,
-              formula: [
-                { inline: true, parts: [
-                    { t: '(' }, { t: 'CA', lit: 'v', from: { side: 'v' } }, { t: ')\u00B2' },
-                    { t: ' = ' },
-                    { t: '(x\u2082 \u2212 x\u2081)\u00B2 + (y\u2082 \u2212 y\u2081)\u00B2' } ] },
-                { inline: true, parts: [
-                    { t: '= ' }, { t: '(' },
-                    { t: '\u22126', from: { p: 'a', half: 'x' } }, { t: ' \u2212 ' },
-                    { t: '6', from: { p: 'c', half: 'x' } }, { t: ')\u00B2 + (' },
-                    { t: '\u22122', from: { p: 'a', half: 'y' } }, { t: ' \u2212 ' },
-                    { t: '7', from: { p: 'c', half: 'y' } }, { t: ')\u00B2' } ] },
-                { inline: true, parts: [ { t: '= ' }, { t: '(\u221212)\u00B2 + (\u22129)\u00B2' } ] },
-                { inline: true, parts: [ { t: '= ' }, { t: '144 + 81 = 225' } ] },
-                { inline: true, parts: [
-                    { t: 'CA' }, { t: ' = ' }, { t: '\u221A225 = 15\u00A0units', lit: 'v' } ] }
-              ] } },
+              /* As 57: missed once, the distance formula for the child to
+                 work, read from C to A — C's numbers out of the corner's
+                 own coordinates. It comes to 15, which flies onto CA. */
+              feedback: [], tableOnMiss: true, tableSize: 34,
+              formula: distanceTable({ x: 6, y: 7, key: 'c' }, { x: -6, y: -2, key: 'a' }) } },
 
     /* 60 — the screen the whole repair is for. Three numbers become a
        property here, and a child who computed all three perfectly can

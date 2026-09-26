@@ -8136,6 +8136,9 @@
            live from the moment the points are down, so a child who is
            ahead of her can answer while she is still asking. */
         if (Sel) { if (keepsControl) Sel.reset(); else Sel.hide(); }
+        /* And the last screen's answers — this one brings its own, once it
+           has asked (47e after 47b, both answered on the buttons). */
+        if (Opts && !keepsControl) Opts.hide();
         if (Slots && !(entry.task && entry.task.kind === 'slots')) Slots.hide();
 
         /* A screen that follows straight on from the one before keeps
@@ -8174,6 +8177,9 @@
             if (holds) {
               // already on the board — but its letters may be new
               Board.nameSegment(entry.segment, self.later.bind(self));
+              /* …and its coordinates may now be written in parts, for a
+                 working to carry numbers out of (44 keeps 43's pair). */
+              if (entry.segment) Board.carryOn(entry.segment, false);
               done();
               return;
             }
@@ -10211,11 +10217,16 @@
        side, 'v' the second, whichever way each runs. */
     sideColours: function () {
       const LG = C.GRID.leg, S = Board.legSlots || [];
+      /* A side's own colour where it is on the board — a slot left from
+         an earlier drawing still carries that drawing's colour. */
       const of = function (i, dflt) {
         const L = S[i];
-        return (L && L.line && L.line.getAttribute('stroke')) || dflt;
+        return (L && L.g && L.g.classList.contains('on') && L.line.getAttribute('stroke')) || dflt;
       };
-      return { h: of(0, LG.hColor), v: of(1, LG.vColor), ab: '#1F6FD0' };
+      /* And the distance formula's x's and y's (distanceTable): the
+         orange of a level side and the green of an upright one, always. */
+      return { h: of(0, LG.hColor), v: of(1, LG.vColor), ab: '#1F6FD0',
+               x: LG.hColor, y: LG.vColor };
     },
 
     carryRow: function (l, r, at) {
@@ -10280,8 +10291,15 @@
       const r = (lines || []).length - 1, row = r >= 0 ? lines[r] : null;
       let k = -1;
       if (row) (row.parts || []).forEach(function (p, i) { if (/\d/.test(p.t || '')) k = i; });
+      let text = k >= 0 ? String(row.parts[k].t).split('=').pop().trim() : '';
+      /* Or the line says what it came to in so many words (`result`), and
+         from which of its parts on it is written (`resultFrom`): "5 units"
+         is a blank and a word, "√40 units" a root and a word. */
+      if (row && row.result) {
+        text = row.result;
+        if (row.resultFrom != null) k = row.resultFrom;
+      }
       const node = (Table && k >= 0) ? Table.target(r, k) : null;
-      const text = k >= 0 ? String(row.parts[k].t).split('=').pop().trim() : '';
       if (!node || !/\d/.test(text)) { done(); return; }
 
       /* Where it goes: the side the question asked for, or the pair. */
@@ -10316,11 +10334,26 @@
         const to = Board.textSpot(label, label.textContent || '');
         if (!to) { landed(); self.later(done, 300); return; }
         /* Off the answer's own words where they are a run of text
-           ("13 units" at the end of "√169 = 13 units"), else off its cell. */
+           ("13 units" at the end of "√169 = 13 units"), else off its cell —
+           or, for a line that names its result, off everything from the
+           part it starts at to the end of the line, a part inside a drawn
+           root standing for the whole root. */
         let b = node.getBoundingClientRect();
         const want = text.replace(/\u00A0/g, ' ');
+        if (row.result) {
+          let l = Infinity, tp = Infinity, rt = -Infinity, bt = -Infinity;
+          for (let i = k; i < (row.parts || []).length; i++) {
+            const e = Table.target(r, i);
+            if (!e) continue;
+            const q = ((e.closest && e.closest('.rad')) || e).getBoundingClientRect();
+            if (!q.width && !q.height) continue;
+            l = Math.min(l, q.left); tp = Math.min(tp, q.top);
+            rt = Math.max(rt, q.right); bt = Math.max(bt, q.bottom);
+          }
+          if (isFinite(l)) b = { x: l, y: tp, width: rt - l, height: bt - tp };
+        }
         const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
-        for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+        for (let n = row.result ? null : walker.nextNode(); n; n = walker.nextNode()) {
           const at = n.textContent.replace(/\u00A0/g, ' ').lastIndexOf(want);
           if (at < 0) continue;
           const range = document.createRange();
@@ -10334,7 +10367,7 @@
                        size: parseFloat(getComputedStyle(node).fontSize) || T.size };
         /* In the colour its number is written in there (a blank takes
            its side's colour; the words round it may not). */
-        let tint = node.querySelector('.ft-num') || node;
+        let tint = ((node.closest && node.closest('.rad')) || node).querySelector('.ft-num') || node;
         if (tint === node) {
           const digits = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
           for (let n = digits.nextNode(); n; n = digits.nextNode()) {
@@ -10475,7 +10508,9 @@
         /* How long the working takes to play. The screen has to stay
            open for all of it, and the ordinary pause after a right
            answer is nowhere near that. */
-        const work = (t.spec.formula && Opts)
+        /* A formula kept for a miss (`tableOnMiss`: 45, 47b, 47e) is not
+           a working to play after a right answer. */
+        const work = (t.spec.formula && !t.spec.tableOnMiss && Opts)
           ? Opts.formulaMs(t.spec.formula, C.GRID.fly.pickMs + C.GRID.fly.ms) : 0;
         const at = this.optionSpot(t.spec.answer);
         this.later(function () {

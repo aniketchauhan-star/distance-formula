@@ -219,7 +219,7 @@ html.calm .formula-table .ft-cell { transition: opacity .2s linear; transform: n
   display: grid; place-items: center;
   margin: 0;
   border-style: solid; border-width: 0;
-  border-image: url('../assets/tile.png?v=20260926205008') 64 fill / .506em stretch;
+  border-image: url('../assets/tile.png?v=20260926211155') 64 fill / .506em stretch;
   background: none;
   font-family: 'Lilita One', 'Nunito', system-ui, sans-serif;
   /* One weight, and the bold the browser used to fake drawn as a fixed
@@ -272,6 +272,13 @@ html.calm .formula-table .ft-tile.no { animation: none; }
    written as it reads, spaces and all, with its slots inside it. */
 .formula-table .ft-inline { justify-self: start; }
 .formula-table .ft-inline .ft-text { white-space: pre; }
+/* Filled, a blank in a line of working closes up to its number, so it
+   reads as written — 4² rather than a 4 in a box's worth of air, apart
+   from its square. */
+.formula-table .ft-inline .ft-pick {
+  transition: min-width .3s ease, padding .3s ease, border-color .3s ease, background-color .3s ease;
+}
+.formula-table .ft-inline .ft-pick.filled { min-width: 0; padding: 0 .05em; }
 
 /* Standing in a column of its own rather than out of the board's edge:
    hung from its top, with no tucked-under edge to pad for. */

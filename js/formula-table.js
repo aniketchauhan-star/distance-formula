@@ -124,7 +124,7 @@ window.FormulaTable = (function () {
                 box.appendChild(shown);
                 side.appendChild(box);
                 cells[k] = { kind: 'pick', el: box, box: box, num: shown,
-                             answer: /^-?\d+(?:\.\d+)?$/.test(want) ? parseFloat(want) : want,
+                             answer: /^[-\u2212]?\d+(?:\.\d+)?$/.test(want) ? parseFloat(want.replace('\u2212', '-')) : want,
                              offer: p.offer.slice() };
                 return;
               }
@@ -349,7 +349,8 @@ window.FormulaTable = (function () {
           /* A scroller that carries letters on any tile is set in the
              table's own face throughout: Lilita One has no ₁ or ₂, and a
              pair of tiles in two faces reads as a mistake. */
-          const words = c.offer.some(function (v) { return !/^-?\d+(?:\.\d+)?$/.test(String(v)); });
+          /* A negative number is a number, whichever minus it is written with. */
+          const words = c.offer.some(function (v) { return !/^[-\u2212]?\d+(?:\.\d+)?$/.test(String(v)); });
           c.offer.forEach(function (v) {
             const tile = mk('button', 'ft-tile', String(v));
             if (words) tile.classList.add('ft-word');
