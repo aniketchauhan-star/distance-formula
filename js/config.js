@@ -2026,8 +2026,14 @@ window.CFG = (function () {
     const s3 = Object.assign({
       id: w.ids[2],
       lines: say.table || [ 'We know AC and CB.', 'Let’s use Pythagoras to find AB.' ],
-      wordCues: [ { word: 'We', spot: ['h', 'v'] } ],
-      lineLights: [ { unspot: true, hold: 600 }, {} ],
+      /* The two known sides on "We know AC and CB."; then AB on the
+         line that names it — as on 29c: AB and its points forward, AB
+         pulsing and A and B ringing, the rest stepped back until just
+         after the sentence, and the square left up for Pythagoras. */
+      wordCues: [ { word: 'We', spot: ['h', 'v'] },
+                  { word: firstWord((say.table || [])[1] || 'Let’s'), spot: 'ab', pulse: 'ab',
+                    beat: ['a', 'b'], run: 1700 } ],
+      lineLights: [ { unspot: true, hold: 600 }, { unspot: true, after: 550 } ],
       rightAngle: true, keepMark: true,
       entrance: 'none', layout: 'board', quietBoard: true, keepSegment: true,
       segment: seg,
@@ -2737,8 +2743,18 @@ window.CFG = (function () {
       /* The pulse and the fade end together, just after the sentence
          has finished — the pulse used to run on into "But we still
          need AB." with AB already back. */
-      wordCues: [ { word: 'We', spot: ['h', 'v'], pulse: ['h', 'v'], run: 1500 } ],
-      lineLights: [ { unspot: true, after: 550, hold: 500 }, { hold: 700 }, {} ],
+      /* "But we still need AB." — the same again for the side still to
+         find, from her first word: AB and its two points come forward, AB
+         pulses and A and B ring, and everything else steps back — AC and
+         CB, their lengths, C, and the square at C, which is only the
+         reason on the next line. The fade ends with the pulse, just after
+         the sentence, so "Since it’s a right triangle…" has the whole
+         triangle and its square at full strength. */
+      wordCues: [ { word: 'We', spot: ['h', 'v'], pulse: ['h', 'v'], run: 1500 },
+                  { word: 'But', spot: 'ab', pulse: 'ab', beat: ['a', 'b'], run: 1500,
+                    hushMark: true } ],
+      lineLights: [ { unspot: true, after: 550, hold: 500 },
+                    { unspot: true, after: 550, hold: 500 }, {} ],
       /* The right angle is what the theorem rests on, so the marker is
          asserted on arrival (a jump from the picker would otherwise
          land without it) and exempt from every highlight's hush —
@@ -2852,9 +2868,15 @@ window.CFG = (function () {
          together and AB steps back — from her first word, not after
          the sentence — and the marker comes up on "triangle". When the
          line is done the triangle goes back to normal. */
+      /* Then AB, the side to find, from the first word of "Let’s use
+         Pythagoras to find AB.": AB and its points forward, AB pulsing
+         and A and B ringing, AC, CB and C stepped back — until just
+         after the sentence, before the table opens. The square stays up:
+         it is what lets Pythagoras be used, named in the same breath. */
       wordCues: [ { word: 'Look', spot: ['h', 'v'] },
-                  { word: 'triangle', mark: true } ],
-      lineLights: [ { unspot: true, hold: 600 }, {} ],
+                  { word: 'triangle', mark: true },
+                  { word: 'Let’s', spot: 'ab', pulse: 'ab', beat: ['a', 'b'], run: 1700 } ],
+      lineLights: [ { unspot: true, hold: 600 }, { unspot: true, after: 550 } ],
       keepMark: true,
       entrance: 'none', view: 'triangle', quietBoard: true, layout: 'board', keepSegment: true,
       segment: { a: { x: -2, y: 2, name: 'A' }, b: { x: 2, y: 5, name: 'B' }, dash: true },

@@ -8555,7 +8555,9 @@
       Bubble.onWord = function (w) {
         const bare = String(w || '').toLowerCase().replace(/[^a-z0-9]/g, '');
         cues.forEach(function (c, n) {
-          if (spent[n] || bare !== String(c.word || '').toLowerCase()) return;
+          /* The cue's word is read the way the balloon's is — so a word
+             with an apostrophe in it ("Let’s") can be a cue as written. */
+          if (spent[n] || bare !== String(c.word || '').toLowerCase().replace(/[^a-z0-9]/g, '')) return;
           /* A cue can belong to one line (`in`: words from it), so the
              same word in an earlier sentence does not set it off. */
           if (c.in && String(Bubble.full || '').indexOf(c.in) < 0) return;
@@ -8591,7 +8593,16 @@
              before then: the next screen may draw a side of its own,
              and a side drawn into the hush arrives already faded. */
           if (c.spot) {
+            /* A screen that keeps its right-angle square through every
+               highlight (`keepMark`) can still let it step back with C
+               for a side it has nothing to do with: "But we still need
+               AB" is about the one side with no length, and a bright
+               square beside a faded C read as part of what was lit. It
+               is back at full strength when the light is put away. */
+            const kept = Board.keepMark;
+            if (c.hushMark) Board.keepMark = false;
             Board.spotlightPart(c.spot);
+            Board.keepMark = kept;
             self.hold(function () { Board.spotlightPart(null); });
           }
           /* Or pulse sides on the word that names them — the overlay
