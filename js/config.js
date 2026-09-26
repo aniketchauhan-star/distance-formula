@@ -3710,7 +3710,8 @@ window.CFG = (function () {
     { id: 61, line: 'So, which triangle is it?',
       entrance: 'stay', layout: 'board', board: 'mid', keepSegment: true,
       askFirst: true, optionTrio: true, quietBoard: true, park: true,
-      hint: 'No two sides are the same length.',
+      /* No hint under the cards: the three lengths are on the board,
+         and the three cards are the whole question — as on 55. */
       segment: { a: { x: -6, y: -2, name: 'A', coordSide: 'under' },
                  b: { x:  6, y: -7, name: 'B', coordSide: 'under' },
                  result: { text: '13\u00A0units' } },
