@@ -7862,13 +7862,26 @@
                        coordDy: X.coordDy, nameDy: X.nameDy };
         self.state = 'entering';
         el.nextBtn.classList.remove('ready');
-        el.standSwifty.classList.add('hidden');
-        el.birdWin.classList.add('hidden');
+        /* `noIntro` (39): she does not come in to name the case. The grid
+           builds in the middle, moves to its side and the table opens.
+           Reached without the leaves she is still up from the screen
+           before, so she flies off as the grid comes, not blinks out. */
+        if (entry.noIntro) {
+          Bubble.close();
+          if (!self.birdAway()) self.flyOut(function () {});
+        } else {
+          el.standSwifty.classList.add('hidden');
+          el.birdWin.classList.add('hidden');
+        }
         Board.viewName = null;
         Board.viewTo(null, 0);
         Board.place(C.GRID.centre);
         Board.run(self.later.bind(self), function () {
           Board.runSegment(spec, self.later.bind(self), function () {
+            if (entry.noIntro) {
+              self.later(function () { self.runTable(entry); }, 600);
+              return;
+            }
             self.slideBoard(geom.panelBox);
             self.later(function () {
               self.flyIn(function () {
@@ -8297,6 +8310,27 @@
         return;
       }
 
+      /* An axis case with no leaf sweep before it (39): the frame is
+         cleared here, as dress() would have done under the cover — the
+         case builds its own board in the middle of it — and the case is
+         run. It used to be run only at the end of a sweep. */
+      if (AX) {
+        this.state = 'entering';
+        Board.setTextScale(entry.textScale || 1);
+        this.numberBoard(i);
+        Board.clearSegment();
+        Board.clearWorkLines();
+        Board.clearMeasure();
+        if (Table) Table.hide();
+        el.gridPanel.classList.add('hidden');
+        Board.shown = false;
+        Board.setDots(false);
+        if (Sel) Sel.hide();
+        if (Opts) Opts.hide();
+        runAxisCase(AX);
+        return;
+      }
+
       // a distance question rebuilds from an empty frame, every time
       if (entry.intro === 'measure') { runMeasure(); return; }
 
@@ -8490,6 +8524,14 @@
 
     /* She flies on out to the right, carrying straight on past where
        she landed, and the screen hands over once she is gone. */
+    /* Is she off the stage: hidden, or flown off and waiting to come
+       back in? */
+    birdAway: function () {
+      if (!el.standSwifty.classList.contains('hidden')) return false;   // standing
+      return el.birdWin.classList.contains('hidden') ||
+             el.birdRig.classList.contains('pre-entrance');
+    },
+
     flyOut: function (done) {
       const self = this;
       el.birdWin.classList.remove('hidden');
@@ -9762,8 +9804,10 @@
       if (!this.task || !Table) return;
       const lines = entry.task.formula || [];
       Bubble.close();
+      /* She flies off first — unless she is not here to (39). */
+      const leave = function (then) { if (self.birdAway()) then(); else self.flyOut(then); };
       this.later(function () {
-        self.flyOut(function () {
+        leave(function () {
           /* A question answered on the control first (30) has the
              control up: it goes with her. */
           if (Opts) Opts.hide();

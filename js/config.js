@@ -3131,8 +3131,12 @@ window.CFG = (function () {
     /* 29 — the x-axis case worked through: the general formula narrows
        to |x2 - x1| as the y terms fall away. She says which case it is
        from her own bubble, standing beside the board. */
-    { id: 39, line: 'Both points are on the x-axis.', entrance: 'none',
-      layout: 'xaxis', transition: 'leaves',
+    { id: 39, entrance: 'none', layout: 'xaxis',
+      /* No leaf sweep and no Swifty: the grid builds in the middle, moves
+         to its side, and the table opens for the child — she only comes
+         back to say it was right. "Both points are on the x-axis." was
+         hers, between the grid and the table. */
+      noIntro: true,
       /* The child's own go (runAxisPick): the board builds in the middle
          and moves across, she says which case it is and goes, and the
          table opens out of the board for the child to fill. */
