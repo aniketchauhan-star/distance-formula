@@ -32,10 +32,15 @@ window.Voice = (function () {
       ['01-hey-there.mp3', 0.68],
     'Let’s do a quick warm-up.':
       ['02-lets-do-a-quick-warm-up.mp3', 1.65],
+    /* Said without the brackets — "Locate the point, three, comma, two."
+       The two words were taken out of the recording, the kept pieces
+       joined in the silence either side — so this one and the next are
+       WAV rather than MP3: a join in the middle of an MP3 can click, and
+       every browser plays WAV. */
     'Locate the point (3, 2).':
-      ['03-locate-the-point-3-2.mp3', 5.64],
+      ['03-locate-the-point-3-2.wav', 3.35],
     'Now try (6, 2).':
-      ['04-now-try-6-2.mp3', 5.49],
+      ['04-now-try-6-2.wav', 3.15],
     'What is the distance between the two points?':
       ['05-what-is-the-distance-between-the-two-points.mp3', 2.27],
     'Count carefully!':
@@ -46,14 +51,10 @@ window.Voice = (function () {
       ['08-the-y-coordinates-are-the-same.mp3', 2.04],
     'So, the distance is the difference between the x-coordinates.':
       ['09-so-the-distance-is-the-difference-between-th.mp3', 3.29],
-    '6 - 3 = 3':
-      ['10-6-3-3.mp3', 2.48],
     'The x-coordinates are the same.':
       ['11-the-x-coordinates-are-the-same.mp3', 2.09],
     'So, the distance is the difference between the y-coordinates.':
       ['12-so-the-distance-is-the-difference-between-th.mp3', 3.37],
-    '2 - (-3) = 5':
-      ['13-2-3-5.mp3', 6.03],
     'So far, the points were lined up horizontally or vertically.':
       ['14-so-far-the-points-were-lined-up-horizontally.mp3', 3.50],
     'But these two aren’t.':
