@@ -399,6 +399,11 @@ html.calm .wd.in { animation-duration: .08s; }
 #gridPanel.stepping { transition: scale .7s cubic-bezier(.22, .61, .36, 1); }
 .formula-table.growing { transition: left .7s cubic-bezier(.22, .61, .36, 1),
                                      scale .7s cubic-bezier(.22, .61, .36, 1); }
+/* A length blinking on its line (46, 48, on a wrong card): on the label's
+   own group, so the pop that shows the label is left alone. */
+#gridAxes .blinking { animation: lenBlink .45s ease-in-out 4 both; }
+@keyframes lenBlink { 0%, 100% { opacity: 1; } 50% { opacity: .12; } }
+html.calm #gridAxes .blinking { animation: none; }
 /* An arrowhead the window's edge would cut in half is not drawn; its
    axis runs straight on to the edge instead (Board.fitArrows). */
 #gridAxes .arrow.cut { visibility: hidden; }

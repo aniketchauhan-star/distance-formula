@@ -95,7 +95,8 @@ window.TriangleOptions = (function () {
          dead for as long as the keys had matched. */
       const sig = list.map(function (c) {
         return [c.key, c.label || '', c.cls || '',
-                c.marks == null ? '' : c.marks].join('\u0001');
+                c.marks == null ? '' : c.marks, c.dist || '',
+                c.pic ? c.pic.x + ',' + c.pic.y : ''].join('\u0001');
       }).join('|');
       if (sig === builtKeys) { clearStates(); return; }
       builtKeys = sig;
@@ -125,10 +126,39 @@ window.TriangleOptions = (function () {
           b.appendChild(triangleIcon(c.marks));
           b.classList.add('with-icon');
         }
+        /* Or a picture of the place it names, cut from the town's own
+           sheet (`pic`: the drawing's rect on it), so the card and the
+           map show the same building — a card for a place (46, 48). */
+        if (c.pic) {
+          const P = c.pic, H = 128, k = H / P.h;
+          const pic = document.createElement('span');
+          pic.className = 'opt-pic';
+          pic.style.width = Math.round(P.w * k) + 'px';
+          pic.style.height = H + 'px';
+          pic.style.backgroundImage = 'url("' + P.src + '")';
+          pic.style.backgroundSize = (P.sw * k) + 'px ' + (P.sh * k) + 'px';
+          pic.style.backgroundPosition = (-P.x * k) + 'px ' + (-P.y * k) + 'px';
+          b.appendChild(pic);
+          b.classList.add('card');
+        }
         const cap = document.createElement('span');
         cap.className = 'opt-label';
         cap.textContent = c.label;
         b.appendChild(cap);
+        /* …and how far it is, in a box of its own under its name. */
+        if (c.dist) {
+          const box = document.createElement('span');
+          box.className = 'opt-dist';
+          const w = document.createElement('span');
+          w.className = 'opt-dist-k';
+          w.textContent = c.distWord || 'Distance';
+          const v = document.createElement('span');
+          v.className = 'opt-dist-v';
+          v.textContent = c.dist;
+          box.appendChild(w); box.appendChild(v);
+          b.appendChild(box);
+          b.classList.add('card');
+        }
 
         b.addEventListener('click', function (e) {
           e.stopPropagation();        // a tap here must never skip the screen

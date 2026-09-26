@@ -1969,6 +1969,14 @@ window.CFG = (function () {
   /* A number as the working writes it: its minus is the arithmetic sign. */
   const MINUS = function (v) { return String(v).replace('-', '\u2212'); };
 
+  /* A place's picture for an answer card (46, 48): where its drawing is
+     on the town's sheet, so the card shows the building the map does. */
+  const PIC = function (kind) {
+    const s = TOWN.sprites[kind];
+    return { src: TOWN.sheet.src, x: s.x, y: s.y, w: s.w, h: s.h,
+             sw: TOWN.sheet.w, sh: TOWN.sheet.h };
+  };
+
   /* The distance formula worked for two points, as a table the child
      fills: the formula, given; the four coordinates carried into it off
      the board one at a time; then the child's — the two differences,
@@ -3388,7 +3396,7 @@ window.CFG = (function () {
 
     /* The comparison, not the winner: both walks on the map with their
        lengths, and the smaller one named. */
-    { id: 46, line: '5 is less than \u221A40 \u2014 so Cafe A is closer.',
+    { id: 46, line: 'Which distance is shorter?',
       /* No leaf sweep: she flies off from under the second walk's table
          (or from the answers, answered right on 42), the table folds away
          and the board slides back, the walk's triangle fades — and the
@@ -3399,13 +3407,27 @@ window.CFG = (function () {
       entrance: 'fly', layout: 'board', flyBack: true,
       town: ['house', 'cafeA', 'cafeB'], textScale: 0.85,
       keepSegment: true, dropLegs: true, dropNames: true,
+      /* The two walks on the map, without their lengths: the lengths are
+         on the two cards (below), and the question is which is shorter.
+         A wrong card and they come up on the map instead, blinking, with
+         nothing said (blinkOnMiss). */
+      hideLengths: true,
       compare: [
         { a: { x: 1, y: 1 }, b: { x: -5, y: 3 }, coordSide: 'under',
           result: { text: '\u221A40\u00A0units' } },
         { a: { x: 1, y: 1 }, b: { x: 5, y: 4 }, coordSide: 'under',
           result: { text: '5\u00A0units' } }
       ],
-      hold: 5200 },
+      options: [
+        { key: 'cafeA', label: 'Cafe A', dist: '5\u00A0units', pic: PIC('cafe') },
+        { key: 'cafeB', label: 'Cafe B', dist: '\u221A40\u00A0units', pic: PIC('cafe') }
+      ],
+      optionRow: true, optionWide: true,     // two cards side by side, the width of the trio
+      /* She asks first, then the cards come up — even straight after 42,
+         whose answers would otherwise be kept and simply rewritten. */
+      askFirst: true,
+      task: { kind: 'choice', answer: 'cafeA', blinkOnMiss: true, voiceOnly: true,
+              correctLine: '5 is less than \u221A40 \u2014 so Cafe A is closer.' } },
 
     /* 47 — the same question with the other two places: the house, the
        school and the park, and no cafes. Right, and the comparison
@@ -3470,19 +3492,27 @@ window.CFG = (function () {
       first: { flyBack: true }
     }),
 
-    { id: 48, line: '\u221A17 is less than \u221A41 \u2014 so the park is closer.',
+    { id: 48, line: 'Which distance is shorter?',
       /* As 46: no leaf sweep, the pair on the board kept as it is, its
          line drawn solid with its length, the other walk beside it. */
       entrance: 'fly', layout: 'board', flyBack: true,
       town: ['house', 'school', 'park'], textScale: 0.85,
       keepSegment: true, dropLegs: true, dropNames: true,
+      /* As 46: the lengths on the cards, the map blinking them on a miss. */
+      hideLengths: true,
       compare: [
         { a: { x: 1, y: 1, labelAt: HOUSE_LABEL }, b: { x: -3, y: 2, labelAt: PARK_LABEL }, coordSide: 'under',
           result: { text: '\u221A17\u00A0units' } },
         { a: { x: 1, y: 1, labelAt: HOUSE_LABEL }, b: { x: 5, y: -4 }, coordSide: 'under',
           result: { text: '\u221A41\u00A0units' } }
       ],
-      hold: 5200 },
+      options: [
+        { key: 'school', label: 'School', dist: '\u221A41\u00A0units', pic: PIC('school') },
+        { key: 'park', label: 'Park', dist: '\u221A17\u00A0units', pic: PIC('park') }
+      ],
+      optionRow: true, optionWide: true, askFirst: true,
+      task: { kind: 'choice', answer: 'park', blinkOnMiss: true, voiceOnly: true,
+              correctLine: '\u221A17 is less than \u221A41 \u2014 so the park is closer.' } },
 
     /* ================= the towers and the rescue =================
        No town, and no help with the method: two towers, then the

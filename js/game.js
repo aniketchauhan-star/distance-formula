@@ -2434,6 +2434,7 @@
         s.g.classList.remove('on');
         s.segLine.classList.remove('draw', 'lit');
         s.segRes.classList.remove('pop');
+        if (s.segResTurn) s.segResTurn.classList.remove('blinking');
         ['a', 'b'].forEach(function (k) {
           ['dot', 'coord', 'name'].forEach(function (n) {
             s.segParts[k][n].classList.remove('pop', 'set');
@@ -6070,6 +6071,7 @@
       if (!this.segGroup) return;
       this.glowCoords(false);
       if (this.segRes) this.segRes.classList.remove('pop', 'set');
+      if (this.segResTurn) this.segResTurn.classList.remove('blinking');
       if (this.segLine) this.segLine.classList.remove('lit', 'good');
       this.segGroup.classList.remove('on');
       this.markCrossing();
@@ -6463,6 +6465,31 @@
           self.clearLegs();
           if (then) then();
         });
+    },
+
+    /* The two walks' lengths on the map (46, 48, on a miss): written on
+       their lines if they are not yet, and blinking a few times, so the
+       child reads which is shorter off the board itself. Left up after. */
+    blinkLengths: function () {
+      const W = this.compared;
+      if (!W || !W.main) return;
+      const blink = function (g) {
+        if (!g) return;
+        g.classList.remove('blinking');
+        void g.getBoundingClientRect();         // so it plays again on a second miss
+        g.classList.add('blinking');
+      };
+      const R = W.main.result;
+      if (R && this.segRes && !this.segRes.classList.contains('pop')) {
+        this.showSegResult(W.main, R.text, R.dy, R.dx);
+      }
+      blink(this.segResTurn);
+      const X = this.exSlots && this.exSlots[0], R2 = W.other && W.other.result;
+      if (X && R2) {
+        if (!X.segRes.classList.contains('pop')) this.showSegResult(W.other, R2.text, R2.dy, R2.dx, X);
+        blink(X.segResTurn);
+      }
+      SFX.chime();
     },
 
     /* The pair's two letters stepped back, and nothing else moved: the
@@ -7502,6 +7529,10 @@
       if (Opts) {
         const choice = entry.task && entry.task.kind === 'choice';
         // each screen brings its own three answers
+        /* Not rewritten under the child's eyes: a panel still up from the
+           last screen (42's two buttons, before 46's cards) goes first,
+           unless this screen is keeping it. */
+        if (Array.isArray(entry.options) && !keepsControl) Opts.hide();
         if (Array.isArray(entry.options)) Opts.setChoices(entry.options);
         Opts.setAnswer(choice ? entry.task.answer : null);
         Opts.onAnswer(choice ? function (key, right) { self.checkChoice(right); } : null);
@@ -10544,6 +10575,13 @@
         t.wrong++;
         SFX.wrong();
         FX.missGlow();
+        /* Which is shorter (46, 48): the map answers it, not her. The two
+           lengths come up on their lines and blink — no words, no voice —
+           and the cards stay live for another go. */
+        if (t.spec.blinkOnMiss) {
+          this.later(function () { Board.blinkLengths(); }, 300);
+          return;
+        }
         const fb = this.feedbackFor(t);
 
         /* Two misses on a two-answer question is not a question any
@@ -10627,6 +10665,8 @@
     compareWalks: function (entry, main) {
       const self = this, later = this.later.bind(this);
       const other = (entry.compare || []).filter(function (w) { return w !== main; })[0];
+      /* Kept for a miss to write their lengths on (blinkLengths). */
+      Board.compared = { main: main, other: other };
       const L = Board.segLine;
       const drawn = !!L && L.classList.contains('draw') &&
                     (parseFloat(getComputedStyle(L).strokeDashoffset) || 0) < 1;
@@ -10637,13 +10677,17 @@
         later(function () { if (Board.segDashG) Board.segDashG.classList.remove('draw', 'set'); }, 240 + 720);
         at = 240 + 720;
       }
-      const R = main.result;
+      /* A screen asking which is shorter (46, 48) holds the lengths back:
+         they are on its answer cards, and the map shows them only on a
+         miss (blinkLengths). */
+      const R = entry.hideLengths ? null : main.result;
       if (R) later(function () { Board.showSegResult(main, R.text, R.dy, R.dx); SFX.chime(); }, at + 120);
       if (other) {
         const named = function (p) { return !!Board.dataAt(p.x, p.y) || !!Board.keyAt(p); };
         const ex = Object.assign({}, other, {
           a: Object.assign({}, other.a, named(other.a) ? { quiet: true } : {}),
-          b: Object.assign({}, other.b, named(other.b) ? { quiet: true } : {}) });
+          b: Object.assign({}, other.b, named(other.b) ? { quiet: true } : {}) },
+          entry.hideLengths ? { result: null } : {});
         later(function () { Board.runExamples([ex], later); }, at + 520);
       }
     },
@@ -10702,6 +10746,14 @@
        buttons are a fixed stack, and this has to be right whether or
        not the browser has laid them out yet. */
     optionSpot: function (key) {
+      /* Off the button itself where it is laid out — cards side by side
+         (46, 48) are not where a stack of buttons would put them. */
+      const btn = Opts && Opts.el && Opts.el.querySelector('.triangle-option[data-key="' + key + '"]');
+      if (btn) {
+        const r = btn.getBoundingClientRect(), st = el.stage.getBoundingClientRect();
+        const sk = st.width / C.STAGE_W || 1;
+        if (r.width) return { x: (r.left + r.width / 2 - st.left) / sk, y: (r.top + r.height / 2 - st.top) / sk };
+      }
       const O = C.BOARD.options, k = O.scale;
       const entry = C.SCRIPT[this.index] || {};
       const list = entry.options || [];
