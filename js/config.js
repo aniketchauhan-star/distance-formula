@@ -1994,17 +1994,21 @@ window.CFG = (function () {
     const s1 = Object.assign({
       id: w.ids[0],
       line: say.first, line2: say.ask || 'How far is it from A to C?',
-      /* The dotted line waits for her first word, and A and B pulse
-         with it, and then AB is drawn solid over the dots (drawGuide);
-         the corner comes after her sentence, drawn out along the first
-         side; then she asks, and while she asks only A, C and the side
-         between them are at full strength. */
+      /* Her first sentence has only A and B in it: the dotted line waits
+         for its word, A and B pulse with it, and AB is drawn solid over
+         the dots (drawGuide). Her next sentence brings the corner: from
+         its first word the dotted side grows out of A with the ease-in
+         every dotted line has, and C lands — ringing — as the dots reach
+         it, while only A, C and the side between them are at full
+         strength. The corner used to come between the two, in silence,
+         with her balloon taken away. The second sentence waits for AB to
+         finish (lightAfterLine). */
       guideOnLine: true,
       wordCues: [ { word: say.cue || firstWord(say.first), in: say.first,
                     guide: true, beat: ['a', 'b'] },
                   { word: firstWord(say.ask || 'How'), in: say.ask || 'How far is it from A to C?',
-                    spot: 'h' } ],
-      lineLights: [ { legs: true, beat: ['c'], quiet: true }, { pulse: 'h' } ],
+                    spot: 'h', legs: true, beat: ['c'] } ],
+      lineLights: [ {}, { pulse: 'h' } ],
       /* Not quiet: these two screens ask for a side to be COUNTED, and
          a child counting squares needs to see them. */
       entrance: 'none', layout: 'board',
@@ -2823,19 +2827,20 @@ window.CFG = (function () {
          find the distance between A and B.", A and B pulse and the dotted
          line between them is drawn as she says "distance", then the line
          itself drawn over it from A to B — and nothing else is on the
-         board. Her balloon goes; C arrives with a pulse,
-         the dotted side from A running out to it; and only then "What is
-         the difference between these two points?" — from its first word
-         AC is the only side at full strength, B and the dotted AB
-         stepping back — with AC glowing after it. CB is not drawn here:
+         board. Then "What is the difference between these two points?",
+         and from its first word C arrives with a pulse, the dotted side
+         from A running out to it, AC the only side at full strength, B
+         and AB stepping back — with AC glowing after it. CB is not drawn here:
          it comes on the next screen, once AC has been answered. */
       view: 'triangle',
       line: 'Now, let’s find the distance between A and B.',
       line2: 'What is the difference between these two points?',
       guideOnLine: true,
+      /* C and the dotted side out to it come with "What is the
+         difference…", from its first word — see the walks (walk, s1). */
       wordCues: [ { word: 'distance', guide: true, beat: ['a', 'b'] },
-                  { word: 'What', spot: 'h' } ],
-      lineLights: [ { legs: true, beat: ['c'], quiet: true }, { pulse: 'h' } ],
+                  { word: 'What', spot: 'h', legs: true, beat: ['c'] } ],
+      lineLights: [ {}, { pulse: 'h' } ],
       entrance: 'none', layout: 'board', quietBoard: true, transition: 'leaves',
       intro: 'measure', distance: true,
       segment: { a: { x: -2, y: 2, name: 'A' }, b: { x: 2, y: 5, name: 'B' }, dash: true },

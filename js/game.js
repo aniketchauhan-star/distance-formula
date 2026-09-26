@@ -8153,10 +8153,12 @@
                already drawn round the line would be answering the
                question the working exists to answer. */
             /* Unless a line draws them — the corner arriving because she
-               has said what she is going to find, not with the screen. */
+               has said what she is going to find, not with the screen —
+               or a word in one does (29, every walk: C comes with her
+               question). */
             const legsOnLine = (entry.lineLights || []).some(function (L) {
               return L && L.legs;
-            });
+            }) || (entry.wordCues || []).some(function (c) { return c && c.legs; });
             if (entry.legs && !entry.legsLater && !legsOnLine) {
               /* The side being asked about goes down dotted: the count
                  lays a solid stroke along it, and a solid guide under a
@@ -8668,7 +8670,13 @@
           /* Or draw the dotted guide a screen held back, and pulse the
              points it runs between (29: "the distance between A and B"). */
           if (c.guide) Board.drawGuide(self.later.bind(self));
-          if (c.beat) [].concat(c.beat).forEach(function (k) { Board.beatPoint(k, self.later.bind(self), 0); });
+          /* The corner rings as it lands, when the same word draws the
+             side out to it (runLegs: 1030ms along a dotted side). */
+          if (c.beat) [].concat(c.beat).forEach(function (k) {
+            const first = (entry.legs || [])[0];
+            const at = (k === 'c' && c.legs && first) ? (first.dash ? 1030 : 760) : 0;
+            Board.beatPoint(k, self.later.bind(self), at);
+          });
           /* Or put up the right-angle marker, on the word that names the
              shape it belongs to. */
           if (c.mark) { Board.rightAngle(true); SFX.chime(); }
@@ -9493,12 +9501,12 @@
     lightAfterLine: function (entry, n) {
       const L = ((entry || {}).lineLights || [])[n];
       if (!L) return 0;
-      /* A light that brings the sides on waits for AB to finish drawing
-         over its dotted guide (drawGuide) — AB first, then C and its
-         side, one line at a time. Everything it sets going moves back by
-         the wait, and so does whatever waits on it. */
+      /* A light — and so the sentence after it — waits for AB to finish
+         drawing over its dotted guide (drawGuide): AB first, then C and
+         its side, one line at a time. Everything it sets going moves back
+         by the wait, and so does whatever waits on it. */
       const self = this;
-      const wait = L.legs ? Math.max(0, (Board.guideUntil || 0) - performance.now()) : 0;
+      const wait = Math.max(0, (Board.guideUntil || 0) - performance.now());
       const later = wait ? function (fn, t) { self.later(fn, (t || 0) + wait); }
                          : this.later.bind(this);
       const run = L.run || 1700;
