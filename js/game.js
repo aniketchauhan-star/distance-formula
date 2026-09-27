@@ -4966,8 +4966,14 @@
       }
       if (!into) { this.lastPlotted = spec; this.markCrossing(); }
       // a screen can recolour the segment — red once it closes a triangle
-      T.segLine.setAttribute('stroke', spec.color || SG.lineColor);
-      T.segLine.style.color = spec.color || SG.lineColor;   // for its own glow
+      /* On the park (55–61) all three sides are its fence, in one green:
+         AB takes the green its two other sides already have, and so does
+         the length written on it. */
+      const parkSide = !into && this.park ? G.leg.vColor : null;
+      const segCol = spec.color || parkSide || SG.lineColor;
+      T.segLine.setAttribute('stroke', segCol);
+      T.segLine.style.color = segCol;   // for its own glow
+      if (T.segRes) T.segRes.setAttribute('fill', parkSide || G.ink);
       const px = function (v) { return G.originX + v * G.stepX; };
       const py = function (v) { return G.originY - v * G.stepY; };
       const self = this;
