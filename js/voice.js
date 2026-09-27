@@ -77,8 +77,10 @@ window.Voice = (function () {
       ['23-a-right-angled-triangle.mp3', 1.80],
     'Look at the corner at C.':
       ['24-look-at-the-corner-at-c.mp3', 1.72],
-    'It’s a right-angled triangle — see the square corner at C.':
-      ['25-its-a-right-angled-triangle-see-the-square-c.mp3', 3.87],
+    /* The front of the reader's "It's a right-angled triangle. See the
+       square corner at C." — cut at her own pause after "triangle". */
+    'It’s a right-angled triangle.':
+      ['25-its-a-right-angled-triangle.mp3', 1.72],
     'We know AC and CB.':
       ['26-we-know-ac-and-cb.mp3', 2.40],
     'But we still need AB.':
@@ -129,12 +131,8 @@ window.Voice = (function () {
       ['49-now-the-house-to-cafe-b.mp3', 2.09],
     'Which distance is shorter?':
       ['50-which-distance-is-shorter.mp3', 1.57],
-    '5 is less than √40 — so Cafe A is closer.':
-      ['51-5-is-less-than-root-40-so-cafe-a-is-closer.mp3', 4.60],
     'How long should this connection be?':
       ['52-how-long-should-this-connection-be.mp3', 1.83],
-    'The station is right at zero.':
-      ['53-the-station-is-right-at-zero.mp3', 2.04],
     'What kind of triangle is this park?':
       ['54-what-kind-of-triangle-is-this-park.mp3', 2.09],
     'Scalene — no two sides the same.':

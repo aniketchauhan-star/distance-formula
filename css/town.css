@@ -85,6 +85,15 @@
    foot on the x-axis's line and its left edge just right of the
    y-axis — the station, at the origin. */
 .town-place.q1 { transform: translate(0, -100%); }
+/* A name beside the picture (`tag: 'right'`): out of the flow, so the
+   picture alone stands on its point, and the name at its middle height
+   just to its right. */
+.town-place.tag-right .town-pill {
+  position: absolute;
+  left: calc(100% + var(--cell, 78px) * 0.1);
+  top: 50%;
+  transform: translateY(-50%);
+}
 
 /* Phones and short windows scale through --cell like everything else,
    so there is nothing width-specific to undo here. */

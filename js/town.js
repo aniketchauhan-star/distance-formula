@@ -104,6 +104,9 @@ window.TownMap = (function () {
              on it, centred, it covered the point, the first unit counted
              out of it and both axes where they cross. */
           n.classList.toggle('q1', !!p.corner);
+          /* Or its name beside the picture instead of over it (`tag:
+             'right'`), for a place near the top of the paper. */
+          n.classList.toggle('tag-right', p.tag === 'right');
           const lift = T.liftCells * ch;
           n.style.top = (p.hang ? (s.y + lift) : (s.y - lift)) + 'px';
           n.style.left = (p.corner ? (s.x + lift * 1.6) : s.x) + 'px';
@@ -163,6 +166,12 @@ window.TownMap = (function () {
             const lift = T.liftCells * ch;
             room.push({ l: s.x + lift * 1.6, t: foot - tall,
                         r: s.x + lift * 1.6 + wide, b: foot,
+                        what: p.name || p.kind });
+          } else if (wide && tall && p.tag === 'right') {
+            /* The picture on its point, its name out to the right. */
+            const bw = n.offsetWidth || 0, gap = 0.1 * ch;
+            room.push({ l: s.x - bw / 2, t: foot - tall,
+                        r: s.x + bw / 2 + gap + (pill ? pill.offsetWidth : 0), b: foot,
                         what: p.name || p.kind });
           } else if (wide && tall) {
             room.push({ l: s.x - wide / 2, t: foot - tall,
