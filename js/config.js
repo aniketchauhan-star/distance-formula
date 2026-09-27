@@ -2107,7 +2107,9 @@ window.CFG = (function () {
         a: Object.assign({}, seg.a, parts(w.a)), b: Object.assign({}, seg.b, parts(w.b)) });
       const d2 = Math.pow(w.b.x - w.a.x, 2) + Math.pow(w.b.y - w.a.y, 2);
       const rt = Math.sqrt(d2), whole = Math.abs(rt - Math.round(rt)) < 1e-9;
-      const q = say.ask || 'What is the distance between A and B?';
+      /* `ask: false` — her first line is the question (49: "How long
+         should this connection be?"), so it is not asked a second time. */
+      const q = say.ask === false ? null : (say.ask || 'What is the distance between A and B?');
       const table = distanceTable({ x: w.a.x, y: w.a.y, key: 'a' },
                                   { x: w.b.x, y: w.b.y, key: 'b' });
       const steps = Math.abs(w.b.x - w.a.x) + Math.abs(w.b.y - w.a.y);
@@ -2118,12 +2120,12 @@ window.CFG = (function () {
       const answers = three.slice(turn).concat(three.slice(0, turn));
       return [ Object.assign({
         id: w.ids[0],
-        line: say.first, line2: q,
+        line: say.first, line2: q || undefined,
         guideOnLine: true,
         wordCues: [ { word: say.cue || firstWord(say.first), in: say.first,
-                      guide: true, beat: ['a', 'b'] },
-                    { word: firstWord(q), in: q, spot: 'ab' } ],
-        lineLights: [ {}, { pulse: 'ab' } ],
+                      guide: true, beat: ['a', 'b'] } ].concat(q ? [ { word: firstWord(q), in: q, spot: 'ab' } ] : []),
+        /* AB glows after the question — the second line, or the only one. */
+        lineLights: q ? [ {}, { pulse: 'ab' } ] : [ { pulse: 'ab' } ],
         entrance: 'none', layout: 'board', intro: 'measure',
         /* The control is taken away while she asks and comes in after —
            the last screen's may be a different one, or answered. */
@@ -3219,7 +3221,7 @@ window.CFG = (function () {
       lineLights: [ { unspot: true, after: 500 } ],
       /* The child's to fill, the way 29c's table is: she flies off, the
          board makes room and the table opens out of its right edge — AB,
-         CB and AC carried in off the triangle — then each blank, tapped,
+         AC and CB carried in off the triangle — then each blank, tapped,
          drops two tiles: the side's own difference, read off the labels
          on the board, or the sum a child reaches for instead. Then the
          root is written and she comes back under the table. */
@@ -3227,20 +3229,40 @@ window.CFG = (function () {
         kind: 'table',
         correctLine: 'That’s right!',
         tableSize: 36,
+        /* Written as it is read, one line a row with the = signs under
+           one another: AC before CB and the x's before the y's, each
+           term whole in its side's colour — AC and the x's orange, CB and
+           the y's green, AB and the root blue:
+
+               (AB)² = (AC)² + (CB)²
+                     = (x₂ − x₁)² + (y₂ − y₁)²
+                  AB = √((x₂ − x₁)² + (y₂ − y₁)²)
+
+           They used to stand in columns, CB first, and the columns left
+           wide gaps inside the brackets. The second row's two
+           differences are the child's to fill. */
         formula: [
-          { kind: 'lead', parts: [
+          { kind: 'lead', inline: true, parts: [
               { t: '(AB)\u00B2', lit: 'ab', from: { side: 'ab' } }, { t: ' = ' },
-              { t: '(CB)\u00B2', lit: 'v',  from: { side: 'v'  } }, { t: ' + ' },
-              { t: '(AC)\u00B2', lit: 'h',  from: { side: 'h'  } } ] },
-          { kind: 'step', parts: [
+              { t: '(AC)\u00B2', lit: 'h',  from: { side: 'h'  } }, { t: ' + ' },
+              { t: '(CB)\u00B2', lit: 'v',  from: { side: 'v'  } } ] },
+          { kind: 'step', inline: true, parts: [
               { t: '= ' },
-              { t: '(y\u2082 \u2212 y\u2081)\u00B2', lit: 'v', answer: 'y\u2082 \u2212 y\u2081',
-                offer: [ 'y\u2081 + y\u2082', 'y\u2082 \u2212 y\u2081' ] }, { t: ' + ' },
-              { t: '(x\u2082 \u2212 x\u2081)\u00B2', lit: 'h', answer: 'x\u2082 \u2212 x\u2081',
-                offer: [ 'x\u2082 \u2212 x\u2081', 'x\u2081 + x\u2082' ] } ] },
+              { t: '(', lit: 'h' },
+              { t: 'x\u2082 \u2212 x\u2081', lit: 'h', answer: 'x\u2082 \u2212 x\u2081',
+                offer: [ 'x\u2081 + x\u2082', 'x\u2082 \u2212 x\u2081' ] },
+              { t: ')\u00B2', lit: 'h' }, { t: ' + ' },
+              { t: '(', lit: 'v' },
+              { t: 'y\u2082 \u2212 y\u2081', lit: 'v', answer: 'y\u2082 \u2212 y\u2081',
+                offer: [ 'y\u2082 \u2212 y\u2081', 'y\u2081 + y\u2082' ] },
+              { t: ')\u00B2', lit: 'v' } ] },
           { kind: 'result', inline: true, parts: [
               { t: 'AB', lit: 'ab' }, { t: ' = ' },
-              { t: '\u221A((y\u2082 \u2212 y\u2081)\u00B2 + (x\u2082 \u2212 x\u2081)\u00B2)', lit: 'ab' } ] }
+              { t: '\u221A(', lit: 'ab' },
+              { t: '(x\u2082 \u2212 x\u2081)\u00B2', lit: 'h' },
+              { t: ' + ', lit: 'ab' },
+              { t: '(y\u2082 \u2212 y\u2081)\u00B2', lit: 'v' },
+              { t: ')', lit: 'ab' } ] }
         ] },
       segment: {
         a: { x: -5, y: 1, name: 'A', coordParts: [ { t: '(' }, { t: 'x₁', glow: 'x' }, { t: ',\u00A0' },
@@ -3443,7 +3465,7 @@ window.CFG = (function () {
       ids: [49], formula: true,
       a: { x: -2, y: 5 }, b: { x: 4, y: -3 }, c: { x: 4, y: 5 },
       seg: { coordSide: 'under' },
-      say: { first: 'How long should this connection be?', cue: 'connection' },
+      say: { first: 'How long should this connection be?', cue: 'connection', ask: false },
       base: { textScale: 0.85, town: ['towerA', 'towerB'], range: { min: 0, max: 12 } },
       first: { transition: 'leaves', entrance: 'fly' },
       done: 54
@@ -3600,7 +3622,8 @@ window.CFG = (function () {
       entrance: 'stay', layout: 'board', board: 'mid', keepSegment: true,
       askFirst: true, optionRow: false, quietBoard: true, park: true,
       pulse: 'triangle',
-      hint: 'Are any two of them the same number?',
+      /* No hint under the answers — the three lengths are on the board,
+         and a wrong answer still gets her nudge (feedback). */
       segment: { a: { x: -6, y: -2, name: 'A', coordSide: 'under' },
                  b: { x:  6, y: -7, name: 'B', coordSide: 'under' },
                  result: { text: '13\u00A0units' } },

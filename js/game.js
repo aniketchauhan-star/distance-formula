@@ -3613,7 +3613,11 @@
            shorter way, until it is past the corner and out. Along the
            side is where a length belongs; inside the face is the one
            place beside that side it may not be. */
-        if (face) {
+        /* Not a slanted one: it is set off its line along the normal that
+           points away from the face, so its words cannot be in the face —
+           and the upright box round slanted words always is, which slid
+           it off along its side. */
+        if (face && !diag) {
           const hw = bw / 2, hh = bh / 2;
           const hits = function (X, Y) {
             return self2.boxHitsFace({ l: X - hw, t: Y - hh, r: X + hw, b: Y + hh }, face);
@@ -3657,16 +3661,30 @@
         } else L.len.textContent = txt;
         const outX = diag ? nx : (horiz ? 0 : (inner >= 0 ? 1 : -1));
         const outY = diag ? ny : (horiz ? (vSide >= 0 ? 1 : -1) : 0);
-        /* A turned length on a board showing no numbers (see the slide
+        /* An upright length on a board showing no numbers (see the slide
            above) does not count the numbers — laid out, but not shown —
            or the x-axis line it stands across as in its way: it stays by
            the middle of its side (30c's "6 units"). */
-        const across = (!horiz && !diag && !this.numbersShown())
+        const across = (!this.numbersShown() && !horiz && !diag)
           ? function (o) { return o.what === 'a number' || (o.what === 'an axis' && o.y1 === o.y2); }
           : null;
-        const seat = this.seatLength(L.len, fx, fy, bw, bh,
-                        { x: outX, y: outY }, L.len,
-                        { x: (x1 + x2) / 2, y: (y1 + y2) / 2 }, across);
+        /* A slanted side's length is set where it was put — just off its
+           line, turned to it — as a slanted pair's is (showSegResult). The
+           rule that seats a blocked label tests the upright box round the
+           words, and round slanted words that box always crosses the very
+           line they lie beside: every one was "blocked" and sent off, 59's
+           "15 units" a hundred pixels out from the middle of CA. */
+        let seat;
+        if (diag) {
+          L.len.setAttribute('x', fx);
+          L.len.setAttribute('y', fy);
+          this.inkBox(fx - bw / 2, fy - bh / 2, fx + bw / 2, fy + bh / 2, 'a length', L.len);
+          seat = { x: fx, y: fy };
+        } else {
+          seat = this.seatLength(L.len, fx, fy, bw, bh,
+                          { x: outX, y: outY }, L.len,
+                          { x: (x1 + x2) / 2, y: (y1 + y2) / 2 }, across);
+        }
         /* Turned about wherever it ended up, so the words run up the
            side rather than across it. */
         const tn = L.lenTurn;
