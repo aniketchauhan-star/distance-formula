@@ -77,8 +77,10 @@ window.Voice = (function () {
       ['23-a-right-angled-triangle.mp3', 1.80],
     'Look at the corner at C.':
       ['24-look-at-the-corner-at-c.mp3', 1.72],
-    'It’s a right-angled triangle — see the square corner at C.':
-      ['25-its-a-right-angled-triangle-see-the-square-c.mp3', 3.87],
+    /* The front of the reader's "It's a right-angled triangle. See the
+       square corner at C." — cut at her own pause after "triangle". */
+    'It’s a right-angled triangle.':
+      ['25-its-a-right-angled-triangle.mp3', 1.72],
     'We know AC and CB.':
       ['26-we-know-ac-and-cb.mp3', 2.40],
     'But we still need AB.':

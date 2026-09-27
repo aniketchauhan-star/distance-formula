@@ -2879,16 +2879,19 @@
     /* What a box would cost where it is: the same reckoning placeBlock
        does, so "is this position free?" and "which position is best?"
        can never answer differently. */
-    costAt: function (box) {
+    /* `skip(o)` leaves an obstacle out of the reckoning (seatLength). */
+    costAt: function (box, skip) {
       const self = this;
       let over = 0;
       (this.inked || []).forEach(function (o) {
         if (o.owner && o.owner === box.owner) return;   // itself
+        if (skip && skip(o)) return;
         const ox = Math.min(box.r, o.r) - Math.max(box.l, o.l);
         const oy = Math.min(box.b, o.b) - Math.max(box.t, o.t);
         if (ox > 0 && oy > 0) over += ox * oy;
       });
       (this.inkLines || []).forEach(function (L) {
+        if (skip && skip(L)) return;
         if (self.boxHitsLine(box, L)) over += 400;
       });
       return over;
@@ -2899,11 +2902,11 @@
        properly today exactly where it is, the count-out's included.
        Only a blocked one is handed to the rule, from the middle of its
        own side and pointing out of the shape. */
-    seatLength: function (node, X, Y, w, h, away, owner, mid) {
+    seatLength: function (node, X, Y, w, h, away, owner, mid, skip) {
       const box = { l: X - w / 2, t: Y - h / 2, r: X + w / 2, b: Y + h / 2,
                     owner: owner };
       let fx = X, fy = Y;
-      if (this.costAt(box)) {
+      if (this.costAt(box, skip)) {
         /* Blocked. The search starts from the MIDDLE OF ITS OWN SIDE,
            not from the place it was hoping for — a bad position is a
            bad place to look outward from, and starting there put the
@@ -3252,6 +3255,14 @@
       return Math.max(W.top + h / 2, Math.min(W.bot - h / 2, cy));
     },
 
+    /* Whether the axes' numbers are on show: not on a board that has
+       none (`numbers: false`, from 30 on), and not pushed in (`framed`),
+       where they are faded out. */
+    numbersShown: function () {
+      return !el.gridPanel.classList.contains('unnumbered') &&
+             !el.gridPanel.classList.contains('framed');
+    },
+
     onXAxisRow: function (cy, h) {
       const G = C.GRID, pad = 5;
       const top = G.originY - G.axisWidth / 2 - pad;
@@ -3572,7 +3583,12 @@
            courtesy showSegResult already does for a pair's own length,
            and the same row it measures against. */
         let lyOut = ly;
-        if (!horiz && !diag) {
+        /* Only where there are numbers to keep off. From 30 on the board
+           carries none, and pushed in (framed) it hides them — then the
+           row is only the axis line, which a turned length stands across
+           and reads over on its paper halo, so it stays at the middle of
+           its side ("6 units" on 30c, next to CB's middle). */
+        if (!horiz && !diag && this.numbersShown()) {
           /* Turned, it stands as tall as its words are long, and that
              whole height has to clear the row, not the type's own. Tested
              against the type's height it stopped half across the axis
@@ -3641,9 +3657,16 @@
         } else L.len.textContent = txt;
         const outX = diag ? nx : (horiz ? 0 : (inner >= 0 ? 1 : -1));
         const outY = diag ? ny : (horiz ? (vSide >= 0 ? 1 : -1) : 0);
+        /* A turned length on a board showing no numbers (see the slide
+           above) does not count the numbers — laid out, but not shown —
+           or the x-axis line it stands across as in its way: it stays by
+           the middle of its side (30c's "6 units"). */
+        const across = (!horiz && !diag && !this.numbersShown())
+          ? function (o) { return o.what === 'a number' || (o.what === 'an axis' && o.y1 === o.y2); }
+          : null;
         const seat = this.seatLength(L.len, fx, fy, bw, bh,
                         { x: outX, y: outY }, L.len,
-                        { x: (x1 + x2) / 2, y: (y1 + y2) / 2 });
+                        { x: (x1 + x2) / 2, y: (y1 + y2) / 2 }, across);
         /* Turned about wherever it ended up, so the words run up the
            side rather than across it. */
         const tn = L.lenTurn;

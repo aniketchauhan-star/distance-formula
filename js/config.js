@@ -2858,7 +2858,7 @@ window.CFG = (function () {
         /* Missed twice, and the asking is over: the square goes into
            the corner and she reads it out, so the beat ends on the
            evidence rather than on a second helping of the same nudge. */
-        spentLine: 'It\u2019s a right-angled triangle \u2014 see the square corner at C.',
+        spentLine: 'It\u2019s a right-angled triangle.',
         /* And the square goes in the corner as the answer lands: the
            evidence for the thing they just named. */
         marksRightAngle: true
@@ -3061,19 +3061,18 @@ window.CFG = (function () {
          strength to the end, and the triangle is left alone. */
       lines: [ 'Look, we made a right triangle.',
                'Let’s use Pythagoras to find AB.' ],
-      /* As she says it, the two sides that make the right angle light
-         together and AB steps back — from her first word, not after
-         the sentence — and the marker comes up on "triangle". When the
-         line is done the triangle goes back to normal. */
+      /* "Look, we made a right triangle." — the triangle is what she is
+         showing, so all three sides light together, pulsing, from her
+         first word, and nothing steps back: AB is as lit as the two sides
+         that make the right angle (it used to go grey here). The marker
+         comes up on "triangle". The light runs as long as the sentence is
+         up. */
       /* Then AB, the side to find, from the first word of "Let’s use
          Pythagoras to find AB.": AB and its points forward, AB pulsing
          and A and B ringing, AC, CB and C stepped back — until just
          after the sentence, before the table opens. The square stays up:
          it is what lets Pythagoras be used, named in the same breath. */
-      /* The two sides stay lit, pulsing, for as long as her sentence is
-         up — until AB takes the light on the next one — rather than going
-         back the instant its last word is typed. */
-      wordCues: [ { word: 'Look', spot: ['h', 'v'], pulse: ['h', 'v'], run: 2600 },
+      wordCues: [ { word: 'Look', pulse: 'triangle', run: 2600 },
                   { word: 'triangle', mark: true },
                   { word: 'Let’s', spot: 'ab', pulse: 'ab', beat: ['a', 'b'], run: 1700 } ],
       lineLights: [ { hold: 1000 }, { unspot: true, after: 550 } ],
