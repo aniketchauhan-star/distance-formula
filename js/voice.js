@@ -1,14 +1,20 @@
 /* =============================================================
    Swifty's voice.
 
-   One recording of the whole script, sfx/Aniket game.mp3 — every line
+   One recording of the whole script, sfx/new voice.mp3 — every line
    the game says, read in the order it says them, with the maths said in
-   words ("open bracket, three, comma, two, close bracket") — cut into
-   one file per line in sfx/voices. Each line was found in it by its
-   words, and the cut made in the silence either side, losslessly, on
-   MP3 frame boundaries: each clip is the original audio with nothing
-   re-encoded. Each file is numbered in that order and named for the
-   line it says.
+   words ("three, comma, two"; "x two minus x one") — cut into one file
+   per line in sfx/voices. Each line was found in it by its words, and
+   the cut made in the silence either side, losslessly, on MP3 frame
+   boundaries: each clip is the original audio with nothing re-encoded.
+   Each file is numbered in that order and named for the line it says.
+
+   Every clip opens on at least three frames (about 80 ms) of the
+   recording's own quiet before its first word. A clip's first frames
+   lean on bytes from before the cut that the clip no longer has, and a
+   browser plays them as silence — so a cut any closer would swallow the
+   start of the word. Where she took a breath between two lines, the
+   breath is left out of both.
 
    MAP is the only thing to edit: the line on the left, then its file
    and how long that file runs. The length is written down rather than
@@ -27,154 +33,147 @@ window.Voice = (function () {
 
   const MAP = {
     /* Every line the game says, in the order it says them — cut from
-       sfx/Aniket game.mp3 (see the header). */
+       sfx/new voice.mp3 (see the header). */
     'Hey there!':
-      ['01-hey-there.mp3', 0.68],
+      ['01-hey-there.mp3', 0.60],
     'Let’s do a quick warm-up.':
-      ['02-lets-do-a-quick-warm-up.mp3', 1.65],
-    /* Said without the brackets — "Locate the point, three, comma, two."
-       The two words were taken out of the recording, the kept pieces
-       joined in the silence either side — so this one and the next are
-       WAV rather than MP3: a join in the middle of an MP3 can click, and
-       every browser plays WAV. */
+      ['02-lets-do-a-quick-warm-up.mp3', 1.72],
     'Locate the point (3, 2).':
-      ['03-locate-the-point-3-2.wav', 3.35],
+      ['03-locate-the-point-3-2.mp3', 2.90],
     'Now try (6, 2).':
-      ['04-now-try-6-2.wav', 3.15],
+      ['04-now-try-6-2.mp3', 2.43],
     'What is the distance between the two points?':
-      ['05-what-is-the-distance-between-the-two-points.mp3', 2.27],
+      ['05-what-is-the-distance-between-the-two-points.mp3', 2.59],
     'Count carefully!':
-      ['06-count-carefully.mp3', 1.07],
+      ['06-count-carefully.mp3', 1.23],
     'Did you notice?':
-      ['07-did-you-notice.mp3', 0.97],
+      ['07-did-you-notice.mp3', 1.12],
     'The y-coordinates are the same.':
-      ['08-the-y-coordinates-are-the-same.mp3', 2.04],
+      ['08-the-y-coordinates-are-the-same.mp3', 2.17],
     'So, the distance is the difference between the x-coordinates.':
-      ['09-so-the-distance-is-the-difference-between-th.mp3', 3.29],
+      ['09-so-the-distance-is-the-difference-between-th.mp3', 3.97],
     'The x-coordinates are the same.':
-      ['11-the-x-coordinates-are-the-same.mp3', 2.09],
+      ['10-the-x-coordinates-are-the-same.mp3', 2.01],
     'So, the distance is the difference between the y-coordinates.':
-      ['12-so-the-distance-is-the-difference-between-th.mp3', 3.37],
+      ['11-so-the-distance-is-the-difference-between-th.mp3', 3.97],
     'So far, the points were lined up horizontally or vertically.':
-      ['14-so-far-the-points-were-lined-up-horizontally.mp3', 3.50],
+      ['12-so-far-the-points-were-lined-up-horizontally.mp3', 3.58],
     'But these two aren’t.':
-      ['15-but-these-two-arent.mp3', 1.36],
+      ['13-but-these-two-arent.mp3', 1.80],
     'How can we find the distance between these two?':
-      ['16-how-can-we-find-the-distance-between-these-t.mp3', 2.80],
+      ['14-how-can-we-find-the-distance-between-these-t.mp3', 2.72],
     'Let’s explore.':
-      ['17-lets-explore.mp3', 0.99],
+      ['15-lets-explore.mp3', 1.10],
     'Hmm… what about A and C?':
-      ['18-hmm-what-about-a-and-c.mp3', 2.09],
+      ['16-hmm-what-about-a-and-c.mp3', 2.53],
     'We know how to find this distance.':
-      ['19-we-know-how-to-find-this-distance.mp3', 1.72],
+      ['17-we-know-how-to-find-this-distance.mp3', 2.09],
     'What is the distance between C and B?':
-      ['20-what-is-the-distance-between-c-and-b.mp3', 2.59],
+      ['18-what-is-the-distance-between-c-and-b.mp3', 2.59],
     'Look! We made a triangle.':
-      ['21-look-we-made-a-triangle.mp3', 1.70],
+      ['19-look-we-made-a-triangle.mp3', 2.12],
     'What kind of triangle is this?':
-      ['22-what-kind-of-triangle-is-this.mp3', 1.80],
+      ['20-what-kind-of-triangle-is-this.mp3', 1.59],
     'A right-angled triangle!':
-      ['23-a-right-angled-triangle.mp3', 1.80],
+      ['21-a-right-angled-triangle.mp3', 1.91],
     'Look at the corner at C.':
-      ['24-look-at-the-corner-at-c.mp3', 1.72],
-    /* The front of the reader's "It's a right-angled triangle. See the
-       square corner at C." — cut at her own pause after "triangle". */
+      ['22-look-at-the-corner-at-c.mp3', 1.83],
     'It’s a right-angled triangle.':
-      ['25-its-a-right-angled-triangle.mp3', 1.72],
+      ['23-its-a-right-angled-triangle.mp3', 2.01],
     'We know AC and CB.':
-      ['26-we-know-ac-and-cb.mp3', 2.40],
+      ['24-we-know-ac-and-cb.mp3', 2.32],
     'But we still need AB.':
-      ['27-but-we-still-need-ab.mp3', 1.62],
+      ['25-but-we-still-need-ab.mp3', 2.06],
     'Since it’s a right triangle, Pythagoras theorem can help!':
-      ['28-since-its-a-right-triangle-pythagoras-theore.mp3', 3.50],
+      ['26-since-its-a-right-triangle-pythagoras-theore.mp3', 4.00],
     'Now, let’s find the distance between A and B.':
-      ['29-now-lets-find-the-distance-between-a-and-b.mp3', 3.24],
-    /* Joined from two of the reader's own lines: "What is the distance
-       between" (the pair screens' question) and "these two points?" (the
-       end of the line this replaces), at the quietest point between the
-       words, with a 12 ms crossfade — so WAV, not MP3. */
+      ['27-now-lets-find-the-distance-between-a-and-b.mp3', 3.45],
     'What is the distance between these two points?':
-      ['30-what-is-the-distance-between-these-two-points.wav', 2.42],
+      ['28-what-is-the-distance-between-these-two-point.mp3', 2.66],
     'Look, we made a right triangle.':
-      ['31-look-we-made-a-right-triangle.mp3', 1.93],
+      ['29-look-we-made-a-right-triangle.mp3', 2.17],
     'Let’s use Pythagoras to find AB.':
-      ['32-lets-use-pythagoras-to-find-ab.mp3', 2.56],
+      ['30-lets-use-pythagoras-to-find-ab.mp3', 2.64],
     'That’s right!':
-      ['33-thats-right.mp3', 0.71],
+      ['31-thats-right.mp3', 0.94],
     'Now find AB.':
-      ['34-now-find-ab.mp3', 1.65],
+      ['32-now-find-ab.mp3', 1.33],
     'What is the distance between A and B?':
-      ['35-what-is-the-distance-between-a-and-b.mp3', 2.66],
+      ['33-what-is-the-distance-between-a-and-b.mp3', 2.69],
     'Oops! Let’s find it together.':
-      ['36-oops-lets-find-it-together.mp3', 2.01],
+      ['34-oops-lets-find-it-together.mp3', 2.04],
     'What is the distance between A and C?':
-      ['37-what-is-the-distance-between-a-and-c.mp3', 2.61],
+      ['35-what-is-the-distance-between-a-and-c.mp3', 2.69],
     'The same idea works for any two points.':
-      ['38-the-same-idea-works-for-any-two-points.mp3', 2.40],
+      ['36-the-same-idea-works-for-any-two-points.mp3', 3.03],
     'AC = x₂ − x₁':
-      ['39-ac-x2-x1.mp3', 3.37],
+      ['37-ac-x2-x1.mp3', 3.27],
     'CB = y₂ − y₁':
-      ['40-cb-y2-y1.mp3', 3.81],
+      ['38-cb-y2-y1.mp3', 2.80],
     'Now, let’s find AB.':
-      ['41-now-lets-find-ab.mp3', 2.01],
+      ['39-now-lets-find-ab.mp3', 1.96],
     'And that gives us the distance between any two points!':
-      ['42-and-that-gives-us-the-distance-between-any-t.mp3', 3.00],
+      ['40-and-that-gives-us-the-distance-between-any-t.mp3', 3.40],
     'What if both points are on the x-axis?':
-      ['43-what-if-both-points-are-on-the-x-axis.mp3', 2.53],
+      ['41-what-if-both-points-are-on-the-x-axis.mp3', 2.82],
     'Exactly! There’s no vertical distance.':
-      ['44-exactly-theres-no-vertical-distance.mp3', 2.48],
+      ['42-exactly-theres-no-vertical-distance.mp3', 2.93],
     'And what if they’re on the y-axis?':
-      ['45-and-what-if-theyre-on-the-y-axis.mp3', 2.01],
+      ['43-and-what-if-theyre-on-the-y-axis.mp3', 2.27],
     'Exactly! There’s no horizontal distance.':
-      ['46-exactly-theres-no-horizontal-distance.mp3', 3.03],
+      ['44-exactly-theres-no-horizontal-distance.mp3', 3.03],
     'Maya wants to walk to the closer cafe. Which cafe is closer to her house?':
-      ['47-maya-wants-to-walk-to-the-closer-cafe-which.mp3', 5.25],
+      ['45-maya-wants-to-walk-to-the-closer-cafe-which.mp3', 5.36],
     'First, the house to Cafe A.':
-      ['48-first-the-house-to-cafe-a.mp3', 2.09],
+      ['46-first-the-house-to-cafe-a.mp3', 2.40],
     'Now, the house to Cafe B.':
-      ['49-now-the-house-to-cafe-b.mp3', 2.09],
+      ['47-now-the-house-to-cafe-b.mp3', 1.99],
     'Which distance is shorter?':
-      ['50-which-distance-is-shorter.mp3', 1.57],
+      ['48-which-distance-is-shorter.mp3', 2.06],
+    '4 is less than 5 — so Cafe A is closer.':
+      ['49-4-is-less-than-5-so-cafe-a-is-closer.mp3', 3.87],
     'How long should this connection be?':
-      ['52-how-long-should-this-connection-be.mp3', 1.83],
+      ['50-how-long-should-this-connection-be.mp3', 1.96],
+    'How far is the rescue vehicle from the control station?':
+      ['51-how-far-is-the-rescue-vehicle-from-the-contr.mp3', 3.45],
     'What kind of triangle is this park?':
-      ['54-what-kind-of-triangle-is-this-park.mp3', 2.09],
+      ['52-what-kind-of-triangle-is-this-park.mp3', 2.35],
     'Scalene — no two sides the same.':
-      ['55-scalene-no-two-sides-the-same.mp3', 2.72],
+      ['53-scalene-no-two-sides-the-same.mp3', 2.56],
     'Have another look at the three sides.':
-      ['56-have-another-look-at-the-three-sides.mp3', 1.96],
+      ['54-have-another-look-at-the-three-sides.mp3', 2.09],
     'Oops! Let’s check the sides.':
-      ['57-oops-lets-check-the-sides.mp3', 2.12],
+      ['55-oops-lets-check-the-sides.mp3', 2.22],
     'First, find AB.':
-      ['58-first-find-ab.mp3', 1.96],
+      ['56-first-find-ab.mp3', 1.70],
     'Thirteen. That one stays.':
-      ['59-thirteen-that-one-stays.mp3', 2.30],
+      ['57-thirteen-that-one-stays.mp3', 1.96],
     'Now find BC.':
-      ['60-now-find-bc.mp3', 1.70],
+      ['58-now-find-bc.mp3', 1.59],
     'Fourteen.':
-      ['61-fourteen.mp3', 0.91],
+      ['59-fourteen.mp3', 0.91],
     'Count the squares from B up to C.':
-      ['62-count-the-squares-from-b-up-to-c.mp3', 2.35],
+      ['60-count-the-squares-from-b-up-to-c.mp3', 2.43],
     'One more. Find CA.':
-      ['63-one-more-find-ca.mp3', 2.53],
+      ['61-one-more-find-ca.mp3', 2.14],
     'Fifteen. All three are down.':
-      ['64-fifteen-all-three-are-down.mp3', 2.82],
+      ['62-fifteen-all-three-are-down.mp3', 2.46],
     'What do you notice about the side lengths?':
-      ['65-what-do-you-notice-about-the-side-lengths.mp3', 1.99],
+      ['63-what-do-you-notice-about-the-side-lengths.mp3', 2.25],
     'All different — 13, 14 and 15.':
-      ['66-all-different-13-14-and-15.mp3', 3.50],
+      ['64-all-different-13-14-and-15.mp3', 3.45],
     'Are any two of them the same number?':
-      ['67-are-any-two-of-them-the-same-number.mp3', 1.88],
+      ['65-are-any-two-of-them-the-same-number.mp3', 2.19],
     'Thirteen, fourteen, fifteen — all different.':
-      ['68-thirteen-fourteen-fifteen-all-different.mp3', 3.27],
+      ['66-thirteen-fourteen-fifteen-all-different.mp3', 3.66],
     'So, which triangle is it?':
-      ['69-so-which-triangle-is-it.mp3', 1.52],
+      ['67-so-which-triangle-is-it.mp3', 1.91],
     'That’s right — a scalene triangle.':
-      ['70-thats-right-a-scalene-triangle.mp3', 2.32],
+      ['68-thats-right-a-scalene-triangle.mp3', 2.40],
     'All three lengths are different. Which name is that?':
-      ['71-all-three-lengths-are-different-which-name-i.mp3', 3.53],
+      ['69-all-three-lengths-are-different-which-name-i.mp3', 3.42],
     'All different means scalene.':
-      ['72-all-different-means-scalene.mp3', 2.17]
+      ['70-all-different-means-scalene.mp3', 1.99]
   };
 
   /* Lines are looked up on a tidied form of themselves. A coordinate
