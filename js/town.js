@@ -32,19 +32,38 @@ window.TownMap = (function () {
   const FLAME = 'M0 0 C-26 0 -40 -18 -38 -40 C-36 -58 -22 -64 -20 -84 ' +
                 'C-10 -72 -6 -62 -6 -54 C0 -70 10 -86 6 -104 ' +
                 'C26 -86 40 -64 38 -40 C36 -18 24 0 0 0 Z';
-  const flame = function (x, y, k, ms, delay) {
+  /* `out` is when, once the water is on it, this flame dies — the ones
+     the jet reaches first go first. */
+  const flame = function (x, y, k, ms, delay, out) {
     return '<g transform="translate(' + x + ' ' + y + ') scale(' + k + ')">' +
+      '<g class="flame-life" style="--out:' + (out || 0) + 'ms">' +
       '<g class="flick" style="animation-duration:' + ms + 'ms;animation-delay:-' + delay + 'ms">' +
       '<path class="f-out" d="' + FLAME + '"/>' +
       '<path class="f-mid" transform="translate(0 -4) scale(.7)" d="' + FLAME + '"/>' +
       '<path class="f-in" transform="translate(0 -6) scale(.42)" d="' + FLAME + '"/>' +
-      '</g></g>';
+      '</g></g></g>';
   };
   const puff = function (x, y, r, delay) {
     return '<g transform="translate(' + x + ' ' + y + ')"><circle class="puff" r="' + r +
            '" style="animation-delay:-' + delay + 'ms"/></g>';
   };
   const OVERLAY = {
+    /* The fire engine's cannon barrel, for the engine that drives
+       (Board.fireRescue): the same barrel the parked engine carries
+       (`engine`, below), drawn over the turret in its strip — the strip's
+       own pixels, 421 x 225, the pivot at (250, 25) — and pointing along
+       +x inside `.barrel`, so the game can turn it onto the fire. A puff
+       of spray at its mouth while it sprays. */
+    cannon: function () {
+      return '<svg class="town-overlay town-ladder town-cannon" viewBox="0 0 421 225" preserveAspectRatio="none" overflow="visible" aria-hidden="true">' +
+        '<g class="barrel" transform="rotate(-34 250 25)">' +
+        '<polygon class="cannon" points="250,19.8 284,21.4 284,28.6 250,30.2"/>' +
+        '<circle class="cannon-tip" cx="284" cy="25" r="4.6"/>' +
+        '<circle class="spray-mist" cx="293" cy="25" r="7"/>' +
+        '</g>' +
+        '<circle class="cannon-pivot" cx="250" cy="25" r="5.4"/>' +
+        '</svg>';
+    },
     /* The school drawing on fire: smoke going up from the roof, flames
        along both sides of it and out of the two windows, and the windows
        themselves lit from inside. */
@@ -53,16 +72,20 @@ window.TownMap = (function () {
         '" preserveAspectRatio="none" overflow="visible" aria-hidden="true">' +
         '<rect class="lit" x="57" y="165" width="68" height="80" rx="6"/>' +
         '<rect class="lit" x="266" y="165" width="69" height="80" rx="6" style="animation-delay:-400ms"/>' +
+        '<g class="smoke">' +
         puff(96, 20, 22, 0) + puff(120, 6, 18, 900) + puff(300, 24, 22, 450) + puff(276, 8, 17, 1500) +
         puff(200, -30, 20, 1150) +
-        flame(62, 104, 0.95, 900, 0) + flame(122, 88, 1.15, 1100, 350) +
-        flame(290, 96, 1.05, 1000, 600) + flame(346, 110, 0.85, 850, 200) +
-        flame(90, 176, 0.55, 800, 450) + flame(300, 176, 0.55, 950, 150) +
+        '</g>' +
+        flame(62, 104, 0.95, 900, 0, 420) + flame(122, 88, 1.15, 1100, 350, 180) +
+        flame(290, 96, 1.05, 1000, 600, 300) + flame(346, 110, 0.85, 850, 200, 560) +
+        flame(90, 176, 0.55, 800, 450, 0) + flame(300, 176, 0.55, 950, 150, 120) +
         '</svg>';
     },
     /* The red van, made a fire engine: a ladder lying along its roof
-       over the body, on two brackets, and a lamp on the roof over the
-       cab that flashes. */
+       over the body, on two brackets, a lamp on the roof over the cab
+       that flashes, and a water cannon on the front of the ladder — the
+       same engine, drawn the same way, as the strip it drives off in
+       (tools/fire-engine-sprite.py). */
     engine: function () {
       let rungs = '';
       for (let x = 46; x <= 206; x += 16) rungs += '<rect class="rung" x="' + x + '" y="-12" width="5" height="10"/>';
@@ -71,6 +94,10 @@ window.TownMap = (function () {
         rungs +
         '<rect class="rail" x="36" y="-17" width="184" height="7" rx="3"/>' +
         '<rect class="rail" x="36" y="-5" width="184" height="7" rx="3"/>' +
+        '<rect class="cannon-base" x="197" y="-25" width="20" height="9" rx="3"/>' +
+        '<polygon class="cannon" points="208.9,-16.7 236.2,-37.0 232.2,-43.0 203.1,-25.3"/>' +
+        '<circle class="cannon-tip" cx="234.2" cy="-40" r="4.6"/>' +
+        '<circle class="cannon-pivot" cx="206" cy="-21" r="5.4"/>' +
         '<rect class="lamp-base" x="220" y="-2" width="30" height="6" rx="2"/>' +
         '<rect class="lamp" x="223" y="-12" width="24" height="11" rx="5"/>' +
         '</svg>';
@@ -159,6 +186,19 @@ window.TownMap = (function () {
     function shut(d) {
       clearTimeout(d.swingT);
       d.classList.remove('open', 'ajar');
+    }
+
+    /* A place by its key, and a box in this layer's own pixels, read off
+       the layout — the stage may be drawn scaled. */
+    function indexOf(key) {
+      for (let i = 0; i < places.length; i++) if (places[i].key === key && nodes[i]) return i;
+      return -1;
+    }
+    function boxIn(n) {
+      const rr = root.getBoundingClientRect(), r = n.getBoundingClientRect();
+      const kx = (rr.width / (root.offsetWidth || 1)) || 1;
+      const ky = (rr.height / (root.offsetHeight || 1)) || 1;
+      return { x: (r.left - rr.left) / kx, y: (r.top - rr.top) / ky, w: r.width / kx, h: r.height / ky };
     }
 
     /* The last place() — so a door, or a coordinate, can be asked
@@ -359,6 +399,158 @@ window.TownMap = (function () {
             w.style.opacity = o.toFixed(3);
           },
           remove: function () { if (w.parentNode) w.parentNode.removeChild(w); }
+        };
+      },
+
+      /* A place's point on the grid, and its picture as a box in this
+         layer's pixels. */
+      pin: function (key) {
+        const i = indexOf(key);
+        return i < 0 ? null : { x: places[i].x, y: places[i].y };
+      },
+      box: function (key) {
+        const i = indexOf(key), b = i < 0 ? null : nodes[i].querySelector('.town-build');
+        return b ? boxIn(b) : null;
+      },
+      /* A place's picture gone from its spot — driven off, say — and its
+         name with it, or both back. */
+      leave: function (key, gone) {
+        const i = indexOf(key);
+        if (i >= 0) nodes[i].classList.toggle('left', gone !== false);
+      },
+      /* A fire put out (css/town.css: the flames die, the windows go
+         dark, the smoke turns to steam and clears), or burning again. */
+      douse: function (key, on) {
+        const i = indexOf(key), f = i < 0 ? null : nodes[i].querySelector('.town-flames');
+        if (f) f.classList.toggle('dousing', on !== false);
+      },
+
+      /* Something driven among the places, over all of them: a strip of
+         `frames` frames, standing on (ax, ay) of a frame — its foot —
+         at (x, y) in this layer's pixels, frame `f`, turned `rot` degrees
+         about its foot. `moving` while it moves, so its layer is let go
+         once it is standing. `over`, a drawing laid over the strip in its
+         own pixels, that moves with it (`OVERLAY` names one: 'cannon'). */
+      mover: function (src, frames, over) {
+        const m = document.createElement('div');
+        m.className = 'town-mover';
+        const fig = document.createElement('div');
+        fig.className = 'town-mover-fig';
+        fig.style.backgroundImage = 'url("' + (window.Preload ? window.Preload.url(src) : src) + '")';
+        m.appendChild(fig);
+        if (over && OVERLAY[over]) m.insertAdjacentHTML('beforeend', OVERLAY[over]());
+        root.appendChild(m);
+        let W = 0, H = 0, ax = 0.5, ay = 1;
+        return {
+          el: m,
+          size: function (w, h, anchorX, anchorY) {
+            W = w; H = h; ax = anchorX; ay = anchorY;
+            m.style.width = W + 'px';
+            m.style.height = H + 'px';
+            m.style.transformOrigin = (W * ax) + 'px ' + (H * ay) + 'px';
+            fig.style.backgroundSize = (W * frames) + 'px ' + H + 'px';
+          },
+          at: function (x, y, f, rot) {
+            m.style.transform = 'translate(' + (x - W * ax).toFixed(2) + 'px,' +
+              (y - H * ay).toFixed(2) + 'px) rotate(' + (rot || 0).toFixed(2) + 'deg)';
+            fig.style.backgroundPosition = (-f * W).toFixed(2) + 'px 0';
+          },
+          moving: function (on) { m.classList.toggle('moving', !!on); },
+          remove: function () { if (m.parentNode) m.parentNode.removeChild(m); }
+        };
+      },
+
+      /* Water in an arc from one point to another, in this layer's
+         pixels — a fire engine's cannon on a fire. `aim` lays it (`w`
+         the jet's width; `dir`, the way it leaves the nozzle, if the
+         nozzle is pointing one), `grow` sends the water along it, `stop`
+         lets the last of it run out along it, `splash` is the drops and
+         the spray where it lands. */
+      water: function () {
+        const NS = 'http://www.w3.org/2000/svg';
+        const svg = document.createElementNS(NS, 'svg');
+        svg.setAttribute('class', 'town-water');
+        svg.setAttribute('aria-hidden', 'true');
+        const mk = function (tag, cls, parent) {
+          const n = document.createElementNS(NS, tag);
+          n.setAttribute('class', cls);
+          (parent || svg).appendChild(n);
+          return n;
+        };
+        const body = mk('path', 'jet'), core = mk('path', 'jet-core'), flow = mk('path', 'jet-flow');
+        const hit = mk('g', 'splash');
+        const mists = [0, 1, 2].map(function () { return mk('circle', 'mist', hit); });
+        const drops = [0, 1, 2, 3, 4, 5, 6, 7].map(function () { return mk('circle', 'drop', hit); });
+        root.appendChild(svg);
+        let L = 0;
+        const jets = [body, core];
+        /* Where the water is: not yet out, on the fire, or run out — so
+           the jet can be aimed again (the camera moving) and stay what it
+           was. */
+        let now = 'off';
+        const hold = function () {
+          jets.forEach(function (p) {
+            p.style.transition = 'none';
+            p.style.strokeDasharray = L + ' ' + L;
+            p.style.strokeDashoffset = now === 'off' ? L : now === 'on' ? 0 : -L;
+          });
+        };
+        return {
+          aim: function (n, t, w, dir) {
+            const d = Math.hypot(t.x - n.x, t.y - n.y) || 1;
+            /* Up and over, the way water from a hose goes: out along the
+               nozzle, if it is pointing, and falling onto the fire; or
+               with the arc's top above both of its ends. */
+            const cx = dir ? n.x + dir.x * d * 0.5 : (n.x + t.x) / 2 - (t.y - n.y) * 0.08;
+            const cy = dir ? n.y + dir.y * d * 0.5 : Math.min(n.y, t.y) - d * 0.34;
+            const path = 'M' + n.x.toFixed(1) + ' ' + n.y.toFixed(1) + ' Q' + cx.toFixed(1) + ' ' +
+                         cy.toFixed(1) + ' ' + t.x.toFixed(1) + ' ' + t.y.toFixed(1);
+            [body, core, flow].forEach(function (p) { p.setAttribute('d', path); });
+            body.style.strokeWidth = w + 'px';
+            core.style.strokeWidth = (w * 0.4) + 'px';
+            flow.style.strokeWidth = (w * 0.28) + 'px';
+            flow.style.strokeDasharray = (w * 0.9).toFixed(1) + ' ' + (w * 2.4).toFixed(1);
+            flow.style.setProperty('--flow', (-w * 3.3).toFixed(1) + 'px');
+            L = body.getTotalLength ? body.getTotalLength() : d * 1.25;
+            hit.setAttribute('transform', 'translate(' + t.x.toFixed(1) + ' ' + t.y.toFixed(1) + ')');
+            mists.forEach(function (m, i) {
+              m.setAttribute('r', (w * (1.3 + i * 0.45)).toFixed(1));
+              m.setAttribute('cx', ((i - 1) * w * 0.9).toFixed(1));
+              m.setAttribute('cy', (-(i % 2) * w * 0.6).toFixed(1));
+              m.style.animationDelay = (-i * 300) + 'ms';
+            });
+            drops.forEach(function (p, i) {
+              /* Thrown up and out off the wall, then falling — each on
+                 its own beat, so the splash never repeats as one. */
+              const a = -Math.PI * (0.12 + 0.76 * (i / 7)), r = w * (2.2 + (i % 3) * 0.8);
+              p.setAttribute('r', (w * (0.2 + (i % 2) * 0.09)).toFixed(2));
+              p.style.setProperty('--dx', (Math.cos(a) * r).toFixed(1) + 'px');
+              p.style.setProperty('--dy', (Math.sin(a) * r * 0.7 + w * 2.6).toFixed(1) + 'px');
+              p.style.animationDelay = (-i * 95) + 'ms';
+            });
+            hold();
+          },
+          grow: function (ms) {
+            now = 'off'; hold();
+            now = 'on';
+            jets.forEach(function (p) {
+              void p.getBoundingClientRect();
+              p.style.transition = 'stroke-dashoffset ' + ms + 'ms cubic-bezier(.3, .6, .45, 1)';
+              p.style.strokeDashoffset = 0;
+            });
+            svg.classList.add('on');
+          },
+          flowing: function (on) { svg.classList.toggle('flowing', !!on); },
+          stop: function (ms) {
+            now = 'gone';
+            svg.classList.remove('flowing');
+            jets.forEach(function (p) {
+              p.style.transition = 'stroke-dashoffset ' + ms + 'ms ease-in';
+              p.style.strokeDashoffset = -L;
+            });
+          },
+          splash: function (on) { svg.classList.toggle('splashing', !!on); },
+          remove: function () { if (svg.parentNode) svg.parentNode.removeChild(svg); }
         };
       },
 

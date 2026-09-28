@@ -42,6 +42,8 @@ window.CFG = (function () {
        figure kept where that drawing's even grid put it so the walk
        does not jitter. She faces left. */
     mayaWalk:    stamped('assets/maya-walk.webp'),
+    // the fire engine's strip (tools/fire-engine-sprite.py): 54's rescue
+    fireEngine:  stamped('assets/fire-engine.webp'),
     /* The number selector, drawn. Every piece of the control is a crop
        of this one sheet, so `preload` waiting for it is the whole of
        the loading story: it is about 940KB, and a control that rises
@@ -1091,6 +1093,30 @@ window.CFG = (function () {
             tall: 0.35, doorFit: 0.92, onLine: 0.3,
             frameMs: 85, speed: 1.25, inMs: 380, outMs: 380 },
 
+    /* The fire engine answering the call (54, Board.fireRescue). Its
+       strip is assets/fire-engine.webp, ten frames: 0-7 driving (wheels
+       turning, body riding on its springs, lamp flashing), 8-9 standing,
+       the lamp still flashing. Every place in it is given in the strip's
+       own pixels (`frame`, 421 x 225, whatever size it is shipped at):
+       `van` is the van's own box — exactly the town's picture of it —
+       `mid` and `feet` where it stands (between its wheels, on the road),
+       `pivot` its cannon's turret, which the game puts a barrel on
+       (town.js OVERLAY.cannon) and turns to aim at the fire. */
+    engine: { frames: 10, frame: { w: 421, h: 225 },
+              van: { x: 44 / 421, y: 46 / 225, h: 173 / 225 },
+              mid: 0.5424, feet: 0.9653,
+              pivot: { x: 250, y: 25 }, barrel: 34,
+              restAim: -34,       // the barrel as the town draws it, up and ahead
+              aimUp: 30,          // aimed this far above the straight line to the fire
+              driveMs: 55, parkMs: 400,
+              pullMs: 700,        // off its spot, turning onto the line
+              speed: 5.2,         // cells a second along it, at full speed
+              stopCells: 2.6,     // it stops this far short of the fire
+              turnMs: 600,        // the barrel swinging round onto the fire
+              waterMs: 420,       // the jet reaching the fire, or running out
+              sprayForMs: 2400,   // on the fire
+              outMs: 1600 },      // the flames dying, from the first of it
+
     measure: {
       color: '#2E9BD4',
       width: 9,
@@ -1783,8 +1809,10 @@ window.CFG = (function () {
            table after a miss, where it is not the right answer's line —
            the answer put back into the story ("So, the fire engine needs
            to travel 13 units."). */
+        /* `rescue`: the answer found, the fire engine drives the line and
+           puts the fire out (54). */
         task: { kind: 'distance', correctLine: say.right || 'That\u2019s right!', tableOnMiss: true,
-                workedLine: say.worked, tableSize: 34, formula: table },
+                workedLine: say.worked, tableSize: 34, formula: table, rescue: w.rescue },
         distance: true
       }, w.base || {}, w.first || {}) ];
     }
@@ -2981,6 +3009,9 @@ window.CFG = (function () {
     ...walk({
       ids: [54], formula: true,
       a: { x: 0, y: 0 }, b: { x: -5, y: -12 }, c: { x: -5, y: 0 },
+      /* Found — by the reel or on the table — and the engine goes: up the
+         line to the fire, and the fire goes out. */
+      rescue: { engine: 'engine', fire: 'fire' },
       say: { first: 'There\u2019s a fire at A!',
              ask: 'How far is it from the fire engine at B?',
              right: 'That\u2019s correct!',

@@ -4,6 +4,7 @@
 window.ASSET_MANIFEST = {
  "assets/buttons.webp": 163890,
  "assets/clouds.webp": 12274,
+ "assets/fire-engine.webp": 72078,
  "assets/game Background .webp": 67920,
  "assets/hand nudge.webp": 8382,
  "assets/leaf.webp": 129996,

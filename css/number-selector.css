@@ -442,4 +442,4 @@ html.calm .number-control.is-correct .cell.on { animation: none; }
    loader (js/preload.js) points it at the copy it fetched by setting it on
    <html>, which only reaches it here. Relative to this stylesheet, as the
    note above explains. */
-:root { --sheet: url('../assets/buttons.webp?v=20260928220231'); }
+:root { --sheet: url('../assets/buttons.webp?v=20260928222619'); }

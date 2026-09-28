@@ -6119,6 +6119,151 @@
       return total;
     },
 
+    /* The fire engine answering the call (54, once the distance is
+       found). It pulls off its spot and turns onto the line from B, and
+       drives up it — ON it, like a road: turned to the line, its wheels
+       on the stroke, lamp flashing, wheels turning, siren going. It
+       brakes short of the fire, dipping its nose; its cannon swings
+       round onto the burning school and the water arcs out along it
+       until the flames die and the smoke is steam. Drawn in the town's
+       layer over its pictures, a frame at a time out of its strip
+       (CFG.GRID.engine); measured off the town again whenever it is
+       re-placed, so it stays on its line. Returns how long it takes. */
+    fireRescue: function (spec) {
+      const E = C.GRID.engine, self = this, rad = Math.PI / 180;
+      if (!E || !C.ART.fireEngine || !Town || !Town.mover || !spec) return 0;
+      const F = E.frame, PV = E.pivot;
+      const eng = Town.pin(spec.engine), fire = Town.pin(spec.fire);
+      if (!eng || !fire || !Town.box(spec.engine) || !Town.box(spec.fire)) return 0;
+      /* A calm screen: nothing drives. The fire simply goes out. */
+      if (document.documentElement.classList.contains('calm')) {
+        Town.douse(spec.fire, true);
+        SFX.hiss();
+        return E.outMs + 600;
+      }
+      const fig = Town.mover(C.ART.fireEngine, E.frames, 'cannon');
+      const barrel = fig.el.querySelector('.barrel');
+      const water = Town.water();
+
+      /* A point of the strip (in its own pixels) where the engine is:
+         standing on `p`, turned `rot` degrees about its foot. */
+      let g = null, placed = -1;
+      const where = function (p, rot, fx, fy) {
+        const k = g.W / F.w, dx = (fx - E.mid * F.w) * k, dy = (fy - E.feet * F.h) * k;
+        const c = Math.cos(rot * rad), s = Math.sin(rot * rad);
+        return { x: p.x + dx * c - dy * s, y: p.y + dx * s + dy * c };
+      };
+      const turn = function (a) { a %= 360; return a > 180 ? a - 360 : (a <= -180 ? a + 360 : a); };
+      const measure = function () {
+        placed = Town.placed;
+        const B = Town.spot(eng.x, eng.y), A = Town.spot(fire.x, fire.y), cell = Town.cell();
+        const vb = Town.box(spec.engine), fb = Town.box(spec.fire);
+        if (!A || !B || !cell || !vb || !fb) return;
+        // the strip drawn at the town's own size for the van
+        const H = vb.h / E.van.h, W = H * F.w / F.h;
+        const len = Math.hypot(A.x - B.x, A.y - B.y) || 1;
+        const ux = (A.x - B.x) / len, uy = (A.y - B.y) / len;
+        g = { W: W, H: H, cell: cell.w,
+              // the line's own heading: the way the engine faces on it
+              line: Math.atan2(uy, ux) / rad,
+              // where it stands now, in its picture's own place
+              p0: { x: vb.x - E.van.x * W + E.mid * W, y: vb.y - E.van.y * H + E.feet * H },
+              // onto the line, a little up it from B…
+              p1: { x: B.x + ux * 0.9 * cell.w, y: B.y + uy * 0.9 * cell.w },
+              // …and up it, to stop short of the fire
+              p2: { x: A.x - ux * E.stopCells * cell.w, y: A.y - uy * E.stopCells * cell.w },
+              // the water lands on the school, between its windows
+              target: { x: fb.x + fb.w * 0.5, y: fb.y + fb.h * 0.44 } };
+        g.run = Math.hypot(g.p2.x - g.p1.x, g.p2.y - g.p1.y);
+        fig.size(W, H, E.mid, E.feet);
+        /* The cannon, from its turret where the engine stops, aimed a
+           little above the straight line to the fire — the water rises
+           and falls onto it. `aim` is its turn on the turret. */
+        const pv = where(g.p2, g.line, PV.x, PV.y);
+        const up = Math.atan2(g.target.y - pv.y, g.target.x - pv.x) / rad - E.aimUp;
+        g.aim = turn(up - g.line);
+        const L = E.barrel * W / F.w;
+        g.nozzle = { x: pv.x + L * Math.cos(up * rad), y: pv.y + L * Math.sin(up * rad) };
+        water.aim(g.nozzle, g.target, 0.3 * cell.w, { x: Math.cos(up * rad), y: Math.sin(up * rad) });
+      };
+      measure();
+      if (!g) { fig.remove(); water.remove(); return 0; }
+
+      // the timetable
+      const tPull = E.pullMs;
+      const tDrive = tPull + Math.max(900, (g.run / g.cell) / E.speed * 1000);
+      const tStop = tDrive + 300;             // settled back on its springs
+      const tJet = tStop + E.turnMs + 120;    // the cannon round onto the fire first
+      const tHit = tJet + E.waterMs;
+      const tOff = tHit + E.sprayForMs;
+      const tOut = tOff + E.waterMs;
+      const total = tOut + 900;
+
+      const token = (this.rescueTok = (this.rescueTok || 0) + 1);
+      Game.hold(function () {                 // put back with the screen, whenever it goes
+        if (self.rescueTok === token) self.rescueTok++;
+        fig.remove(); water.remove();
+        Town.leave(spec.engine, false);
+        Town.douse(spec.fire, false);
+      });
+      const ease = function (v) { return (1 - Math.cos(Math.PI * Math.max(0, Math.min(1, v)))) / 2; };
+      const lerp = function (a, b, u) { return { x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u }; };
+      let steps = 0;
+      Town.leave(spec.engine, true);
+      fig.moving(true);
+      SFX.siren(tDrive / 1000);
+      const t0 = performance.now();
+      const step = function () {
+        if (self.rescueTok !== token) return;
+        if (Town.placed !== placed) measure();
+        const t = performance.now() - t0;
+        let p, rot;
+        if (t < tPull) {                        // off its spot, turning onto the line
+          const u = ease(t / tPull);
+          p = lerp(g.p0, g.p1, u); rot = turn(g.line) * u;
+        } else if (t < tDrive) {                // up the line, on it
+          p = lerp(g.p1, g.p2, ease((t - tPull) / (tDrive - tPull))); rot = g.line;
+        } else {                                 // braked: the nose dips, and it sits back
+          const w = Math.min(1, (t - tDrive) / (tStop - tDrive));
+          p = g.p2; rot = g.line + 2.4 * Math.sin(Math.PI * w) * (1 - w);
+        }
+        const f = t < tDrive ? Math.floor(t / E.driveMs) % 8 : 8 + Math.floor(t / E.parkMs) % 2;
+        fig.at(p.x, p.y, f, rot);
+        // the cannon: as the town draws it, then round onto the fire
+        const a = E.restAim + (g.aim - E.restAim) * ease((t - tStop) / E.turnMs);
+        barrel.setAttribute('transform', 'rotate(' + a.toFixed(2) + ' ' + PV.x + ' ' + PV.y + ')');
+        // each moment, once
+        if (!(steps & 1) && t >= tStop) { steps |= 1; fig.moving(false); }
+        if (!(steps & 2) && t >= tJet) {
+          steps |= 2;
+          water.grow(E.waterMs);
+          fig.el.classList.add('spraying');
+          SFX.spray((tOff - tJet) / 1000);
+        }
+        if (!(steps & 4) && t >= tHit) {
+          steps |= 4;
+          water.splash(true); water.flowing(true);
+          Town.douse(spec.fire, true);
+          Game.later(function () { SFX.hiss(); }, 500);
+        }
+        if (!(steps & 8) && t >= tOff) {
+          steps |= 8;
+          water.stop(E.waterMs); water.splash(false);
+          fig.el.classList.remove('spraying');
+        }
+        if (!(steps & 16) && t >= tOut) {
+          steps |= 16;
+          const at = Board.stagePos(fire.x + 1.1, fire.y + 1.2);
+          FX.sparkles(at.x, at.y, 14, 150);
+          SFX.chime();
+        }
+        if (t < total) requestAnimationFrame(step);
+        else water.remove();                    // the engine stays, parked
+      };
+      requestAnimationFrame(step);
+      return total;
+    },
+
     /* The two walks' lengths on the map (46, on a miss): written on
        their lines if they are not yet, and blinking a few times, so the
        child reads which is shorter off the board itself. Left up after. */
@@ -8514,6 +8659,8 @@
                screen has to say about the answer, if it has anything —
                the second line in the same balloon, and only it hands
                the screen on. */
+            /* And a found distance that is a journey: the fire engine goes. */
+            self.rescue(t, 700);
             if (t.spec.praise && correctLine) self.speakBoth(t.spec.praise, correctLine);
             else self.finishWith(t.spec.praise || correctLine);
           }, 260);
@@ -9064,9 +9211,30 @@
           /* A walk worked on the table after a miss ends on the answer
              put back into its story (`workedLine`: "So, the fire engine
              needs to travel 13 units."), not on the right answer's line. */
-          self.flyIn(function () { self.speak(t.spec.workedLine || t.spec.correctLine || 'That’s right!'); });
+          self.flyIn(function () {
+            self.speak(t.spec.workedLine || t.spec.correctLine || 'That’s right!',
+                       function () { self.rescue(t, 250); });
+          });
         }, 200);
       });
+    },
+
+    /* The rescue (54): the fire engine drives the line the child has
+       just measured and puts the fire out (Board.fireRescue). The screen
+       is the engine's until it has finished — `writing` holds the hand-
+       over, as a working does — and then it moves on. */
+    rescue: function (t, delay) {
+      const self = this;
+      if (!t || !t.spec.rescue) return false;
+      this.writing = true;
+      this.later(function () {
+        const ms = Board.fireRescue(t.spec.rescue);
+        self.later(function () {
+          self.writing = false;
+          self.settle(C.AUTO.afterLine);
+        }, ms + 200);
+      }, delay || 0);
+      return true;
     },
 
     /* The camera, on a drawing this screen is ABOUT to make — after the
