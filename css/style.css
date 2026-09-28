@@ -290,73 +290,35 @@ html, body {
 #birdWin { position: absolute; overflow: hidden; }
 #birdWin img { position: absolute; display: block; image-rendering: auto; }
 
-/* Swifty's speech bubble, drawn rather than dropped in as a picture.
+/* Swifty's speech balloon: the component in css/speech-bubble.css,
+   placed in the game.
 
-   #bubble is the box applyGeom() positions, and the tail's point is
-   what it drives onto her head.
-
-   #bubbleShape draws both: the balloon and the tail hanging off it are
-   one path, so the outline runs round the pair of them as a single
-   line. seatBubble() writes it. */
-/* Lifted off the sky with a hard offset shadow and a soft one under
-   it — the flat one is what makes it read as drawn rather than as a
-   panel, and both follow the tail because a filter shadows the shape
-   rather than the box. */
+   #bubble is the box seatBubble() positions: the balloon's width, and
+   its height down to the tail's point, which is what gets driven onto
+   her head. The balloon fills it to the height the line needs
+   (seatBubble sets it), and its tail hangs into the rest. Only the
+   balloon has a background; #bubble itself is transparent. */
 #bubble {
   position: absolute;
-  /* Two coloured halos and one cast, the way the shared bubble is
-     lifted off its scene. A box-shadow would trace the element's box
-     rather than the drawn outline, so these are filters: they follow
-     the silhouette, tail and all. */
-  filter:
-    drop-shadow(0 0 10px var(--glow,     rgba(24, 28, 48, .30)))
-    drop-shadow(0 0 24px var(--glowWide, rgba(24, 28, 48, .16)))
-    drop-shadow(0 9px 18px var(--cast,   rgba(16, 20, 40, .34)));
-  /* the catch-light is sized in em off the line's own size, so it holds
-     its proportion at any scale */
-  font-size: var(--bubSize, 32px);
-}
-
-/* It pops out of its own tail — seatBubble() puts the transform origin
-   on the point — overshoots, and settles. These two rules went missing
-   when the balloon was redrawn as one path; the keyframes never did. */
-#bubble.pop-in  { animation: bubblePop .44s cubic-bezier(.2, .9, .3, 1) both; }
-#bubble.pop-out { animation: bubbleOut .26s ease-in both; }
-
-/* ---------------- balloon and tail, one outline ----------------
-   seatBubble() writes the path: the rounded box, and where the tail
-   leaves it the outline simply carries on down to the point and back
-   up again. One fill and one stroke round the whole silhouette, so
-   the corner they share cannot step or dead-end the way it did when
-   the two were separate shapes stacked on each other. */
-#bubbleShape {
-  position: absolute; left: 0; top: 0;
-  overflow: visible;          /* the point's stroke sits half outside */
   pointer-events: none;
 }
-#bubbleBody {
-  fill: var(--fill, #FFFDF7);
-  stroke: var(--edge, #232A44);
-  stroke-width: var(--e1, 5px);
-  stroke-linejoin: round;
-}
-/* the catch-light in the top-left corner */
-#bubbleSheen { fill: var(--sheen, rgba(255, 255, 255, .92)); }
-
-#bubbleText {
+#bubble .game-speech-bubble {
   position: absolute;
-  display: flex; align-items: center; justify-content: center;
-  text-align: center;
-  font-family: 'Nunito', system-ui, sans-serif;
-  /* 1.2, the shared bubble's own, which is what GRID.lineH is cut to. */
-  font-weight: 700; font-size: 32px; line-height: 1.2;
-  color: var(--ink, #7C3B12);
-  letter-spacing: .2px;
-  overflow: hidden;
+  left: 0;
+  top: 0;
+  width: 100%;
+  /* the game sets the height to the line it holds (never under 175) */
+  min-height: 0;
 }
-/* Balanced rather than greedy: most lines here wrap to two, and greedy
-   wrapping leaves a widow — "Let's start with something / familiar." */
-#bubbleLine { display: block; width: 100%; text-wrap: balance; }
+
+/* It arrives the component's own way — fading up, rising a little and
+   growing from 94% — out of its tail's point, where seatBubble() puts
+   the transform origin; and goes the way it always has. */
+#bubble.pop-in  { animation: speechBubbleEnter .34s cubic-bezier(.22, .61, .36, 1) both; }
+#bubble.pop-out { animation: bubbleOut .26s ease-in both; }
+@media (prefers-reduced-motion: reduce) {
+  #bubble.pop-in { animation: none; }
+}
 
 /* Each word fades up and sharpens where it already sits, rather than
    being typed in: at this reading age a word arriving whole is read as
@@ -1646,12 +1608,6 @@ html.calm #missGlow.on { animation: missFade .9s ease; }
   to   { transform: scale(1); opacity: 1; }
 }
 
-@keyframes bubblePop {
-  0%   { opacity: 0; transform: scale(.18) rotate(-7deg); }
-  55%  { opacity: 1; transform: scale(1.09) rotate(2.5deg); }
-  76%  { transform: scale(.96) rotate(-1.2deg); }
-  100% { opacity: 1; transform: scale(1) rotate(0deg); }
-}
 @keyframes bubbleOut {
   from { opacity: 1; transform: scale(1); }
   to   { opacity: 0; transform: scale(.2) rotate(6deg); }

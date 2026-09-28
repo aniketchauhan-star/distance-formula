@@ -142,7 +142,7 @@ window.CFG = (function () {
 
        340 tall, not 240: alone in the middle of the open field (1, 3)
        she is the whole picture, and at 240 she read as a figure in the
-       distance. Her balloon there grows with her (FIELD_BUBBLE). */
+       distance. */
     cy: 820,
     height: 340    // rendered height in stage px (width follows at 315)
   };
@@ -177,40 +177,36 @@ window.CFG = (function () {
 
   /* -------------------------------------------------------------
      SPEECH BUBBLE
-     Source is 494 x 247. Ink occupies x[6..487] y[31..234], and the
-     tail narrows to a tip at (265, 234). Offsets below are relative
-     to the ink box so the art's transparent padding never matters.
+     Her balloon is css/speech-bubble.css — HTML and CSS only: a pale
+     pink rounded box with a soft pink edge, a tail curving down to the
+     lower left, one small shine. Everything about how it LOOKS is in
+     that file. These are the numbers the game needs to seat it: how big
+     it is, how far the tail's point hangs below it and where along the
+     underside the point sits, and how close it may come to her.
      ------------------------------------------------------------- */
-  /* Swifty's speech bubble, drawn in CSS. The box positioned on screen
-     is the ink rectangle; the tail's tip sits at `tip` inside it, and
-     applyGeom() drives that point onto the top of her head so the two
-     touch instead of the bubble floating above her.
-
-     The body fills the box down to `bodyH`; the tail runs from there to
-     the tip. The frame is built from inset rings, the same way the
-     board's is, so the bubble reads as part of the same autumn set. */
-  /* Swifty's speech bubble, drawn in CSS. The box positioned on screen
-     is the ink rectangle; the tail's point sits at `tip` inside it, and
-     applyGeom() drives that point onto the top of her head so the two
-     touch instead of the bubble floating above her.
-
-     The body fills the box down to `bodyH`; the tail hangs from there
-     to the point. Both carry the same three-band frame at the same
-     total thickness, which is what lets them meet at the mouth without
-     a step — the thing that goes wrong if the tail is given a lighter
-     edge than the balloon. */
-  /* Proportions taken from the shared Swiftee bubble, which sets every
-     one of them off the line's own size: padding .62em over 1em, a .62em
-     corner, 1.2 line-height, and a box that hugs whatever it is holding.
-     Its palette block is the host game's tokens — the file says so — so
-     the numbers below are its, and the colours are this field's. */
   const BUBBLE = {
-    ink: { w: 620, h: 172 },
-    /* The point, in the box's own pixels — .815em in from the left, so
-       the tail hangs off the straight underside just past the corner
-       arc rather than off the corner itself. */
-    tip: { x: 24, y: 172 },
-
+    /* 560 wide — the widest the column beside the board can hold, and
+       wide enough that most of her lines take one row — and never less
+       than 175 tall, taller when a line needs another row. The edge is
+       the CSS's border, counted in the height. */
+    width: 560,
+    minH: 175,
+    edge: 6,
+    /* The words: 34px on every screen, Poppins 700 at 1.25 lines, and
+       this much pink between them and the edge. */
+    size: 34,
+    lineH: 42.5,
+    pad: { x: 30, y: 22 },
+    /* The tail's point hangs this far below the balloon, and sits this
+       far in from its left edge, where the CSS draws it. Where the room
+       she stands in would push the balloon past its edge (her column,
+       beside the board), the balloon moves back inside and the point
+       slides along the underside to stay on her — never nearer the
+       left than tailMin, nor the right than tailRight. */
+    tailLen: 46,
+    tip: { x: 30 },
+    tailMin: 30, tailRight: 160,
+    biteIntoHead: 10,             // how far the point sinks into her
     /* Where a corner tail points: her head's right cheek. Measured off
        her artwork's own alpha, over all eight talking poses — at 0.38
        of the way from her crown to her feet (plus the bite below) her
@@ -221,119 +217,13 @@ window.CFG = (function () {
        on the outline and flickering off it as she talks. Kept as
        fractions so it holds wherever she is drawn at. */
     aimSide: { dx: 0.330, dy: 0.38 },
-    scale: 1,
-    biteIntoHead: 10,             // how far the point sinks into her crown
-
-    /* Only a fallback: the balloon is cut to its line by fitBox(), one
-       row or two. */
-    bodyH: 120,
-    /* .62em. The shared bubble ties its corner to the type rather than
-       to the box, so a two-row balloon reads as the same object as a
-       one-row one instead of a rounder version of it. */
-    radius: 20,
-    /* Long enough to clear her crest on the way down to her cheek. The
-       shared bubble's own tail is shorter, but it hangs over a mascot
-       with room under it; this one has to reach past her head. */
-    tailLen: 52,
-    tailTip: 10,                  // rounding on the point
-
-    /* Cumulative insets, measured from the outside in: a dark rim, the
-       orange body of the frame, then a golden inner band before the
-       cream. The tail repeats them at the same widths.
-
-       The rim is both darker and wider than the rest of the autumn set
-       needs: the bubble floats on open sky, which is very light and
-       very warm, so a thin mid-orange edge disappeared into it. */
-    /* Out of the balloon's bottom-left corner, so the box sits up and
-       to the right of her face. She is alone in the middle of an open
-       field on these screens, and a box over her head pushed her down
-       the frame to make room for itself; beside her it takes the space
-       that was empty anyway and she stays where she stands. */
+    /* Out of the balloon's lower left, so on the open field the box
+       sits up and to the right of her face. */
     tailSide: 'left',
-
-    /* One stroke around the balloon and the same one around the tail,
-       drawn as a border rather than as stacked inset rings. */
-    edgeW: 5,
-
-    /* Near-white on a deep indigo edge, and the reasoning is measured
-       rather than felt. Sampled off the painted page, the scene behind
-       her runs from the lake at luminance 0.10 to the lit mountain at
-       0.45 — mid-tone everywhere, with no dark and no light to hide
-       against. Contrast against that whole range:
-
-         the old tan edge #E09A55   worst 1.11   (invisible, and it was)
-         a teal edge                worst 1.20
-         this indigo #232A44        worst 2.45
-
-       So the answer is value, not hue: the surface goes brighter than
-       anything in the picture and the edge darker than anything in it.
-       The peach and the amber were taken off the OLD field's own light,
-       which is exactly why they disappeared when the field changed. The
-       indigo also gives 17:1 against its own fill, which is what makes
-       the shape crisp rather than merely present. */
-    fill:   '#FFFDF7',
-    edge:   '#232A44',
-    /* The words are the same ink as the outline. A warm brown was the
-       right colour for a bubble edged in amber; edged in indigo it
-       read as two different inks in one box. One colour, and the
-       letters sit at about 15:1 on the near-white fill. */
-    ink_:   '#232A44',            // the text, and the edge
-    sheen:  'rgba(255, 255, 255, .92)',   // the catch-light in the corner
-    size:   32,                   // the size every line is set at
-
-    /* The box is cut to the line rather than being a fixed bar: a
-       two-word greeting in a box built for the longest question in the
-       game was the thing that read as wrong. min/max keep it from
-       becoming a tile or running off the field. */
-    autoWidth: { min: 200, max: 620, pad: 32 },
-    pad: { x: 32, y: 20 },        // .62em over 1em, off the line's size
-    lineH: 40,                    // 1.2 line-height, with room to sit in
-
-    /* Lifted by a shadow rather than by a warm halo. A glow the colour
-       of the old edge was doing nothing against a sunset of the same
-       colour; a cool shadow under it does the separating. */
-    glow: 'rgba(24, 28, 48, .30)',
-    glowWide: 'rgba(24, 28, 48, .16)',
-    cast: 'rgba(16, 20, 40, .34)',
-
-    leaf: 62,                     // the corner decorations
-
-    /* The text plate, as fractions of the ink box: x 45..575, y 25..131.
-
-       The inset is the bubble's padding, and it has to live here rather
-       than as slack inside the plate, because fitType() grows the type
-       until the line just fills the plate — any room left spare there is
-       room it will spend. Two lines at the size it settles on therefore
-       sit 14px clear of the golden band, not flush against it.
-
-       The plate is 106 tall and not the 104 two lines exactly need:
-       landing on the tie makes the fitted size turn on sub-pixel
-       rounding, so one screen could take 40px and the next 38px for no
-       visible reason. */
-    text: { left: 0.073, top: 0.113122, width: 0.855, height: 0.479638 }
+    scale: 1,
+    autoWidth: true               // cut to its line (Bubble.fitBox)
   };
 
-  /* Her balloon on the open field (1, 3, 4), where she is drawn bigger
-     (SWIFTY.height): the same balloon at 1.4 times the size, every
-     length in it scaled together — type, padding, corner, tail, edge —
-     so it is the same shape, and a line still fits it exactly. Scaled
-     here rather than through a bubbleScale, because the balloon is cut
-     to its line by measuring the type, and the type has to be measured
-     at the size it will be shown at. BUBBLE itself stays as it is: the
-     board screens' balloon is made from it. */
-  const FIELD_BUBBLE = (function (B, k) {
-    const n = function (v) { return v * k; };
-    return Object.assign({}, B, {
-      ink: { w: n(B.ink.w), h: n(B.ink.h) },
-      tip: { x: n(B.tip.x), y: n(B.tip.y) },
-      biteIntoHead: n(B.biteIntoHead),
-      bodyH: n(B.bodyH), radius: n(B.radius),
-      tailLen: n(B.tailLen), tailTip: n(B.tailTip), edgeW: n(B.edgeW),
-      size: n(B.size), lineH: n(B.lineH), leaf: n(B.leaf),
-      autoWidth: { min: n(B.autoWidth.min), max: n(B.autoWidth.max), pad: n(B.autoWidth.pad) },
-      pad: { x: n(B.pad.x), y: n(B.pad.y) }
-    });
-  })(BUBBLE, 1.4);
 ;
 ;
 
@@ -579,31 +469,11 @@ window.CFG = (function () {
     /* On the grid screens she stands below her line, so the tail points
        down at her head the ordinary way. Same shallow shape and single
        stroke as the rail version — only the tail differs. */
-    bubbleDown: Object.assign({}, BUBBLE, {
-      /* Two lines tall. The longest thing she says here — the distance
-         question — cannot fit on one line inside the width her column
-         allows, and a balloon sized for one line would shrink the type
-         to 26px to cope. */
-      /* Over her head here, not beside it: she stands in her own column
-         with the board filling everything to her right, so there is no
-         room out there for a box to sit in. */
-      tailSide: null,
-      ink: { w: 620, h: 176 },
-      tip: { x: 150, y: 176 },
-      bodyH: 120,
-      radius: 20,
-      leaf: 44,
-      size: 32,
-      // bounded so the balloon never reaches the board at x 866
-      autoWidth: { min: 250, max: 460, pad: 32 },
-      /* The cream around the text, and one row's height — the balloon is
-         built from these rather than from fractions of a fixed box, so
-         a one-line greeting gets a one-line balloon instead of sitting
-         in a box sized for the longest question in the game. */
-      pad: { x: 32, y: 20 },
-      lineH: 40,
-      tailLen: 44
-    }),
+    /* The same balloon over her head, where she stands in her own
+       column with the board filling everything to her right: the point
+       on her crown rather than her cheek. The room it has is the
+       column's (STAND.room), so it never reaches the board. */
+    bubbleDown: Object.assign({}, BUBBLE, { tailSide: null }),
 
 
     /* Axis geometry in panel-local pixels, measured off the drawn
@@ -1123,7 +993,10 @@ window.CFG = (function () {
       restMs:   300,      // lands; a breath before the next
       writeMs:  600,      // a worked-out value written in place
       lift:     0,        // how far above the original it lifts first (none)
-      pickCy:   400       // 29c's table sits higher: she comes back under it
+      /* 29c's table sits higher: she comes back under it — and higher
+         again since her balloon became 175 tall (320, not 400), so the
+         balloon over her head clears the table's foot. */
+      pickCy:   320
     },
 
     zoom: {
@@ -1388,6 +1261,10 @@ window.CFG = (function () {
      and give the whole right of the frame to the board. */
   /* Where she stands to talk: down on the grass, front of frame. */
   const STAND = standAt(1, 60, 700);
+  /* Her column: the strip of the frame left of the board (which starts
+     at 644), less a margin either side. Her balloon keeps inside it. */
+  const COLUMN = { left: 24, right: 626 };
+  STAND.room = COLUMN;
   /* And where she moves to when a control arrives: standing ON its top
      edge, and a little smaller — she is further away up there, and the
      control is what should hold the eye once it has arrived. The move
@@ -1400,6 +1277,7 @@ window.CFG = (function () {
      it, in the air. Measured off the rendered page, because the art is
      no longer where this number comes from. */
   const STAND_UP = standAt(0.88, 60, 449);
+  STAND_UP.room = COLUMN;
 
   /* And a perch on ONE of the answers rather than on the panel's middle.
      The closing question puts its two cafes side by side and she lands
@@ -1420,6 +1298,7 @@ window.CFG = (function () {
   const OPTS_AT = { x: 64, y: 650 }, OPTS_K = 0.73;
   const PERCH_FEET = { x: OPTS_AT.x + 377.5 * OPTS_K, y: OPTS_AT.y + 3 * OPTS_K };
   const STAND_PERCH = standAt(0.88, PERCH_FEET.x - 208 * 0.88, PERCH_FEET.y - 300 * 0.88);
+  STAND_PERCH.room = COLUMN;
 
   /* And a perch for the working panel, which sits higher up her column
      than the answers do — she leaves before it is written and comes
@@ -1427,6 +1306,7 @@ window.CFG = (function () {
      256 below the pose's own top, so this is the working panel's y less
      that — move one and the other has to follow. */
   const STAND_WORK = standAt(0.88, 60, 134);
+  STAND_WORK.room = COLUMN;
 
   /* And a seat on the ANSWERS, which is not the selector's seat even
      though the two panels used to share a slot.
@@ -1443,6 +1323,7 @@ window.CFG = (function () {
      already has — enough that she is standing ON the line rather than
      hovering a pixel above it. Move the panel and this has to follow. */
   const STAND_OPTIONS = standAt(0.88, 90, 388);
+  STAND_OPTIONS.room = COLUMN;
 
   /* -------------------------------------------------------------
      SCREEN 8 — board on its own, the question in her bubble
@@ -3778,6 +3659,6 @@ window.CFG = (function () {
     VERSION, STAGE_W, STAGE_H, ART, SHEETS, SHEET_W, SHEET_H,
     SWIFTY, CHAR_SCALE, ANCHOR, HEAD_TOP, FEET_DY, SHADOW, CLOUD,
     S5_ORIGIN, GRID, STAND, S8_ORIGIN, BOARD, RECAP, XAXIS, YAXIS, TOWN,
-    BUBBLE, FIELD_BUBBLE, PLAY, START, AUDIO, AUTO, NAV, MOTION, SCRIPT
+    BUBBLE, PLAY, START, AUDIO, AUTO, NAV, MOTION, SCRIPT
   };
 })();

@@ -11,7 +11,7 @@
   ['viewport', 'stage', 'loader', 'loaderBar', 'loaderPct', 'loaderVer',
    'startScreen', 'playBtn', 'playImg', 'scene', 'skyLayer',
    'charGroup', 'shadow', 'birdRig', 'birdFlip', 'birdWin', 'flySheet', 'talkSheet',
-   'bubble', 'bubbleShape', 'bubbleBody', 'bubbleSheen',
+   'bubble', 'bubbleBody',
    'bubbleText', 'bubbleLine', 'nav', 'nextBtn', 'backBtn',
    'gridPanel', 'gridImg', 'gridAxes', 'standSwifty',
    'formulaBoard', 'leafLayer', 'fxLayer', 'sceneArt', 'startArt',
@@ -316,7 +316,9 @@
       feetCx: S.pos.x + S.feet.cx,
       inkW:   S.inkW,
       bubble: C.GRID.bubbleDown,
-      bubbleScale: 1
+      bubbleScale: 1,
+      // the room her balloon keeps inside (her column, beside the board)
+      room:   S.room || null
     };
     if (extra) Object.keys(extra).forEach(function (k) { g[k] = extra[k]; });
     return g;
@@ -383,7 +385,8 @@
            bubbleScale was tuning the tall one down to fit beside the
            board, and there is no board beside her any more. */
         bubble: C.GRID.bubbleDown,
-        bubbleScale: 1
+        bubbleScale: 1,
+        room: S.room || null
       };
     }
     return {
@@ -401,8 +404,7 @@
       feetY:  C.ANCHOR.y + C.FEET_DY,
       feetCx: C.SWIFTY.cx,
       inkW:   REF_W * C.CHAR_SCALE,
-      /* The open field's own balloon, grown with her. */
-      bubble: C.FIELD_BUBBLE,
+      bubble: C.BUBBLE,
       bubbleScale: 1
     };
   }
@@ -447,130 +449,37 @@
       Bubble.up ? Bubble.boxH : null);
   }
 
-  /* Seats the speech bubble for one screen. Split out of applyGeom so a
-     line can re-seat it at a width measured from the text. */
-  function seatBubble(g, inkWOverride, bodyHOverride) {
-    /* A layout may bring its own bubble shape — the grid screens use a
-       wide, shallow one whose tail leaves the side rather than the
-       bottom, because she stands above the board with nothing over her. */
-    const B = g.bubble || C.BUBBLE, s = g.bubbleScale;
-    /* A shape can hang its tail off the balloon's bottom-left corner
-       instead of the middle of its underside. Then the balloon sits up
-       and to the right of whatever it points at, so she speaks from
-       beside her own face rather than from over her head — which only
-       works where nothing else wants that space. */
-    const side = B.tailSide === 'left';
-    const aim = (side && g.aimSide) || g.aim;
-    const inkW = (inkWOverride != null ? inkWOverride : B.ink.w) * s;
-    /* A shape can be given a shorter balloon for a line that only needs
-       one row — the tail keeps its length, so the box shrinks from the
-       top and the point stays on her head. */
-    const bodyH = bodyHOverride != null ? bodyHOverride : B.bodyH;
-    const tailLen = B.tailLen != null ? B.tailLen : (B.tip.y - B.bodyH);
-    const inkH = (bodyH + tailLen + 1) * s;
-    const tipX = B.tip.x * s, tipY = (bodyH + tailLen) * s;
-    const tip = { x: aim.x, y: aim.y + B.biteIntoHead };
+  /* Seats the speech balloon for one screen. Split out of applyGeom so a
+     line can re-seat it at the height measured from its text.
 
-    el.bubble.style.left = (tip.x - tipX) + 'px';
-    el.bubble.style.top = (tip.y - tipY) + 'px';
-    el.bubble.style.width = inkW + 'px';
-    el.bubble.style.height = inkH + 'px';
-    // Pop the bubble out of the tail tip, where it is anchored.
-    el.bubble.style.transformOrigin = tipX + 'px ' + tipY + 'px';
+     The balloon is css/speech-bubble.css; this only says where it goes
+     and how big it is. The tail's point is driven onto her — her crown,
+     or her cheek on the open field — sinking `biteIntoHead` into it. The
+     point sits near the balloon's left end, where the CSS draws it, and
+     where the room she is standing in would push the balloon past its
+     edge (her column beside the board) the balloon moves back inside and
+     the point slides along its underside to stay on her. */
+  function seatBubble(g, wOverride, bodyHOverride) {
+    const B = g.bubble || C.BUBBLE;
+    const aim = (B.tailSide === 'left' && g.aimSide) || g.aim;
+    const W = wOverride != null ? wOverride : B.width;
+    const H = bodyHOverride != null ? bodyHOverride : B.minH;
+    const T = B.tailLen;
+    const tip = { x: aim.x, y: aim.y + B.biteIntoHead };
+    const room = g.room || { left: 24, right: C.STAGE_W - 24 };
+    let left = Math.max(room.left, Math.min(room.right - W, tip.x - B.tip.x));
+    const tx = Math.max(B.tailMin, Math.min(W - B.tailRight, tip.x - left));
+    left = tip.x - tx;
 
     const bs = el.bubble.style;
-    bs.setProperty('--e1',   B.edgeW * s + 'px');
-    bs.setProperty('--fill', B.fill);
-    bs.setProperty('--edge', B.edge);
-    bs.setProperty('--ink',  B.ink_);
-    bs.setProperty('--sheen', B.sheen);
-    bs.setProperty('--bubSize', B.size * s + 'px');
-    bs.setProperty('--glow',     B.glow     || 'rgba(224, 154, 85, .34)');
-    bs.setProperty('--glowWide', B.glowWide || 'rgba(224, 154, 85, .18)');
-    bs.setProperty('--cast',     B.cast     || 'rgba(120, 62, 14, .24)');
-
-    /* ---- the silhouette, as one path ----
-       Balloon and tail used to be two shapes laid over each other, and
-       where they met the balloon's corner was stroked on both sides:
-       its border dead-ended in mid-air and the tail's flat top jutted
-       out past the curve as a step. Overlapping them harder only moved
-       the step. Drawn as one outline the join cannot exist — the box's
-       underside simply carries on down to the point and back up.
-
-       The stroke is centred on the line, so every coordinate is inset
-       by half its width and the outer edge lands exactly on the box,
-       which is where the balloon's border sat before. */
-    const e = B.edgeW * s, hw = e / 2;
-    const bw = inkW, bh = bodyH * s, drop = tailLen * s;
-    const x0 = hw, y0 = hw, x1 = bw - hw, y1 = bh - hw;
-    const r = Math.max(0, Math.min(B.radius * s - hw,
-                                   Math.min(bw, bh) / 2 - hw));
-    /* The tail hangs off the underside, clear of the corner, and leans
-       in to its point — a horn, with both edges curved, rather than a
-       spike. Run off the corner itself it read as a spur growing out of
-       the box: the round corner is what says balloon, and the tail has
-       to leave a finished edge rather than replace one.
-
-       `tip` is the point, not the join: the join sits up and to the
-       right of it, held clear of both corner arcs so the underside it
-       leaves is straight. */
-    /* The shared bubble draws its tail in a 44 x 42 box: the join runs
-       x 4..42 on y 0, the point sits at (2, 34). So the join is 38 wide
-       against a drop of 34 — 1.118 — and the point falls 2/38 of that
-       width to the LEFT of where the join starts, which is what gives
-       the tail its hook instead of a lean. The curve below is that
-       path's own control points, restated against jx/jw/drop so it
-       holds at any size. */
-    const TAIL_W = 38 / 34, TAIL_BACK = 2 / 38;
-    const jw = Math.max(16, Math.min(drop * TAIL_W, (x1 - r) - (x0 + r)));
-    const jx = Math.max(x0 + r, Math.min(x1 - r - jw, tipX + jw * TAIL_BACK));
-    const ptX = jx - jw * TAIL_BACK, ptY = y1 + drop;
-    const d = [
-      'M' + (x0 + r) + ' ' + y0,
-      'H' + (x1 - r),
-      'A' + r + ' ' + r + ' 0 0 1 ' + x1 + ' ' + (y0 + r),
-      'V' + (y1 - r),
-      'A' + r + ' ' + r + ' 0 0 1 ' + (x1 - r) + ' ' + y1,
-      'H' + (jx + jw),
-      // down the outer edge, which falls away steeply, to the point
-      'C' + (jx + jw * (32 / 38)) + ' ' + (y1 + drop * (12 / 34)) + ' ' +
-            (jx + jw * (20 / 38)) + ' ' + (y1 + drop * (22 / 34)) + ' ' + ptX + ' ' + ptY,
-      // and back up the inner one, which stays tucked under the join
-      'C' + (jx + jw * (4 / 38)) + ' ' + (y1 + drop * (24 / 34)) + ' ' +
-            (jx + jw * (4 / 38)) + ' ' + (y1 + drop * (12 / 34)) + ' ' + jx + ' ' + y1,
-      'H' + (x0 + r),
-      'A' + r + ' ' + r + ' 0 0 1 ' + x0 + ' ' + (y1 - r),
-      'V' + (y0 + r),
-      'A' + r + ' ' + r + ' 0 0 1 ' + (x0 + r) + ' ' + y0,
-      'Z'
-    ];
-
-    el.bubbleShape.setAttribute('width', bw);
-    el.bubbleShape.setAttribute('height', inkH);
-    el.bubbleShape.setAttribute('viewBox', '0 0 ' + bw + ' ' + inkH);
-    el.bubbleBody.setAttribute('d', d.join(' '));
-
-    /* The catch-light, where the light is coming from. Sized off the
-       line's own size so it holds its proportion at any scale. */
-    const em = B.size * s;
-    const cx = e + em * 0.67, cy = e + em * 0.44;
-    el.bubbleSheen.setAttribute('cx', cx);
-    el.bubbleSheen.setAttribute('cy', cy);
-    el.bubbleSheen.setAttribute('rx', em * 0.25);
-    el.bubbleSheen.setAttribute('ry', em * 0.10);
-    el.bubbleSheen.setAttribute('transform', 'rotate(-22 ' + cx + ' ' + cy + ')');
-
-    if (B.pad) {
-      el.bubbleText.style.left = B.pad.x * s + 'px';
-      el.bubbleText.style.top = B.pad.y * s + 'px';
-      el.bubbleText.style.width = (inkW - B.pad.x * 2 * s) + 'px';
-      el.bubbleText.style.height = (bodyH - B.pad.y * 2) * s + 'px';
-    } else {
-      el.bubbleText.style.left = inkW * B.text.left + 'px';
-      el.bubbleText.style.top = inkH * B.text.top + 'px';
-      el.bubbleText.style.width = inkW * B.text.width + 'px';
-      el.bubbleText.style.height = inkH * B.text.height + 'px';
-    }
+    bs.left = left + 'px';
+    bs.top = (tip.y - H - T) + 'px';
+    bs.width = W + 'px';
+    bs.height = (H + T) + 'px';
+    // it arrives out of its own point, where the rig has put it
+    bs.transformOrigin = tx + 'px ' + (H + T) + 'px';
+    el.bubbleBody.style.height = H + 'px';
+    el.bubbleBody.style.setProperty('--bubble-tail-x', tx + 'px');
   }
 
   function layout() {
@@ -758,61 +667,24 @@
        letter crawl has to be reassembled before it means anything. */
     words: [],
 
-    /* Pick the largest type size at which the whole line still fits
-       the plate, so a long line can never spill out of the bubble
-       (and so a fallback font can't break the layout either). */
-    fitType: function (text) {
-      const line = el.bubbleLine, plate = el.bubbleText;
-      const max = plate.clientHeight;      // 0 while the bubble is hidden
-      const g = Game.geom;
-      let size = (g && g.bubble && g.bubble.size) || C.BUBBLE.size;
-      line.style.fontSize = size + 'px';
-      line.textContent = text;
-      if (max > 0) {
-        while (size > 20 && line.offsetHeight > max) {
-          size -= 2;
-          line.style.fontSize = size + 'px';
-        }
-      }
-      line.textContent = '';
-    },
-
-    /* Shrink-wraps the balloon to the line it is about to say, for the
-       shapes that ask for it. Measured with the real face at the size
-       fitType settled on, so the cream either side is the padding the
-       shape asks for and nothing more — a fixed bar leaves "Correct!"
-       marooned in the middle of it. */
+    /* The balloon cut to the line it is about to say: its own width, and
+       as tall as the line comes out at 34px — one row, two or three —
+       but never under its 175. The words are never made smaller to fit;
+       the balloon gets another row. Measured with the line laid in once,
+       wrapped the way it will be, and taken out again. */
     fitBox: function (text) {
-      /* The same fallback seatBubble() uses: only the grid layout brings
-         its own shape, and reading g.bubble alone left every other
-         screen on a fixed bar however short its line was. */
       const g = Game.geom, B = (g && g.bubble) || C.BUBBLE;
       if (!g || !B.autoWidth) return 0;
-      const A = B.autoWidth, line = el.bubbleLine, plate = el.bubbleText;
-      const prevWrap = line.style.whiteSpace, prevW = plate.style.width;
-      line.style.whiteSpace = 'nowrap';
-      plate.style.width = 'auto';
+      const line = el.bubbleLine, box = el.bubble.style;
+      const wasW = box.width;
+      box.width = B.width + 'px';
       line.textContent = text;
-      const measured = line.offsetWidth;
+      const h = line.offsetHeight;
       line.textContent = '';
-      line.style.whiteSpace = prevWrap;
-      plate.style.width = prevW;
-      if (!measured) return 0;             // hidden, or no metrics yet
-      /* Two pixels of slack: sized to exactly the measured width, the
-         plate and the line are the same length, and any sub-pixel
-         difference between the nowrap measurement and the real wrap
-         spills a second row into a box cut for one. */
-      const want = Math.min(A.max, Math.max(A.min, measured + A.pad * 2 + 2));
-      /* And the height: a line that fits across in one row gets a
-         balloon one row tall, instead of sitting in a box built for the
-         longest question in the game. */
-      let bodyH = null;
-      if (B.pad && B.lineH) {
-        const usable = want - B.pad.x * 2 * (g.bubbleScale || 1);
-        const rows = Math.max(1, Math.ceil(measured / Math.max(1, usable)));
-        bodyH = Math.round(rows * B.lineH + B.pad.y * 2);
-      }
-      return this.setBox(g, want, bodyH);
+      box.width = wasW;
+      if (!h) return 0;                   // hidden, or no metrics yet
+      const bodyH = Math.max(B.minH, Math.ceil(h + 2 * B.pad.y + 2 * B.edge));
+      return this.setBox(g, B.width, bodyH);
     },
 
     /* Takes the balloon to a shape. Already up, it is re-cut a frame at
@@ -834,10 +706,9 @@
         return 0;
       }
       /* Seat the shape it is going to first, so anything measuring the
-         plate this tick — fitType, which decides the type size — sees
-         the box the line will actually get rather than the one it is
-         still leaving. The first glide frame runs before the next
-         paint, so this never reaches the screen. */
+         balloon this tick sees the box the line will actually get rather
+         than the one it is still leaving. The first glide frame runs
+         before the next paint, so this never reaches the screen. */
       seatBubble(g, want, bodyH);
       const self = this, mine = this.glide, t0 = performance.now(), MS = 300;
       const step = function () {
@@ -899,26 +770,10 @@
       this.spans.forEach(function (sp) { sp.classList.add('in', 'shown'); });
     },
 
-    /* fitType measured against whatever plate the LAST line left behind,
-       and fitBox then moved the plate — so the type was sized for a box
-       it never got, and a long line overran the balloon it ended up in.
-       Size the box first, fit the type to that, and if the type had to
-       come down, cut the box again to the smaller line. */
+    /* The balloon fitted to a line. The type is 34px everywhere, set in
+       the balloon's own CSS, so this is only the box. */
     fit: function (text) {
-      const g = Game.geom, B = (g && g.bubble) || C.BUBBLE;
-      el.bubbleLine.style.fontSize = ((B && B.size) || C.BUBBLE.size) + 'px';
-      let ms = this.fitBox(text);
-      /* Settle: a line that will not fit even the biggest box comes
-         down a step, which buys a smaller box, which may let it come
-         back up. Two passes is enough to land — the size only ever
-         falls, so it cannot cycle. */
-      for (let pass = 0; pass < 2; pass++) {
-        const was = el.bubbleLine.style.fontSize;
-        this.fitType(text);
-        if (el.bubbleLine.style.fontSize === was) break;
-        ms = this.fitBox(text) || ms;
-      }
-      return ms;
+      return this.fitBox(text);
     },
 
     open: function (text, done) {
@@ -11189,7 +11044,8 @@
     if (document.fonts && document.fonts.load) {
       Promise.all([
         document.fonts.load('600 32px Nunito', 'Aa1√₁₂'),
-        document.fonts.load('32px "Lilita One"', 'Aa1')
+        document.fonts.load('32px "Lilita One"', 'Aa1'),
+        document.fonts.load('700 34px Poppins', 'Aa1')
       ]).then(fontDone, fontDone);
       setTimeout(fontDone, 4000);
       /* A face that turns up after the game has started — it should

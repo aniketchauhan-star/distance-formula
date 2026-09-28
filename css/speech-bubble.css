@@ -1,0 +1,159 @@
+/* =============================================================
+   The speech balloon — HTML and CSS only.
+
+   A pale pink rounded box with a soft pink edge, a tail that curves
+   down to the lower left, one small shine in the top left corner and a
+   soft shadow under the lot. No picture, no SVG, no canvas: the box is
+   a border and a background, the tail two clip-path layers (its edge,
+   then its fill run up over the border it leaves, so the two outlines
+   become one), the shine a rotated pill.
+
+       <div class="game-speech-bubble" role="dialog">
+         <span class="game-speech-bubble__shine" aria-hidden="true"></span>
+         <div class="game-speech-bubble__content">
+           <p class="game-speech-bubble__text">Dialogue text</p>
+         </div>
+       </div>
+
+   Nothing here is fixed to the page: the balloon is positioned by
+   whatever holds it. In the game that is #bubble (style.css), which
+   Swifty's rig moves, and which sizes the balloon to its line and
+   slides the tail along to her (--bubble-tail-x).
+
+   Every rule is under .game-speech-bubble, so nothing else in the game
+   is touched by this file.
+   ============================================================= */
+.game-speech-bubble {
+  --bubble-width: 560px;
+  --bubble-min-height: 175px;
+
+  --bubble-fill: #FFF1F2;
+  --bubble-border: #FFB7C0;
+  --bubble-text: #8E315F;
+  --bubble-shadow: rgba(168, 72, 105, 0.14);
+  --bubble-glow: rgba(255, 173, 190, 0.18);
+
+  --bubble-border-size: 6px;
+  --bubble-radius: 46px;
+  --bubble-pad-x: 30px;
+  --bubble-pad-y: 22px;
+  --bubble-font-size: 34px;
+
+  /* The tail: how far its point hangs below the box, and how far in
+     from the box's left edge the point is. Its shape (below) is drawn
+     for these two. */
+  --bubble-tail-width: 70px;
+  --bubble-tail-height: 46px;
+  --bubble-tail-x: 30px;
+
+  position: relative;
+  box-sizing: border-box;
+  width: min(var(--bubble-width), 100%);
+  min-height: var(--bubble-min-height);
+  padding: var(--bubble-pad-y) var(--bubble-pad-x);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bubble-fill);
+  border: var(--bubble-border-size) solid var(--bubble-border);
+  border-radius: var(--bubble-radius);
+  /* A shadow of the silhouette, not of the box: a filter follows the
+     tail as well, where a box-shadow would leave it out. Soft and warm,
+     so it lifts the balloon off the scene without floating it. */
+  filter:
+    drop-shadow(0 8px 9px rgba(168, 72, 105, 0.12))
+    drop-shadow(0 0 12px rgba(255, 173, 190, 0.16));
+}
+
+/* ---------------- the tail ----------------
+   Two layers of one shape, hung from the inside edge of the box's
+   bottom border (top: 100% of the padding box), 2px up into the box so
+   no seam can show. The first is the edge colour; the second, set in by
+   the border's width, is the fill — and it runs up over the border
+   where the tail leaves the box, so the box's outline opens and carries
+   straight on round the tail.
+
+   It leaves the box along a 70px base and sweeps down and out to the
+   lower left: a long outer curve, a shorter hollow inner one, meeting in
+   a point 46px below the box. The point is at (4, 54) in each layer,
+   which puts it at --bubble-tail-x from the box's left edge and the base
+   36px to its right. */
+.game-speech-bubble::before,
+.game-speech-bubble::after {
+  content: '';
+  position: absolute;
+  top: calc(100% - 2px);
+  left: calc(var(--bubble-tail-x) - var(--bubble-border-size) - 4px);
+  width: 114px;
+  height: 56px;
+  pointer-events: none;
+}
+.game-speech-bubble::before {
+  background: var(--bubble-border);
+  clip-path: path('M40 2 L110 2 C100 26 60 48 4 54 C26 46 40 30 40 2 Z');
+}
+/* The fill: the same shape set in by exactly the border's width along
+   both curves (worked out as a true 6px inset, hence the points rather
+   than a curve), and run up to the top so it covers the border where the
+   tail leaves the box. Nearer the point than 12px across, the tail is
+   all edge, the way a drawn tail finishes. */
+.game-speech-bubble::after {
+  background: var(--bubble-fill);
+  clip-path: path('M104.5 0.0 L103.3 2.3 L101.9 4.6 L100.5 6.7 L99.0 8.7 L97.3 10.7 L95.5 12.6 L93.7 14.4 L91.6 16.2 L89.6 17.9 L87.5 19.6 L85.5 21.0 L83.4 22.5 L81.2 23.9 L78.9 25.4 L76.5 26.8 L74.2 28.0 L71.9 29.2 L69.5 30.4 L67.1 31.6 L64.6 32.7 L62.3 33.7 L59.9 34.6 L57.5 35.6 L55.0 36.5 L52.5 37.4 L49.9 38.3 L47.3 39.1 L44.7 39.9 L41.9 40.7 L39.5 41.4 L37.1 42.0 L34.6 42.7 L32.1 43.3 L33.5 41.1 L35.0 39.1 L36.5 37.1 L37.8 34.9 L39.1 32.7 L40.2 30.4 L41.3 28.0 L42.2 25.5 L43.1 22.9 L43.8 20.5 L44.4 18.0 L44.9 15.4 L45.3 12.8 L45.6 10.3 L45.8 7.7 L45.9 5.1 L46.0 2.5 L46.0 0.0 Z');
+}
+
+/* ---------------- the shine ----------------
+   One small pill of light near the top left, and only one. */
+.game-speech-bubble__shine {
+  position: absolute;
+  left: 28px;
+  top: 16px;
+  width: 36px;
+  height: 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.95);
+  transform: rotate(-22deg);
+  pointer-events: none;
+}
+
+/* ---------------- the words ----------------
+   Real text, centred in whatever room the box has — one row, two, or
+   three. What Poppins lacks (√, ₁, ₂) comes from Nunito, next in line. */
+.game-speech-bubble__content {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.game-speech-bubble__text {
+  margin: 0;
+  width: 100%;
+  font-family: 'Poppins', 'Nunito', Arial, sans-serif;
+  font-size: var(--bubble-font-size);
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--bubble-text);
+  text-align: center;
+  text-wrap: balance;
+  overflow-wrap: break-word;
+}
+
+/* ---------------- arriving (optional) ----------------
+   Fades up, rises 8px and grows from 94% — no bounce. */
+.game-speech-bubble--enter {
+  animation: speechBubbleEnter 0.34s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+@keyframes speechBubbleEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .game-speech-bubble--enter { animation: none; }
+}
