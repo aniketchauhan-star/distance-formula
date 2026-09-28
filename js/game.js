@@ -462,8 +462,8 @@
   function seatBubble(g, wOverride, bodyHOverride) {
     const B = g.bubble || C.BUBBLE;
     const aim = (B.tailSide === 'left' && g.aimSide) || g.aim;
-    const W = wOverride != null ? wOverride : B.width;
-    const H = bodyHOverride != null ? bodyHOverride : B.minH;
+    const W = wOverride != null ? wOverride : B.minW;
+    const H = bodyHOverride != null ? bodyHOverride : B.lineH + 2 * (B.pad.y + B.edge);
     const T = B.tailLen;
     const tip = { x: aim.x, y: aim.y + B.biteIntoHead };
     const room = g.room || { left: 24, right: C.STAGE_W - 24 };
@@ -667,24 +667,45 @@
        letter crawl has to be reassembled before it means anything. */
     words: [],
 
-    /* The balloon cut to the line it is about to say: its own width, and
-       as tall as the line comes out at 34px — one row, two or three —
-       but never under its 175. The words are never made smaller to fit;
-       the balloon gets another row. Measured with the line laid in once,
-       wrapped the way it will be, and taken out again. */
+    /* The balloon cut to the line it is about to say — no empty band
+       round it. The whole line on one row if it fits the widest the
+       balloon may be here; if not, wrapped there and then drawn in to its
+       longest row, so a two-row line is as wide as its rows and no wider.
+       The words are 34px everywhere and are never made smaller: a long
+       line takes another row. Measured with the line laid in once, the
+       way it will wrap, and taken out again. */
     fitBox: function (text) {
       const g = Game.geom, B = (g && g.bubble) || C.BUBBLE;
       if (!g || !B.autoWidth) return 0;
-      const line = el.bubbleLine, box = el.bubble.style;
+      const line = el.bubbleLine, box = el.bubble.style, ls = line.style;
+      const room = g.room || { left: 24, right: C.STAGE_W - 24 };
+      const maxW = Math.min(B.maxW, room.right - room.left);
+      const P = 2 * (B.pad.x + B.edge) + 2, Q = 2 * (B.pad.y + B.edge);
       const wasW = box.width;
-      box.width = B.width + 'px';
       line.textContent = text;
-      const h = line.offsetHeight;
+      ls.display = 'inline-block'; ls.width = 'auto'; ls.whiteSpace = 'nowrap';
+      const one = line.offsetWidth;
+      ls.display = ls.width = ls.whiteSpace = '';
+      if (!one) { line.textContent = ''; return 0; }   // hidden, or no metrics yet
+      let W;
+      if (one + P <= maxW) W = one + P;
+      else {
+        box.width = maxW + 'px';
+        /* Its rows as the browser broke them: the text's own boxes, one a
+           row, in stage pixels. */
+        const k = (el.stage.getBoundingClientRect().width / C.STAGE_W) || 1;
+        const r = document.createRange();
+        r.selectNodeContents(line);
+        let widest = 0;
+        [].forEach.call(r.getClientRects(), function (q) { widest = Math.max(widest, q.width / k); });
+        W = Math.min(maxW, Math.ceil(widest) + P);
+      }
+      W = Math.max(B.minW, Math.ceil(W));
+      box.width = W + 'px';
+      const H = Math.ceil(line.offsetHeight + Q);
       line.textContent = '';
       box.width = wasW;
-      if (!h) return 0;                   // hidden, or no metrics yet
-      const bodyH = Math.max(B.minH, Math.ceil(h + 2 * B.pad.y + 2 * B.edge));
-      return this.setBox(g, B.width, bodyH);
+      return this.setBox(g, W, H);
     },
 
     /* Takes the balloon to a shape. Already up, it is re-cut a frame at

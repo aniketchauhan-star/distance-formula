@@ -185,27 +185,29 @@ window.CFG = (function () {
      underside the point sits, and how close it may come to her.
      ------------------------------------------------------------- */
   const BUBBLE = {
-    /* 560 wide — the widest the column beside the board can hold, and
-       wide enough that most of her lines take one row — and never less
-       than 175 tall, taller when a line needs another row. The edge is
-       the CSS's border, counted in the height. */
-    width: 560,
-    minH: 175,
-    edge: 6,
+    /* Cut to its line: as wide as the line and as tall as its rows, with
+       nothing round it but the padding — up to 560 wide (the widest the
+       column beside the board can hold), where a longer line takes
+       another row, and never narrower than 200, which the tail needs.
+       The edge is the CSS's border. */
+    maxW: 560,
+    minW: 200,
+    edge: 5,
     /* The words: 34px on every screen, Poppins 700 at 1.25 lines, and
-       this much pink between them and the edge. */
+       this much mint between them and the edge. */
     size: 34,
     lineH: 42.5,
-    pad: { x: 30, y: 22 },
+    pad: { x: 26, y: 16 },
     /* The tail's point hangs this far below the balloon, and sits this
        far in from its left edge, where the CSS draws it. Where the room
        she stands in would push the balloon past its edge (her column,
        beside the board), the balloon moves back inside and the point
        slides along the underside to stay on her — never nearer the
-       left than tailMin, nor the right than tailRight. */
+       left than tailMin, nor the right than tailRight (its base and the
+       corner after it). */
     tailLen: 46,
     tip: { x: 30 },
-    tailMin: 30, tailRight: 160,
+    tailMin: 30, tailRight: 146,
     biteIntoHead: 10,             // how far the point sinks into her
     /* Where a corner tail points: her head's right cheek. Measured off
        her artwork's own alpha, over all eight talking poses — at 0.38
@@ -994,8 +996,10 @@ window.CFG = (function () {
       writeMs:  600,      // a worked-out value written in place
       lift:     0,        // how far above the original it lifts first (none)
       /* 29c's table sits higher: she comes back under it — and higher
-         again since her balloon became 175 tall (320, not 400), so the
-         balloon over her head clears the table's foot. */
+         again (320, not 400) since her words became 34px: the line she
+         comes back to say can take two rows ("So, the fire engine needs
+         to travel 13 units."), and the balloon over her head has to
+         clear the table's foot. */
       pickCy:   320
     },
 

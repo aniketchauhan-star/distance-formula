@@ -295,9 +295,9 @@ html, body {
 
    #bubble is the box seatBubble() positions: the balloon's width, and
    its height down to the tail's point, which is what gets driven onto
-   her head. The balloon fills it to the height the line needs
-   (seatBubble sets it), and its tail hangs into the rest. Only the
-   balloon has a background; #bubble itself is transparent. */
+   her head. The balloon is cut to its line (Bubble.fitBox) and fills
+   it to that height, and its tail hangs into the rest. Only the balloon
+   has a background; #bubble itself is transparent. */
 #bubble {
   position: absolute;
   pointer-events: none;
@@ -307,8 +307,9 @@ html, body {
   left: 0;
   top: 0;
   width: 100%;
-  /* the game sets the height to the line it holds (never under 175) */
+  /* the game sets the height to the line it holds */
   min-height: 0;
+  max-width: none;
 }
 
 /* It arrives the component's own way — fading up, rising a little and
