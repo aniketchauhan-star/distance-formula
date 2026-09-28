@@ -14,7 +14,7 @@
    'bubble', 'bubbleBody',
    'bubbleText', 'bubbleLine', 'nav', 'nextBtn', 'backBtn',
    'gridPanel', 'gridImg', 'gridAxes', 'standSwifty',
-   'formulaBoard', 'leafLayer', 'fxLayer', 'sceneArt', 'startArt',
+   'formulaBoard', 'leafLayer', 'fxLayer', 'sceneArt', 'sceneArtSoft', 'focusVeil', 'startArt',
    'startBird', 'startBirdWin', 'startFly', 'startTalk', 'startShadow', 'startSky'
   ].forEach(function (id) { el[id] = document.getElementById(id); });
 
@@ -322,6 +322,15 @@
     };
     if (extra) Object.keys(extra).forEach(function (k) { g[k] = extra[k]; });
     return g;
+  }
+
+  /* Swifty alone in the open field — the screens with no board, no
+     table and nothing but her (1, 3, 38, 40, 41c, 62): the field's own
+     rig, and her staying in it. Screen 4, where she flies off, is not
+     one: the field comes back sharp as she goes. */
+  function soloField(entry) {
+    return !!entry && !entry.layout && !axisOf(entry) && !entry.keepTable &&
+           entry.intro !== 'measure' && entry.entrance !== 'flyOut';
   }
 
   function geomFor(i) {
@@ -7318,6 +7327,10 @@
       const self = this;
       this.clearPending();
       Hint.clear();
+      /* The soft painting belongs to her being alone in the field: any
+         other screen has it sharp again from its first moment, and one of
+         hers turns it on again when she has landed. */
+      if (!soloField(C.SCRIPT[i] || {})) this.focusBird(false);
       /* A beat that speaks without a balloon, or works its own sum, must
          not open wearing the last one's. Both are inherited, so both go
          here — at the change — rather than a third of a second later when
@@ -7677,6 +7690,9 @@
 
       let opened = false;
       const after = function () {
+        /* Alone in the field and landed: the painting goes soft behind
+           her, so she is what is looked at. */
+        if (soloField(entry)) self.focusBird(true);
         /* The marker, asserted rather than inherited. It is switched on
            by answering "what kind of triangle is this?" and off by
            `clearLegs`, so a child who jumps straight here from the
@@ -8749,6 +8765,18 @@
       /* A flight that never reports its end (a hidden tab, a dropped
          frame) lands anyway, a beat after it should have. */
       this.later(onEnd, 2100 + 500);
+    },
+
+    /* Everything behind her soft, and the frame's edges dimmed round
+       her — or all of it sharp again. Centred on where she stands. */
+    focusBird: function (on) {
+      if (on) {
+        const g = this.geom || {};
+        const a = g.anchor || C.ANCHOR;
+        el.focusVeil.style.setProperty('--focus-x', (a.x / C.STAGE_W * 100).toFixed(1) + '%');
+        el.focusVeil.style.setProperty('--focus-y', ((a.y - 60) / C.STAGE_H * 100).toFixed(1) + '%');
+      }
+      el.scene.classList.toggle('focus-bird', !!on);
     },
 
     /* She flies on out to the right, carrying straight on past where
@@ -11491,6 +11519,7 @@
        while the page still asked for the old one — and the background
        silently failed to load. */
     el.sceneArt.src = C.ART.background;
+    el.sceneArtSoft.src = C.ART.background;
     el.startArt.src = C.ART.startScreen;
     el.flySheet.src = C.ART.swiftyFly;
     el.talkSheet.src = C.ART.swiftyTalk;
