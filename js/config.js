@@ -1265,12 +1265,23 @@ window.CFG = (function () {
        the answer is something measured rather than guessed: a short
        guess visibly falls short of the other point, a long one runs
        past it. */
-    /* Maya herself (46): small — a little over half a cell, under her
-       house's height — walking out of her house along the line to the
-       cafe that is closer, and in. `feet` is where her soles are in her
-       frame; she faces left in the drawing and is turned to walk right. */
+    /* Maya herself (46): small, walking out of her house's door along
+       the line to the cafe that is closer, and in at its door. `feet`
+       is where her soles are in her frame; she faces left in the
+       drawing and is turned to walk right.
+
+       `tall` is her height on the line, in cells. In a doorway she is
+       `doorFit` of the door's own height instead — the buildings stand
+       behind the line, so she is smaller back there, and she grows as
+       she steps forward out of one and shrinks stepping up into the
+       other. `onLine` is how far along the line (cells) that step
+       meets it. The steps take whatever time keeps her pace: they
+       start and finish at her walking speed. `inMs` is her coming out
+       of the dark of the doorway she leaves by, `outMs` her going into
+       the one she arrives at. */
     maya: { frames: 8, w: 160, h: 295, feet: 287, facesLeft: true,
-            tall: 0.58, frameMs: 85, speed: 1.25, inMs: 350, outMs: 500 },
+            tall: 0.42, doorFit: 0.92, onLine: 0.3,
+            frameMs: 85, speed: 1.25, inMs: 380, outMs: 380 },
 
     measure: {
       color: '#2E9BD4',
@@ -1614,7 +1625,9 @@ window.CFG = (function () {
        the dot and the coordinates written under it are never covered.
        In cells, for the same reason. */
     liftCells: 0.16,
-    fadeMs: 420
+    fadeMs: 420,
+    /* A door swinging open, or shut (Maya, 46). */
+    doorMs: 320
   };
 
   /* The town's art: one sheet, cut by these rects.
@@ -1635,8 +1648,15 @@ window.CFG = (function () {
     /* A little smaller than they were drawn at first (1.05): at that
        size the pictures crowded the points under them, their
        coordinates and the sides running out of them. */
-    cafe:    { x:   52, y:  99, w: 346, h: 285, tall: 0.85 },
-    house:   { x:  484, y: 110, w: 356, h: 274, tall: 0.85 },
+    /* `door` is the door itself inside its frame, in the drawing's own
+       pixels — the part that opens. Measured off the sheet the same
+       way: the lighter panel, from the frame's inner edge on each side
+       and the lintel's shadow at the top down to the ground. Both hang
+       on their left: the knob is on the right. */
+    cafe:    { x:   52, y:  99, w: 346, h: 285, tall: 0.85,
+               door: { x: 143, y: 177, w: 59, h: 108 } },
+    house:   { x:  484, y: 110, w: 356, h: 274, tall: 0.85,
+               door: { x: 147, y: 166, w: 59, h: 108 } },
     school:  { x:  912, y: 101, w: 397, h: 283, tall: 0.85 },
     park:    { x: 1380, y: 129, w: 336, h: 271, tall: 0.85 },
     /* Not placed on any screen yet — screens 49 to 54 do not use this

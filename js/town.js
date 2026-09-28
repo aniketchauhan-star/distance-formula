@@ -58,11 +58,51 @@ window.TownMap = (function () {
       b.className = 'town-build';
       b.style.backgroundImage = 'url("' + window.CFG.TOWN.sheet.src + '")';
 
+      /* Its door, if its kind has one: laid exactly over the door in
+         the picture. Shut, it shows nothing of its own — the drawing is
+         the door. Opening, the doorway behind it goes dark and a leaf
+         cut from the same sheet swings in on its hinge, so someone can
+         come out of it, or go in (Maya, 46). */
+      const sp = (window.CFG.TOWN.sprites || {})[p.kind];
+      if (sp && sp.door) {
+        const door = document.createElement('div');
+        door.className = 'town-door';
+        const leaf = document.createElement('div');
+        leaf.className = 'town-door-leaf';
+        leaf.style.backgroundImage = b.style.backgroundImage;
+        door.appendChild(leaf);
+        b.appendChild(door);
+      }
+
       wrap.appendChild(pill);
       wrap.appendChild(b);
       root.appendChild(wrap);
       return wrap;
     }
+
+    /* Open or shut, swinging. Ajar is the doorway dark with the leaf
+       over it, still shut: the moment the drawing hands over to the
+       leaf, which looks like nothing happening at all. */
+    function swing(d, open) {
+      clearTimeout(d.swingT);
+      if (open) {
+        d.classList.add('ajar');
+        void d.offsetWidth;                 // the leaf starts shut, then turns
+        d.classList.add('open');
+      } else if (d.classList.contains('ajar')) {
+        d.classList.remove('open');
+        d.swingT = setTimeout(function () { d.classList.remove('ajar'); },
+                              window.CFG.TOWN.doorMs || 320);
+      }
+    }
+    function shut(d) {
+      clearTimeout(d.swingT);
+      d.classList.remove('open', 'ajar');
+    }
+
+    /* The last place() — so a door, or a coordinate, can be asked
+       where it is now — and how many there have been. */
+    let atLast = null, cellLast = null, placedN = 0;
 
     function build(list) {
       const key = (list || []).map(function (p) {
@@ -70,7 +110,8 @@ window.TownMap = (function () {
       }).join('|');
       if (key === built) return;
       built = key;
-      while (root.firstChild) root.removeChild(root.firstChild);
+      /* The places only: anyone walking among them stays. */
+      nodes.forEach(function (n) { if (n.parentNode) n.parentNode.removeChild(n); });
       nodes.length = 0;
       places = list || [];
       places.forEach(function (p) { nodes.push(draw(p)); });
@@ -129,6 +170,21 @@ window.TownMap = (function () {
               b.style.backgroundSize = (sheet.w * k) + 'px ' + (sheet.h * k) + 'px';
               b.style.backgroundPosition = (-sp.x * k) + 'px ' + (-sp.y * k) + 'px';
             }
+            /* The door over the drawing's door, and its leaf showing
+               exactly the pixels it covers. */
+            const d = n.querySelector('.town-door');
+            if (d && sp.door) {
+              const D = sp.door;
+              d.style.left = (D.x * k) + 'px';
+              d.style.top = (D.y * k) + 'px';
+              d.style.width = (D.w * k) + 'px';
+              d.style.height = (D.h * k) + 'px';
+              d.style.setProperty('--door-p', (D.w * k * 3) + 'px');
+              d.style.setProperty('--door-ms', (T.doorMs || 320) + 'ms');
+              const leaf = d.firstChild;
+              leaf.style.backgroundSize = (sheet.w * k) + 'px ' + (sheet.h * k) + 'px';
+              leaf.style.backgroundPosition = (-(sp.x + D.x) * k) + 'px ' + (-(sp.y + D.y) * k) + 'px';
+            }
           } else {
             n.style.setProperty('--w', (T.wCells * cw) + 'px');
             n.style.setProperty('--h', (T.hCells * ch) + 'px');
@@ -180,6 +236,69 @@ window.TownMap = (function () {
           }
         });
         room$ = room;
+        atLast = at; cellLast = { w: cw, h: ch }; placedN++;
+      },
+
+      /* Where a coordinate is in this layer, one cell's size there, and
+         how many times the places have been put down — something moving
+         over them measures again when that changes. */
+      spot: function (gx, gy) { return atLast ? atLast(gx, gy) : null; },
+      cell: function () { return cellLast; },
+      get placed() { return placedN; },
+
+      /* The door of the place standing on (gx, gy), if it has one:
+         the middle of its foot (its threshold), how wide and tall it
+         is — all in this layer's pixels, read off the layout, so it is
+         right whichever way the place is drawn — and a way to open it,
+         shut it swinging, or shut it at once. */
+      door: function (gx, gy) {
+        let i = -1;
+        places.forEach(function (p, j) { if (i < 0 && p.x === gx && p.y === gy && nodes[j] && nodes[j].querySelector('.town-door')) i = j; });
+        if (i < 0) return null;
+        const d = nodes[i].querySelector('.town-door');
+        const rr = root.getBoundingClientRect(), dr = d.getBoundingClientRect();
+        /* The stage may be drawn scaled; the layer's own pixels are
+           what anything placed in it is placed in. */
+        const kx = (rr.width / (root.offsetWidth || 1)) || 1;
+        const ky = (rr.height / (root.offsetHeight || 1)) || 1;
+        return {
+          x: (dr.left + dr.width / 2 - rr.left) / kx,
+          y: (dr.bottom - rr.top) / ky,
+          w: dr.width / kx, h: dr.height / ky,
+          open: function (on) { swing(d, on !== false); },
+          shut: function () { shut(d); }
+        };
+      },
+
+      /* Someone out among the places, over all of them: a strip of
+         `frames` frames, each fw x fh, walked by whoever holds it —
+         feet at (x, y) in this layer's pixels, `s` times its size,
+         frame `f`, turned round or not, faded to `o`. */
+      walker: function (src, fw, fh, frames) {
+        const w = document.createElement('div');
+        w.className = 'town-walker';
+        const fig = document.createElement('div');
+        fig.className = 'town-walker-fig';
+        fig.style.backgroundImage = 'url("' + src + '")';
+        w.appendChild(fig);
+        root.appendChild(w);
+        let W = 0, H = 0, feet = 1;
+        return {
+          size: function (width, height, feetAt) {
+            W = width; H = height; feet = feetAt;
+            w.style.width = W + 'px';
+            w.style.height = H + 'px';
+            w.style.transformOrigin = (W / 2) + 'px ' + (H * feet) + 'px';
+            fig.style.backgroundSize = (W * frames) + 'px ' + H + 'px';
+          },
+          at: function (x, y, s, f, turned, o) {
+            w.style.transform = 'translate(' + (x - W / 2).toFixed(2) + 'px,' + (y - H * feet).toFixed(2) + 'px) scale(' + s.toFixed(4) + ')';
+            fig.style.backgroundPosition = (-f * W).toFixed(2) + 'px 0';
+            fig.style.transform = turned ? 'scaleX(-1)' : '';
+            w.style.opacity = o.toFixed(3);
+          },
+          remove: function () { if (w.parentNode) w.parentNode.removeChild(w); }
+        };
       },
 
       /* The places, as boxes on the paper. Panel pixels — the board

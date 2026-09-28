@@ -6519,76 +6519,104 @@
     },
 
     /* Maya walking out of her house along a line to a place, and in (46,
-       when the closer cafe has been named). She is drawn on the board, in
-       its own units, so the camera carries her with everything else; and
-       she is under the town's pictures, so she steps out from behind her
-       house and disappears behind the cafe as she reaches it — which is
-       the going in. A frame at a time out of her strip, in a window the
-       size of one frame; turned to face the way she walks. */
+       when the closer cafe has been named) — out of its DOOR and in at
+       the other one's. The house door swings open, and she is in the
+       doorway, coming forward out of the dark: as tall as the door, since the
+       buildings stand further back than the line she walks on. She steps
+       down onto the line, growing to her own height as she comes
+       forward, and the door shuts behind her. At the cafe its door opens
+       as she gets there; she steps up into the doorway, shrinking back
+       to its height, and is gone inside, and it shuts.
+
+       She is drawn in the town's layer, over its pictures — under them
+       she could only come out from behind a wall. Measured off the town
+       again whenever it is re-placed, so she stays on her line and at
+       her doors. A frame at a time out of her strip; turned to face the
+       way she walks. */
     mayaWalk: function (from, to) {
-      const G = C.GRID, M = G.maya, NS = 'http://www.w3.org/2000/svg', self = this;
-      if (!M || !C.ART.mayaWalk || document.documentElement.classList.contains('calm')) return 0;
-      const px = function (v) { return G.originX + v * G.stepX; };
-      const py = function (v) { return G.originY - v * G.stepY; };
-      if (!this.maya) {
-        const g = document.createElementNS(NS, 'g');
-        g.setAttribute('class', 'maya');
-        g.setAttribute('pointer-events', 'none');
-        const turn = document.createElementNS(NS, 'g');
-        const win = document.createElementNS(NS, 'svg');
-        win.setAttribute('preserveAspectRatio', 'xMidYMax meet');
-        win.setAttribute('overflow', 'hidden');
-        const im = document.createElementNS(NS, 'image');
-        im.setAttribute('href', C.ART.mayaWalk);
-        im.setAttributeNS('http://www.w3.org/1999/xlink', 'href', C.ART.mayaWalk);
-        im.setAttribute('width', M.w * M.frames);
-        im.setAttribute('height', M.h);
-        win.appendChild(im); turn.appendChild(win); g.appendChild(turn);
-        this.maya = { g: g, turn: turn, win: win };
-      }
-      const E = this.maya;
-      el.gridAxes.appendChild(E.g);                 // on top of the drawing, under the town
-      const H = M.tall * G.stepY, W = H * M.w / M.h;
-      E.win.setAttribute('width', W);
-      E.win.setAttribute('height', H);
-      E.win.setAttribute('x', -W / 2);
-      E.win.setAttribute('y', -H * M.feet / M.h);   // her soles on the point
-      const x0 = px(from.x), y0 = py(from.y), x1 = px(to.x), y1 = py(to.y);
-      const right = x1 > x0;
-      E.turn.setAttribute('transform', (right === !!M.facesLeft) ? 'scale(-1,1)' : '');
-      const len = Math.hypot(x1 - x0, y1 - y0);
-      const walkMs = len / (M.speed * G.stepX) * 1000;
-      const inside = 0.14 * G.stepY;                // on through the door, up past her point
-      const total = walkMs + M.outMs;
+      const M = C.GRID.maya, self = this;
+      if (!M || !C.ART.mayaWalk || !Town || !Town.door ||
+          document.documentElement.classList.contains('calm')) return 0;
+      const out = Town.door(from.x, from.y), into = Town.door(to.x, to.y);
+      if (!out || !into || !Town.spot(from.x, from.y)) return 0;
+      const fig = Town.walker(C.ART.mayaWalk, M.w, M.h, M.frames);
+
+      /* Where everything is: her two doors, the line between the two
+         points, and the two places that line and the steps meet. */
+      let placed = -1, g = null;
+      const measure = function () {
+        placed = Town.placed;
+        const a = Town.door(from.x, from.y), b = Town.door(to.x, to.y);
+        const A = Town.spot(from.x, from.y), B = Town.spot(to.x, to.y), cell = Town.cell();
+        const len = Math.hypot(B.x - A.x, B.y - A.y) || 1;
+        const ux = (B.x - A.x) / len, uy = (B.y - A.y) / len, on = M.onLine * cell.w;
+        const H = M.tall * cell.h;
+        g = { p0: { x: a.x, y: a.y }, p1: { x: A.x + ux * on, y: A.y + uy * on },
+              p2: { x: B.x - ux * on, y: B.y - uy * on }, p3: { x: b.x, y: b.y },
+              s0: M.doorFit * a.h / H, s3: M.doorFit * b.h / H, H: H, cell: cell.w,
+              walk: len - 2 * on };
+        fig.size(H * M.w / M.h, H, M.feet / M.h);
+      };
+      measure();
+
+      /* The timetable, in her own pace: each step starts (or ends) at
+         her walking speed and averages half of it, so there is no jolt
+         where a step meets the line. */
+      const cells = function (a, b) { return Math.hypot(b.x - a.x, b.y - a.y) / g.cell; };
+      const perCell = 1000 / M.speed;
+      const D = C.TOWN.doorMs || 320;
+      const tShow = D * 0.6;                                   // her door most of the way open
+      const tStep = tShow + M.inMs;                             // out of the dark, in the doorway
+      const tOut = tStep + 2 * cells(g.p0, g.p1) * perCell;    // down on the line
+      const tArrive = tOut + (g.walk / g.cell) * perCell;       // at the foot of the cafe's step
+      const tIn = tArrive + 2 * cells(g.p2, g.p3) * perCell;   // in its doorway
+      const tGone = tIn + M.outMs;                              // inside
+      const total = tGone + 120 + D;                            // and its door shut
+      const right = g.p3.x > g.p0.x;
+      const turned = right === !!M.facesLeft;
+
       const token = (this.mayaTok = (this.mayaTok || 0) + 1);
       const stop = function () {
         if (self.mayaTok === token) self.mayaTok++;
-        E.g.style.opacity = 0;
-        if (E.g.parentNode) E.g.parentNode.removeChild(E.g);
+        fig.remove();
+        out.shut(); into.shut();            // at once: the screen is going
       };
-      const off = Game.hold(stop);                   // gone with the screen, whenever it goes
+      const off = Game.hold(stop);          // gone with the screen, whenever it goes
+      const lerp = function (a, b, u) { return { x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u }; };
+      let doors = 0;
       const t0 = performance.now();
       const step = function () {
         if (self.mayaTok !== token) return;
+        if (Town.placed !== placed) measure();
         const t = performance.now() - t0;
+        // each door, once, when its moment comes
+        if (!(doors & 1)) { doors |= 1; out.open(true); }
+        if (!(doors & 2) && t >= tOut + 120) { doors |= 2; out.open(false); }
+        if (!(doors & 4) && t >= Math.max(tOut, tArrive - D - 100)) { doors |= 4; into.open(true); }
+        if (!(doors & 8) && t >= tGone + 120) { doors |= 8; into.open(false); }
         const f = Math.floor(t / M.frameMs) % M.frames;
-        E.win.setAttribute('viewBox', (f * M.w) + ' 0 ' + M.w + ' ' + M.h);
-        let x, y, k = 1, o = 1;
-        if (t < walkMs) {
-          const u = t / walkMs;
-          x = x0 + (x1 - x0) * u; y = y0 + (y1 - y0) * u;
-          o = Math.min(1, t / M.inMs);
-        } else {
-          const u = Math.min(1, (t - walkMs) / M.outMs);
-          x = x1; y = y1 - inside * u;
-          k = 1 - 0.12 * u; o = 1 - u;
+        let p, s, o;
+        if (t < tShow) {                     // still inside, the door opening
+          p = g.p0; s = g.s0; o = 0;
+        } else if (t < tStep) {              // coming out of the dark into the doorway
+          const u = (t - tShow) / M.inMs;
+          p = { x: g.p0.x, y: g.p0.y - 0.04 * g.H * (1 - u) }; s = g.s0 * (0.92 + 0.08 * u); o = u;
+        } else if (t < tOut) {               // stepping out and down, coming forward
+          const v = (t - tStep) / (tOut - tStep), u = v * v;
+          p = lerp(g.p0, g.p1, u); s = g.s0 + (1 - g.s0) * u; o = 1;
+        } else if (t < tArrive) {            // along the line
+          p = lerp(g.p1, g.p2, (t - tOut) / (tArrive - tOut)); s = 1; o = 1;
+        } else if (t < tIn) {                // up into the cafe's doorway, going back
+          const v = (t - tArrive) / (tIn - tArrive), u = 1 - (1 - v) * (1 - v);
+          p = lerp(g.p2, g.p3, u); s = 1 + (g.s3 - 1) * u; o = 1;
+        } else {                             // and in
+          const u = Math.min(1, (t - tIn) / M.outMs);
+          p = { x: g.p3.x, y: g.p3.y - 0.04 * g.H * u }; s = g.s3 * (1 - 0.08 * u); o = 1 - u;
         }
-        E.g.setAttribute('transform', 'translate(' + x.toFixed(2) + ',' + y.toFixed(2) + ') scale(' + k.toFixed(3) + ')');
-        E.g.style.opacity = o.toFixed(3);
+        fig.at(p.x, p.y, s, f, turned, o);
         if (t < total) requestAnimationFrame(step);
         else off();
       };
-      E.g.style.opacity = 0;
       requestAnimationFrame(step);
       return total;
     },

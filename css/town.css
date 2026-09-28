@@ -101,3 +101,42 @@
 /* A place the screen is not about: still on the map, stepped back. */
 .town-place { transition: opacity .42s ease; }
 .town-place.dim { opacity: .3; }
+
+/* ---------------- a door that opens ---------------- */
+/* Over the door in the picture, exactly (town.js sizes it from the
+   sheet). Shut, it has nothing of its own to show and the drawing is
+   the door. Ajar, the doorway behind goes dark and the leaf — the same
+   pixels, cut from the same sheet — stands over it, still shut; open,
+   the leaf swings in on its hinge, the side away from the knob, and
+   the dark inside shows. */
+.town-door { position: absolute; }
+.town-door.ajar { background: linear-gradient(#1F130A, #3A2414); }
+.town-door-leaf {
+  position: absolute;
+  left: 0; top: 0; width: 100%; height: 100%;
+  background-repeat: no-repeat;
+  visibility: hidden;
+  transform-origin: 0 50%;
+  transition: transform var(--door-ms, 320ms) ease-in-out,
+              filter var(--door-ms, 320ms) ease-in-out;
+}
+.town-door.ajar .town-door-leaf { visibility: visible; }
+/* Turned away from the light as it goes in, so a shade darker. */
+.town-door.open .town-door-leaf {
+  transform: perspective(var(--door-p, 60px)) rotateY(72deg);
+  filter: brightness(.78);
+}
+
+/* ---------------- someone walking ---------------- */
+/* Over every place, so a door is somewhere she comes out of rather
+   than a wall she comes out from behind. Moved by transform alone. */
+.town-walker {
+  position: absolute;
+  left: 0; top: 0;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+.town-walker-fig {
+  width: 100%; height: 100%;
+  background-repeat: no-repeat;
+}
