@@ -87,6 +87,9 @@ window.FormulaTable = (function () {
          line gives them. */
       build: function (formula) {
         clearTimeout(root._close);
+        clearTimeout(root._only);
+        root.classList.remove('folding');
+        root.style.height = '';
         grid.innerHTML = '';
         rows = [];
         setRoom(0);
@@ -416,6 +419,39 @@ window.FormulaTable = (function () {
         if (c && c.box) c.box.classList.add('good');
       },
 
+      rowCount: function () { return rows.length; },
+
+      /* One line and nothing else (37: the formula on its own). The
+         others fade out, then fold away, and the panel closes up round
+         the line that is left — its green laid again where the line now
+         sits. Returns how long all that takes. */
+      only: function (r) {
+        const els = function (row) {
+          return row.boxes || row.cells.filter(Boolean).map(function (c) { return c.el; });
+        };
+        if (!rows[r]) return 0;
+        const keep = els(rows[r]), others = [];
+        rows.forEach(function (row, i) { if (i !== r) others.push.apply(others, els(row)); });
+        if (!others.length) return 0;
+        const FADE = 320, FOLD = 420, self = this;
+        others.forEach(function (e) { e.classList.add('ft-going'); });
+        clearTimeout(root._only);
+        root._only = setTimeout(function () {
+          const was = root.offsetHeight;
+          others.forEach(function (e) { e.classList.add('ft-gone'); });
+          keep.forEach(function (e) { e.style.gridRow = '1'; });
+          root.style.height = '';
+          const now = root.offsetHeight;
+          root.style.height = was + 'px';
+          void root.offsetWidth;
+          root.classList.add('folding');
+          root.style.height = now + 'px';
+          if (grid.querySelector('.ft-answer')) self.markRow(r);
+          root._only = setTimeout(function () { root.classList.remove('folding'); }, FOLD + 40);
+        }, FADE);
+        return FADE + FOLD;
+      },
+
       /* …or the whole line it ends on, name and = and all: "d = |x₂ − x₁|"
          on one green, not the blank alone. Laid behind the words, over
          the box every piece of the row covers. */
@@ -477,7 +513,9 @@ window.FormulaTable = (function () {
       hide: function () {
         clearTimeout(root._settle);
         clearTimeout(root._close);
-        root.classList.remove('open', 'settled');
+        clearTimeout(root._only);
+        root.style.height = '';
+        root.classList.remove('open', 'settled', 'folding');
         root.classList.add('hidden');
         grid.innerHTML = '';
         rows = [];

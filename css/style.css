@@ -1859,3 +1859,12 @@ html.calm #gridAxes.triangle-question-active .triangle-pulse-line.on {
   transform-origin: center;
 }
 #gridAxes .rightangle.on { animation: labelPop .5s cubic-bezier(.22,.68,.3,1) both; }
+
+/* ---- x₁, y₂ and the rest, set as mathematics (js/math-text.js) ----
+   The letter in italic, which Nunito is not loaded in, so it is slanted
+   for it: synthesis is allowed here for the slant alone, never for a
+   weight. The digit dropped below the line without taking the line
+   with it. The drawings do the same with attributes of their own. */
+.mvar { font-style: italic; font-synthesis: style; }
+.msub { position: relative; top: .18em; }
+

@@ -401,7 +401,9 @@
       feetY:  C.ANCHOR.y + C.FEET_DY,
       feetCx: C.SWIFTY.cx,
       inkW:   REF_W * C.CHAR_SCALE,
-      bubbleScale: entry.bubbleScale || C.BUBBLE.scale
+      /* The open field's own balloon, grown with her. */
+      bubble: C.FIELD_BUBBLE,
+      bubbleScale: 1
     };
   }
 
@@ -7048,6 +7050,11 @@
 
       if (i + 1 >= C.SCRIPT.length) return;
       const entry = C.SCRIPT[i] || {};
+      /* A screen there to be looked at for as long as the child likes
+         (`waitNext`: 37, the formula on its own) is handed on by the
+         child, with Next — which is armed and nudging — and by nothing
+         else. */
+      if (entry.waitNext) return;
       if (entry.task && !(this.task && this.task.done)) {
         /* Nothing more will happen until they tap, so point the way —
            unless the screen has asked not to be helped. */
@@ -7904,6 +7911,11 @@
            put the standing artwork up instead, with no flight. She was
            meant to have been here all along. */
         else if (entry.entrance === 'none') { self.assertStanding(); after(); }
+        /* Off the stage, and staying off (37: the formula is left on its
+           own) — flown away first if she is still standing there. */
+        else if (entry.entrance === 'away') {
+          if (self.birdAway()) after(); else self.flyOut(after);
+        }
         else self.stay(after);
       };
 
@@ -8636,6 +8648,13 @@
          the table comes out into the space and grows. Scaled rather than
          re-laid, so nothing on either moves inside it; undone when the
          screen goes. */
+      /* Or the table is folded down to the one line it ended on first
+         (`tableOnly: 'last'`: 37 — the formula and nothing else), and
+         grown once it has closed up round it. */
+      let growAt = 300;
+      if (entry.keepTable && entry.tableOnly === 'last' && Table && Table.only) {
+        growAt = Table.only(Table.rowCount() - 1) + 80;
+      }
       if (entry.keepTable && entry.tableGrow && Table && Table.el) {
         const TG = entry.tableGrow, T = C.GRID.table, B = geom.panelBox || T.board;
         const gp = el.gridPanel, te = Table.el;
@@ -8649,7 +8668,7 @@
           te.style.transformOrigin = 'left center';
           te.style.left = left + 'px';
           te.style.scale = String(TG.table);
-        }, 300);
+        }, growAt);
         self.hold(function () {
           gp.classList.remove('stepping');
           te.classList.remove('growing');
@@ -9163,7 +9182,9 @@
        Bubble.close() stops the voice, so it has to go first, and the
        hand-over is armed off the clip's own length because there is no
        balloon finishing to ride on. */
-    sayOnly: function (line, then) {
+    /* `next`, if there is one, takes the place of the hand-over: a line
+       to follow this one, which settles the screen itself. */
+    sayOnly: function (line, then, next) {
       const self = this;
       this.state = 'speaking';
       Bubble.close();
@@ -9177,6 +9198,7 @@
       this.later(function () {
         lift();
         if (then) then();
+        if (next) { next(); return; }
         /* A beat that names its own hold is honoured here too: without it
            a line said without a balloon takes the ordinary pause and the
            board is carried off mid-sequence. */
@@ -9471,7 +9493,13 @@
             SFX.cheer();
             SFX.confettiPop();
             FX.pop(at.x, at.y, 18);
-            self.finishWith(correctLine);
+            /* Praise, in her voice alone: no balloon over the confetti
+               (the four warm-up distances, 8-19). Then whatever the
+               screen has to say about the answer, if it has anything. */
+            if (t.spec.praise) {
+              self.sayOnly(t.spec.praise, null, correctLine
+                ? function () { self.finishWith(correctLine); } : null);
+            } else self.finishWith(correctLine);
           }, 260);
           return;
         }
@@ -9576,7 +9604,10 @@
           if (Sel) Sel.lock();
           const UC = C.GRID.unitBox.count;
           self.later(function () {
-            Bubble.open(msg, function () {
+            /* There is nothing left to press, so the reel and GO go as she
+               says so — and she comes down off them onto the grass first,
+               rather than being left standing on air. */
+            self.later(function () { Bubble.open(msg, function () {
               self.closeAfterLine();
               self.later(function () {
                 const counting =
@@ -9608,7 +9639,7 @@
                      runs: `counting` ends when its hold does. */
                 }, counting);
               }, Bubble.voiceTail + 260);
-            });
+            }); }, stowControl());
           }, 320);
           return;
         }
@@ -10175,12 +10206,45 @@
                    the triangle, a copy at a time, where they do (30) —
                    the way 28 wrote it. */
                 const lead = lines[0] || {};
-                let at = T.rowMs;
-                if (carries(lead)) at = self.carryRow(lead, 0, 0);
-                else { Table.writeRow(0); SFX.draw(); }
-                self.tableRow = 0;
-                const blanks = Table.blanks();
-                self.later(function () { self.nextBlank(lines, blanks, 0); }, at + 300);
+                const writeLead = function () {
+                  let at = T.rowMs;
+                  if (carries(lead)) at = self.carryRow(lead, 0, 0);
+                  else { Table.writeRow(0); SFX.draw(); }
+                  self.tableRow = 0;
+                  return at;
+                };
+                const begin = function (at) {
+                  const blanks = Table.blanks();
+                  self.later(function () { self.nextBlank(lines, blanks, 0); }, at + 300);
+                };
+                const said = entry.task.tableLine;
+                if (!said) { begin(writeLead()); return; }
+                /* Or she comes back to the table to say what its first
+                   line is (39, 41: "The distance between any two points
+                   is:") — the line written as she gets to her last
+                   word — and goes again, leaving the rest to the child. */
+                const g = standGeom(C.BOARD.tableStand, {});
+                self.geom = g;
+                self.raised = false;
+                standPose = !!g.stand;
+                applyGeom(g);
+                self.flyIn(function () {
+                  let wrote = 0, done = false;
+                  const once = function () { if (!done) { done = true; wrote = writeLead(); } };
+                  self.state = 'speaking';
+                  FX.sparkles(g.aim.x, g.aim.y, 7, 170 * (g.scale || C.CHAR_SCALE));
+                  Bubble.onWord = function (w, n) {
+                    if (n >= Bubble.words.length - 1) once();
+                  };
+                  Bubble.open(said, function () {
+                    Bubble.onWord = null;
+                    once();
+                    self.later(function () {
+                      Bubble.close();
+                      leave(function () { begin(0); });
+                    }, Math.max(wrote, Bubble.voiceTail + 900));
+                  });
+                });
               }, T.openMs);
             }, 760);
           }, 300);
@@ -10292,9 +10356,17 @@
       this.raised = false;
       standPose = !!g.stand;
       applyGeom(g);
-      /* What it came to goes onto AB first; then she comes in to say so. */
+      /* What it came to goes onto AB first; then she comes in to say so.
+         Or, where the table says nothing (`correctLine: false` — 35, and
+         the axis cases), it is left to be read for a moment, green, and
+         handed on without her. */
       this.flyResultOut(t.spec.formula, function () {
         self.later(function () {
+          if (t.spec.correctLine === false) {
+            const e = C.SCRIPT[self.index] || {};
+            self.settle(e.hold != null ? e.hold : C.AUTO.afterCorrect);
+            return;
+          }
           self.flyIn(function () { self.speak(t.spec.correctLine || 'That’s right!'); });
         }, 200);
       });
@@ -11309,6 +11381,27 @@
         else Slots.hide();
       }
     }, 150);
+  }
+
+  /* revealControl the other way round: the control sinks away, and if
+     she was standing on it she flies back down to the grass it stood
+     on. Returns how long that takes, so whatever she says next waits
+     for her to land. */
+  function stowControl() {
+    if (Sel) Sel.hide(true);                 // sinking
+    if (!Game.raised) return 0;
+    const g = geomFor(Game.index);
+    const from = Game.geom || {};
+    const p0 = { x: parseFloat(el.birdRig.style.left) || 0,
+                 y: parseFloat(el.birdRig.style.top) || 0 };
+    Game.geom = g;
+    Game.raised = false;
+    standPose = !!g.stand;
+    flyTo(p0, { x: g.anchor.x, y: g.anchor.y }, from.scale || C.CHAR_SCALE, g.scale);
+    el.bubble.classList.add('rising');
+    applyGeom(g);
+    Game.later(Game.hold(function () { el.bubble.classList.remove('rising'); }), 720);
+    return FLIGHT_MS;
   }
 
   /* ---------------- the hint ----------------

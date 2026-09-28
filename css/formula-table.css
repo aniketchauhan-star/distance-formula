@@ -41,6 +41,17 @@
 }
 .formula-table.open   { clip-path: inset(0 0 0 0 round var(--radius, 46px)); }
 .formula-table.hidden { display: none; }
+/* One line kept and the rest let go (Table.only): they fade, then fold
+   away, and the panel closes up round what is left. Its other
+   transitions are carried on alongside, not replaced. */
+.formula-table .ft-going { opacity: 0; transition: opacity .32s ease; }
+.formula-table .ft-gone  { display: none; }
+.formula-table.folding {
+  transition: height .42s cubic-bezier(.22, .61, .36, 1),
+              clip-path .7s cubic-bezier(.22, .61, .36, 1),
+              padding-bottom .3s cubic-bezier(.22, .61, .36, 1),
+              margin-top .3s cubic-bezier(.22, .61, .36, 1);
+}
 
 /* One column of equals signs, a column per term; every row lines up
    under the one above it. */
@@ -235,7 +246,7 @@ html.calm .formula-table .ft-cell { transition: opacity .2s linear; transform: n
   display: grid; place-items: center;
   margin: 0;
   border-style: solid; border-width: 0;
-  border-image: url('../assets/tile.png?v=20260928124805') 64 fill / .506em stretch;
+  border-image: url('../assets/tile.png?v=20260928144219') 64 fill / .506em stretch;
   background: none;
   font-family: 'Lilita One', 'Nunito', system-ui, sans-serif;
   /* One weight, and the bold the browser used to fake drawn as a fixed

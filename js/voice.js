@@ -66,20 +66,13 @@ window.Voice = (function () {
       ['15-lets-explore.mp3', 1.20],
     'Hmm… what about A and C?':
       ['16-hmm-what-about-a-and-c.mp3', 2.80],
-    'We know how to find this distance.':
-      ['17-we-know-how-to-find-this-distance.mp3', 2.32],
     'What is the distance between C and B?':
       ['18-what-is-the-distance-between-c-and-b.mp3', 2.85],
-    'Look! We made a triangle.':
-      ['19-look-we-made-a-triangle.mp3', 2.35],
-    'What kind of triangle is this?':
-      ['20-what-kind-of-triangle-is-this.mp3', 1.75],
-    'A right-angled triangle!':
-      ['21-a-right-angled-triangle.mp3', 2.14],
-    'Look at the corner at C.':
-      ['22-look-at-the-corner-at-c.mp3', 1.99],
-    'It’s a right-angled triangle.':
-      ['23-its-a-right-angled-triangle.mp3', 2.22],
+    /* Two of her takes joined at the pause between them: "Look! We made
+       a" from "Look! We made a triangle." and "right-angled triangle!"
+       from "A right-angled triangle!". */
+    'Look! We made a right-angled triangle!':
+      ['19-look-we-made-a-right-angled-triangle.mp3', 3.45],
     'We know AC and CB.':
       ['24-we-know-ac-and-cb.mp3', 2.56],
     'But we still need AB.':
@@ -112,16 +105,22 @@ window.Voice = (function () {
       ['38-cb-y2-y1.mp3', 3.08],
     'Now, let’s find AB.':
       ['39-now-lets-find-ab.mp3', 2.14],
-    'And that gives us the distance between any two points!':
-      ['40-and-that-gives-us-the-distance-between-any-t.mp3', 3.76],
     'What if both points are on the x-axis?':
       ['41-what-if-both-points-are-on-the-x-axis.mp3', 3.11],
+    /* The front of that line on its own, cut at her pause after it:
+       praise for a warm-up distance, said without a balloon. */
+    'Exactly!':
+      ['42a-exactly.mp3', 1.04],
     'Exactly! There’s no vertical distance.':
       ['42-exactly-theres-no-vertical-distance.mp3', 3.24],
     'And what if they’re on the y-axis?':
       ['43-and-what-if-theyre-on-the-y-axis.mp3', 2.51],
     'Exactly! There’s no horizontal distance.':
       ['44-exactly-theres-no-horizontal-distance.mp3', 3.34],
+    /* The end of her "Now, let's find the distance between A and B.",
+       cut in the "f" of "find", after the "s" before it. */
+    'Find the distance between A and B.':
+      ['41b-find-the-distance-between-a-and-b.mp3', 2.74],
     'Maya wants to walk to the closer cafe. Which cafe is closer to her house?':
       ['45-maya-wants-to-walk-to-the-closer-cafe-which.mp3', 5.93],
     'First, the house to Cafe A.':

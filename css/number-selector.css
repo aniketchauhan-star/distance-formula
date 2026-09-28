@@ -48,7 +48,7 @@
      there and invisible. Tried, measured, reverted.
 
      If this ever needs to move, change the path here. */
-  --sheet: url('../assets/buttons.png?v=20260928124805');
+  --sheet: url('../assets/buttons.png?v=20260928144219');
 
   /* ---- the layout ------------------------------------------------
      Unchanged. The dials overhang the housing's ends, the pointer sits
@@ -186,7 +186,8 @@
   /* (1414, 426, 193, 129) of 1774 x 887 */
   background-size: 919.17% 687.60%;
   background-position: 89.437% 56.201%;
-  transition: transform 140ms cubic-bezier(.22, .68, .3, 1);
+  transition: transform 140ms cubic-bezier(.22, .68, .3, 1),
+              left 280ms cubic-bezier(.22, .68, .3, 1);
   z-index: 5;
 }
 /* It dips as a number seats itself. */
@@ -224,6 +225,8 @@
   /* (494, 645, 225, 217) */
   background-size: 788.44% 408.76%;
   background-position: 31.891% 96.269%;
+  /* It moves out to the end drum when the choice does (see middle()). */
+  transition: left 280ms cubic-bezier(.22, .68, .3, 1);
   z-index: 3;
 }
 
@@ -275,9 +278,9 @@
   z-index: 1;
 }
 
-/* Past the end of the range there is no number — but the drum is still
-   there. A lock's wheel has no gaps in it, and an empty third of the
-   well reads as broken rather than as the end of the counting. */
+/* Past the end of the range there is no number. Only the two drums
+   out of sight under the arrows are ever past it: the window stops at
+   an end rather than showing an empty drum (see middle()). */
 .number-control .cell.empty { color: transparent; }
 /* A cell carried across the reel rather than along it must not be seen
    travelling — see seatCell() in the component. */
@@ -414,6 +417,12 @@
 @keyframes ncRise {
   from { opacity: 0; transform: scale(var(--k, 1)) translateY(38px); }
   to   { opacity: 1; transform: scale(var(--k, 1)) translateY(0); }
+}
+/* And away again the same way, when she steps down off it. */
+.number-control.sinking { animation: ncSink .3s cubic-bezier(.5, 0, .75, .4) both; pointer-events: none; }
+@keyframes ncSink {
+  from { opacity: 1; transform: scale(var(--k, 1)) translateY(0); }
+  to   { opacity: 0; transform: scale(var(--k, 1)) translateY(38px); }
 }
 
 /* Only transform, opacity and filter are animated above; will-change

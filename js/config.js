@@ -137,12 +137,14 @@ window.CFG = (function () {
        "where she stands". The new painting puts the shoreline at
        y 956 under her — measured off the art, not guessed — and 600
        left her feet at 720, which is two hundred pixels out over the
-       water. 855 puts them at 975, a little way into the grass and
-       above the board screens' own 1000, which is right: she is
-       smaller here, so she is further away and stands higher up the
-       slope. */
-    cy: 855,
-    height: 240    // rendered height in stage px (width follows at 222)
+       water. 820 puts them at 990, well into the grass and just above
+       the board screens' own 1000.
+
+       340 tall, not 240: alone in the middle of the open field (1, 3)
+       she is the whole picture, and at 240 she read as a figure in the
+       distance. Her balloon there grows with her (FIELD_BUBBLE). */
+    cy: 820,
+    height: 340    // rendered height in stage px (width follows at 315)
   };
 
   const CHAR_SCALE = SWIFTY.height / REF.h;
@@ -310,6 +312,28 @@ window.CFG = (function () {
        visible reason. */
     text: { left: 0.073, top: 0.113122, width: 0.855, height: 0.479638 }
   };
+
+  /* Her balloon on the open field (1, 3, 4), where she is drawn bigger
+     (SWIFTY.height): the same balloon at 1.4 times the size, every
+     length in it scaled together — type, padding, corner, tail, edge —
+     so it is the same shape, and a line still fits it exactly. Scaled
+     here rather than through a bubbleScale, because the balloon is cut
+     to its line by measuring the type, and the type has to be measured
+     at the size it will be shown at. BUBBLE itself stays as it is: the
+     board screens' balloon is made from it. */
+  const FIELD_BUBBLE = (function (B, k) {
+    const n = function (v) { return v * k; };
+    return Object.assign({}, B, {
+      ink: { w: n(B.ink.w), h: n(B.ink.h) },
+      tip: { x: n(B.tip.x), y: n(B.tip.y) },
+      biteIntoHead: n(B.biteIntoHead),
+      bodyH: n(B.bodyH), radius: n(B.radius),
+      tailLen: n(B.tailLen), tailTip: n(B.tailTip), edgeW: n(B.edgeW),
+      size: n(B.size), lineH: n(B.lineH), leaf: n(B.leaf),
+      autoWidth: { min: n(B.autoWidth.min), max: n(B.autoWidth.max), pad: n(B.autoWidth.pad) },
+      pad: { x: n(B.pad.x), y: n(B.pad.y) }
+    });
+  })(BUBBLE, 1.4);
 ;
 ;
 
@@ -331,7 +355,7 @@ window.CFG = (function () {
        the two boulders — the big one falls away to her left and the
        small one sits below her right, so both read as in front of her
        and she is planted on the slope rather than balanced on a rock. */
-    height: 380,                    // against SWIFTY.height of 240 in game
+    height: 380,                    // against SWIFTY.height of 340 in game
     perch: { cx: 470, feetY: 955 },
     flyMs: 2600,                    // a title screen can afford a long arc
     buttonDelay: 420                // beat between her settling and Play
@@ -1819,20 +1843,25 @@ window.CFG = (function () {
     ],
     result: 'd = |x₂ − x₁|',
     /* The table the child fills (39): both y's are 0 — read off the
-       labels — so the second term is (0 − 0)², then 0, then gone; and
-       what is left is picked from three. Each blank offers the right
-       term and the ones a child reaches for instead. */
+       labels — so the second term is (0 − 0)², then 0, then gone. Each
+       term is ONE pick, whole, the way it is on 35: x₂ − x₁, and then
+       0 − 0 — it is the term that is being chosen, not the numbers in
+       it. Each offered beside what a child reaches for instead: the
+       sum, and the term as it stood before the y's were read.
+
+       And the working ends on √((x₂ − x₁)²). It went on to a last line,
+       d = |x₂ − x₁|, picked again — the same thing said twice, the
+       second time with bars the lesson never introduced. */
     picks: [
       { inline: true, parts: [ { t: 'd' }, { t: ' = ' },
           { t: '\u221A((x₂ − x₁)\u00B2 + (y₂ − y₁)\u00B2)' } ] },
-      { inline: true, parts: [ { t: '= ' }, { t: '\u221A((x₂ − x₁)\u00B2 + (' },
-          { t: '0', lit: 'v', offer: [ '0', 'y₂', 'x₂' ] }, { t: ' − ' },
-          { t: '0', lit: 'v', offer: [ 'y₁', '0', 'x₁' ] }, { t: ')\u00B2)' } ] },
+      { inline: true, parts: [ { t: '= ' }, { t: '\u221A((' },
+          { t: 'x₂ − x₁', lit: 'h', answer: 'x₂ − x₁', offer: [ 'x₁ + x₂', 'x₂ − x₁' ] },
+          { t: ')\u00B2 + (' },
+          { t: '0 − 0', lit: 'v', answer: '0 − 0', offer: [ '0 − 0', 'y₂ − y₁' ] },
+          { t: ')\u00B2)' } ] },
       { inline: true, parts: [ { t: '= ' }, { t: '\u221A((x₂ − x₁)\u00B2 + 0)' } ] },
-      { inline: true, parts: [ { t: '= ' }, { t: '\u221A((x₂ − x₁)\u00B2)' } ] },
-      { inline: true, parts: [ { t: 'd' }, { t: ' = ' },
-          { t: '|x₂ − x₁|', lit: 'h', answer: '|x₂ − x₁|',
-            offer: [ '|x₂ − x₁|', '|y₂ − y₁|', 'x₂ + x₁' ] } ] }
+      { inline: true, parts: [ { t: '= ' }, { t: '\u221A((x₂ − x₁)\u00B2)' } ] }
     ]
   };
 
@@ -1882,18 +1911,18 @@ window.CFG = (function () {
       [ { t: 'd = √((y₂ − y₁)²)' } ]
     ],
     result: 'd = |y₂ − y₁|',
-    // the same table turned on its side (41): the x's are the 0s
+    /* The same table turned on its side (41): the x's are the 0s — one
+       pick, as on 39 — and it ends where 39 does, on √((y₂ − y₁)²). */
     picks: [
       { inline: true, parts: [ { t: 'd' }, { t: ' = ' },
           { t: '\u221A((x₂ − x₁)\u00B2 + (y₂ − y₁)\u00B2)' } ] },
       { inline: true, parts: [ { t: '= ' }, { t: '\u221A((' },
-          { t: '0', lit: 'h', offer: [ 'x₂', '0', 'y₂' ] }, { t: ' − ' },
-          { t: '0', lit: 'h', offer: [ '0', 'x₁', 'y₁' ] }, { t: ')\u00B2 + (y₂ − y₁)\u00B2)' } ] },
+          { t: '0 − 0', lit: 'h', answer: '0 − 0', offer: [ 'x₂ − x₁', '0 − 0' ] },
+          { t: ')\u00B2 + (' },
+          { t: 'y₂ − y₁', lit: 'v', answer: 'y₂ − y₁', offer: [ 'y₂ − y₁', 'y₁ + y₂' ] },
+          { t: ')\u00B2)' } ] },
       { inline: true, parts: [ { t: '= ' }, { t: '\u221A(0 + (y₂ − y₁)\u00B2)' } ] },
-      { inline: true, parts: [ { t: '= ' }, { t: '\u221A((y₂ − y₁)\u00B2)' } ] },
-      { inline: true, parts: [ { t: 'd' }, { t: ' = ' },
-          { t: '|y₂ − y₁|', lit: 'v', answer: '|y₂ − y₁|',
-            offer: [ '|x₂ − x₁|', '|y₂ − y₁|', 'y₂ + y₁' ] } ] }
+      { inline: true, parts: [ { t: '= ' }, { t: '\u221A((y₂ − y₁)\u00B2)' } ] }
     ]
   };
 
@@ -2172,7 +2201,9 @@ window.CFG = (function () {
            the last screen's may be a different one, or answered. */
         askFirst: true,
         segment: segF,
-        task: Object.assign({ correctLine: 'That\u2019s right!', tableOnMiss: true,
+        /* `say.right`: what she says to a right answer, where it is not
+           the ordinary "That's right!" (41b: "That's correct!"). */
+        task: Object.assign({ correctLine: say.right || 'That\u2019s right!', tableOnMiss: true,
                               tableSize: 34, formula: table, rightAt: w.done },
           whole ? { kind: 'distance' }
                 : { kind: 'choice', answer: 'root', feedback: [], voiceOnly: true })
@@ -2401,7 +2432,10 @@ window.CFG = (function () {
                  this beat carries little weight, and a child who has
                  missed learns more from the spaces being counted than
                  from being sent round again. */
-              countLine: 'Count carefully!'
+              countLine: 'Count carefully!',
+              /* Right: well done, in her voice alone — no balloon over the
+                 confetti. Alternated with "Exactly!" across the four. */
+              praise: 'That’s right!'
       } },
 
     /* 9-11 — three more of the same, staying on the board. Two of them
@@ -2486,7 +2520,8 @@ window.CFG = (function () {
                  this beat carries little weight, and a child who has
                  missed learns more from the spaces being counted than
                  from being sent round again. */
-              countLine: 'Count carefully!' } },
+              countLine: 'Count carefully!',
+              praise: 'Exactly!' } },
 
     { id: 14, line: 'What is the distance between the two points?', entrance: 'none', layout: 'board',
       distance: true, intro: 'measure',
@@ -2496,7 +2531,8 @@ window.CFG = (function () {
                  this beat carries little weight, and a child who has
                  missed learns more from the spaces being counted than
                  from being sent round again. */
-              countLine: 'Count carefully!' } },
+              countLine: 'Count carefully!',
+              praise: 'That’s right!' } },
 
     /* ---- and the same argument for a column. After the first vertical
        question the y-axis gets what the x-axis got: this time the x
@@ -2547,7 +2583,12 @@ window.CFG = (function () {
                  this beat carries little weight, and a child who has
                  missed learns more from the spaces being counted than
                  from being sent round again. */
-              countLine: 'Count carefully!' } },
+              countLine: 'Count carefully!',
+              praise: 'Exactly!',
+              /* And what it came to, said: the last of the four, so the
+                 number is put into words before the screens move on to
+                 points that are not lined up. */
+              correctLine: 'So, the distance is 2\u00A0units.' } },
 
     /* ---- 20-21: the recall, immediately before the ground moves.
 
@@ -2664,18 +2705,14 @@ window.CFG = (function () {
       pointsOnly: true,
       lineLights: [ {},
                     { join: true, pulse: 'ab', pulseAt: 700 },
-                    /* Nothing lit: the side drawing in to C is the
-                       thing to look at. But the beat stays open until
-                       it has arrived, so nobody is handed on with C
-                       still on its way. */
-                    { hold: 1700 } ],
-      /* C on the word itself, not after the sentence carrying it has
-         finished — "explore" is the last word of that line, and a
-         third point that appears once she has stopped talking is a
-         point the screen produced rather than one she went looking
-         for. The dots then light 600ms after the line closes, by which
-         time the side that puts C there has arrived. */
-      wordCues: [ { word: 'explore', legs: true } ],
+                    /* Once "Let's explore." is finished, and not
+                       before: the side that puts C on the board draws
+                       in then, so the words and the new line never
+                       compete. Nothing lit — the side drawing in to C
+                       is the thing to look at — and the beat stays
+                       open until it has arrived, so nobody is handed
+                       on with C still on its way. */
+                    { legs: true, hold: 1700 } ],
       entrance: 'fly',
       layout: 'grid', transition: 'leaves',
       /* The same push its neighbours use, so the whole stretch is read
@@ -2724,20 +2761,21 @@ window.CFG = (function () {
        change; what splits here is the sentence and its highlighting,
        not the beat. One board, one question, one control. */
     { id: 24, shape: SHAPE_1,
-      /* Beats 4 and 5. A guess, and then the reason it is askable.
+      /* Beats 4 and 5. A guess, and then the question it leads to.
 
          "Hmm" is her thinking aloud rather than instructing, which is
          the difference between a child watching somebody work and a
-         child being told where to look. The second line is true — they
-         measured rows and columns four screens ago — and it is why
-         this question can be asked at all.
+         child being told where to look. The second line asks it
+         outright, in the words every other distance question uses —
+         they measured rows and columns four screens ago, so this is
+         one they can answer.
 
          C and its dashed guide are already on the board from 22. They
          are declared again so the screen stands on its own after a
          jump: `placeLeg` recognises the same side in the same place
          and hands it over rather than drawing it a second time. */
       line: 'Hmm… what about A and C?',
-      line2: 'We know how to find this distance.',
+      line2: 'What is the distance between A and C?',
       /* While she talks about A and C, the rest steps back — B and the
          dotted AB fade from her first word, so the side she means is
          the only thing at full strength — and AC pulses once she has
@@ -2799,17 +2837,11 @@ window.CFG = (function () {
        slider: she is just naming what they have built. */
     /* Still the same grid: the triangle is the two legs they have just
        measured, not a new drawing. */
-    /* The one question of these seven beats, and it is answerable from
-       the screen — which is the whole reason it is here rather than on
-       28. They built this right angle themselves two beats ago, by
-       walking across and then up; naming it is reading the drawing, not
-       recalling a word. And it is exactly the precondition for
-       Pythagoras, so the question EARNS the theorem instead of guessing
-       at it, which is what lets her simply tell them the theorem on the
-       next beat.
-
-       The panel was built for this: `triangle-options.js` carries these
-       three as its own defaults and the game had stopped asking them. */
+    /* They built this right angle themselves two beats ago, by walking
+       across and then up — and it is exactly the precondition for
+       Pythagoras, which is what lets her simply tell them the theorem on
+       the next beat. It was asked once, as a question with three
+       buttons (26); the drawing answers it, so now she says it. */
     { id: 27, shape: SHAPE_1,
       /* Beat 7. The result.
 
@@ -2824,11 +2856,14 @@ window.CFG = (function () {
          three buttons, which made an observation into the preamble of
          a question. Standing on its own it is what it says it is.
 
-         And it is VOICED: 16-look-we-made-a-triangle.mp3 is keyed on
-         exactly these words and has been sitting unused since the line
-         came off 26. Change the wording and the clip is thrown away
-         again. */
-      line: 'Look! We made a triangle.',
+         And it says what KIND of triangle, which is the whole of what
+         26's question used to ask: three buttons to name a shape the
+         child can see the square corner of. Named here instead, with the
+         square put into the corner at C as she says "right-angled" — the
+         evidence arriving with the word — and the three sides lit as she
+         says "triangle". Voiced from her own takes: "Look! We made a" and
+         "right-angled triangle!", joined in the pause between them. */
+      line: 'Look! We made a right-angled triangle!',
       entrance: 'none', layout: 'board', keepSegment: true,
       view: 'triangle', quietBoard: true,
       /* Nothing is drawn here, and nothing is singled out either.
@@ -2847,14 +2882,17 @@ window.CFG = (function () {
          1.25s — so for over two seconds she was naming a triangle
          with two sides on the board. The shape closes as she says
          what it is. */
-      /* And the three sides light on that same word — the glow that
-         used to wait for the question on 26. "Look! We made a triangle"
-         is the moment the shape is named, so this is where the board
-         shows which three lines she means: two full swells, the third
-         side coming up as the light goes round all three. */
-      wordCues: [ { word: 'triangle', settle: true, pulse: 'triangle', run: 1800 } ],
+      /* And the three sides light on that same word. "Look! We made a
+         right-angled triangle!" is the moment the shape is named, so
+         this is where the board shows which three lines she means: two
+         full swells, the third side coming up as the light goes round
+         all three — the square in the corner a word before them. */
+      wordCues: [ { word: 'right-angled', mark: true },
+                  { word: 'triangle', settle: true, pulse: 'triangle', run: 1800 } ],
+      /* The square stays in the corner from here on: 28 goes on to say
+         "since it's a right triangle", and keeps it (`keepMark`). */
       /* Long enough after her last word for the light to finish before
-         26 arrives: the word lands one beat (~0.4s) before her balloon
+         28 arrives: the word lands one beat (~0.4s) before her balloon
          closes, and the light runs 1.8s from it. */
       hold: 1900,
       segment: { a: { x: 2, y: 1, name: 'A' },
@@ -2864,60 +2902,6 @@ window.CFG = (function () {
           settled: true, length: true },
         { from: { x: 6, y: 1 }, to: { x: 6, y: 4 },
           settled: true, length: true }
-      ] },
-
-    /* The balloon asks it. It used to say "Look! We've made a
-       triangle." with the three names already up on the panel —
-       an observation beside three buttons, so the child had to
-       work out from the buttons alone that a question was being
-       put to them. The beat has a question in it; the line is it.
-
-       Unvoiced for now: the recording says "What kind of triangle
-       is IT?" and the balloon must never read one thing while she
-       says another — the same call screen 7 made. Re-record, or
-       change the word here, and 17-what-kind-of-triangle-is-it.mp3
-       comes back. */
-    { id: 26, shape: SHAPE_1, line: 'What kind of triangle is this?',
-      askFirst: true,
-      /* No "Triangle" on any of them. Every card on the screen is a
-         triangle, the word was in all three, and it told the child
-         nothing about any of them — while taking up the room that
-         kept the type at a size nobody could read from the back of a
-         classroom. The names are what is being chosen between. */
-      options: [
-        { key: 'scalene',      cls: 'scalene',      label: 'Scalene' },
-        { key: 'isosceles',    cls: 'isosceles',    label: 'Isosceles' },
-        { key: 'right-angled', cls: 'right-angled', label: 'Right-angled' }
-      ],
-      task: {
-        kind: 'choice',
-        answer: 'right-angled',
-        /* One rung, and it points at the evidence rather than at the
-           answer. Wrong twice and she names it herself — nothing in
-           this game is asked a third time. */
-        feedback: ['Look at the corner at C.'],
-        voiceOnly: true,
-        correctLine: 'A right-angled triangle!',
-        /* Missed twice, and the asking is over: the square goes into
-           the corner and she reads it out, so the beat ends on the
-           evidence rather than on a second helping of the same nudge. */
-        spentLine: 'It\u2019s a right-angled triangle.',
-        /* And the square goes in the corner as the answer lands: the
-           evidence for the thing they just named. */
-        marksRightAngle: true
-      },
-      entrance: 'stay', view: 'triangle', quietBoard: true,
-      /* No glow on the question. The three sides light on 27, as she says
-         "Look! We made a triangle" — the words that name the shape — and
-         lighting the same triangle again here made one moment look like
-         it was happening twice. */
-      layout: 'board', keepSegment: true,
-      hold: 3400,
-      segment: { a: { x: 2, y: 1, name: 'A' },
-                 b: { x: 6, y: 4, name: 'B' } },
-      legs: [
-        { from: { x: 2, y: 1 }, to: { x: 6, y: 1 }, mark: { name: 'C' }, length: true },
-        { from: { x: 6, y: 1 }, to: { x: 6, y: 4 }, length: true }
       ] },
 
     /* No question here any more. It asked "how can we find the third
@@ -3275,7 +3259,9 @@ window.CFG = (function () {
          root is written and she comes back under the table. */
       task: {
         kind: 'table',
-        correctLine: 'That’s right!',
+        /* Nothing said when the last blank is in (`false`): the line it
+           ends on goes green, and 37 puts it up on its own. */
+        correctLine: false,
         tableSize: 36,
         /* Written as it is read, one line a row with the = signs under
            one another: AC before CB and the x's before the y's, each
@@ -3304,8 +3290,10 @@ window.CFG = (function () {
               { t: 'y\u2082 \u2212 y\u2081', lit: 'v', answer: 'y\u2082 \u2212 y\u2081',
                 offer: [ 'y\u2082 \u2212 y\u2081', 'y\u2081 + y\u2082' ] },
               { t: ')\u00B2', lit: 'v' } ] },
+          /* Named d, not AB: this is the distance formula now, for any
+             two points, and d is what every screen after it calls it. */
           { kind: 'result', inline: true, parts: [
-              { t: 'AB', lit: 'ab' }, { t: ' = ' },
+              { t: 'd', lit: 'ab' }, { t: ' = ' },
               { t: '\u221A(', lit: 'ab' },
               { t: '(x\u2082 \u2212 x\u2081)\u00B2', lit: 'h' },
               { t: ' + ', lit: 'ab' },
@@ -3328,13 +3316,16 @@ window.CFG = (function () {
 
     /* 36 — the recap of the formula — is gone: 35 has just written it.
 
-       37 — what that formula is: no leaf sweep, the table stays where 35
-       wrote it, and she flies back under it to say so. */
-    { id: 37, shape: SHAPE_G, line: 'And that gives us the distance between any two points!',
-      entrance: 'stay', layout: 'board', keepSegment: true, keepTable: true,
-      /* The formula is what this line is about, so it is made big: the
-         board steps back to 85% against its left edge and the table
-         comes into the room at 125%. */
+       37 — the formula, on its own. No leaf sweep, and no words: the
+       table stays where 35 wrote it, the two lines that led to it fade
+       and fold away (`tableOnly`), and what is left is the one line it
+       ended on, made big — the board steps back to 85% against its left
+       edge and the table comes into the room at 125%. Swifty is away
+       (she did not come back at the end of 35), and the screen waits
+       for Next (`waitNext`) for as long as the child wants to look. */
+    { id: 37, shape: SHAPE_G,
+      entrance: 'away', layout: 'board', keepSegment: true, keepTable: true,
+      tableOnly: 'last', waitNext: true,
       tableGrow: { board: 0.85, table: 1.25 } },
 
 
@@ -3355,8 +3346,13 @@ window.CFG = (function () {
       /* The child's own go (runAxisPick): the board builds in the middle
          and moves across, she says which case it is and goes, and the
          table opens out of the board for the child to fill. */
+      /* She comes in to the table as it opens and names what its first
+         line is — the formula, written as she finishes saying so — and
+         leaves the rest to the child. Nothing said at the end: the line
+         it ends on goes green, and the screen hands on. */
       task: { kind: 'table', formula: XAXIS.picks, tableSize: 32,
-              correctLine: 'Exactly! There\u2019s no vertical distance.' } },
+              tableLine: 'The distance between any two points is:',
+              correctLine: false } },
 
     /* 30 — leaves again, and the same empty field as 25: board and
        working left behind, Swifty flying back in alone to put the next
@@ -3373,7 +3369,22 @@ window.CFG = (function () {
          then the table. */
       noIntro: true,
       task: { kind: 'table', formula: YAXIS.picks, tableSize: 32,
-              correctLine: 'Exactly! There\u2019s no horizontal distance.' } },
+              tableLine: 'The distance between any two points is:',
+              correctLine: false } },
+
+    /* 41b — the formula, asked for straight out, before it is put to
+       work in the town: two points and nothing else, and "Find the
+       distance between A and B." Three across and four up, so it comes
+       out whole — 5 units, on the reel. Wrong once, and the formula
+       opens out of the board for the child to work, as on every walk. */
+    ...walk({
+      ids: ['41b'], formula: true,
+      a: { x: 1, y: -1 }, b: { x: 4, y: 3 }, c: { x: 4, y: -1 },
+      say: { first: 'Find the distance between A and B.', cue: 'distance', ask: false,
+             right: 'That\u2019s correct!' },
+      base: { range: { min: 0, max: 8 } },
+      first: { transition: 'leaves', entrance: 'fly' }
+    }),
 
     /* ---- 42-46: the closer cafe.
 
@@ -3729,6 +3740,6 @@ window.CFG = (function () {
     VERSION, STAGE_W, STAGE_H, ART, SHEETS, SHEET_W, SHEET_H,
     SWIFTY, CHAR_SCALE, ANCHOR, HEAD_TOP, FEET_DY, SHADOW, CLOUD,
     S5_ORIGIN, GRID, STAND, S8_ORIGIN, BOARD, RECAP, XAXIS, YAXIS, TOWN,
-    BUBBLE, PLAY, START, AUDIO, AUTO, NAV, MOTION, SCRIPT
+    BUBBLE, FIELD_BUBBLE, PLAY, START, AUDIO, AUTO, NAV, MOTION, SCRIPT
   };
 })();
