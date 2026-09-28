@@ -26,7 +26,6 @@ window.TriangleOptions = (function () {
     const root = document.createElement('div');
     root.classList.add('triangle-options-panel');
     root.id = opts.id || 'triangleOptions';
-    const home = { x: opts.x, y: opts.y };
     if (opts.x !== undefined) root.style.left = opts.x + 'px';
     if (opts.y !== undefined) root.style.top = opts.y + 'px';
     if (opts.scale) root.style.setProperty('--k', opts.scale);
@@ -135,7 +134,7 @@ window.TriangleOptions = (function () {
           pic.className = 'opt-pic';
           pic.style.width = Math.round(P.w * k) + 'px';
           pic.style.height = H + 'px';
-          pic.style.backgroundImage = 'url("' + P.src + '")';
+          pic.style.backgroundImage = 'url("' + (window.Preload ? window.Preload.url(P.src) : P.src) + '")';
           pic.style.backgroundSize = (P.sw * k) + 'px ' + (P.sh * k) + 'px';
           pic.style.backgroundPosition = (-P.x * k) + 'px ' + (-P.y * k) + 'px';
           b.appendChild(pic);
@@ -211,110 +210,10 @@ window.TriangleOptions = (function () {
        host which side it just named, so the board can light the same
        thing at the same moment. That is the whole point of the sequence:
        the words and the drawing say one thing together. */
-    /* Paced to be followed, not to be got through: this is the one
-       place in the game where the child is being shown the answer
-       rather than asked for it, so each line and each part of it is
-       given its own moment. */
-    const LINE_MS = 620;      // a line arriving
-    const BEAT_MS = 820;      // one named part after the last
-
-    let formula = null, beats = [];
-    function clearBeats() {
-      beats.forEach(clearTimeout);
-      beats = [];
-    }
-
-    /* How long the whole thing runs, without running it — the host has
-       to hold the screen open for exactly that. */
-    /* A part that is flown into takes the flight's time as well as its
-       own beat: the host is carrying a number across the screen into
-       it, and a working whose screen is taken away mid-flight has a
-       number still in the air when the board goes. */
-    function formulaMs(lines, flyMs) {
-      let ms = 0;
-      (lines || []).forEach(function (l) {
-        ms += LINE_MS;
-        (l.parts || []).forEach(function (f) {
-          if (!f.lit) return;
-          ms += BEAT_MS + (f.from && flyMs ? flyMs : 0);
-        });
-      });
-      return ms;
-    }
-
-    /* `opts.onFly(part, node)` is called when a part that names a source
-       is about to arrive, and `opts.flyMs` is how long the host needs to
-       carry it there. The panel stays in charge of the timing — it is
-       the thing that knows when each line lands — and the host stays in
-       charge of the flight. */
-    function showFormula(lines, onBeat, opts) {
-      opts = opts || {};
-      const FLY_MS = opts.flyMs || 0;
-      buttons.forEach(function (b) { b.classList.add('hidden'); });
-      clearBeats();
-      if (formula) root.removeChild(formula);
-      formula = document.createElement('div');
-      formula.classList.add('formula-view');
-
-      let at = 0;
-      (lines || []).forEach(function (l) {
-        const d = document.createElement('div');
-        d.classList.add('formula-' + (l.kind || 'step'));
-        d.style.animationDelay = at + 'ms';
-        /* A line long enough to need it can ask to be set smaller —
-           the distance formula written out in full is half as long
-           again as anything else this panel states. */
-        if (l.small) d.classList.add('sm');
-        if (l.parts) {
-          l.parts.forEach(function (f) {
-            const sp = document.createElement('span');
-            sp.textContent = f.t;
-            // held back at low contrast until its moment, never reflowing
-            if (f.lit) sp.classList.add('lit-' + f.lit, 'wait');
-            d.appendChild(sp);
-          });
-        } else {
-          d.textContent = l.text;
-        }
-        formula.appendChild(d);
-        at += LINE_MS;
-
-        (l.parts || []).forEach(function (f, k) {
-          if (!f.lit) return;
-          const sp = d.children[k], which = f.lit;
-          /* Flown first, then landed. The number has to be seen leaving
-             the board before the slot it is going into fills, or the
-             slot has filled itself and the flight is decoration. */
-          if (f.from && FLY_MS && opts.onFly) {
-            beats.push(setTimeout(function () { opts.onFly(f, sp); }, at));
-            at += FLY_MS;
-          }
-          beats.push(setTimeout(function () {
-            sp.classList.remove('wait');
-            sp.classList.add('now');
-            if (onBeat) onBeat(which);
-          }, at));
-          at += BEAT_MS;
-        });
-      });
-
-      root.appendChild(formula);
-      return at;
-    }
-
-    function hideFormula() {
-      clearBeats();
-      if (formula) { root.removeChild(formula); formula = null; }
-      buttons.forEach(function (b) { b.classList.remove('hidden'); });
-    }
-
     parent.appendChild(root);
 
     return {
       el: root,
-      showFormula: showFormula,
-      formulaMs: formulaMs,
-      hideFormula: hideFormula,
       setChoices: function (list) { build(list); },
 
       /* Two answers that name two places on a map read as a pair when
@@ -330,18 +229,7 @@ window.TriangleOptions = (function () {
       setWide: function (on) { root.classList.toggle('wide', !!on); },
       setAnswer: function (k) { answerKey = k; },
       reset: function () {
-        hideFormula(); clearStates(); locked = false; quietUntil = 0;
-        // back where it was mounted, wherever the working moved it to
-        if (home.x !== undefined) root.style.left = home.x + 'px';
-        if (home.y !== undefined) root.style.top = home.y + 'px';
-      },
-
-      /* The working takes the middle of her column, not the foot of it.
-         Moved while hidden, so it arrives in its new place rather than
-         sliding there. */
-      moveTo: function (x, y) {
-        root.style.left = x + 'px';
-        root.style.top = y + 'px';
+        clearStates(); locked = false; quietUntil = 0;
       },
       lock: function () { locked = true; },
       /* Nobody got it, so the panel says which one it was. Locking
@@ -364,15 +252,10 @@ window.TriangleOptions = (function () {
         root.classList.remove('hidden', 'rising');
         if (rising) { void root.offsetWidth; root.classList.add('rising'); }
       },
-      /* Hidden is finished: a working still being written into a panel
-         nobody can see would go on lighting sides and flying digits on
-         whatever screen came next. */
-      hide: function () { clearBeats(); root.classList.add('hidden'); },
-      /* The working stopped where it stands, for a screen change. */
-      stop: function () { clearBeats(); },
+      hide: function () { root.classList.add('hidden'); },
       onAnswer: function (fn) { onAnswer = fn; }
     };
   }
 
-  return { mount: mount, CHOICES: CHOICES };
+  return { mount: mount };
 })();

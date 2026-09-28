@@ -1,6 +1,6 @@
 /* =============================================================
    Audio engine
-   - background music from sfx/bg music.mp3, held at 20%
+   - background music from sfx/bg music.ogg (Ogg Opus), held at 20%
    - every other sound is synthesised with the Web Audio API,
      because only the music track was supplied
    - music ducks automatically while Swifty is speaking
@@ -15,7 +15,7 @@ window.Audio8 = (function () {
      everything queued lands in one burst the moment it resumes. */
   let armed = false;
   let musicEl = null, noiseBuf = null, musicRamp = null;
-  let started = false, duckDepth = 0, muted = false, musicWant = 0;
+  let started = false, duckDepth = 0, musicWant = 0;
 
   function now() { return ctx ? ctx.currentTime : 0; }
 
@@ -48,10 +48,14 @@ window.Audio8 = (function () {
        the page is opened straight from disk, because file:// counts as
        an opaque origin and taints the node — and nothing here needs to
        process the music anyway. */
-    musicEl = new Audio(A.musicSrc);
+    /* From the loader's copy (js/preload.js): nothing of its own to
+       fetch, so `preload` is none — the loader has it, or will. */
+    musicEl = new Audio();
     musicEl.loop = true;
-    musicEl.preload = 'auto';
+    musicEl.preload = 'none';
     musicEl.volume = 0;
+    if (window.Preload) window.Preload.adopt(musicEl, A.musicSrc);
+    else musicEl.src = A.musicSrc;
   }
 
   /* Smooth fade on the element, used for start-up and for ducking. */
@@ -59,7 +63,7 @@ window.Audio8 = (function () {
     if (!musicEl) return;
     clearInterval(musicRamp);
     const from = musicEl.volume;
-    const to = muted ? 0 : musicWant;
+    const to = musicWant;
     const steps = Math.max(1, Math.round((secs || 0.3) * 30));
     let i = 0;
     musicRamp = setInterval(function () {
@@ -127,12 +131,6 @@ window.Audio8 = (function () {
     musicTarget(A.musicVolume, A.duckUp);
   }
 
-  function setMuted(m) {
-    muted = m;
-    if (master) master.gain.setTargetAtTime(m ? 0 : 1, now(), 0.05);
-    rampMusic(0.2);
-  }
-  function isMuted() { return muted; }
 
   /* ---------- synthesis helpers ---------- */
 
@@ -398,10 +396,9 @@ window.Audio8 = (function () {
   }
 
   return {
-    unlock, prime, duck, duckReset, setMuted, isMuted, wind, breeze, confettiPop,
+    unlock, prime, duck, duckReset, wind, breeze, confettiPop,
     chirp, birdCall, flap, land, pop, blip, sparkle, whoosh, chime, magic, draw, tick,
     correct, wrong, cheer, rustle,
-    get ready() { return !!ctx; },
     // whether playback is actually authorised, not merely built
     get armed() { return armed; }
   };

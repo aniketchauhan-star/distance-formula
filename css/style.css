@@ -84,44 +84,51 @@ html, body {
 .hidden { display: none !important; }
 
 /* ---------------- loading ---------------- */
-#loader {
-  position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 12;
-  display: flex; align-items: center; justify-content: center;
-  background: linear-gradient(180deg, #5fc4f5 0%, #a5e6ff 55%, #b9ea86 100%);
-  transition: opacity .45s ease;
+/* ---------------- loading: the bar where Play will be ----------------
+   The title screen is up from the first moment, and until every file is
+   here (js/preload.js) the bar stands in the Play button's place — the
+   same white-edged pill and sunrise fill the loading screen before it
+   had. layout() centres it on the button's box. When it is full it goes,
+   she flies in, and Play pops up where it was. */
+#loadBar {
+  position: absolute; z-index: 3;
+  width: 560px;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  transition: opacity .4s ease, transform .4s ease;
 }
-#loader.fade-out { opacity: 0; }
-.loader-inner { text-align: center; }
-.loader-title {
-  font-size: 96px; font-weight: 400; color: #fff;
-  letter-spacing: 1px; margin-bottom: 42px;
-  text-shadow: 0 6px 0 #1b64b5, 0 14px 30px rgba(0, 0, 0, .25);
-  animation: floaty 2.4s ease-in-out infinite;
-}
-.loader-track {
-  width: 620px; height: 34px; margin: 0 auto;
+#loadBar.done { opacity: 0; transform: translate(-50%, -50%) scale(.94); }
+#loadBar.hidden { display: none; }
+.load-track {
+  height: 34px;
   background: rgba(255, 255, 255, .45);
   border: 5px solid #fff; border-radius: 999px;
   overflow: hidden;
   box-shadow: 0 8px 22px rgba(0, 0, 0, .18);
 }
-#loaderBar {
+/* Its width follows the bytes (js/preload.js); the transition only
+   smooths a step between two reports, it never runs ahead of them. */
+#loadFill {
   height: 100%; width: 0%;
   background: linear-gradient(90deg, #ffd34e, #ff9d3d);
   border-radius: 999px;
-  transition: width .3s ease;
+  transition: width .25s ease;
 }
-#loaderPct {
-  margin-top: 18px; font-size: 30px; font-weight: 400; color: #fff;
+#loadPct {
+  margin-top: 14px;
+  font-family: 'Lilita One', 'Nunito', system-ui, sans-serif;
+  font-size: 30px; font-weight: 400; color: #fff;
   text-shadow: 0 3px 0 rgba(27, 100, 181, .8);
+  font-variant-numeric: tabular-nums;
 }
 /* Which copy of the game this is: the version stamp, as a date. Small
    and quiet — it is for comparing two laptops, not for the child. */
-#loaderVer {
-  margin-top: 26px;
+#loadVer {
+  margin-top: 8px;
   font-family: 'Nunito', system-ui, sans-serif; font-weight: 600;
   font-size: 18px; letter-spacing: .5px;
-  color: rgba(255, 255, 255, .55);
+  color: rgba(255, 255, 255, .7);
+  text-shadow: 0 1px 2px rgba(27, 60, 110, .6);
   min-height: 1.2em;
 }
 
@@ -201,6 +208,14 @@ html, body {
    animation, so it cannot fight the idle keyframes below. */
 #playBtn.veiled { opacity: 0; pointer-events: none; }
 #playBtn.idle { animation: playIdle 1.9s ease-in-out infinite; }
+/* Offered: it pops up in the bar's place, overshoots a little, settles
+   into its idle bob. */
+#playBtn.popping { animation: playPop .5s cubic-bezier(.3, 1.45, .5, 1) both; }
+@keyframes playPop {
+  0%   { transform: scale(.3); opacity: 0; }
+  60%  { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
 @media (hover: hover) and (pointer: fine) {
   #playBtn:hover { animation-duration: 1.1s; }
 }
@@ -208,7 +223,7 @@ html, body {
 #playBtn.pressed { animation: playPress .42s cubic-bezier(.3, 1.5, .5, 1) forwards; }
 
 /* ---------------- scene ---------------- */
-#scene { position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 1; opacity: 0; }
+#scene { position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 1; }
 
 /* The scene behind the game is left sharp. It used to carry a 4px
    blur to push it back behind the board and the line — and the 1.02
@@ -227,17 +242,31 @@ html, body {
    and it all comes back sharp with the next screen. The soft painting is
    a copy blurred once and faded in (only its opacity moves), so the
    blur itself is never animated; its 1.04 scale puts the soft rim a blur
-   leaves at its own edges outside the frame. Clouds soften with it. */
+   leaves at its own edges outside the frame. Clouds soften with it.
+
+   Faded out, the copy is hidden as well (once the fade has run), and it
+   asks for no layer of its own: a whole-frame blurred picture held on
+   the graphics card through every screen that does not show it is what
+   pushes a tablet past its texture budget — and what the card drops
+   then is whatever is on screen. */
 #sceneArtSoft {
   filter: blur(9px) saturate(.9) brightness(.95);
   transform: scale(1.04);
   opacity: 0;
-  transition: opacity .8s ease;
-  will-change: opacity;
+  visibility: hidden;
+  transition: opacity .8s ease, visibility 0s linear .8s;
 }
-#scene.focus-bird #sceneArtSoft { opacity: 1; }
-#skyLayer { transition: filter .8s ease, opacity .8s ease; }
-#scene.focus-bird #skyLayer { filter: blur(4px); opacity: .85; }
+#scene.focus-bird #sceneArtSoft { opacity: 1; visibility: visible; transition: opacity .8s ease, visibility 0s; }
+/* Each cloud blurred on its own rather than the sky as a whole: a blur
+   over the whole sky has to be worked again on every frame a cloud
+   moves, over the whole frame. */
+.cloud { transition: filter .8s ease; }
+.cloud img { transition: opacity .8s ease; }
+#scene.focus-bird .cloud { filter: blur(4px); }
+#scene.focus-bird .cloud img { opacity: .85; }
+/* And the leaf and the wind that cross the sky, piece by piece. */
+.fx-drift, .fx-sweep { transition: filter .8s ease; }
+#scene.focus-bird .fx-drift, #scene.focus-bird .fx-sweep { filter: blur(4px); }
 /* Dark only at the far edges, and a cool purple taken from the dusk in
    the painting rather than black; centred on her (Game.focusBird). */
 #focusVeil {
@@ -247,10 +276,16 @@ html, body {
   background: radial-gradient(ellipse 900px 680px at var(--focus-x, 50%) var(--focus-y, 72%),
               rgba(28, 18, 52, 0) 0%, rgba(28, 18, 52, 0) 42%, rgba(28, 18, 52, .36) 100%);
   opacity: 0;
-  transition: opacity .8s ease;
+  visibility: hidden;          /* as the soft copy above, once faded out */
+  transition: opacity .8s ease, visibility 0s linear .8s;
 }
-#scene.focus-bird #focusVeil { opacity: 1; }
-#scene.fade-in { animation: fadeIn .6s ease forwards; }
+#scene.focus-bird #focusVeil { opacity: 1; visibility: visible; transition: opacity .8s ease, visibility 0s; }
+/* Filled backwards, never forwards, here and on every entrance below
+   whose last frame is the element's own style: an animation holding its
+   last frame is still running as far as the compositor is concerned,
+   and keeps the element on a layer of its own for good — the whole
+   frame, for this one. */
+#scene.fade-in { animation: fadeIn .6s ease backwards; }
 
 /* Everything ambient lives here — the clouds and the drifting leaf.
    z-index 1 puts the whole layer behind the board (2), Swifty (3) and
@@ -433,12 +468,14 @@ html.calm #gridAxes .blinking { animation: none; }
 
 
 /* the board arriving out of nowhere */
-#gridPanel.magic-in { animation: magicIn .7s cubic-bezier(.25, .9, .3, 1) both; }
+#gridPanel.magic-in { animation: magicIn .7s cubic-bezier(.25, .9, .3, 1) backwards; }
 
 /* The ruled paper washes in under the axes instead of arriving with the
    panel, so the board fills in rather than turning up complete. */
-#gridImg.ruling { animation: ruleIn 1s ease-out both; }
-@keyframes ruleIn { from { opacity: 0; } to { opacity: 1; } }
+/* Up to whatever the ruling's own opacity is — full, or a quiet board's
+   .35 — and then let go, so the quiet rule below dims it by declaration. */
+#gridImg.ruling { animation: ruleIn 1s ease-out backwards; }
+@keyframes ruleIn { from { opacity: 0; } }
 /* A quiet board. The ruling, the axes, their arrowheads and their
    numbers all fall back together, so what is plotted on top of them
    comes forward.
@@ -513,13 +550,6 @@ html.calm #gridAxes .blinking { animation: none; }
 #gridPanel.unnumbered #gridAxes .glabel.gnum,
 #gridPanel.unnumbered #gridAxes .glabel.gnum.pop { opacity: 0; animation: none; }
 
-/* The ruling is the one that cannot be dimmed by a declaration. The rule
-   above runs ruleIn with `both`, so its filled last frame — opacity 1 —
-   beats any rule, whatever its weight; the axes record the same trap a
-   few lines down. So the quiet ruling is an animation of its own, which
-   is what it takes to win. */
-#gridPanel.quiet #gridImg.ruling { animation: ruleQuiet .45s ease both; }
-@keyframes ruleQuiet { to { opacity: .35; } }
 
 /* Each axis is two half-lines drawn outward from the origin, so the
    middle lines grow from the centre rather than sweeping in. */
@@ -1101,7 +1131,7 @@ html.calm #gridAxes .xsweep.draw { animation: none; opacity: .85; stroke-dashoff
 
 /* screen 5 resting pose */
 #standSwifty { position: absolute; display: block; }
-#standSwifty.land-in { animation: standIn .3s ease-out both; }
+#standSwifty.land-in { animation: standIn .3s ease-out backwards; }
 
 /* screen 24: the formula, stated beside the board */
 #formulaBoard {
@@ -1463,7 +1493,7 @@ html.calm #missGlow.on { animation: missFade .9s ease; }
 }
 
 /* ---------------- keyframes ---------------- */
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fadeIn { from { opacity: 0; } }
 
 /* The board settles in rather than bursting in: it used to arrive at
    0.55 scale, rotated, over-bright and blurred, then overshoot. */
@@ -1695,7 +1725,7 @@ html.calm #missGlow.on { animation: missFade .9s ease; }
    rule. */
 html.calm .cloud { animation-play-state: paused !important; }
 html.calm .fx-mote { display: none; }
-html.calm .loader-title, html.calm #playBtn.idle { animation: none !important; }
+html.calm #playBtn.idle, html.calm #playBtn.popping { animation: none !important; }
 
 /* =============================================================
    Highlights, last in the file on purpose.

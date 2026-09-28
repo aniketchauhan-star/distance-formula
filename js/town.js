@@ -109,7 +109,8 @@ window.TownMap = (function () {
 
       const b = document.createElement('div');
       b.className = 'town-build';
-      b.style.backgroundImage = 'url("' + window.CFG.TOWN.sheet.src + '")';
+      const sheetSrc = window.Preload ? window.Preload.url(window.CFG.TOWN.sheet.src) : window.CFG.TOWN.sheet.src;
+      b.style.backgroundImage = 'url("' + sheetSrc + '")';
 
       /* Its door, if its kind has one: laid exactly over the door in
          the picture. Shut, it shows nothing of its own — the drawing is
@@ -339,7 +340,7 @@ window.TownMap = (function () {
         w.className = 'town-walker';
         const fig = document.createElement('div');
         fig.className = 'town-walker-fig';
-        fig.style.backgroundImage = 'url("' + src + '")';
+        fig.style.backgroundImage = 'url("' + (window.Preload ? window.Preload.url(src) : src) + '")';
         w.appendChild(fig);
         root.appendChild(w);
         let W = 0, H = 0, feet = 1;

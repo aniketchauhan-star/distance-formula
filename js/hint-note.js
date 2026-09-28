@@ -75,7 +75,6 @@ window.HintNote = (function () {
     }
 
     return {
-      root: root,
       /* The sentence. Setting it closes the row: a hint carried open
          from the last question would be answering this one. */
       set: function (text) {

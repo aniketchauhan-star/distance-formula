@@ -16,23 +16,23 @@
      them, in the board's navy and gold. The SVG scales to whatever a
      browser asks for; the PNGs are there for the ones that still want a
      bitmap, and for an iOS home screen. -->
-<link rel="icon" type="image/svg+xml" href="assets/icon.svg?v=20260928171143">
-<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png?v=20260928171143">
-<link rel="apple-touch-icon" sizes="180x180" href="assets/icon-180.png?v=20260928171143">
+<link rel="icon" type="image/svg+xml" href="assets/icon.svg?v=20260928220231">
+<!-- The two PNG icons stay PNG: iOS asks for a PNG home-screen icon, and
+     as WebP these two came out no smaller (3KB between them). -->
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png?v=20260928220231">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/icon-180.png?v=20260928220231">
 <meta name="theme-color" content="#213258">
 <!-- The game's own two fonts, from its own folder — never the
      laptop's, never the network's. -->
-<link rel="stylesheet" href="css/fonts.css?v=20260928171143">
-<link rel="stylesheet" href="css/style.css?v=20260928171143">
-<link rel="stylesheet" href="css/number-selector.css?v=20260928171143">
-<link rel="stylesheet" href="css/triangle-options.css?v=20260928171143">
-<link rel="stylesheet" href="css/hint-note.css?v=20260928171143">
-<link rel="stylesheet" href="css/screen-jump.css?v=20260928171143">
-<link rel="stylesheet" href="css/town.css?v=20260928171143">
-<link rel="stylesheet" href="css/speech-bubble.css?v=20260928171143">
-<link rel="stylesheet" href="css/formula-slots.css?v=20260928171143">
-<link rel="stylesheet" href="css/formula-table.css?v=20260928171143">
-<link rel="stylesheet" href="css/distance-slider.css?v=20260928171143">
+<link rel="stylesheet" href="css/fonts.css?v=20260928220231">
+<link rel="stylesheet" href="css/style.css?v=20260928220231">
+<link rel="stylesheet" href="css/number-selector.css?v=20260928220231">
+<link rel="stylesheet" href="css/triangle-options.css?v=20260928220231">
+<link rel="stylesheet" href="css/hint-note.css?v=20260928220231">
+<link rel="stylesheet" href="css/screen-jump.css?v=20260928220231">
+<link rel="stylesheet" href="css/town.css?v=20260928220231">
+<link rel="stylesheet" href="css/speech-bubble.css?v=20260928220231">
+<link rel="stylesheet" href="css/formula-table.css?v=20260928220231">
 </head>
 <body>
 
@@ -40,18 +40,8 @@
   <!-- 1920 x 1080 design space, scaled to fit any 16:9 screen -->
   <div id="stage">
 
-    <!-- ============ loading ============ -->
-    <div id="loader">
-      <div class="loader-inner">
-        <div class="loader-title">Distance Formula</div>
-        <div class="loader-track"><div id="loaderBar"></div></div>
-        <div id="loaderPct">0%</div>
-        <div id="loaderVer" aria-label="Version"></div>
-      </div>
-    </div>
-
     <!-- ============ start screen ============ -->
-    <div id="startScreen" class="hidden">
+    <div id="startScreen">
       <img id="startArt" class="full" src="" alt="Distance Formula">
 
       <!-- wind and blowing leaves; behind her and behind the button -->
@@ -71,6 +61,14 @@
       <button id="playBtn" class="veiled" disabled aria-label="Play">
         <img id="playImg" src="" alt="">
       </button>
+
+      <!-- Where Play will be, until every file is here (js/preload.js):
+           the bar, how far it has got, and which copy of the game this is. -->
+      <div id="loadBar" role="progressbar" aria-label="Loading" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div class="load-track"><div id="loadFill"></div></div>
+        <div id="loadPct">0%</div>
+        <div id="loadVer"></div>
+      </div>
     </div>
 
     <!-- ============ game scene ============ -->
@@ -117,16 +115,13 @@
         <div id="bubble" class="hidden">
           <div id="bubbleBody" class="game-speech-bubble" role="dialog" aria-live="polite">
             <span class="game-speech-bubble__shine" aria-hidden="true"></span>
-            <div id="bubbleText" class="game-speech-bubble__content">
+            <div class="game-speech-bubble__content">
               <p id="bubbleLine" class="game-speech-bubble__text"></p>
             </div>
           </div>
         </div>
       </div>
 
-
-      <!-- screen 24: the formula stated beside the board -->
-      <div id="formulaBoard" class="hidden"><div class="fb-inner"></div></div>
 
       <!-- the way back and the way on, as one pair in the top corner -->
       <div id="nav">
@@ -150,20 +145,19 @@
   </div>
 </div>
 
-<script src="js/config.js?v=20260928171143"></script>
-<script src="js/audio.js?v=20260928171143"></script>
-<script src="js/voice.js?v=20260928171143"></script>
-<script src="js/fx.js?v=20260928171143"></script>
-<script src="js/number-selector.js?v=20260928171143"></script>
-<script src="js/triangle-options.js?v=20260928171143"></script>
-<script src="js/hint-note.js?v=20260928171143"></script>
-<script src="js/screen-jump.js?v=20260928171143"></script>
-<script src="js/town.js?v=20260928171143"></script>
-<script src="js/formula-slots.js?v=20260928171143"></script>
-<script src="js/formula-table.js?v=20260928171143"></script>
-<script src="js/distance-slider.js?v=20260928171143"></script>
-<script src="js/speech-bubble.js?v=20260928171143"></script>
-<script src="js/math-text.js?v=20260928171143"></script>
-<script src="js/game.js?v=20260928171143"></script>
+<script src="js/config.js?v=20260928220231"></script>
+<script src="js/asset-manifest.js?v=20260928220231"></script>
+<script src="js/preload.js?v=20260928220231"></script>
+<script src="js/audio.js?v=20260928220231"></script>
+<script src="js/voice.js?v=20260928220231"></script>
+<script src="js/fx.js?v=20260928220231"></script>
+<script src="js/number-selector.js?v=20260928220231"></script>
+<script src="js/triangle-options.js?v=20260928220231"></script>
+<script src="js/hint-note.js?v=20260928220231"></script>
+<script src="js/screen-jump.js?v=20260928220231"></script>
+<script src="js/town.js?v=20260928220231"></script>
+<script src="js/formula-table.js?v=20260928220231"></script>
+<script src="js/math-text.js?v=20260928220231"></script>
+<script src="js/game.js?v=20260928220231"></script>
 </body>
 </html>

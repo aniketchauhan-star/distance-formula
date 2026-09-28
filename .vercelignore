@@ -1,0 +1,9 @@
+# Kept in the repository, never deployed: the design notes, the build
+# tools and retired code. What is left is exactly what the game loads.
+/docs
+/tools
+/.attic
+/.githooks
+/.gitignore
+/.vercelignore
+.DS_Store

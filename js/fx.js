@@ -189,7 +189,8 @@ window.FX = (function () {
       d.style.animationDelay = -(inst.phase * dur) + 's';
 
       const im = document.createElement('img');
-      im.src = C.src;
+      // from the loader's copy (js/preload.js), never fetched twice
+      if (window.Preload) window.Preload.adopt(im, C.src); else im.src = C.src;
       im.alt = '';
       im.style.width = C.srcW * sc + 'px';
       im.style.height = C.srcH * sc + 'px';
@@ -282,7 +283,7 @@ window.FX = (function () {
     }
     // and the one leaf, solid, in front of its own wake
     const leaf = document.createElement('img');
-    leaf.src = window.CFG.ART.leaf;
+    if (window.Preload) window.Preload.adopt(leaf, window.CFG.ART.leaf); else leaf.src = window.CFG.ART.leaf;
     leaf.alt = '';
     leaf.style.width = size + 'px';
     ride(leaf, 0, 1);
@@ -404,7 +405,7 @@ window.FX = (function () {
     el.innerHTML = '';
     el.classList.remove('hidden');
 
-    const src = window.CFG.ART.leaf;
+    const src = window.Preload ? window.Preload.url(window.CFG.ART.leaf) : window.CFG.ART.leaf;
     let maxDelay = 0, minDelay = Infinity;
 
     const cw = LEAF_AREA.w / LEAF_COLS, chh = LEAF_AREA.h / LEAF_ROWS;
@@ -722,14 +723,7 @@ window.FX = (function () {
     ], { duration: 480 });
     shaking.onfinish = function () { shaking = null; };
   }
-  function stopGlow() {
-    const g = document.getElementById('missGlow');
-    if (g) g.classList.remove('on');
-  }
-
-  function clear() { landAll(); stopGlow(); if (layer) layer.innerHTML = ''; }
-
   return { init, starBurst, ring, pop, sparkles, puff, motes, clouds,
-           flyGlyph, liftAndFly, landAll, missGlow, shake,
-           leafDrift, wind, leaves, clear };
+           flyGlyph, liftAndFly, landAll, missGlow,
+           leafDrift, wind, leaves };
 })();

@@ -413,12 +413,6 @@ window.FormulaTable = (function () {
         } else if (last) setRoom(0);
       },
 
-      /* The working's answer, shown as the answer: its blank goes green. */
-      mark: function (r, k) {
-        const c = rows[r] && rows[r].cells[k];
-        if (c && c.box) c.box.classList.add('good');
-      },
-
       rowCount: function () { return rows.length; },
 
       /* One line and nothing else (37: the formula on its own). The

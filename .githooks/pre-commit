@@ -1,7 +1,9 @@
 #!/bin/sh
-# A new version stamp on every commit that changes what the game loads,
-# so a laptop that opened an earlier copy fetches the new files instead
-# of running the old ones. See tools/stamp.js.
+# On every commit that changes what the game loads:
+#  - a new version stamp, so a laptop that opened an earlier copy fetches
+#    the new files instead of running the old ones (tools/stamp.js);
+#  - the loading bar's size table, so it weighs every file by its real
+#    size (tools/manifest.js).
 #
 # Never blocks a commit: without node it simply does nothing.
 command -v node >/dev/null 2>&1 || exit 0
@@ -9,4 +11,6 @@ touched=$(git diff --cached --name-only -- index.html css js assets sfx)
 [ -z "$touched" ] && exit 0
 files=$(node tools/stamp.js) || exit 0
 [ -n "$files" ] && git add -- $files
+sizes=$(node tools/manifest.js) || exit 0
+[ -n "$sizes" ] && git add -- $sizes
 exit 0

@@ -1,7 +1,7 @@
 /* =============================================================
    Number selector — the combination lock, wearing its own art.
 
-   Every surface here is `assets/buttons.png`. It used to be CSS:
+   Every surface here is `assets/buttons.webp`. It used to be CSS:
    gradients for the curve of a drum, inset shadows for the well, a
    chevron built from two borders on a rotated box, four golds declared
    as custom properties. That was written because there was no artwork.
@@ -40,15 +40,14 @@
      A relative url() inside a custom property is resolved against the
      stylesheet where the var() is SUBSTITUTED — not where the value was
      set. So handing this property a document-relative path from JS
-     (`--sheet: url("assets/buttons.png")`, the form every other asset
+     (`--sheet: url("assets/buttons.webp")`, the form every other asset
      in the game uses) does not do what it looks like: it is resolved
-     against css/ and asks for css/assets/buttons.png, which is not
+     against css/ and asks for css/assets/buttons.webp, which is not
      there. Every surface cut from the sheet then comes up empty while
      the live digits drawn on them carry on rendering — the control is
      there and invisible. Tried, measured, reverted.
 
      If this ever needs to move, change the path here. */
-  --sheet: url('../assets/buttons.png?v=20260928171143');
 
   /* ---- the layout ------------------------------------------------
      Unchanged. The dials overhang the housing's ends, the pointer sits
@@ -413,7 +412,9 @@
 .number-control.hidden { display: none !important; }
 
 /* It arrives from below when she comes down onto it. */
-.number-control.rising { animation: ncRise .42s cubic-bezier(.22, .68, .3, 1) both; }
+/* Backwards only: its last frame is the control's own style, and a frame
+   held for good would keep it on a layer of its own for good. */
+.number-control.rising { animation: ncRise .42s cubic-bezier(.22, .68, .3, 1) backwards; }
 @keyframes ncRise {
   from { opacity: 0; transform: scale(var(--k, 1)) translateY(38px); }
   to   { opacity: 1; transform: scale(var(--k, 1)) translateY(0); }
@@ -436,3 +437,9 @@ html.calm .number-control .pointer { transition-duration: 1ms; }
 html.calm .number-control .cell.on { animation: none; }
 html.calm .number-control.is-wrong .cell.on,
 html.calm .number-control.is-correct .cell.on { animation: none; }
+
+/* The sheet itself, declared on the root rather than on the control: the
+   loader (js/preload.js) points it at the copy it fetched by setting it on
+   <html>, which only reaches it here. Relative to this stylesheet, as the
+   note above explains. */
+:root { --sheet: url('../assets/buttons.webp?v=20260928220231'); }

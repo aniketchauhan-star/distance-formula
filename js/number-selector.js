@@ -4,8 +4,8 @@
 
    Self-contained: it owns its markup and its styles, exposes the same
    small surface the game already used (mount / show / hide / reset /
-   set / setRange / markCorrect / markWrong / lock / onChange /
-   onCheck), and knows nothing about what any answer should be — the
+   set / setRange / markCorrect / markWrong / lock / onCheck), and
+   knows nothing about what any answer should be — the
    game tells it whether a guess was right, it does not work that out.
 
    The reel is five cells, not three. Three would mean recycling a cell
@@ -41,7 +41,7 @@ window.NumberSelector = (function () {
     let max = opts.max != null ? opts.max : MAX;
     let startAt = opts.start != null ? opts.start : START;
     let current = startAt;
-    let onChange = null, onCheck = null;
+    let onCheck = null;
 
     const root = document.createElement('div');
     root.classList.add('number-control');
@@ -200,7 +200,7 @@ window.NumberSelector = (function () {
       popping = setTimeout(function () { seat.classList.remove('pop'); }, SLIDE_MS + 40);
     }
 
-    function set(v, tell) {
+    function set(v) {
       v = Math.min(max, Math.max(min, Math.round(v)));
       if (v === current) return;
       const dir = v > current ? 1 : -1;
@@ -232,7 +232,6 @@ window.NumberSelector = (function () {
       }
 
       if (window.Audio8 && window.Audio8.blip) window.Audio8.blip();
-      if (tell !== false && onChange) onChange(current);
     }
 
     left.addEventListener('click', function (e) {
@@ -252,8 +251,6 @@ window.NumberSelector = (function () {
     paint(true);
 
     return {
-      el: root,
-      get value() { return current; },
       set: set,
 
       /* A screen can widen the range — the worked-out answers reach
@@ -334,10 +331,9 @@ window.NumberSelector = (function () {
         }
       },
 
-      onChange: function (fn) { onChange = fn; },
       onCheck: function (fn) { onCheck = fn; }
     };
   }
 
-  return { mount: mount, MIN: MIN, MAX: MAX, START: START };
+  return { mount: mount, MIN: MIN, MAX: MAX };
 })();

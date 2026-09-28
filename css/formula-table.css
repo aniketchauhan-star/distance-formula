@@ -232,7 +232,7 @@ html.calm .formula-table .ft-cell { transition: opacity .2s linear; transform: n
    "14", its outer digits on the tile's own rim. Now every number has
    the same air either side of it, and a short one still gets the
    square. The picture is region (184, 646, 215, 213) of the button
-   sheet, cut out on its own (assets/tile.png) — a border image cannot
+   sheet, cut out on its own (assets/tile.webp) — a border image cannot
    take a region of a sheet. Its corners are 64 of its 215 pixels, and
    drawn at 64/215 of the square's 1.7em they come out exactly the size
    they were. The border is there for the image only: it is 0 wide, so
@@ -246,7 +246,7 @@ html.calm .formula-table .ft-cell { transition: opacity .2s linear; transform: n
   display: grid; place-items: center;
   margin: 0;
   border-style: solid; border-width: 0;
-  border-image: url('../assets/tile.png?v=20260928171143') 64 fill / .506em stretch;
+  border-image: var(--ft-tile) 64 fill / .506em stretch;
   background: none;
   font-family: 'Lilita One', 'Nunito', system-ui, sans-serif;
   /* One weight, and the bold the browser used to fake drawn as a fixed
@@ -322,3 +322,7 @@ html.calm .formula-table .ft-tile.no { animation: none; }
   transform: none; margin-top: 0;          /* hung from its top: the room is all at the foot */
   padding: 44px 48px calc(44px + var(--room));
 }
+
+/* The tile, declared on the root so the loader (js/preload.js) can point
+   it at the copy it fetched, by setting it on <html>. */
+:root { --ft-tile: url('../assets/tile.webp?v=20260928220231'); }
