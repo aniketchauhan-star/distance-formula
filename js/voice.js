@@ -107,72 +107,37 @@ window.Voice = (function () {
       ['39-now-lets-find-ab.mp3', 2.14],
     'What if both points are on the x-axis?':
       ['41-what-if-both-points-are-on-the-x-axis.mp3', 3.11],
-    /* The front of that line on its own, cut at her pause after it:
-       praise for a warm-up distance, said without a balloon. */
+    /* The front of her "Exactly! There's no vertical distance.", cut at
+       her pause after it: praise for a warm-up distance, said without a
+       balloon. */
     'Exactly!':
       ['42a-exactly.mp3', 1.04],
-    'Exactly! There’s no vertical distance.':
-      ['42-exactly-theres-no-vertical-distance.mp3', 3.24],
     'And what if they’re on the y-axis?':
       ['43-and-what-if-theyre-on-the-y-axis.mp3', 2.51],
-    'Exactly! There’s no horizontal distance.':
-      ['44-exactly-theres-no-horizontal-distance.mp3', 3.34],
     /* The end of her "Now, let's find the distance between A and B.",
        cut in the "f" of "find", after the "s" before it. */
     'Find the distance between A and B.':
       ['41b-find-the-distance-between-a-and-b.mp3', 2.74],
-    'Maya wants to walk to the closer cafe. Which cafe is closer to her house?':
+    'Maya wants to walk to the closer café. Which café is closer to her house?':
       ['45-maya-wants-to-walk-to-the-closer-cafe-which.mp3', 5.93],
-    'First, the house to Cafe A.':
-      ['46-first-the-house-to-cafe-a.mp3', 2.64],
-    'Now, the house to Cafe B.':
-      ['47-now-the-house-to-cafe-b.mp3', 2.19],
     'Which distance is shorter?':
       ['48-which-distance-is-shorter.mp3', 2.27],
-    '4 is less than 5 — so Cafe A is closer.':
+    '4 is less than 5 — so Café A is closer.':
       ['49-4-is-less-than-5-so-cafe-a-is-closer.mp3', 4.28],
-    'How long should this connection be?':
-      ['50-how-long-should-this-connection-be.mp3', 2.17],
-    'How far is the rescue vehicle from the control station?':
-      ['51-how-far-is-the-rescue-vehicle-from-the-contr.mp3', 3.81],
-    'What kind of triangle is this park?':
-      ['52-what-kind-of-triangle-is-this-park.mp3', 2.59],
     'Scalene — no two sides the same.':
       ['53-scalene-no-two-sides-the-same.mp3', 2.82],
     'Have another look at the three sides.':
       ['54-have-another-look-at-the-three-sides.mp3', 2.30],
     'Oops! Let’s check the sides.':
       ['55-oops-lets-check-the-sides.mp3', 2.46],
-    'First, find AB.':
-      ['56-first-find-ab.mp3', 1.88],
     'Thirteen. That one stays.':
       ['57-thirteen-that-one-stays.mp3', 2.14],
-    'Now find BC.':
-      ['58-now-find-bc.mp3', 1.75],
     'Fourteen.':
       ['59-fourteen.mp3', 0.99],
     'Count the squares from B up to C.':
       ['60-count-the-squares-from-b-up-to-c.mp3', 2.66],
-    'One more. Find CA.':
-      ['61-one-more-find-ca.mp3', 2.38],
-    'Fifteen. All three are down.':
-      ['62-fifteen-all-three-are-down.mp3', 2.72],
-    'What do you notice about the side lengths?':
-      ['63-what-do-you-notice-about-the-side-lengths.mp3', 2.48],
-    'All different — 13, 14 and 15.':
-      ['64-all-different-13-14-and-15.mp3', 3.81],
-    'Are any two of them the same number?':
-      ['65-are-any-two-of-them-the-same-number.mp3', 2.43],
-    'Thirteen, fourteen, fifteen — all different.':
-      ['66-thirteen-fourteen-fifteen-all-different.mp3', 4.05],
-    'So, which triangle is it?':
-      ['67-so-which-triangle-is-it.mp3', 2.12],
     'That’s right — a scalene triangle.':
-      ['68-thats-right-a-scalene-triangle.mp3', 2.64],
-    'All three lengths are different. Which name is that?':
-      ['69-all-three-lengths-are-different-which-name-i.mp3', 3.79],
-    'All different means scalene.':
-      ['70-all-different-means-scalene.mp3', 2.19]
+      ['68-thats-right-a-scalene-triangle.mp3', 2.64]
   };
 
   /* Lines are looked up on a tidied form of themselves. A coordinate

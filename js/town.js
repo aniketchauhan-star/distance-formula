@@ -24,6 +24,59 @@
 window.TownMap = (function () {
   'use strict';
 
+  /* Drawings laid over a picture, in the picture's own pixels (the
+     sprite's w x h), so they sit on it at any size. The sheet's style:
+     flat colour, a dark edge. Each moving part is a <g> inside a placed
+     <g>, so the placing (an SVG transform) and the moving (a CSS one)
+     never overwrite each other. */
+  const FLAME = 'M0 0 C-26 0 -40 -18 -38 -40 C-36 -58 -22 -64 -20 -84 ' +
+                'C-10 -72 -6 -62 -6 -54 C0 -70 10 -86 6 -104 ' +
+                'C26 -86 40 -64 38 -40 C36 -18 24 0 0 0 Z';
+  const flame = function (x, y, k, ms, delay) {
+    return '<g transform="translate(' + x + ' ' + y + ') scale(' + k + ')">' +
+      '<g class="flick" style="animation-duration:' + ms + 'ms;animation-delay:-' + delay + 'ms">' +
+      '<path class="f-out" d="' + FLAME + '"/>' +
+      '<path class="f-mid" transform="translate(0 -4) scale(.7)" d="' + FLAME + '"/>' +
+      '<path class="f-in" transform="translate(0 -6) scale(.42)" d="' + FLAME + '"/>' +
+      '</g></g>';
+  };
+  const puff = function (x, y, r, delay) {
+    return '<g transform="translate(' + x + ' ' + y + ')"><circle class="puff" r="' + r +
+           '" style="animation-delay:-' + delay + 'ms"/></g>';
+  };
+  const OVERLAY = {
+    /* The school drawing on fire: smoke going up from the roof, flames
+       along both sides of it and out of the two windows, and the windows
+       themselves lit from inside. */
+    fire: function (sp) {
+      return '<svg class="town-overlay town-flames" viewBox="0 0 ' + sp.w + ' ' + sp.h +
+        '" preserveAspectRatio="none" overflow="visible" aria-hidden="true">' +
+        '<rect class="lit" x="57" y="165" width="68" height="80" rx="6"/>' +
+        '<rect class="lit" x="266" y="165" width="69" height="80" rx="6" style="animation-delay:-400ms"/>' +
+        puff(96, 20, 22, 0) + puff(120, 6, 18, 900) + puff(300, 24, 22, 450) + puff(276, 8, 17, 1500) +
+        puff(200, -30, 20, 1150) +
+        flame(62, 104, 0.95, 900, 0) + flame(122, 88, 1.15, 1100, 350) +
+        flame(290, 96, 1.05, 1000, 600) + flame(346, 110, 0.85, 850, 200) +
+        flame(90, 176, 0.55, 800, 450) + flame(300, 176, 0.55, 950, 150) +
+        '</svg>';
+    },
+    /* The red van, made a fire engine: a ladder lying along its roof
+       over the body, on two brackets, and a lamp on the roof over the
+       cab that flashes. */
+    engine: function () {
+      let rungs = '';
+      for (let x = 46; x <= 206; x += 16) rungs += '<rect class="rung" x="' + x + '" y="-12" width="5" height="10"/>';
+      return '<svg class="town-overlay town-ladder" viewBox="0 0 363 173" preserveAspectRatio="none" overflow="visible" aria-hidden="true">' +
+        '<rect class="bracket" x="56" y="1" width="9" height="7"/><rect class="bracket" x="186" y="1" width="9" height="7"/>' +
+        rungs +
+        '<rect class="rail" x="36" y="-17" width="184" height="7" rx="3"/>' +
+        '<rect class="rail" x="36" y="-5" width="184" height="7" rx="3"/>' +
+        '<rect class="lamp-base" x="220" y="-2" width="30" height="6" rx="2"/>' +
+        '<rect class="lamp" x="223" y="-12" width="24" height="11" rx="5"/>' +
+        '</svg>';
+    }
+  };
+
   function mount(parent) {
     const root = document.createElement('div');
     root.id = 'townLayer';
@@ -72,6 +125,13 @@ window.TownMap = (function () {
         leaf.style.backgroundImage = b.style.backgroundImage;
         door.appendChild(leaf);
         b.appendChild(door);
+      }
+
+      /* Or something drawn over the picture (`overlay`): flames and
+         smoke for a building on fire, a ladder and a lamp that make the
+         red van a fire engine. */
+      if (sp && sp.overlay && OVERLAY[sp.overlay]) {
+        b.insertAdjacentHTML('beforeend', OVERLAY[sp.overlay](sp));
       }
 
       wrap.appendChild(pill);
@@ -305,6 +365,20 @@ window.TownMap = (function () {
          turns them into its own units, which is the only place that
          knows the two scales. */
       boxes: function () { return room$.slice(); },
+
+      /* The places she is naming, lit for a moment — a swell and a
+         glow, twice (the towers, the fire, the fire engine). */
+      glow: function (keys) {
+        places.forEach(function (p, i) {
+          const n = nodes[i];
+          if (!n || (keys || []).indexOf(p.key) < 0) return;
+          clearTimeout(n._glow);
+          n.classList.remove('glow');
+          void n.offsetWidth;
+          n.classList.add('glow');
+          n._glow = setTimeout(function () { n.classList.remove('glow'); }, 2500);
+        });
+      },
 
       /* The places a screen is not about step back (`keys`), and
          come forward again with an empty list. */

@@ -9081,6 +9081,9 @@
           /* Or put up the right-angle marker, on the word that names the
              shape it belongs to. */
           if (c.mark) { Board.rightAngle(true); SFX.chime(); }
+          /* Or light the town's pictures she names — the two towers, the
+             fire, the fire engine — as she names them. */
+          if (c.townGlow && Town && Town.glow) Town.glow([].concat(c.townGlow));
           /* Or write a side's length on it as she names the side — put
              together from the labels it is read off (33: "AC" — x₂,
              then the sign, then x₁ — as she says "x₂ minus x₁"). */
@@ -10367,7 +10370,10 @@
             self.settle(e.hold != null ? e.hold : C.AUTO.afterCorrect);
             return;
           }
-          self.flyIn(function () { self.speak(t.spec.correctLine || 'That’s right!'); });
+          /* A walk worked on the table after a miss ends on the answer
+             put back into its story (`workedLine`: "So, the fire engine
+             needs to travel 13 units."), not on the right answer's line. */
+          self.flyIn(function () { self.speak(t.spec.workedLine || t.spec.correctLine || 'That’s right!'); });
         }, 200);
       });
     },

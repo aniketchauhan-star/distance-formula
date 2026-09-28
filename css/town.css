@@ -140,3 +140,77 @@
   width: 100%; height: 100%;
   background-repeat: no-repeat;
 }
+
+/* ---------------- drawn over a picture (town.js OVERLAY) ------------- */
+.town-overlay {
+  position: absolute;
+  left: 0; top: 0;
+  width: 100%; height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+/* Fire: three flames in one, darkest outside; each flickers on its own
+   beat from its own foot. */
+.town-flames .f-out { fill: #EF4B2A; stroke: #7E1E0E; stroke-width: 5; stroke-linejoin: round; }
+.town-flames .f-mid { fill: #F99A1C; }
+.town-flames .f-in  { fill: #FFE066; }
+.town-flames .flick {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: flameFlick 1s ease-in-out infinite;
+}
+@keyframes flameFlick {
+  0%, 100% { transform: scale(1, 1) skewX(0deg); }
+  25%      { transform: scale(.95, 1.09) skewX(-3deg); }
+  50%      { transform: scale(1.04, .93) skewX(2deg); }
+  75%      { transform: scale(.97, 1.05) skewX(-1deg); }
+}
+/* The windows lit from inside, and breathing. */
+.town-flames .lit { fill: #FF9A2E; animation: windowGlow 1.3s ease-in-out infinite; }
+@keyframes windowGlow {
+  0%, 100% { opacity: .55; }
+  50%      { opacity: .9; }
+}
+/* Smoke going up and spreading out, and gone. */
+.town-flames .puff {
+  fill: #5E6270;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: smokeRise 2.6s linear infinite;
+}
+@keyframes smokeRise {
+  0%   { transform: translate(0, 0) scale(.55); opacity: 0; }
+  15%  { opacity: .5; }
+  100% { transform: translate(-16px, -130px) scale(1.8); opacity: 0; }
+}
+/* The fire engine's ladder and its lamp. */
+.town-ladder .rail, .town-ladder .rung { fill: #DCE2EA; stroke: #2B3A67; stroke-width: 2.5; }
+.town-ladder .bracket, .town-ladder .lamp-base { fill: #2B3A67; }
+.town-ladder .lamp { fill: #FF3B3B; stroke: #7E1E0E; stroke-width: 2; animation: lampFlash .8s steps(2, jump-none) infinite; }
+@keyframes lampFlash {
+  0%   { fill: #FF3B3B; }
+  100% { fill: #FFD9D9; }
+}
+
+/* A place she is naming: a swell and a warm glow, twice. The `scale`
+   property rather than a transform, so nothing already transformed —
+   a tag-right name — is knocked out of place. */
+.town-place.glow .town-build { animation: townGlow 1.2s ease-in-out 2; }
+.town-place.glow .town-pill  { animation: pillBump 1.2s ease-in-out 2; }
+@keyframes townGlow {
+  0%, 100% { scale: 1; filter: drop-shadow(0 3px 4px rgba(40, 30, 10, .20)); }
+  50%      { scale: 1.09; filter: drop-shadow(0 0 10px rgba(255, 214, 90, .95)) drop-shadow(0 3px 4px rgba(40, 30, 10, .20)); }
+}
+@keyframes pillBump { 50% { scale: 1.1; } }
+
+/* Nothing flickers, smokes, flashes or swells for a child who has
+   asked for a calm screen. */
+html.calm .town-flames *, html.calm .town-ladder *,
+html.calm .town-place.glow .town-build, html.calm .town-place.glow .town-pill { animation: none !important; }
+html.calm .town-flames .puff { opacity: .35; }
+@media (prefers-reduced-motion: reduce) {
+  .town-flames *, .town-ladder *, .town-place.glow .town-build, .town-place.glow .town-pill { animation: none !important; }
+  .town-flames .puff { opacity: .35; }
+}
+
