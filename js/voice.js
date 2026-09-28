@@ -89,8 +89,12 @@ window.Voice = (function () {
       ['28-since-its-a-right-triangle-pythagoras-theore.mp3', 3.50],
     'Now, let’s find the distance between A and B.':
       ['29-now-lets-find-the-distance-between-a-and-b.mp3', 3.24],
-    'What is the difference between these two points?':
-      ['30-what-is-the-difference-between-these-two-poi.mp3', 2.51],
+    /* Joined from two of the reader's own lines: "What is the distance
+       between" (the pair screens' question) and "these two points?" (the
+       end of the line this replaces), at the quietest point between the
+       words, with a 12 ms crossfade — so WAV, not MP3. */
+    'What is the distance between these two points?':
+      ['30-what-is-the-distance-between-these-two-points.wav', 2.42],
     'Look, we made a right triangle.':
       ['31-look-we-made-a-right-triangle.mp3', 1.93],
     'Let’s use Pythagoras to find AB.':

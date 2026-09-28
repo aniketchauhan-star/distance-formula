@@ -5393,7 +5393,11 @@
     glowPart: function (part, on, which) {
       const self = this;
       (which ? [which] : ['a', 'b']).forEach(function (k) {
-        const c = self.segParts[k] && self.segParts[k].coord;
+        /* 'c' is the corner, whose label is the first side's (33, 34:
+           x₂ and y₁ are read off C). */
+        const c = k === 'c'
+          ? (self.legSlots && self.legSlots[0] && self.legSlots[0].coord)
+          : (self.segParts[k] && self.segParts[k].coord);
         if (!c) return;
         Array.prototype.forEach.call(c.children, function (ts) {
           if (!ts.classList || !ts.classList.contains('glowable')) return;

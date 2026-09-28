@@ -1994,7 +1994,11 @@ window.CFG = (function () {
            = √((5 − 1)² + (4 − 1)²)
            = √(4² + 3²)
            = √(16 + 9)
-         d = √25 = 5 units
+           = √25
+           = 5 units
+
+     One `d`, at the top: every line after it hangs from its = sign, the
+     root and then what it comes to each a line of its own.
 
      P is (x₁, y₁) and Q is (x₂, y₂); `key` names the point on the board
      each is ('a', 'b', or 'c' for the corner). The x's are in the orange
@@ -2058,15 +2062,19 @@ window.CFG = (function () {
     const sumBlank = blank(sum, 'ab', two(sum, Math.abs(dx) + Math.abs(dy), !whole));
     /* The last line says what it came to (`result`), which is what flies
        onto the side it measures; `resultFrom` is where on the line that
-       is written — the root's value, or the root itself. */
-    rows.push(whole
-      ? { inline: true, result: Math.round(root) + U, resultFrom: 6, parts: [
-            { t: 'd' }, { t: ' = ' }, { t: '\u221A(' }, sumBlank, { t: ')' },
-            { t: ' = ' }, blank(Math.round(root), 'ab', two(Math.round(root), sum, true)),
-            { t: U } ] }
-      : { inline: true, result: '\u221A' + sum + U, resultFrom: 2, parts: [
-            { t: 'd' }, { t: ' = ' }, { t: '\u221A(' }, sumBlank, { t: ')' },
-            { t: U } ] });
+       is written. Whole, the root and its value are two lines — "= √25",
+       then "= 5 units" — as a working is written down; a root that does
+       not come out is the last line itself. */
+    if (whole) {
+      rows.push({ inline: true, parts: [
+          { t: '= ' }, { t: '\u221A(' }, sumBlank, { t: ')' } ] });
+      rows.push({ inline: true, result: Math.round(root) + U, resultFrom: 1, parts: [
+          { t: '= ' }, blank(Math.round(root), 'ab', two(Math.round(root), sum, true)),
+          { t: U } ] });
+    } else {
+      rows.push({ inline: true, result: '\u221A' + sum + U, resultFrom: 1, parts: [
+          { t: '= ' }, { t: '\u221A(' }, sumBlank, { t: ')' }, { t: U } ] });
+    }
     return rows;
   }
 
@@ -3032,14 +3040,14 @@ window.CFG = (function () {
          find the distance between A and B.", A and B pulse and the dotted
          line between them is drawn as she says "distance", then the line
          itself drawn over it from A to B — and nothing else is on the
-         board. Then "What is the difference between these two points?",
+         board. Then "What is the distance between these two points?",
          and from its first word C arrives with a pulse, the dotted side
          from A running out to it, AC the only side at full strength, B
          and AB stepping back — with AC glowing after it. CB is not drawn here:
          it comes on the next screen, once AC has been answered. */
       view: 'triangle',
       line: 'Now, let’s find the distance between A and B.',
-      line2: 'What is the difference between these two points?',
+      line2: 'What is the distance between these two points?',
       guideOnLine: true,
       /* C and the dotted side out to it come with "What is the
          difference…", from its first word — see the walks (walk, s1). */
@@ -3058,7 +3066,7 @@ window.CFG = (function () {
          the same way: from her first word C, B and the side between them
          are the only things at full strength — A, AC and the dotted AB
          step back — and CB glows as she asks. */
-      line: 'What is the difference between these two points?',
+      line: 'What is the distance between these two points?',
       wordCues: [ { word: 'What', spot: 'v' } ],
       lineLights: [ { pulse: 'v' } ],
       entrance: 'none', view: 'triangle', quietBoard: true,
@@ -3193,11 +3201,16 @@ window.CFG = (function () {
                            { t: 'y₂', glow: 'y' }, { t: ')' } ] }
       },
       legs: [
+        /* AC runs from A to C, so its two x's are read off those two
+           points: x₂ lights on C and flies to the side, then the sign, then
+           x₁ lights on A and flies — AC = x₂ − x₁, each symbol seen coming
+           from its own point. (x₂ came off B once: the same number, but
+           not the point this side ends at.) C's label is in parts so its
+           x₂ can light and be lifted; the words are the same. */
         { from: { x: -5, y: 1 }, to: { x: 5, y: 1 },
-          mark: { name: 'C', coordText: '(x₂, y₁)', fill: '#3B7DD8', away: { x: 1, y: 0 } },
+          mark: { name: 'C', coordParts: [ { t: '(' }, { t: 'x₂', glow: 'x' }, { t: ',\u00A0' }, { t: 'y₁', glow: 'y' }, { t: ')' } ], fill: '#3B7DD8', away: { x: 1, y: 0 } },
           settled: true, lengthText: 'x₂ − x₁',
-          /* both symbols read straight off the two labels */
-          lengthFrom: [ { p: 'b', half: 'x' }, { p: 'a', half: 'x' } ] },
+          lengthFrom: [ { p: 'c', half: 'x' }, { p: 'a', half: 'x' } ] },
         { from: { x:  5, y: 1 }, to: { x: 5, y: 4 }, settled: true }
       ] },
 
@@ -3216,11 +3229,13 @@ window.CFG = (function () {
       },
       legs: [
         { from: { x: -5, y: 1 }, to: { x: 5, y: 1 },
-          mark: { name: 'C', coordText: '(x₂, y₁)', fill: '#3B7DD8', away: { x: 1, y: 0 } },
+          mark: { name: 'C', coordParts: [ { t: '(' }, { t: 'x₂', glow: 'x' }, { t: ',\u00A0' }, { t: 'y₁', glow: 'y' }, { t: ')' } ], fill: '#3B7DD8', away: { x: 1, y: 0 } },
           settled: true, length: true, lengthText: 'x₂ − x₁' },
+        /* CB runs from C up to B: y₂ lights on B and flies, then the sign,
+           then y₁ lights on C — CB = y₂ − y₁. (y₁ came off A once.) */
         { from: { x:  5, y: 1 }, to: { x: 5, y: 4 },
           settled: true, lengthText: 'y₂ − y₁',
-          lengthFrom: [ { p: 'b', half: 'y' }, { p: 'a', half: 'y' } ] }
+          lengthFrom: [ { p: 'b', half: 'y' }, { p: 'c', half: 'y' } ] }
       ] },
 
     /* 35 — and AB: it lights as she names it, then she flies off, the
@@ -3441,11 +3456,12 @@ window.CFG = (function () {
       entrance: 'fly', layout: 'board', flyBack: true,
       town: ['house', 'cafeA', 'cafeB'], textScale: 0.85,
       keepSegment: true, dropLegs: true, dropNames: true,
-      /* The two walks on the map, without their lengths: the lengths are
-         on the two cards (below), and the question is which is shorter.
-         A wrong card and they come up on the map instead, blinking, with
-         nothing said (blinkOnMiss). */
-      hideLengths: true,
+      /* The two walks on the map with their lengths written on them —
+         5 units to Cafe B, 4 units to Cafe A — and the same two on the
+         cards (below). A wrong card and the two lengths blink on the map,
+         with nothing said (blinkOnMiss). (Held back once: then the 5 units
+         carried over from 45's table stood alone, and Cafe A's line had
+         nothing on it.) */
       compare: [
         { a: { x: 1, y: 1 }, b: { x: -3, y: 4 }, coordSide: 'under',
           result: { text: '5\u00A0units' } },
