@@ -22,6 +22,10 @@
    sound, and where she took a breath between two lines the breath is in
    neither.
 
+   A line the game no longer says goes, and its clip with it — the
+   clip is in the history, as the recordings are ("That’s right!" and
+   "Exactly!" went when every right answer became "That’s correct!").
+
    MAP is the only thing to edit: the line on the left, then its file
    and how long that file runs. The length is written down rather than
    read off the clip because a browser reports no duration until the
@@ -93,8 +97,6 @@ window.Voice = (function () {
       ['29-look-we-made-a-right-triangle', 2.38],
     'Let’s use Pythagoras to find AB.':
       ['30-lets-use-pythagoras-to-find-ab', 2.90],
-    'That’s right!':
-      ['31-thats-right', 1.02],
     'Now find AB.':
       ['32-now-find-ab', 1.46],
     'What is the distance between A and B?':
@@ -115,8 +117,6 @@ window.Voice = (function () {
       ['41-what-if-both-points-are-on-the-x-axis', 3.11],
     /* The front of her "Exactly! There's no vertical distance.", cut at
        her pause after it: praise for a warm-up distance. */
-    'Exactly!':
-      ['42a-exactly', 1.04],
     'And what if they’re on the y-axis?':
       ['43-and-what-if-theyre-on-the-y-axis', 2.51],
     /* The end of her "Now, let's find the distance between A and B.",
@@ -127,22 +127,6 @@ window.Voice = (function () {
       ['45-maya-wants-to-walk-to-the-closer-cafe-which', 5.93],
     'Which distance is shorter?':
       ['48-which-distance-is-shorter', 2.27],
-    '4 is less than 5 — so Café A is closer.':
-      ['49-4-is-less-than-5-so-cafe-a-is-closer', 4.28],
-    'Scalene — no two sides the same.':
-      ['53-scalene-no-two-sides-the-same', 2.82],
-    'Have another look at the three sides.':
-      ['54-have-another-look-at-the-three-sides', 2.30],
-    'Oops! Let’s check the sides.':
-      ['55-oops-lets-check-the-sides', 2.46],
-    'Thirteen. That one stays.':
-      ['57-thirteen-that-one-stays', 2.14],
-    'Fourteen.':
-      ['59-fourteen', 0.99],
-    'Count the squares from B up to C.':
-      ['60-count-the-squares-from-b-up-to-c', 2.66],
-    'That’s right — a scalene triangle.':
-      ['68-thats-right-a-scalene-triangle', 2.64],
 
     /* The lines written after that recording, from a second one read in
        the order the game says them (see the header): 69 onward. */
