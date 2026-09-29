@@ -44,6 +44,9 @@ window.CFG = (function () {
     mayaWalk:    stamped('assets/maya-walk.webp'),
     // the fire engine's strip (tools/fire-engine-sprite.py): 54's rescue
     fireEngine:  stamped('assets/fire-engine.webp'),
+    /* Swifty over the top edge of the formula panel, six frames in a
+       row (tools/swifty-peek-sprite.py): 37, 39 and 41 (PEEK). */
+    swiftyPeek:  stamped('assets/swifty-peek.webp'),
     /* The number selector, drawn. Every piece of the control is a crop
        of this one sheet, so `preload` waiting for it is the whole of
        the loading story: it is about 940KB, and a control that rises
@@ -231,6 +234,49 @@ window.CFG = (function () {
     tailSide: 'left',
     autoWidth: true               // cut to its line (Bubble.fitBox)
   };
+
+  /* -------------------------------------------------------------
+     SWIFTY OVER THE PANEL — 37, 39 and 41
+     The formula done, she comes up from behind the panel it is written
+     on, her hands on its top edge, says what it gives, and a Next comes
+     up in the corner (the peek in game.js).
+
+     Six frames in a row, each w x h (tools/swifty-peek-sprite.py): her
+     beak shut in the first, then a little open, open, wide, open, and
+     shut again. The rest are measured in a frame's own pixels.
+     ------------------------------------------------------------- */
+  const PEEK = {
+    frames: 6, w: 356, h: 304,
+    /* The flat foot of her body, between her hands: it sits on the
+       panel's edge, the rest of her behind the panel. Her fingers reach
+       on below it to `hands`, over the edge. */
+    body: 280, hands: 299,
+    /* The top of her head right of her crest, where a balloon's point
+       lands on her. */
+    crown: { x: 220, y: 51 },
+    /* How wide she is drawn, in stage pixels: a head and two hands,
+       so smaller than her whole self standing (300 was too big). */
+    size: 220,
+    riseMs: 640,                  // up from behind the panel
+    gripMs: 180,                  // and her hands over its edge
+    /* Her beak as she talks: the open frames in an order that does not
+       repeat for a while, at the talking sheet's own pace. */
+    fps: 9,
+    talk: [1, 2, 3, 2, 4, 1, 5, 2, 3, 4, 1, 0],
+    /* Her balloon over her head, a little wider than the column's, so
+       what she says there takes two rows rather than three. */
+    bubble: Object.assign({}, BUBBLE, { tailSide: null, maxW: 660 }),
+    /* The Next in the corner, this long after her last word. */
+    nextMs: 450
+  };
+
+  /* A right answer, everywhere: said, not written. The board has shown
+     it already — the line lit, the confetti — so a balloon over it only
+     repeated it. (It was "That's right!" in some places, "Exactly!" in
+     others, and a few lines of their own.) */
+  const PRAISE = 'That\u2019s correct!';
+  /* A wrong one, from 41b on: said, and then the working it promises. */
+  const OOPS = 'Oops! Let\u2019s find it together.';
 
 ;
 ;
@@ -1309,34 +1355,43 @@ window.CFG = (function () {
      The coordinates are load-bearing and two properties of them must
      survive any edit:
 
-       * Cafe B is on the house's own row, so its distance can be
-         counted straight off the grid without the formula. That is
-         what makes it the tempting wrong answer.
-       * Cafe A makes a 3-4-5 triangle with the house, so the right
-         answer is a whole 5 and a child who works it out properly can
-         see that they are right.
+       * Both walks out of the house are slanted, so neither can be
+         counted off the grid: each one wants the formula, and the
+         question is which café is closer, not which line is shorter
+         to count.
+       * Both come out whole, so neither answer is left under a root
+         and a child who works one out properly can see that they are
+         right. On a lattice that means a Pythagorean triple, and the
+         two must differ: Cafe A makes a 3-4-5 with the house (5 units)
+         and Cafe B a 6-8-10 (10 units), so Cafe A is the closer one.
 
-     The reference art put these at (2,3), (6,6) and (-4,3). This board
-     rules to y = 6 but only numbers to 5, and a place standing on an
-     unnumbered line cannot be checked by the child reading it — so the
-     town sits one square down and one square left of that. The two
-     distances, 5 and 6, are unchanged.
+     The places are named in the pills over them and every one has its
+     coordinates under its dot, so all three stand on numbered lines,
+     none on an axis, and no picture sits over another place's point,
+     label or walk.
      ------------------------------------------------------------- */
   const TOWN = {
-    /* One row lower than the reference's shape would put them. A place
-       is drawn standing ON its coordinate — building and name pill
-       above the dot — so the top row of the board has no room for one:
-       at y = 5 a cafe's roof is off the paper. At y = 4 it has two
-       cells of headroom, which is what it needs. */
-    house: { x:  1, y: 1 },
-    /* Both walks come out whole, so both are answered on the reel: Cafe
-       A four along the house's own row (4 units), Cafe B four across and
-       three up (5 units) — and Cafe A is still the closer one. With the
-       house at (1, 1) no slanted walk on this board is whole except 3-4-5,
-       so the two could not both be slanted without a tie. (Cafe A was at
-       (5, 4), 5 units; Cafe B at (-5, 3), √40.) */
-    cafeA: { x:  5, y: 1 },
-    cafeB: { x: -3, y: 4 },
+    /* A 6-8-10 walk is most of this board (x runs -6..6, y -5..5), so it
+       fixes the rest: the house stands left of the y-axis, Cafe A up the
+       slant to its right, four across and three up, and Cafe B down the
+       long slant to the board's last numbered corner, eight across and
+       six down. The two walks leave the house 74° apart, so on 46, drawn
+       together, they read as two walks and not one line — and each
+       coordinate label keeps clear of both.
+
+       A place is drawn standing ON its coordinate — building and name
+       pill above the dot — so the top row of the board has no room for
+       one: at y = 5 a cafe's roof is off the paper. At y = 4 it has two
+       cells of headroom, which is what it needs.
+
+       (The house was at (1, 1), where the only whole slant on the board
+       is 3-4-5: Cafe A was at (5, 4) and Cafe B had to be counted, six
+       along the house's own row at (-5, 1). Before that, Cafe A was at
+       (5, 1), 4 units along the row, and Cafe B at (-3, 4), 5; and before
+       that Cafe B was at (-5, 3), √40.) */
+    house: { x: -2, y:  1 },
+    cafeA: { x:  2, y:  4 },
+    cafeB: { x:  6, y: -5 },
     /* And two more for the walk after it. The prompt asked for (-4,-2)
        and (4, 4); neither survives its own rule that a marker needs the
        room it stands in. A place is drawn standing ON its coordinate,
@@ -1427,11 +1482,11 @@ window.CFG = (function () {
     engine:  { x:  927, y: 618, w: 363, h: 173, tall: 0.78, overlay: 'engine' }
   };
   TOWN.places = [
-    /* Its name beside it, not over it (`tag: 'right'`): at (-3, 4) a
-       name over the roof reaches the top of the paper, where the Back /
-       Next buttons stand once the board has slid over for the table. */
+    /* Its name over its roof, as the others have: down in the bottom
+       corner there is room over it. (At (-3, 4) it had to go beside it,
+       as a name over the roof reached the top of the paper.) */
     { key: 'cafeB',  x: TOWN.cafeB.x,  y: TOWN.cafeB.y,
-      name: 'Café B',        kind: 'cafe',   tone: 'yellow', tag: 'right' },
+      name: 'Café B',        kind: 'cafe',   tone: 'yellow' },
     { key: 'house',  x: TOWN.house.x,  y: TOWN.house.y,
       name: 'Maya’s House',  kind: 'house',  tone: 'violet' },
     { key: 'cafeA',  x: TOWN.cafeA.x,  y: TOWN.cafeA.y,
@@ -1741,6 +1796,14 @@ window.CFG = (function () {
     return rows;
   }
 
+  /* Points A and B lit as she names them, wherever a line names them:
+     "…A and B" — A on "A", then B on "B". A point's name is matched as a
+     capital (game.js, armWordCues), so the "a" of "a fire" is not it. */
+  function namesAB(line) {
+    return /\bA and B\b/.test(line || '')
+      ? [ { word: 'A', in: line, beat: ['a'] }, { word: 'B', in: line, beat: ['b'] } ] : [];
+  }
+
   function walk(w) {
     const pt = function (p, name) { return { x: p.x, y: p.y, name: name }; };
     const seg = Object.assign({ a: pt(w.a, 'A'), b: pt(w.b, 'B'), dash: true },
@@ -1794,8 +1857,12 @@ window.CFG = (function () {
         guideOnLine: true,
         /* Or the screen's own (`say.cues`): the towers lit on the first
            sentence and their line drawn on the second, say. */
-        wordCues: say.cues || [ { word: say.cue || firstWord(say.first), in: say.first,
-                      guide: true, beat: ['a', 'b'] } ].concat(q ? [ { word: firstWord(q), in: q, spot: 'ab' } ] : []),
+        /* The points ring as she names them (namesAB), or with the
+           guide's word where she does not name them. */
+        wordCues: say.cues || [ Object.assign({ word: say.cue || firstWord(say.first), in: say.first, guide: true },
+                                              namesAB(say.first).length ? {} : { beat: ['a', 'b'] }) ]
+          .concat(namesAB(say.first))
+          .concat(q ? [ { word: firstWord(q), in: q, spot: 'ab' } ].concat(namesAB(q)) : []),
         /* AB glows after the question — the second line, or the only one. */
         lineLights: q ? [ {}, { pulse: 'ab' } ] : [ { pulse: 'ab' } ],
         entrance: 'none', layout: 'board', intro: 'measure',
@@ -1803,15 +1870,15 @@ window.CFG = (function () {
            the last screen's may be a different one, or answered. */
         askFirst: true,
         segment: segF,
-        /* `say.right`: what she says to a right answer, where it is not
-           the ordinary "That's right!" (41b: "That's correct!"). */
+        /* A right answer is PRAISE, as everywhere. A miss is OOPS, said,
+           and then the table it promises. */
         /* `say.worked`: what she says when the child has worked the
            table after a miss, where it is not the right answer's line —
            the answer put back into the story ("So, the fire engine needs
            to travel 13 units."). */
         /* `rescue`: the answer found, the fire engine drives the line and
            puts the fire out (54). */
-        task: { kind: 'distance', correctLine: say.right || 'That\u2019s right!', tableOnMiss: true,
+        task: { kind: 'distance', tableOnMiss: true, oopsLine: OOPS,
                 workedLine: say.worked, tableSize: 34, formula: table, rescue: w.rescue },
         distance: true
       }, w.base || {}, w.first || {}) ];
@@ -1834,14 +1901,14 @@ window.CFG = (function () {
       id: w.ids[0],
       line: say.first, line2: ask,
       guideOnLine: true,
-      wordCues: [ { word: say.cue || firstWord(say.first), in: say.first,
-                    guide: true, beat: ['a', 'b'] },
-                  { word: firstWord(ask), in: ask, spot: 'ab' } ],
+      wordCues: [ Object.assign({ word: say.cue || firstWord(say.first), in: say.first, guide: true },
+                                namesAB(say.first).length ? {} : { beat: ['a', 'b'] }) ]
+        .concat(namesAB(say.first), [ { word: firstWord(ask), in: ask, spot: 'ab' } ], namesAB(ask)),
       lineLights: [ {}, { pulse: 'ab' } ],
       entrance: 'none', layout: 'board',
       intro: 'measure', distance: true,
       segment: seg,
-      task: { kind: 'distance', correctLine: 'That’s right!',
+      task: { kind: 'distance',
               rightAt: w.askFirst.rightAt, teachAt: w.askFirst.id }
     }, base, w.first || {}) : null;
     const s1 = w.askFirst ? Object.assign({
@@ -1904,10 +1971,12 @@ window.CFG = (function () {
          its points forward, AB pulsing and A and B ringing, the rest
          stepped back until just after the sentence, and the square left
          up for Pythagoras. */
+      /* AB lit on the word "AB": its points ringing, the line pulsing,
+         the rest stepped back — and held a moment after she stops. */
       wordCues: [ { word: 'We', spot: ['h', 'v'], pulse: ['h', 'v'], run: 2200 },
-                  { word: 'Let’s', spot: 'ab', pulse: 'ab',
+                  { word: 'AB', in: 'Let’s use Pythagoras to find AB.', spot: 'ab', pulse: 'ab',
                     beat: ['a', 'b'], run: 1700 } ],
-      lineLights: [ { hold: 1000 }, { unspot: true, after: 550 } ],
+      lineLights: [ { hold: 1000 }, { unspot: true, after: 1300 } ],
       rightAngle: true, keepMark: true,
       entrance: 'none', layout: 'board', quietBoard: true, keepSegment: true,
       segment: seg,
@@ -1915,7 +1984,6 @@ window.CFG = (function () {
               Object.assign({ settled: true, length: true }, legB) ],
       task: {
         kind: 'table',
-        correctLine: 'That’s right!',
         formula: [
           { kind: 'lead', parts: [
               { t: '(AB)' + SQ, lit: 'ab' }, { t: ' = ' },
@@ -1938,6 +2006,15 @@ window.CFG = (function () {
     }, base);
     return s0 ? [s0, s1, s2, s3] : [s1, s2, s3];
   }
+
+  /* Maya's house and the two cafés (42-46), from the town's own three
+     coordinates: the dots, the walks between them, Maya's walk and the
+     lengths written on them all come from TOWN, so none of it can stand
+     apart from the pictures drawn over them. */
+  const HOUSE = TOWN.house, CAFE_A = TOWN.cafeA, CAFE_B = TOWN.cafeB;
+  const PT = function (p) { return { x: p.x, y: p.y }; };
+  // how far a place is from the house, as the board writes it: whole (TOWN)
+  const HOUSE_TO = function (p) { return Math.hypot(p.x - HOUSE.x, p.y - HOUSE.y) + '\u00A0units'; };
 
   /* -------------------------------------------------------------
      SCRIPT — one entry per screen
@@ -2036,9 +2113,11 @@ window.CFG = (function () {
                  missed learns more from the spaces being counted than
                  from being sent round again. */
               countLine: 'Count carefully!',
-              /* Right: well done, said and in her balloon, over the
-                 confetti. Alternated with "Exactly!" across the four. */
-              praise: 'That’s right!'
+              /* And, once the count has written its number on the line,
+                 what it came to, said (8, 13, 14, 19). */
+              countedLine: 'So, the distance is 3\u00A0units.'
+              /* Right: "That's correct!", heard over the confetti and
+                 not written (PRAISE). */
       } },
 
     /* 9-11 — three more of the same, staying on the board. Two of them
@@ -2124,7 +2203,7 @@ window.CFG = (function () {
                  missed learns more from the spaces being counted than
                  from being sent round again. */
               countLine: 'Count carefully!',
-              praise: 'Exactly!' } },
+              countedLine: 'So, the distance is 7\u00A0units.' } },
 
     { id: 14, line: 'What is the distance between the two points?', entrance: 'none', layout: 'board',
       distance: true, intro: 'measure',
@@ -2135,7 +2214,7 @@ window.CFG = (function () {
                  missed learns more from the spaces being counted than
                  from being sent round again. */
               countLine: 'Count carefully!',
-              praise: 'That’s right!' } },
+              countedLine: 'So, the distance is 5\u00A0units.' } },
 
     /* ---- and the same argument for a column. After the first vertical
        question the y-axis gets what the x-axis got: this time the x
@@ -2187,11 +2266,7 @@ window.CFG = (function () {
                  missed learns more from the spaces being counted than
                  from being sent round again. */
               countLine: 'Count carefully!',
-              praise: 'Exactly!',
-              /* And what it came to, said: the last of the four, so the
-                 number is put into words before the screens move on to
-                 points that are not lined up. */
-              correctLine: 'So, the distance is 2\u00A0units.' } },
+              countedLine: 'So, the distance is 2\u00A0units.' } },
 
     /* ---- 20-21: the recall, immediately before the ground moves.
 
@@ -2576,10 +2651,10 @@ window.CFG = (function () {
          the sentence, so "Since it’s a right triangle…" has the whole
          triangle and its square at full strength. */
       wordCues: [ { word: 'We', spot: ['h', 'v'], pulse: ['h', 'v'], run: 1500 },
-                  { word: 'But', spot: 'ab', pulse: 'ab', beat: ['a', 'b'], run: 1500,
-                    hushMark: true } ],
+                  { word: 'AB', in: 'But we still need AB.', spot: 'ab', pulse: 'ab',
+                    beat: ['a', 'b'], run: 1500, hushMark: true } ],
       lineLights: [ { unspot: true, after: 550, hold: 500 },
-                    { unspot: true, after: 550, hold: 500 }, {} ],
+                    { unspot: true, after: 1300, hold: 500 }, {} ],
       /* The right angle is what the theorem rests on, so the marker is
          asserted on arrival (a jump from the picker would otherwise
          land without it) and exempt from every highlight's hush —
@@ -2658,8 +2733,9 @@ window.CFG = (function () {
       guideOnLine: true,
       /* C and the dotted side out to it come with "What is the
          difference…", from its first word — see the walks (walk, s1). */
-      wordCues: [ { word: 'distance', guide: true, beat: ['a', 'b'] },
-                  { word: 'What', spot: 'h', legs: true, beat: ['c'] } ],
+      wordCues: [ { word: 'distance', guide: true },
+                  { word: 'What', spot: 'h', legs: true, beat: ['c'] } ]
+        .concat(namesAB('Now, let’s find the distance between A and B.')),
       lineLights: [ {}, { pulse: 'h' } ],
       entrance: 'none', layout: 'board', quietBoard: true, transition: 'leaves',
       intro: 'measure', distance: true,
@@ -2697,15 +2773,16 @@ window.CFG = (function () {
          that make the right angle (it used to go grey here). The marker
          comes up on "triangle". The light runs as long as the sentence is
          up. */
-      /* Then AB, the side to find, from the first word of "Let’s use
+      /* Then AB, the side to find, on the word "AB" in "Let’s use
          Pythagoras to find AB.": AB and its points forward, AB pulsing
          and A and B ringing, AC, CB and C stepped back — until just
          after the sentence, before the table opens. The square stays up:
          it is what lets Pythagoras be used, named in the same breath. */
       wordCues: [ { word: 'Look', pulse: 'triangle', run: 2600 },
                   { word: 'triangle', mark: true },
-                  { word: 'Let’s', spot: 'ab', pulse: 'ab', beat: ['a', 'b'], run: 1700 } ],
-      lineLights: [ { hold: 1000 }, { unspot: true, after: 550 } ],
+                  { word: 'AB', in: 'Let’s use Pythagoras to find AB.', spot: 'ab', pulse: 'ab',
+                    beat: ['a', 'b'], run: 1700 } ],
+      lineLights: [ { hold: 1000 }, { unspot: true, after: 1300 } ],
       keepMark: true,
       entrance: 'none', view: 'triangle', quietBoard: true, layout: 'board', keepSegment: true,
       segment: { a: { x: -2, y: 2, name: 'A' }, b: { x: 2, y: 5, name: 'B' }, dash: true },
@@ -2714,7 +2791,6 @@ window.CFG = (function () {
               { from: { x: 2, y: 2 }, to: { x: 2, y: 5 }, settled: true, length: true } ],
       task: {
         kind: 'table',
-        correctLine: 'That’s right!',
         /* The theorem is given; every number after it is a blank the
            child fills, choosing between the two in `offer` (in the order
            they drop down — the right one is not always on top). Each
@@ -2852,7 +2928,7 @@ window.CFG = (function () {
        ending on AB = √((y₂ − y₁)² + (x₂ − x₁)²). Nothing asked. */
     { id: 35, shape: SHAPE_G, line: 'Now, let’s find AB.', entrance: 'stay',
       layout: 'board', keepSegment: true,
-      wordCues: [ { word: 'AB', spot: 'ab' } ],
+      wordCues: [ { word: 'AB', spot: 'ab', pulse: 'ab', beat: ['a', 'b'], run: 1700 } ],
       lineLights: [ { unspot: true, after: 500 } ],
       /* The child's to fill, the way 29c's table is: she flies off, the
          board makes room and the table opens out of its right edge — AB,
@@ -2919,17 +2995,20 @@ window.CFG = (function () {
 
     /* 36 — the recap of the formula — is gone: 35 has just written it.
 
-       37 — the formula, on its own. No leaf sweep, and no words: the
-       table stays where 35 wrote it, the two lines that led to it fade
-       and fold away (`tableOnly`), and what is left is the one line it
-       ended on, made big — the board steps back to 85% against its left
-       edge and the table comes into the room at 125%. Swifty is away
-       (she did not come back at the end of 35), and the screen waits
-       for Next (`waitNext`) for as long as the child wants to look. */
+       37 — the formula, on its own. No leaf sweep: the table stays
+       where 35 wrote it, the two lines that led to it fade and fold away
+       (`tableOnly`), and what is left is the one line it ended on, made
+       big — the board steps back to 85% against its left edge and the
+       table comes out into the room at 125%, between the board and the
+       frame's right edge, and down (`top`, its top edge) to leave her
+       room over it. Then Swifty comes up from behind it, her hands on
+       its edge, and says what it gives (`peek`); a Next comes up in the
+       corner, and the screen waits for it (`waitNext`). */
     { id: 37, shape: SHAPE_G,
       entrance: 'away', layout: 'board', keepSegment: true, keepTable: true,
       tableOnly: 'last', waitNext: true,
-      tableGrow: { board: 0.85, table: 1.25 } },
+      tableGrow: { board: 0.85, table: 1.25, top: 350 },
+      peek: { line: 'And that gives the distance between any two points.' } },
 
 
     /* Back to the field, behind the leaves: the scene changes here now
@@ -2949,13 +3028,22 @@ window.CFG = (function () {
       /* The child's own go (runAxisPick): the board builds in the middle
          and moves across, she says which case it is and goes, and the
          table opens out of the board for the child to fill. */
-      /* She comes in to the table as it opens and names what its first
-         line is — the formula, written as she finishes saying so — and
-         leaves the rest to the child. Nothing said at the end: the line
-         it ends on goes green, and the screen hands on. */
+      /* She is only seen over the table on this screen (`peek`), never
+         flown in: as it opens — down the middle of the room right of the
+         board (`tableTop`, its top edge), with room over it for her — she
+         comes up from behind it and names what its first line is, the
+         formula, written as she finishes saying so; then she goes back
+         down, and the rest is the child's. At the end the line it ends on
+         goes green, the rest fold away and it is written as "d = …"
+         (`name`), the board steps back and the table grows (`grow`, as
+         37's does), and she comes up again to say what it gives. A Next
+         comes up in the corner, and the screen waits for it (`waitNext`). */
       task: { kind: 'table', formula: XAXIS.picks, tableSize: 32,
               tableLine: 'The distance between any two points is:',
-              correctLine: false } },
+              tableTop: 470, correctLine: false },
+      waitNext: true,
+      peek: { line: 'And that gives the distance when the points are on the x-axis.',
+              name: 'd', grow: { board: 0.85, table: 1.25, top: 350 } } },
 
     /* 30 — leaves again, and the same empty field as 25: board and
        working left behind, Swifty flying back in alone to put the next
@@ -2971,9 +3059,13 @@ window.CFG = (function () {
       /* As 39: no leaf sweep and no Swifty — the grid, its two points,
          then the table. */
       noIntro: true,
+      /* And the same as 39, on the y-axis. */
       task: { kind: 'table', formula: YAXIS.picks, tableSize: 32,
               tableLine: 'The distance between any two points is:',
-              correctLine: false } },
+              tableTop: 470, correctLine: false },
+      waitNext: true,
+      peek: { line: 'And that gives the distance when the points are on the y-axis.',
+              name: 'd', grow: { board: 0.85, table: 1.25, top: 350 } } },
 
     /* 41b — the formula, asked for straight out, before it is put to
        work in the town: two points and nothing else, and "Find the
@@ -2983,8 +3075,7 @@ window.CFG = (function () {
     ...walk({
       ids: ['41b'], formula: true,
       a: { x: 1, y: -1 }, b: { x: 4, y: 3 }, c: { x: 4, y: -1 },
-      say: { first: 'Find the distance between A and B.', cue: 'distance', ask: false,
-             right: 'That\u2019s correct!' },
+      say: { first: 'Find the distance between A and B.', cue: 'distance', ask: false },
       base: { range: { min: 0, max: 8 } },
       first: { transition: 'leaves', entrance: 'fly' }
     }),
@@ -3014,12 +3105,12 @@ window.CFG = (function () {
       rescue: { engine: 'engine', fire: 'fire' },
       say: { first: 'There\u2019s a fire at A!',
              ask: 'How far is it from the fire engine at B?',
-             right: 'That\u2019s correct!',
              worked: 'So, the fire engine needs to travel 13\u00A0units.',
-             cues: [ { word: 'fire', in: 'There\u2019s a fire at A!',
-                       beat: ['a'], townGlow: ['fire'] },
+             cues: [ { word: 'fire', in: 'There\u2019s a fire at A!', townGlow: ['fire'] },
+                     { word: 'A', in: 'There\u2019s a fire at A!', beat: ['a'] },
                      { word: 'engine', in: 'How far is it from the fire engine at B?',
-                       guide: true, beat: ['b'], townGlow: ['engine'] } ] },
+                       guide: true, townGlow: ['engine'] },
+                     { word: 'B', in: 'How far is it from the fire engine at B?', beat: ['b'] } ] },
       base: { textScale: 0.85, town: ['fire', 'engine'], board: 'wide', range: { min: 0, max: 15 } },
       first: { transition: 'leaves', entrance: 'fly' }
     }),
@@ -3033,12 +3124,11 @@ window.CFG = (function () {
       seg: { coordSide: 'under' },
       say: { first: 'There are two towers at A and B.',
              ask: 'How long must a cable be to connect them directly?',
-             right: 'That\u2019s correct!',
              worked: 'So, the cable needs to be 10\u00A0units long to connect the towers.',
              cues: [ { word: 'towers', in: 'There are two towers at A and B.',
-                       beat: ['a', 'b'], townGlow: ['towerA', 'towerB'] },
+                       townGlow: ['towerA', 'towerB'] } ].concat(namesAB('There are two towers at A and B.'), [
                      { word: 'cable', in: 'How long must a cable be to connect them directly?',
-                       guide: true } ] },
+                       guide: true } ]) },
       base: { textScale: 0.85, town: ['towerA', 'towerB'], range: { min: 0, max: 12 } },
       first: { transition: 'leaves', entrance: 'fly' }
     }),
@@ -3072,9 +3162,9 @@ window.CFG = (function () {
       /* Plotted, not joined: a line between any two of them would say
          which pair the question is about, which is the question. */
       pointsOnly: true,
-      segment: { a: { x: 1, y: 1 }, b: { x: 5, y: 1 }, coordSide: 'under' },
+      segment: { a: PT(HOUSE), b: PT(CAFE_A), coordSide: 'under' },
       // the third place, plotted the same way and labelled the same way
-      mark: [ { x: -3, y: 4 } ],
+      mark: [ PT(CAFE_B) ],
       /* She asks, and then the two answers come up under her — the order
          every other question in the game has. (They used to go up first,
          with her arriving after.) No hint under them: the question is the
@@ -3091,10 +3181,9 @@ window.CFG = (function () {
            the other button. One miss and the walks work it out. */
         feedback: [],
         voiceOnly: true,
-        correctLine: 'That\u2019s correct!',
-        /* Right, and Maya comes out of her house and walks along the row
+        /* Right, and Maya comes out of her house and walks up the slant
            to Café A, and goes in (Board.mayaWalk). */
-        walkOnRight: { from: { x: 1, y: 1 }, to: { x: 5, y: 1 } },
+        walkOnRight: { from: PT(HOUSE), to: PT(CAFE_A) },
         /* Right: past the walks, to the park. */
         rightAt: 55,
         /* Wrong: the two walks, worked the way 29 taught them. */
@@ -3113,27 +3202,28 @@ window.CFG = (function () {
 
     /* 44 — Maya's house to Café A: the house and Café A at full strength
        and Café B stepped back; named A and B and joined by the dotted
-       line as she says it; asked on the reel. Four along the house's own
-       row: 4 units. */
+       line as she says it; asked on the reel. Four across and three up:
+       5 units, whole — the slant that wants the formula. */
     ...walk({
       ids: [44], formula: true,
-      a: { x: 1, y: 1 }, b: { x: 5, y: 1 }, c: { x: 5, y: 1 },
+      a: PT(HOUSE), b: PT(CAFE_A), c: { x: CAFE_A.x, y: HOUSE.y },
       seg: { coordSide: 'under' },
       say: { first: 'First, find the distance from Maya\u2019s house to Café A.' },
       base: { textScale: 0.85, town: ['house', 'cafeA', 'cafeB'], townFocus: ['house', 'cafeA'],
-              mark: [ { x: -3, y: 4 } ], range: { min: 0, max: 7 } },
+              mark: [ PT(CAFE_B) ], range: { min: 0, max: 8 } },
       first: { keepSegment: true }
     }),
 
-    /* 45 — and Maya's house to Café B, the same way: four across and
-       three up, 5 units, on the reel — more than Café A's 4. */
+    /* 45 — and Maya's house to Café B, the same way: the long slant,
+       eight across and six down, 10 units, on the reel — twice Café A's
+       5. */
     ...walk({
       ids: [45], formula: true,
-      a: { x: 1, y: 1 }, b: { x: -3, y: 4 }, c: { x: -3, y: 1 },
+      a: PT(HOUSE), b: PT(CAFE_B), c: { x: CAFE_B.x, y: HOUSE.y },
       seg: { coordSide: 'under' },
       say: { first: 'Now, find the distance from Maya\u2019s house to Café B.' },
       base: { textScale: 0.85, town: ['house', 'cafeA', 'cafeB'], townFocus: ['house', 'cafeB'],
-              mark: [ { x: 5, y: 1 } ], range: { min: 0, max: 8 } },
+              mark: [ PT(CAFE_A) ], range: { min: 0, max: 12 } },
       /* No leaf sweep: it follows the last walk's table on the same
          town, so she flies off from under it and back in (flyBack). */
       first: { flyBack: true }
@@ -3153,30 +3243,31 @@ window.CFG = (function () {
       town: ['house', 'cafeA', 'cafeB'], textScale: 0.85,
       keepSegment: true, dropLegs: true, dropNames: true,
       /* The two walks on the map with their lengths written on them —
-         5 units to Cafe B, 4 units to Cafe A — and the same two on the
+         10 units to Cafe B, 5 units to Cafe A — and the same two on the
          cards (below). A wrong card and the two lengths blink on the map,
          with nothing said (blinkOnMiss). (Held back once: then the 5 units
          carried over from 45's table stood alone, and Cafe A's line had
          nothing on it.) */
       compare: [
-        { a: { x: 1, y: 1 }, b: { x: -3, y: 4 }, coordSide: 'under',
-          result: { text: '5\u00A0units' } },
-        { a: { x: 1, y: 1 }, b: { x: 5, y: 1 }, coordSide: 'under',
-          result: { text: '4\u00A0units' } }
+        { a: PT(HOUSE), b: PT(CAFE_B), coordSide: 'under',
+          result: { text: HOUSE_TO(CAFE_B) } },
+        { a: PT(HOUSE), b: PT(CAFE_A), coordSide: 'under',
+          result: { text: HOUSE_TO(CAFE_A) } }
       ],
       options: [
-        { key: 'cafeA', label: 'Café A', dist: '4\u00A0units', pic: PIC('cafe') },
-        { key: 'cafeB', label: 'Café B', dist: '5\u00A0units', pic: PIC('cafe') }
+        { key: 'cafeA', label: 'Café A', dist: HOUSE_TO(CAFE_A), pic: PIC('cafe') },
+        { key: 'cafeB', label: 'Café B', dist: HOUSE_TO(CAFE_B), pic: PIC('cafe') }
       ],
       optionRow: true, optionWide: true,     // two cards side by side, the width of the trio
       /* She asks first, then the cards come up — even straight after 42,
          whose answers would otherwise be kept and simply rewritten. */
       askFirst: true,
+      /* Wrong: OOPS, and then the two lengths blink on the map. */
       task: { kind: 'choice', answer: 'cafeA', blinkOnMiss: true, voiceOnly: true,
-              correctLine: '4 is less than 5 \u2014 so Café A is closer.',
+              oopsLine: OOPS,
               /* Right, and Maya comes out of her house and walks along the
                  line to Cafe A, and goes in (Board.mayaWalk). */
-              walkOnRight: { from: { x: 1, y: 1 }, to: { x: 5, y: 1 } } } },
+              walkOnRight: { from: PT(HOUSE), to: PT(CAFE_A) } } },
 
     /* ================= what kind of triangle is this park? =========
        The last beat, and the first one where the distance formula is
@@ -3214,10 +3305,11 @@ window.CFG = (function () {
       task: {
         kind: 'choice',
         answer: 'scalene',
-        /* One rung, and it points at the work rather than the answer. */
-        feedback: ['Have another look at the three sides.'],
+        /* Wrong, and the sides are measured: 56 says OOPS and 57-59 do
+           the finding. (One rung used to come first: "Have another look
+           at the three sides.") */
+        feedback: [],
         voiceOnly: true,
-        correctLine: 'Scalene — no two sides the same.',
         /* Right, and the beats that measure it are stepped over — they
            are for a child who guessed — to the close. */
         rightAt: 62,
@@ -3228,7 +3320,8 @@ window.CFG = (function () {
     /* 56 — a beat to stop being wrong in. The cards go, the triangle
        stays exactly where it was. Screens 43 and 50 do the same job for
        the same reason. */
-    { id: 56, line: 'Oops! Let\u2019s check the sides.',
+    /* Said as every miss from 41b on is (OOPS). */
+    { id: 56, line: OOPS,
       entrance: 'stay', layout: 'board', board: 'mid', keepSegment: true,
       quietBoard: true, park: true,
       segment: { a: { x: -6, y: -2, name: 'A', coordSide: 'under' },
@@ -3243,6 +3336,7 @@ window.CFG = (function () {
        the loud one, the sides already found keep their lengths and step
        back, and the board fills up in front of them. */
     { id: 57, line: 'What is the length of AB?', focus: 'ab',
+      wordCues: [ { word: 'AB', pulse: 'ab', beat: ['a', 'b'], run: 1700 } ],
       entrance: 'stay', layout: 'board', board: 'mid', keepSegment: true,
       quietBoard: true, park: true,
       intro: 'measure', entry: true, range: { min: 0, max: 18 },
@@ -3256,13 +3350,12 @@ window.CFG = (function () {
       ],
       task: { kind: 'entry', answer: 13, noCount: true,
               keepLength: true,
-              correctLine: 'Thirteen. That one stays.',
-              /* Missed once: she flies off, the board makes room, and the
+              /* Missed once: OOPS, and she flies off, the board makes room, and the
                  distance formula opens out of its right edge for the child
                  to work — A's and B's numbers carried into it off their
                  coordinates, then the rest theirs, blank by blank. What it
                  comes to flies onto AB and stays there. */
-              feedback: [], tableOnMiss: true, tableSize: 34,
+              feedback: [], tableOnMiss: true, oopsLine: OOPS, tableSize: 34,
               formula: distanceTable({ x: -6, y: -2, key: 'a' }, { x: 6, y: -7, key: 'b' }) } },
 
     /* The one side of this triangle that runs straight up the grid — so
@@ -3284,10 +3377,13 @@ window.CFG = (function () {
         { from: { x:  6, y: -7 }, to: { x: 6, y: 7 }, mark: { name: 'C' }, settled: true },
         { from: { x:  6, y:  7 }, to: { x: -6, y: -2 }, settled: true }
       ],
+      /* Wrong: OOPS, the squares counted up the side, and what they came
+         to said (as 8, 13, 14 and 19 do). (It was "Count the squares from
+         B up to C." and a second go first.) */
       task: { kind: 'distance', measureLeg: 0, keepLength: true,
-              correctLine: 'Fourteen.',
-              feedback: ['Count the squares from B up to C.'],
-              countLine: 'Count carefully!' } },
+              feedback: [],
+              countLine: OOPS,
+              countedLine: 'So, the distance is 14\u00A0units.' } },
 
     { id: 59, line: 'One side left! What is the length of CA?', focus: 'v',
       entrance: 'none', layout: 'board', board: 'mid', keepSegment: true,
@@ -3310,7 +3406,7 @@ window.CFG = (function () {
               /* As 57: missed once, the distance formula for the child to
                  work, read from C to A — C's numbers out of the corner's
                  own coordinates. It comes to 15, which flies onto CA. */
-              feedback: [], tableOnMiss: true, tableSize: 34,
+              feedback: [], tableOnMiss: true, oopsLine: OOPS, tableSize: 34,
               formula: distanceTable({ x: 6, y: 7, key: 'c' }, { x: -6, y: -2, key: 'a' }) } },
 
     /* 61 — and back to the question they opened. Same three cards, same
@@ -3336,11 +3432,11 @@ window.CFG = (function () {
       task: {
         kind: 'choice',
         answer: 'scalene',
-        /* No second go: a wrong name and she gives the right one, and
-           why — and the card says so too (Opts.reveal). */
+        /* No second go: a wrong name, OOPS, and she gives the right one,
+           and why — and the card says so too (Opts.reveal). */
         feedback: [],
         voiceOnly: true,
-        correctLine: 'That\u2019s right — a scalene triangle.',
+        oopsLine: OOPS,
         spentLine: 'All three sides have different lengths. So, it\u2019s a scalene triangle!'
       },
       hold: 6000 },
@@ -3358,6 +3454,6 @@ window.CFG = (function () {
     VERSION, stamp: stamped, STAGE_W, STAGE_H, ART, AUDIO_EXT, SHEETS, SHEET_W, SHEET_H,
     SWIFTY, CHAR_SCALE, ANCHOR, HEAD_TOP, FEET_DY, SHADOW, CLOUD,
     GRID, STAND, BOARD, XAXIS, YAXIS, TOWN,
-    BUBBLE, PLAY, START, AUDIO, AUTO, NAV, MOTION, SCRIPT
+    BUBBLE, PEEK, PRAISE, OOPS, PLAY, START, AUDIO, AUTO, NAV, MOTION, SCRIPT
   };
 })();

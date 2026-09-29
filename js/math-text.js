@@ -21,7 +21,9 @@
 (function () {
   'use strict';
 
-  const PAIR = /([xy])([₀-₉])/g;
+  /* A letter and its number (x₂); or the letter of an axis's name, "the
+     x-axis", which is the same x. */
+  const PAIR = /([xy])([₀-₉])|\b([xy])(?=-axis)/g;
   const SVG = 'http://www.w3.org/2000/svg';
   /* A subscript's drop, as TeX sets one in running text: its foot well
      under the line and its top below the letter's middle. */
@@ -59,11 +61,27 @@
     PAIR.lastIndex = 0;
     while ((m = PAIR.exec(s))) {
       if (m.index > at) out.appendChild(document.createTextNode(s.slice(at, m.index)));
-      out.appendChild(piece('mvar', m[1]));
-      out.appendChild(piece('msub', m[2]));
+      if (m[3]) out.appendChild(piece('mvar', m[3]));
+      else {
+        out.appendChild(piece('mvar', m[1]));
+        out.appendChild(piece('msub', m[2]));
+      }
       at = m.index + m[0].length;
     }
     if (at < s.length) out.appendChild(document.createTextNode(s.slice(at)));
+    /* In a box that lays its children out as items — a grid or a flex
+       row, like a tile of the table's scroller — the letter and its
+       digit would each become an item of their own, and a grid stacks
+       its items: the digit fell out of the bottom of its tile, and a
+       whole "x₂ − x₁" came out as a column under it. There, the setting
+       goes in as one piece, which flows as a line. */
+    if (!inSvg && /(grid|flex)/.test(getComputedStyle(parent).display)) {
+      const one = document.createElement('span');
+      one.className = 'mtext';
+      one.appendChild(out);
+      parent.replaceChild(one, text);
+      return;
+    }
     parent.replaceChild(out, text);
   }
 
@@ -85,6 +103,11 @@
       else m.addedNodes.forEach(setAll);
     });
   });
+  /* At once, for what is measured the moment it is written (her balloon
+     is cut to its line before the line is shown): measured unset, it was
+     measured in another face. */
+  window.MathText = { set: setAll };
+
   const start = function () {
     setAll(document.body);
     watch.observe(document.body, { childList: true, characterData: true, subtree: true });

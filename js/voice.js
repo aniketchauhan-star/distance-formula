@@ -14,6 +14,11 @@
    history too: sfx/aniket new.mp3). It was set on its own level to match
    the first, so the two sound like one voice.
 
+   The seven written after that came in a third, read in the same order
+   and cut, slowed and levelled the same way, numbered on from 92 (in the
+   history as well, under the first one's name: sfx/new voice.mp3 at
+   commit 1849173).
+
    She speaks a little slower than she was recorded, for young
    listeners: the whole recording was slowed to nine-tenths of its speed
    (115/128 exactly, the nearest step Apple's time-pitch unit takes — the
@@ -21,6 +26,10 @@
    and every clip encoded afresh. Each opens 50 ms before her first
    sound, and where she took a breath between two lines the breath is in
    neither.
+
+   A line the game no longer says goes, and its clip with it — the
+   clip is in the history, as the recordings are ("That’s right!" and
+   "Exactly!" went when every right answer became "That’s correct!").
 
    MAP is the only thing to edit: the line on the left, then its file
    and how long that file runs. The length is written down rather than
@@ -93,8 +102,6 @@ window.Voice = (function () {
       ['29-look-we-made-a-right-triangle', 2.38],
     'Let’s use Pythagoras to find AB.':
       ['30-lets-use-pythagoras-to-find-ab', 2.90],
-    'That’s right!':
-      ['31-thats-right', 1.02],
     'Now find AB.':
       ['32-now-find-ab', 1.46],
     'What is the distance between A and B?':
@@ -115,8 +122,6 @@ window.Voice = (function () {
       ['41-what-if-both-points-are-on-the-x-axis', 3.11],
     /* The front of her "Exactly! There's no vertical distance.", cut at
        her pause after it: praise for a warm-up distance. */
-    'Exactly!':
-      ['42a-exactly', 1.04],
     'And what if they’re on the y-axis?':
       ['43-and-what-if-theyre-on-the-y-axis', 2.51],
     /* The end of her "Now, let's find the distance between A and B.",
@@ -127,22 +132,6 @@ window.Voice = (function () {
       ['45-maya-wants-to-walk-to-the-closer-cafe-which', 5.93],
     'Which distance is shorter?':
       ['48-which-distance-is-shorter', 2.27],
-    '4 is less than 5 — so Café A is closer.':
-      ['49-4-is-less-than-5-so-cafe-a-is-closer', 4.28],
-    'Scalene — no two sides the same.':
-      ['53-scalene-no-two-sides-the-same', 2.82],
-    'Have another look at the three sides.':
-      ['54-have-another-look-at-the-three-sides', 2.30],
-    'Oops! Let’s check the sides.':
-      ['55-oops-lets-check-the-sides', 2.46],
-    'Thirteen. That one stays.':
-      ['57-thirteen-that-one-stays', 2.14],
-    'Fourteen.':
-      ['59-fourteen', 0.99],
-    'Count the squares from B up to C.':
-      ['60-count-the-squares-from-b-up-to-c', 2.66],
-    'That’s right — a scalene triangle.':
-      ['68-thats-right-a-scalene-triangle', 2.64],
 
     /* The lines written after that recording, from a second one read in
        the order the game says them (see the header): 69 onward. */
@@ -191,7 +180,25 @@ window.Voice = (function () {
     'Now you know how to find the distance between any two points.':
       ['90-now-you-know-how-to-find-the-distance-betwee', 3.98],
     'Let’s head back and bridge that gap!':
-      ['91-lets-head-back-and-bridge-that-gap', 2.10]
+      ['91-lets-head-back-and-bridge-that-gap', 2.10],
+
+    /* And the seven written after that, from a third recording (see the
+       header): 92 onward. The distance said once a miss has been counted
+       out, then what the formula gives on 37, 39 and 41. */
+    'So, the distance is 3\u00A0units.':
+      ['92-so-the-distance-is-3-units', 2.47],
+    'So, the distance is 7\u00A0units.':
+      ['93-so-the-distance-is-7-units', 2.72],
+    'So, the distance is 5\u00A0units.':
+      ['94-so-the-distance-is-5-units', 2.63],
+    'And that gives the distance between any two points.':
+      ['95-and-that-gives-the-distance-between-any-two', 3.42],
+    'And that gives the distance when the points are on the x-axis.':
+      ['96-and-that-gives-the-distance-when-the-points', 4.78],
+    'And that gives the distance when the points are on the y-axis.':
+      ['97-and-that-gives-the-distance-when-the-points', 4.30],
+    'So, the distance is 14\u00A0units.':
+      ['98-so-the-distance-is-14-units', 2.70]
   };
 
   /* Lines are looked up on a tidied form of themselves. A coordinate

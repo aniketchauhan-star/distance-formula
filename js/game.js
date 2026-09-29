@@ -11,9 +11,9 @@
    'startScreen', 'playBtn', 'playImg', 'scene', 'skyLayer',
    'shadow', 'birdRig', 'birdWin', 'flySheet', 'talkSheet',
    'bubble', 'bubbleBody',
-   'bubbleLine', 'nav', 'nextBtn', 'backBtn',
+   'bubbleLine', 'nav', 'nextBtn', 'backBtn', 'goOn', 'charGroup',
    'gridPanel', 'gridImg', 'gridAxes', 'standSwifty',
-   'leafLayer', 'fxLayer', 'sceneArt', 'sceneArtSoft', 'focusVeil', 'startArt',
+   'leafLayer', 'fxLayer', 'sceneArt', 'startArt',
    'startBird', 'startBirdWin', 'startFly', 'startTalk', 'startShadow', 'startSky'
   ].forEach(function (id) { el[id] = document.getElementById(id); });
 
@@ -309,15 +309,6 @@
     return g;
   }
 
-  /* Swifty alone in the open field — the screens with no board, no
-     table and nothing but her (1, 3, 38, 40, 41c, 62): the field's own
-     rig, and her staying in it. Screen 4, where she flies off, is not
-     one: the field comes back sharp as she goes. */
-  function soloField(entry) {
-    return !!entry && !entry.layout && !axisOf(entry) && !entry.keepTable &&
-           entry.intro !== 'measure' && entry.entrance !== 'flyOut';
-  }
-
   function geomFor(i) {
     const entry = C.SCRIPT[i] || {};
     const AX = axisOf(entry);
@@ -603,6 +594,8 @@
   }
 
   function mouthOpen() {
+    // over the panel, it is the head there that talks
+    if (Peek.up) { Peek.talk(true); return; }
     if (standPose) {
       el.standSwifty.classList.add('hidden');
       el.birdWin.classList.remove('hidden');
@@ -610,11 +603,188 @@
     Sprite.play('talk', true);
   }
   function mouthShut() {
+    if (Peek.up) { Peek.talk(false); return; }
     Sprite.stopAt('talk', 0);
     if (!standPose) return;
     el.birdWin.classList.add('hidden');
     el.standSwifty.classList.remove('hidden');
   }
+
+  /* A box on the page, in stage pixels. */
+  function stageBox(node) {
+    const st = el.stage.getBoundingClientRect(), k = st.width / C.STAGE_W || 1;
+    const r = node.getBoundingClientRect();
+    return { l: (r.left - st.left) / k, t: (r.top - st.top) / k,
+             r: (r.right - st.left) / k, b: (r.bottom - st.top) / k };
+  }
+
+  /* ---------------- Swifty over the panel ----------------
+     37, 39 and 41 end with her coming up from behind the panel the
+     formula is written on, her hands on its top edge, to say what it
+     gives (CFG.PEEK). A strip of six frames rather than her rig: she is
+     a head and two hands here, and the rest of her is behind the panel.
+
+     She is seen through a window that ends at the panel's edge, so as
+     she rises the panel hides everything of her below it — she comes up
+     from BEHIND it. Once she is up the window drops by the length of her
+     fingers, and her hands come over the edge and hold it. */
+  const SVGNS = 'http://www.w3.org/2000/svg';
+  const Peek = {
+    up: false, win: null, bird: null, joy: null,
+    frame: 0, beat: 0, talkT: null, timers: [], anim: null,
+    k: 1, fw: 0, fh: 0, pad: 70, at: null,
+
+    build: function () {
+      if (this.win) return;
+      const w = document.createElement('div');
+      w.id = 'peek';
+      w.className = 'hidden';
+      w.setAttribute('aria-hidden', 'true');
+      const bird = document.createElement('div');
+      bird.className = 'peek-bird';
+      /* The little lines either side of her head as she arrives, as the
+         picture she was drawn from has them: three on each side,
+         drawn out and gone again. */
+      const joy = document.createElementNS(SVGNS, 'svg');
+      joy.setAttribute('class', 'peek-joy');
+      [[-1, 1], [1, -1]].forEach(function (side) {
+        [[-0.98, -0.2], [-0.78, -0.62], [-0.36, -0.93]].forEach(function (d, n) {
+          const ln = document.createElementNS(SVGNS, 'line');
+          ln.setAttribute('data-side', side[0] < 0 ? 'l' : 'r');
+          ln.setAttribute('data-dx', String(d[0] * side[0] * -1));
+          ln.setAttribute('data-dy', String(d[1]));
+          ln.style.animationDelay = (n * 70) + 'ms, ' + (1250 + n * 70) + 'ms';
+          joy.appendChild(ln);
+        });
+      });
+      w.appendChild(bird);
+      w.appendChild(joy);
+      el.scene.insertBefore(w, el.charGroup);
+      this.win = w; this.bird = bird; this.joy = joy;
+    },
+
+    show: function (i) {
+      this.frame = i;
+      if (this.bird) this.bird.style.backgroundPosition = (-i * this.fw) + 'px 0';
+    },
+
+    later: function (fn, ms) { this.timers.push(setTimeout(fn, ms)); },
+
+    /* Up from behind the panel. `at` is where: her middle (x) and the
+       panel's top edge (y), in stage pixels. `done` once her hands are
+       on it. */
+    rise: function (at, done) {
+      const P = C.PEEK, self = this;
+      this.build();
+      this.leave(true);
+      const k = this.k = P.size / P.w;
+      const fw = this.fw = P.w * k, fh = this.fh = P.h * k, pad = this.pad;
+      const body = P.body * k, grip = (P.hands - P.body) * k;
+      /* The window: from well over her crest to the ends of her fingers,
+         a hand's width clear either side for the little lines. Its foot
+         is cut back to the edge until her hands come over it. The flat
+         foot of her body sits a pixel into the edge, so no sky shows
+         between her and it. */
+      const top = at.y + 1 - body - pad;
+      const ws = this.win.style;
+      ws.left = (at.x - fw / 2 - pad) + 'px';
+      ws.top = top + 'px';
+      ws.width = (fw + 2 * pad) + 'px';
+      ws.height = (pad + body + grip + 3) + 'px';
+      ws.setProperty('--grip', (grip + 2) + 'px');
+      const bs = this.bird.style;
+      bs.left = pad + 'px'; bs.top = pad + 'px';
+      bs.width = fw + 'px'; bs.height = fh + 'px';
+      bs.backgroundImage = 'url("' + C.ART.swiftyPeek + '")';
+      bs.backgroundSize = (fw * P.frames) + 'px ' + fh + 'px';
+      this.show(0);
+      /* The little lines, round her head at the height of her brow. */
+      const js = this.joy;
+      js.setAttribute('width', String(fw + 2 * pad));
+      js.setAttribute('height', String(pad + body));
+      [].forEach.call(js.childNodes, function (ln) {
+        const l = ln.getAttribute('data-side') === 'l';
+        const ox = pad + (l ? 0.07 : 0.93) * fw, oy = pad + 0.3 * fh;
+        const dx = +ln.getAttribute('data-dx'), dy = +ln.getAttribute('data-dy');
+        const r0 = 0.05 * fw, r1 = 0.14 * fw;
+        ln.setAttribute('x1', (ox + dx * r0).toFixed(1)); ln.setAttribute('y1', (oy + dy * r0).toFixed(1));
+        ln.setAttribute('x2', (ox + dx * r1).toFixed(1)); ln.setAttribute('y2', (oy + dy * r1).toFixed(1));
+        ln.style.strokeWidth = (0.022 * fw).toFixed(1) + 'px';
+      });
+      this.at = { x: at.x, y: at.y, top: top };
+      this.win.classList.remove('hidden', 'gripped', 'cheer');
+      this.up = true;
+      this.anim = this.bird.animate(
+        [{ transform: 'translateY(' + (body + 6) + 'px)' }, { transform: 'translateY(0)' }],
+        { duration: P.riseMs, easing: 'cubic-bezier(.18, .82, .26, 1)', fill: 'backwards' });
+      SFX.whoosh && SFX.whoosh();
+      this.later(function () {
+        self.win.classList.add('gripped', 'cheer');
+        self.bird.animate(
+          [{ transform: 'scale(1, 1)' }, { transform: 'scale(1.025, .955)', offset: 0.45 },
+           { transform: 'scale(1, 1)' }],
+          { duration: P.gripMs + 160, easing: 'ease-out' });
+        SFX.pop && SFX.pop();
+        self.later(function () { if (done) done(); }, P.gripMs + 120);
+      }, P.riseMs);
+    },
+
+    /* Her beak while she talks: the open frames in turn, then shut. */
+    talk: function (on) {
+      const P = C.PEEK, self = this;
+      clearInterval(this.talkT); this.talkT = null;
+      if (!on) { this.show(0); return; }
+      this.beat = 0;
+      this.show(P.talk[0]);
+      this.talkT = setInterval(function () {
+        self.beat = (self.beat + 1) % P.talk.length;
+        self.show(P.talk[self.beat]);
+      }, 1000 / P.fps);
+    },
+
+    /* Down behind the panel again, when the screen goes — or at once. */
+    leave: function (now) {
+      this.timers.forEach(clearTimeout); this.timers = [];
+      clearInterval(this.talkT); this.talkT = null;
+      if (this.anim) { this.anim.cancel(); this.anim = null; }
+      if (!this.win || !this.up) return;
+      this.up = false;
+      const w = this.win, bird = this.bird;
+      if (now) { w.classList.add('hidden'); return; }
+      w.classList.remove('gripped', 'cheer');
+      this.show(0);
+      const body = C.PEEK.body * this.k;
+      bird.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(' + (body + 6) + 'px)' }],
+                   { duration: 300, easing: 'cubic-bezier(.5, 0, .75, .4)', fill: 'forwards' })
+        .onfinish = function () { if (!Peek.up) w.classList.add('hidden'); this.cancel(); };
+    },
+
+    /* Her balloon over her head, its point on her crown: the screen's
+       geometry, pointed at her, kept to the room right of the board. */
+    geom: function (base, room) {
+      const P = C.PEEK, k = this.k, a = this.at || { x: 0, y: 0 };
+      const left = a.x - this.fw / 2, top = a.y + 1 - P.body * k;
+      return Object.assign({}, base || {}, {
+        stand: false,
+        aim: { x: left + P.crown.x * k, y: top + P.crown.y * k },
+        bubble: P.bubble,
+        room: room
+      });
+    }
+  };
+
+  /* The Next that comes up in the corner once she has said what the
+     formula gives (37, 39, 41): the way on, pulsing, for the child to
+     take when they are ready. */
+  const GoOn = {
+    show: function () {
+      el.goOn.classList.remove('hidden');
+      void el.goOn.offsetWidth;
+      el.goOn.classList.add('on');
+      el.nextBtn.classList.remove('ready');     // one thing nudging, not two
+    },
+    hide: function () { el.goOn.classList.remove('on'); el.goOn.classList.add('hidden'); }
+  };
 
   /* ---------------- speech bubble ---------------- */
   const Bubble = {
@@ -656,6 +826,9 @@
       const P = 2 * (B.pad.x + B.edge) + 2, Q = 2 * (B.pad.y + B.edge);
       const wasW = box.width;
       line.textContent = text;
+      /* Measured as it will be drawn: x₂ in its own face (math-text.js),
+         which is not the balloon's, and not its width. */
+      if (window.MathText) window.MathText.set(line);
       ls.display = 'inline-block'; ls.width = 'auto'; ls.whiteSpace = 'nowrap';
       const one = line.offsetWidth;
       ls.display = ls.width = ls.whiteSpace = '';
@@ -1208,6 +1381,9 @@
       const nw = self.textW('x', N.size);
       label('x', self.clampX(xMax + N.gap, nw), oy - N.rise, N.size, 'x', G.xTo + 1);
       label('y', ox + N.yGap, self.clampY(yMin + N.yDrop, N.size), N.size, 'y', G.yTo + 1);
+      /* The axes' names are the x and y of every coordinate on it, and are
+         set as those are (.mvar). */
+      self.labels.slice(-2).forEach(function (t) { t.classList.add('mvar'); });
       /* Held onto so a label can keep off them. They are the two pieces
          of ink on this board that nothing has ever avoided, which is
          how `(6, 1)` came to be written into the x. */
@@ -6892,6 +7068,35 @@
       el.gridPanel.classList.toggle('unnumbered', !this.numbersAt(i));
     },
 
+    /* And the table, for a screen that sums up the one the screen before
+       wrote (37: `keepTable`), reached without it — a jump, or Back from
+       further on: put up as that screen left it, every line written and
+       every blank filled, where it stood. */
+    seedTable: function (i) {
+      const entry = C.SCRIPT[i] || {};
+      if (!entry.keepTable || !Table || !Table.el.classList.contains('hidden')) return;
+      let j = i - 1;
+      while (j >= 0 && ((C.SCRIPT[j] || {}).task || {}).kind !== 'table') j--;
+      const src = C.SCRIPT[j];
+      if (!src) return;
+      const lines = src.task.formula || [], T = C.GRID.table;
+      const left = T.board.x + T.board.w - T.tuck;
+      Table.setColours(this.sideColours());
+      Table.build(lines);
+      drawRoots(Table.el);
+      Table.el.style.setProperty('--ft-size', (src.task.tableSize || T.size) + 'px');
+      Table.place({ x: left, w: C.STAGE_W - T.margin - left, cy: T.pickCy });
+      Table.fit();
+      lines.forEach(function (row, r) {
+        Table.writeRow(r);
+        (row.parts || []).forEach(function (p, k) {
+          if (p.offer) Table.fill(r, k, p.answer != null ? p.answer : String(p.t).trim());
+        });
+      });
+      Table.open();
+      Table.markRow(lines.length - 1);
+    },
+
     seedDrawing: function (i) {
       const entry = C.SCRIPT[i] || {};
       if (!entry.keepSegment) return;            // it draws its own, from nothing
@@ -6941,10 +7146,11 @@
       const self = this;
       this.clearPending();
       Hint.clear();
-      /* The soft painting belongs to her being alone in the field: any
-         other screen has it sharp again from its first moment, and one of
-         hers turns it on again when she has landed. */
-      if (!soloField(C.SCRIPT[i] || {})) this.focusBird(false);
+      /* Over the panel (37, 39, 41), she goes back down behind it, and
+         the Next in the corner goes with her. */
+      const peeked = Peek.up;
+      Peek.leave();
+      GoOn.hide();
       /* A beat that speaks without a balloon, or works its own sum, must
          not open wearing the last one's. Both are inherited, so both go
          here — at the change — rather than a third of a second later when
@@ -7011,7 +7217,7 @@
       /* Before anything is dressed: if this screen expects a drawing to
          already be there and there is none, put up the one it would
          have inherited. Nothing to do on the way through the script. */
-      if (next.transition !== 'leaves') { this.numberBoard(i); this.seedDrawing(i); }
+      if (next.transition !== 'leaves') { this.numberBoard(i); this.seedDrawing(i); this.seedTable(i); }
       /* And a screen that rests on the right angle has its marker up
          from the first frame. It is normally switched on by answering
          26 — on a timer, which a quick tap on Next cancels — and a jump
@@ -7055,10 +7261,12 @@
          `flyBack`): she is standing under that table, and the new screen
          has her in her own column. Rather than jump there, she flies off
          from where she stands and back in to ask — so the rig is not
-         moved to the new place until she has gone (runMeasure). */
+         moved to the new place until she has gone (runMeasure). Or she
+         was over the panel (40, after 39): she has gone down behind it,
+         and the table and board go the same way after her. */
       const flyBack = !!entry.flyBack && entry.transition !== 'leaves' && Board.shown &&
                       (!el.standSwifty.classList.contains('hidden') ||
-                       !el.birdWin.classList.contains('hidden'));
+                       !el.birdWin.classList.contains('hidden') || peeked);
       this.geom = flyBack ? (this.geom || geom) : geom;
       standPose = !!this.geom.stand;
       /* Reseating the rig also resizes the speech bubble, and a screen
@@ -7225,9 +7433,6 @@
       };
 
       const after = function () {
-        /* Alone in the field and landed: the painting goes soft behind
-           her, so she is what is looked at. */
-        if (soloField(entry)) self.focusBird(true);
         /* The marker, asserted rather than inherited. It is switched on
            by answering "what kind of triangle is this?" and off by
            `clearLegs`, so a child who jumps straight here from the
@@ -7903,25 +8108,9 @@
         growAt = Table.only(Table.rowCount() - 1) + 80;
       }
       if (entry.keepTable && entry.tableGrow && Table && Table.el) {
-        const TG = entry.tableGrow, T = C.GRID.table, B = geom.panelBox || T.board;
-        const gp = el.gridPanel, te = Table.el;
-        const right = B.x + B.w * TG.board;
-        const left = right - T.tuck;
-        self.later(function () {
-          gp.classList.add('stepping');
-          te.classList.add('growing');
-          gp.style.transformOrigin = 'left center';
-          gp.style.scale = String(TG.board);
-          te.style.transformOrigin = 'left center';
-          te.style.left = left + 'px';
-          te.style.scale = String(TG.table);
-        }, growAt);
-        self.hold(function () {
-          gp.classList.remove('stepping');
-          te.classList.remove('growing');
-          gp.style.scale = ''; gp.style.transformOrigin = '';
-          te.style.scale = ''; te.style.transformOrigin = '';
-        });
+        /* Grown, and she comes up from behind it to say what it gives. */
+        self.growTable(entry.tableGrow, geom.panelBox || C.GRID.table.board, growAt,
+                       entry.peek ? function () { self.peekUp(entry); } : null);
       }
 
       /* Screens 9-11 stay on the board they inherited: no leaves, no
@@ -7971,7 +8160,11 @@
       if (flyBack) {
         this.state = 'entering';
         Bubble.close();
-        this.flyOut(function () {
+        /* Down behind the panel is how she left if she was over it
+           (Peek.leave, above) — nothing to fly off from. */
+        const away = peeked ? function (then) { self.later(then, 360); }
+                            : this.flyOut.bind(this);
+        away(function () {
           self.geom = geom;
           standPose = !!geom.stand;
           applyGeom(geom);
@@ -8077,18 +8270,6 @@
       /* A flight that never reports its end (a hidden tab, a dropped
          frame) lands anyway, a beat after it should have. */
       this.later(onEnd, 2100 + 500);
-    },
-
-    /* Everything behind her soft, and the frame's edges dimmed round
-       her — or all of it sharp again. Centred on where she stands. */
-    focusBird: function (on) {
-      if (on) {
-        const g = this.geom || {};
-        const a = g.anchor || C.ANCHOR;
-        el.focusVeil.style.setProperty('--focus-x', (a.x / C.STAGE_W * 100).toFixed(1) + '%');
-        el.focusVeil.style.setProperty('--focus-y', ((a.y - 60) / C.STAGE_H * 100).toFixed(1) + '%');
-      }
-      el.scene.classList.toggle('focus-bird', !!on);
     },
 
     /* She flies on out to the right, carrying straight on past where
@@ -8203,10 +8384,15 @@
       const spent = [];
       Bubble.onWord = function (w) {
         const bare = String(w || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const caps = String(w || '').replace(/[^A-Za-z0-9]/g, '');
         cues.forEach(function (c, n) {
           /* The cue's word is read the way the balloon's is — so a word
-             with an apostrophe in it ("Let’s") can be a cue as written. */
-          if (spent[n] || bare !== String(c.word || '').toLowerCase().replace(/[^a-z0-9]/g, '')) return;
+             with an apostrophe in it ("Let’s") can be a cue as written.
+             A point's name (A, B, AB) is read as a capital, or "There's a
+             fire at A" would light A on its "a". */
+          const name = /^[A-Z]{1,3}$/.test(c.word || '');
+          if (spent[n] || (name ? caps !== c.word
+                                : bare !== String(c.word || '').toLowerCase().replace(/[^a-z0-9]/g, ''))) return;
           /* A cue can belong to one line (`in`: words from it), so the
              same word in an earlier sentence does not set it off. */
           if (c.in && String(Bubble.full || '').indexOf(c.in) < 0) return;
@@ -8431,6 +8617,96 @@
         : (this.task && this.task.done ? C.AUTO.afterCorrect : C.AUTO.afterLine));
     },
 
+    /* A right answer, on every screen: "That's correct!" — heard, not
+       written (CFG.PRAISE). The board has already shown it, lit and in
+       confetti, and a balloon over that only said it twice. */
+    praise: function (then) {
+      this.sayOnly(C.PRAISE, then);
+    },
+
+    /* A miss from 41b on: "Oops! Let's find it together." (`oopsLine`),
+       said in her balloon — and then `then`, the finding it promises.
+       Straight on where the screen has no such line. */
+    oops: function (t, then) {
+      const self = this, line = t && t.spec && t.spec.oopsLine;
+      if (!line) { then(); return; }
+      this.state = 'speaking';
+      Bubble.open(line, function () {
+        self.later(then, Bubble.voiceTail + 450);
+      });
+    },
+
+    /* Up from behind the table: in the middle of what shows of it,
+       right of the board, her balloon kept to the room there. `then`
+       once her hands are on its edge — unless the screen has gone. */
+    peekAt: function (then) {
+      const self = this, i = this.index;
+      const t = stageBox(Table.el), b = stageBox(el.gridPanel);
+      this.state = 'speaking';
+      Bubble.close();
+      Peek.rise({ x: (Math.max(t.l, b.r) + t.r) / 2, y: t.t }, function () {
+        if (self.index !== i) return;
+        self.geom = Peek.geom(self.geom, { left: b.r + 18, right: C.STAGE_W - 24 });
+        then();
+      });
+    },
+
+    /* The formula done (37, 39, 41): she comes up from behind the panel
+       it is written on and says what it gives (`peek.line`), and a Next
+       comes up in the corner for the child to go on with when they are
+       ready. */
+    peekUp: function (entry) {
+      const self = this, P = entry && entry.peek;
+      if (!P || !Table || !Table.el || Table.el.classList.contains('hidden')) {
+        this.settle();
+        return;
+      }
+      this.peekAt(function () {
+        Bubble.open(P.line, function () {
+          self.settle();
+          self.later(function () { GoOn.show(); }, Bubble.voiceTail + C.PEEK.nextMs);
+        });
+      });
+    },
+
+    /* The table given the room (37; 39 and 41 once worked): the board
+       steps back, a little smaller, against its left edge, and the table
+       comes out into the space and grows — and down, its top edge to
+       `top`, where there is room over it for her. Scaled rather than
+       re-laid, so nothing on either moves inside it. `then` when it has.
+       Undone when the screen goes: back the way it came, not in a frame. */
+    growTable: function (TG, B, at, then) {
+      const T = C.GRID.table, gp = el.gridPanel, te = Table.el;
+      const left = B.x + B.w * TG.board - T.tuck;
+      const was = { left: te.style.left, top: te.style.top };
+      this.later(function () {
+        clearTimeout(te._growT);
+        gp.classList.add('stepping');
+        te.classList.add('growing');
+        gp.style.transformOrigin = 'left center';
+        gp.style.scale = String(TG.board);
+        te.style.transformOrigin = 'left center';
+        te.style.left = left + 'px';
+        te.style.scale = String(TG.table);
+        /* Its `top` is where its middle is before it grows — it is lifted
+           half its height to centre it there — and it grows about that
+           middle, so its top edge ends up (grown − ½) of its height over
+           it. */
+        if (TG.top != null) te.style.top = (TG.top + (TG.table - 0.5) * te.offsetHeight) + 'px';
+      }, at);
+      if (then) this.later(then, at + 700 + 350);
+      this.hold(function () {
+        gp.style.scale = ''; te.style.scale = '';
+        te.style.left = was.left; te.style.top = was.top;
+        clearTimeout(te._growT);
+        te._growT = setTimeout(function () {
+          gp.classList.remove('stepping');
+          te.classList.remove('growing');
+          gp.style.transformOrigin = ''; te.style.transformOrigin = '';
+        }, 760);
+      });
+    },
+
     /* ---------------- numbers come from somewhere ----------------
 
        A working does not invent its numbers. The ones that could have
@@ -8591,7 +8867,7 @@
        closes, their number is counted out on the board, and only then
        does the verdict land. Split out because the two used to say the
        same thing twice with slightly different timing. */
-    revealAnswer: function (v, right, correctLine) {
+    revealAnswer: function (v, right) {
       const t = this.task, self = this;
       const pair = this.measurePair();
       if (!pair) return;
@@ -8633,15 +8909,10 @@
             SFX.cheer();
             SFX.confettiPop();
             FX.pop(at.x, at.y, 18);
-            /* Praise, said and written (the four warm-up distances,
-               8-19: "That's right!", "Exactly!"). Then whatever the
-               screen has to say about the answer, if it has anything —
-               the second line in the same balloon, and only it hands
-               the screen on. */
+            /* "That's correct!" — heard, not written (praise). */
             /* And a found distance that is a journey: the fire engine goes. */
             self.rescue(t, 700);
-            if (t.spec.praise && correctLine) self.speakBoth(t.spec.praise, correctLine);
-            else self.finishWith(t.spec.praise || correctLine);
+            self.praise();
           }, 260);
           return;
         }
@@ -8668,9 +8939,13 @@
            time — the question is answered when its last blank is. A
            screen with no ladder goes on its first miss; 30 says "try
            again" once, and goes on its second. */
+        /* From 41b on it opens with "Oops! Let's find it together."
+           (`oopsLine`), and the table is what it promises. */
         if (t.spec.tableOnMiss && Table && fb.exhausted) {
           if (Sel) Sel.lock();
-          self.later(function () { self.runTable(C.SCRIPT[self.index] || {}); }, 700);
+          self.later(function () {
+            self.oops(t, function () { self.runTable(C.SCRIPT[self.index] || {}); });
+          }, 700);
           return;
         }
 
@@ -8740,8 +9015,16 @@
                       Board.showSegResult(ent.segment, txt);
                     }
                     SFX.chime();
-                    self.later(function () { self.settle(C.AUTO.afterLine); },
-                               C.GRID.unitBox.holdMs);
+                    /* And what it came to, said, once it is written: "So,
+                       the distance is 3 units." (the horizontal and
+                       vertical questions, 8-19) — her line then hands the
+                       screen on. Otherwise it is left up to be read. */
+                    if (t.spec.countedLine) {
+                      self.later(function () { self.speak(t.spec.countedLine); }, 520);
+                    } else {
+                      self.later(function () { self.settle(C.AUTO.afterLine); },
+                                 C.GRID.unitBox.holdMs);
+                    }
                   }, 420);
                   /* The count has been held (count.holdMs) by the time this
                      runs: `counting` ends when its hold does. */
@@ -8809,7 +9092,7 @@
       const answer = t.spec.answer != null ? t.spec.answer
         : (d == null ? null : (Math.abs(d - Math.round(d)) < 1e-9 ? Math.round(d) : d));
 
-      this.revealAnswer(v, v === answer, t.spec.correctLine);
+      this.revealAnswer(v, v === answer);
     },
 
     /* A typed answer. The right answer is worked out from the board
@@ -8836,7 +9119,7 @@
         if (Math.abs(d - Math.round(d)) < 1e-9) answer = Math.round(d);
       }
 
-      this.revealAnswer(v, v === answer, t.spec.correctLine);
+      this.revealAnswer(v, v === answer);
     },
 
     /* The measured length, written on the side it measures and left
@@ -8993,10 +9276,14 @@
                  one of numbers, and can ask for smaller type. */
               Table.el.style.setProperty('--ft-size', (entry.task.tableSize || T.size) + 'px');
               /* Higher than 28's, so there is room under it for her to
-                 come back to and her balloon above her. */
+                 come back to and her balloon above her. Or its top edge
+                 where the screen says (`tableTop`: 39, 41 — down the
+                 middle of the room, for her to stand on). */
               Table.place({ x: left, w: C.STAGE_W - T.margin - left, cy: T.pickCy });
               Table.fit();
               Table.open();
+              const topAt = entry.task.tableTop;
+              if (topAt != null) Table.el.style.top = (topAt + Table.el.offsetHeight / 2) + 'px';
               SFX.sparkle();
               self.later(function () {
                 /* The theorem: given. Written whole where its names say
@@ -9021,16 +9308,10 @@
                    line is (39, 41: "The distance between any two points
                    is:") — the line written as she gets to her last
                    word — and goes again, leaving the rest to the child. */
-                const g = standGeom(C.BOARD.tableStand, {});
-                self.geom = g;
-                self.raised = false;
-                standPose = !!g.stand;
-                applyGeom(g);
-                self.flyIn(function () {
+                const speakIt = function (away) {
                   let wrote = 0, done = false;
                   const once = function () { if (!done) { done = true; wrote = writeLead(); } };
                   self.state = 'speaking';
-                  FX.sparkles(g.aim.x, g.aim.y, 7, 170 * (g.scale || C.CHAR_SCALE));
                   Bubble.onWord = function (w, n) {
                     if (n >= Bubble.words.length - 1) once();
                   };
@@ -9039,9 +9320,26 @@
                     once();
                     self.later(function () {
                       Bubble.close();
-                      leave(function () { begin(0); });
+                      away(function () { begin(0); });
                     }, Math.max(wrote, Bubble.voiceTail + 900));
                   });
+                };
+                /* Where she is only seen over the table (`peek`: 39, 41),
+                   up from behind it, and back down after. */
+                if (entry.peek) {
+                  self.peekAt(function () {
+                    speakIt(function (then) { Peek.leave(); self.later(then, 360); });
+                  });
+                  return;
+                }
+                const g = standGeom(C.BOARD.tableStand, {});
+                self.geom = g;
+                self.raised = false;
+                standPose = !!g.stand;
+                applyGeom(g);
+                self.flyIn(function () {
+                  FX.sparkles(g.aim.x, g.aim.y, 7, 170 * (g.scale || C.CHAR_SCALE));
+                  speakIt(leave);
                 });
               }, T.openMs);
             }, 760);
@@ -9149,28 +9447,43 @@
           }, 500 + n * 260);
         });
       }
-      const g = standGeom(C.BOARD.tableStand, {});
-      this.geom = g;
-      this.raised = false;
-      standPose = !!g.stand;
-      applyGeom(g);
+      const scr = C.SCRIPT[this.index] || {};
+      if (!scr.peek) {
+        const g = standGeom(C.BOARD.tableStand, {});
+        this.geom = g;
+        this.raised = false;
+        standPose = !!g.stand;
+        applyGeom(g);
+      }
       /* What it came to goes onto AB first; then she comes in to say so.
-         Or, where the table says nothing (`correctLine: false` — 35, and
-         the axis cases), it is left to be read for a moment, green, and
-         handed on without her. */
+         Or she comes up from behind the table to say what it gives (the
+         axis cases, `peek`). Or, where the table says nothing
+         (`correctLine: false` — 35), it is left to be read for a moment,
+         green, and handed on without her. */
       this.flyResultOut(t.spec.formula, function () {
         self.later(function () {
+          /* Its answer alone, grown into the room (`peek.grow`), and then
+             her — after a moment on the green. */
+          if (scr.peek) {
+            self.later(function () {
+              const G = scr.peek.grow;
+              if (!G || !Table) { self.peekUp(scr); return; }
+              const at = Table.only(lastRow, scr.peek.name) + 80;
+              self.growTable(G, C.GRID.table.board, at, function () { self.peekUp(scr); });
+            }, 900);
+            return;
+          }
           if (t.spec.correctLine === false) {
-            const e = C.SCRIPT[self.index] || {};
-            self.settle(e.hold != null ? e.hold : C.AUTO.afterCorrect);
+            self.settle(scr.hold != null ? scr.hold : C.AUTO.afterCorrect);
             return;
           }
           /* A walk worked on the table after a miss ends on the answer
              put back into its story (`workedLine`: "So, the fire engine
-             needs to travel 13 units."), not on the right answer's line. */
+             needs to travel 13 units."), and otherwise on "That's
+             correct!", heard. */
           self.flyIn(function () {
-            self.speak(t.spec.workedLine || t.spec.correctLine || 'That’s right!',
-                       function () { self.rescue(t, 250); });
+            if (t.spec.workedLine) self.speak(t.spec.workedLine, function () { self.rescue(t, 250); });
+            else self.praise(function () { self.rescue(t, 250); });
           });
         }, 200);
       });
@@ -9499,20 +9812,24 @@
           SFX.cheer();
           SFX.confettiPop();
           FX.pop(at.x, at.y, 16);
-          /* The panel has already played its own verdict, so there may
-             be nothing left to say — finishWith arms the hand-over
-             either way, where speak() would need a line to ride on. */
-          self.finishWith(t.spec.correctLine);
+          /* "That's correct!", heard: the panel has already played its
+             own verdict. */
+          self.praise();
         }, 260);
       } else {
         t.wrong++;
         SFX.wrong();
         FX.missGlow();
-        /* Which is shorter (46): the map answers it, not her. The two
-           lengths come up on their lines and blink — no words, no voice —
-           and the cards stay live for another go. */
+        /* Which is shorter (46): the map answers it. "Oops! Let's find
+           it together." (`oopsLine`), and the two lengths come up on
+           their lines and blink, and the cards stay live for another go. */
         if (t.spec.blinkOnMiss) {
-          this.later(function () { Board.blinkLengths(); }, 300);
+          this.later(function () {
+            self.oops(t, function () {
+              if (t.spec.oopsLine) self.closeAfterLine(0);
+              Board.blinkLengths();
+            });
+          }, 300);
           return;
         }
         const fb = this.feedbackFor(t);
@@ -9544,11 +9861,16 @@
           /* Not just locked — answered. Three live-looking buttons
              under a bird who has just said which one it is reads as a
              third go, so the panel says it too. */
-          if (Opts) Opts.reveal();
-          const told = t.spec.spentLine || t.spec.correctLine;
+          /* "Oops! Let's find it together." first, where the screen says
+             it (61), and the card is shown with the reason. */
+          if (Opts) { if (t.spec.oopsLine) Opts.lock(); else Opts.reveal(); }
+          const told = t.spec.spentLine;
           this.later(function () {
-            if (told) self.speak(told, function () { self.settle(C.AUTO.afterLine); });
-            else self.settle(C.AUTO.afterSilent);
+            self.oops(t, function () {
+              if (Opts && t.spec.oopsLine) Opts.reveal();
+              if (told) self.speak(told, function () { self.settle(C.AUTO.afterLine); });
+              else self.settle(C.AUTO.afterSilent);
+            });
             /* after the marker above, never under it: she is naming a
                square that has to already be in the corner. */
           }, 900);
@@ -9629,7 +9951,7 @@
         SFX.cheer();
         SFX.confettiPop();
         FX.pop(at.x, at.y, 18);
-        self.finishWith(t.spec.correctLine);
+        self.praise();
       }, 260);
     },
 
@@ -9797,6 +10119,13 @@
     });
     el.nextBtn.addEventListener('pointerenter', function () { SFX.blip(); });
 
+    // the same way on, in the corner (37, 39, 41)
+    el.goOn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      Game.skipScreen();
+    });
+    el.goOn.addEventListener('pointerenter', function () { SFX.blip(); });
+
     el.backBtn.addEventListener('click', function (e) {
       e.stopPropagation();
       Game.backScreen();
@@ -9878,7 +10207,8 @@
       'lilita-one-latin': ['32px "Lilita One"', 'Aa1'],
       'nunito-600-latin': ['600 32px Nunito', 'Aa1'],
       'nunito-600-math': ['600 32px Nunito', '\u221A\u2081\u2082'],
-      'poppins-700-latin': ['700 34px Poppins', 'Aa1']
+      'poppins-700-latin': ['700 34px Poppins', 'Aa1'],
+      'swifty-math': ['italic 32px "Swifty Math"', 'xyd\u2081\u2082']
     };
     const fonts = Object.keys(M).filter(function (f) { return /\.woff2$/.test(f); })
       .map(function (f) {
@@ -10286,7 +10616,6 @@
        still asked for the old one — and the background silently failed
        to load. */
     Preload.adopt(el.sceneArt, C.ART.background);
-    Preload.adopt(el.sceneArtSoft, C.ART.background);
     Preload.adopt(el.startArt, C.ART.startScreen);
     Preload.adopt(el.flySheet, C.ART.swiftyFly);
     Preload.adopt(el.talkSheet, C.ART.swiftyTalk);

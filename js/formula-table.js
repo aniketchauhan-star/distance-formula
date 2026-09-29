@@ -139,7 +139,9 @@ window.FormulaTable = (function () {
                 side.appendChild(slot);
                 cells[k] = { kind: 'slot', el: slot, fill: fill };
               } else {
-                const sp = mk('span', 'ft-text', t);
+                /* A letter on its own — the d the formula names — is a
+                   letter of the algebra, and set as one (.mvar). */
+                const sp = mk('span', /^[a-z]$/.test(t.trim()) ? 'ft-text mvar' : 'ft-text', t);
                 if (colour) sp.style.color = colour;
                 side.appendChild(sp);
                 cells[k] = { kind: 'text', el: sp };
@@ -239,6 +241,8 @@ window.FormulaTable = (function () {
          under the board. Measured with every row laid out (they are only
          hidden, not taken out), so it is set once, before anything shows. */
       fit: function () {
+        // measured as it will be drawn, the algebra in its own face
+        if (window.MathText) window.MathText.set(grid);
         const cs = getComputedStyle(root);
         const avail = root.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
         const need = grid.scrollWidth;
@@ -410,11 +414,14 @@ window.FormulaTable = (function () {
 
       rowCount: function () { return rows.length; },
 
-      /* One line and nothing else (37: the formula on its own). The
-         others fade out, then fold away, and the panel closes up round
-         the line that is left — its green laid again where the line now
-         sits. Returns how long all that takes. */
-      only: function (r) {
+      /* One line and nothing else (37: the formula on its own; 39 and 41:
+         what the working came to). The others fade out, then fold away,
+         and the panel closes up round the line that is left — its green
+         laid again where the line now sits. A line that hung from the one
+         above ("= √((x₂ − x₁)²)") takes `name` as its left-hand side, now
+         that it stands alone: "d = √((x₂ − x₁)²)". Returns how long all
+         that takes. */
+      only: function (r, name) {
         const els = function (row) {
           return row.boxes || row.cells.filter(Boolean).map(function (c) { return c.el; });
         };
@@ -429,6 +436,11 @@ window.FormulaTable = (function () {
           const was = root.offsetHeight;
           others.forEach(function (e) { e.classList.add('ft-gone'); });
           keep.forEach(function (e) { e.style.gridRow = '1'; });
+          const lhs = rows[r].boxes && rows[r].boxes[0];
+          if (name && lhs && !lhs.textContent.trim()) {
+            lhs.appendChild(mk('span', /^[a-z]$/.test(name) ? 'ft-text mvar' : 'ft-text', name));
+            lhs.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 360, easing: 'ease' });
+          }
           root.style.height = '';
           const now = root.offsetHeight;
           root.style.height = was + 'px';

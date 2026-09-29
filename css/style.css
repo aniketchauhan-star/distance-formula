@@ -233,50 +233,6 @@ html, body {
   filter: saturate(.96) brightness(.98);
 }
 
-/* ---- Swifty alone in the field (1, 3, 38, 40, 41c, 62) ----
-   Once she has landed, the painting goes soft behind her and the edges
-   of the frame dim a little round her, so she is the thing to look at —
-   and it all comes back sharp with the next screen. The soft painting is
-   a copy blurred once and faded in (only its opacity moves), so the
-   blur itself is never animated; its 1.04 scale puts the soft rim a blur
-   leaves at its own edges outside the frame. Clouds soften with it.
-
-   Faded out, the copy is hidden as well (once the fade has run), and it
-   asks for no layer of its own: a whole-frame blurred picture held on
-   the graphics card through every screen that does not show it is what
-   pushes a tablet past its texture budget — and what the card drops
-   then is whatever is on screen. */
-#sceneArtSoft {
-  filter: blur(9px) saturate(.9) brightness(.95);
-  transform: scale(1.04);
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity .8s ease, visibility 0s linear .8s;
-}
-#scene.focus-bird #sceneArtSoft { opacity: 1; visibility: visible; transition: opacity .8s ease, visibility 0s; }
-/* Each cloud blurred on its own rather than the sky as a whole: a blur
-   over the whole sky has to be worked again on every frame a cloud
-   moves, over the whole frame. */
-.cloud { transition: filter .8s ease; }
-.cloud img { transition: opacity .8s ease; }
-#scene.focus-bird .cloud { filter: blur(4px); }
-#scene.focus-bird .cloud img { opacity: .85; }
-/* And the leaf that crosses the sky, piece by piece. */
-.fx-drift { transition: filter .8s ease; }
-#scene.focus-bird .fx-drift { filter: blur(4px); }
-/* Dark only at the far edges, and a cool purple taken from the dusk in
-   the painting rather than black; centred on her (Game.focusBird). */
-#focusVeil {
-  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
-  z-index: 1;
-  pointer-events: none;
-  background: radial-gradient(ellipse 900px 680px at var(--focus-x, 50%) var(--focus-y, 72%),
-              rgba(28, 18, 52, 0) 0%, rgba(28, 18, 52, 0) 42%, rgba(28, 18, 52, .36) 100%);
-  opacity: 0;
-  visibility: hidden;          /* as the soft copy above, once faded out */
-  transition: opacity .8s ease, visibility 0s linear .8s;
-}
-#scene.focus-bird #focusVeil { opacity: 1; visibility: visible; transition: opacity .8s ease, visibility 0s; }
 /* Filled backwards, never forwards, here and on every entrance below
    whose last frame is the element's own style: an animation holding its
    last frame is still running as far as the compositor is concerned,
@@ -421,6 +377,7 @@ html.calm .wd.in { animation-duration: .08s; }
 /* 37: the board steps back and the table grows into the room (tableGrow). */
 #gridPanel.stepping { transition: scale .7s cubic-bezier(.22, .61, .36, 1); }
 .formula-table.growing { transition: left .7s cubic-bezier(.22, .61, .36, 1),
+                                     top .7s cubic-bezier(.22, .61, .36, 1),
                                      scale .7s cubic-bezier(.22, .61, .36, 1); }
 /* A length blinking on its line (46, on a wrong card): on the label's
    own group, so the pop that shows the label is left alone. */
@@ -1289,6 +1246,104 @@ html.calm .drift-host, html.calm .gust-host { display: none; }
 }
 #nextBtn:disabled.ready { animation: none; }
 
+/* The way on, in the corner, once she has said what the formula gives
+   (37, 39, 41 — GoOn in game.js). The same orange pill as Next up top,
+   bigger — it is the thing to press now — and pulsing: it swells a
+   little and a ring goes out from it. The arrow stays short. */
+#goOn {
+  position: absolute; right: 44px; bottom: 40px; z-index: 6;
+  display: inline-flex; align-items: center; gap: 12px;
+  padding: 14px 32px 14px 36px;
+  font-family: inherit; font-size: 38px; font-weight: 400; color: #fff;
+  background: linear-gradient(180deg, #ffc93c 0%, #ff9522 100%);
+  border: 5px solid #fff;
+  border-radius: 999px;
+  cursor: pointer;
+  text-shadow: 0 2px 0 rgba(180, 90, 0, .55);
+  box-shadow: 0 7px 0 #d4761a, 0 13px 22px rgba(0, 0, 0, .26);
+}
+#goOn.hidden { display: none; }
+#goOn .arrow {
+  position: relative; display: inline-block; flex: none;
+  width: 18px; height: 26px;
+  filter: drop-shadow(0 2px 0 rgba(180, 90, 0, .55));
+}
+#goOn .arrow::before {
+  content: ''; position: absolute; left: 3px; top: 6px;
+  width: 14px; height: 15px;
+  background: currentColor;
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+}
+#goOn::after {
+  content: ''; position: absolute; top: -5px; right: -5px; bottom: -5px; left: -5px;
+  border-radius: 999px;
+  border: 5px solid rgba(255, 176, 46, .9);
+  opacity: 0;
+  pointer-events: none;
+}
+#goOn.on { animation: goOnIn .5s cubic-bezier(.2, .9, .3, 1.35) backwards,
+                      goOnPulse 1.5s ease-in-out .6s infinite; }
+#goOn.on::after { animation: goOnRing 1.5s ease-out .6s infinite; }
+@media (hover: hover) and (pointer: fine) {
+  #goOn:hover { filter: brightness(1.06); }
+}
+#goOn:active { box-shadow: 0 2px 0 #d4761a, 0 5px 10px rgba(0, 0, 0, .28); }
+#goOn:focus-visible { outline: 4px solid #fff; outline-offset: 6px; }
+@keyframes goOnIn {
+  from { opacity: 0; transform: translateY(26px) scale(.7); }
+}
+@keyframes goOnPulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.07); }
+}
+@keyframes goOnRing {
+  0%   { opacity: .85; transform: scale(1); }
+  100% { opacity: 0;   transform: scale(1.22, 1.55); }
+}
+html.calm #goOn.on { animation: none; }
+html.calm #goOn.on::after { animation: none; }
+
+/* Swifty over the formula panel (37, 39, 41 — Peek in game.js): a
+   window onto her, its foot at the panel's edge while she comes up
+   from behind it, dropped by the length of her fingers once she has —
+   so her hands come over the edge and hold it. Over the panel and the
+   board, under her balloon. */
+#peek {
+  position: absolute; z-index: 3;
+  pointer-events: none;
+  --grip: 0px;
+  clip-path: inset(0 0 var(--grip) 0);
+  transition: clip-path .18s cubic-bezier(.3, .7, .4, 1);
+}
+#peek.hidden { display: none; }
+#peek.gripped { clip-path: inset(0 0 0 0); }
+#peek .peek-bird {
+  position: absolute;
+  background-repeat: no-repeat;
+  transform-origin: 50% 100%;
+}
+#peek .peek-joy { position: absolute; left: 0; top: 0; overflow: visible; }
+#peek .peek-joy line {
+  stroke: #FFCE3A;
+  stroke-linecap: round;
+  stroke-dasharray: 60;
+  stroke-dashoffset: 60;
+  opacity: 0;
+  filter: drop-shadow(0 1.5px 0 rgba(150, 90, 10, .45));
+}
+#peek.cheer .peek-joy line {
+  animation: joyDraw .32s cubic-bezier(.2, .8, .3, 1) forwards,
+             joyGone .5s ease forwards;
+}
+@keyframes joyDraw {
+  from { opacity: 1; stroke-dashoffset: 60; }
+  to   { opacity: 1; stroke-dashoffset: 0; }
+}
+@keyframes joyGone {
+  from { opacity: 1; stroke-dashoffset: 0; }
+  to   { opacity: 0; stroke-dashoffset: 0; }
+}
+
 /* The point being looked for, saying so on its own. */
 #gridAxes .dots.on .gdot.hint {
   animation: dotHint 1s ease-in-out infinite;
@@ -1700,10 +1755,17 @@ html.calm #gridAxes.triangle-question-active .triangle-pulse-line.on {
 #gridAxes .rightangle.on { animation: labelPop .5s cubic-bezier(.22,.68,.3,1) both; }
 
 /* ---- x₁, y₂ and the rest, set as mathematics (js/math-text.js) ----
-   The letter in italic, which Nunito is not loaded in, so it is slanted
-   for it: synthesis is allowed here for the slant alone, never for a
-   weight. The digit dropped below the line without taking the line
-   with it. The drawings do the same with attributes of their own. */
-.mvar { font-style: italic; font-synthesis: style; }
+   In Latin Modern Math, as TeX sets them (css/fonts.css): the letter its
+   italic, the number its small script digit, dropped below the line
+   without taking the line with it. Its own weight, never a made-up bold;
+   and where the face is missing, Nunito slanted, as before. The drawings
+   drop the digit with an attribute of their own. */
+.mvar, .msub,
+#gridAxes .mvar, #gridAxes .msub {
+  font-family: 'Swifty Math', 'Nunito', system-ui, sans-serif;
+  font-style: italic;
+  font-weight: 400;
+  font-synthesis: style;
+}
 .msub { position: relative; top: .18em; }
 
