@@ -14,6 +14,11 @@
    history too: sfx/aniket new.mp3). It was set on its own level to match
    the first, so the two sound like one voice.
 
+   The seven written after that came in a third, read in the same order
+   and cut, slowed and levelled the same way, numbered on from 92 (in the
+   history as well, under the first one's name: sfx/new voice.mp3, in the
+   commit that brought clips 92 to 98).
+
    She speaks a little slower than she was recorded, for young
    listeners: the whole recording was slowed to nine-tenths of its speed
    (115/128 exactly, the nearest step Apple's time-pitch unit takes — the
@@ -175,7 +180,25 @@ window.Voice = (function () {
     'Now you know how to find the distance between any two points.':
       ['90-now-you-know-how-to-find-the-distance-betwee', 3.98],
     'Let’s head back and bridge that gap!':
-      ['91-lets-head-back-and-bridge-that-gap', 2.10]
+      ['91-lets-head-back-and-bridge-that-gap', 2.10],
+
+    /* And the seven written after that, from a third recording (see the
+       header): 92 onward. The distance said once a miss has been counted
+       out, then what the formula gives on 37, 39 and 41. */
+    'So, the distance is 3 units.':
+      ['92-so-the-distance-is-3-units', 2.47],
+    'So, the distance is 7 units.':
+      ['93-so-the-distance-is-7-units', 2.72],
+    'So, the distance is 5 units.':
+      ['94-so-the-distance-is-5-units', 2.63],
+    'And that gives the distance between any two points.':
+      ['95-and-that-gives-the-distance-between-any-two', 3.42],
+    'And that gives the distance when the points are on the x-axis.':
+      ['96-and-that-gives-the-distance-when-the-points', 4.78],
+    'And that gives the distance when the points are on the y-axis.':
+      ['97-and-that-gives-the-distance-when-the-points', 4.30],
+    'So, the distance is 14 units.':
+      ['98-so-the-distance-is-14-units', 2.70]
   };
 
   /* Lines are looked up on a tidied form of themselves. A coordinate

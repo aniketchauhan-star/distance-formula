@@ -83,5 +83,12 @@ window.ASSET_MANIFEST = {
  "sfx/voices/88-all-three-sides-have-different-lengths-so-it.ogg": 49607,
  "sfx/voices/89-youre-all-set.ogg": 11974,
  "sfx/voices/90-now-you-know-how-to-find-the-distance-betwee.ogg": 40055,
- "sfx/voices/91-lets-head-back-and-bridge-that-gap.ogg": 23250
+ "sfx/voices/91-lets-head-back-and-bridge-that-gap.ogg": 23250,
+ "sfx/voices/92-so-the-distance-is-3-units.ogg": 22955,
+ "sfx/voices/93-so-the-distance-is-7-units.ogg": 24390,
+ "sfx/voices/94-so-the-distance-is-5-units.ogg": 23491,
+ "sfx/voices/95-and-that-gives-the-distance-between-any-two.ogg": 33220,
+ "sfx/voices/96-and-that-gives-the-distance-when-the-points.ogg": 44959,
+ "sfx/voices/97-and-that-gives-the-distance-when-the-points.ogg": 40998,
+ "sfx/voices/98-so-the-distance-is-14-units.ogg": 25493
 };
