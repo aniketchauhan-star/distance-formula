@@ -195,12 +195,6 @@ html.calm .formula-table .ft-cell { transition: opacity .2s linear; transform: n
   vertical-align: baseline;
   align-items: baseline;
 }
-/* The answer the working ends on, shown as the answer. */
-.formula-table .ft-pick.filled.good {
-  background-color: #DDF3DF;
-  box-shadow: 0 0 0 .12em #DDF3DF;
-  transition: background-color .4s ease, box-shadow .4s ease;
-}
 @keyframes ftSettle { from { transform: scale(1.35); } to { transform: none; } }
 
 /* The scroller: two of the number control's own tiles, stacked, dropping
@@ -252,7 +246,7 @@ html.calm .formula-table .ft-cell { transition: opacity .2s linear; transform: n
   /* One weight, and the bold the browser used to fake drawn as a fixed
      outline — see the reel's digits, number-selector.css. */
   font-size: .82em; font-weight: 400; line-height: 1;
-  -webkit-text-stroke: var(--lilita-bold, .031em) currentColor;
+  -webkit-text-stroke: .031em currentColor;
   white-space: nowrap;
   color: #5E5145;
   cursor: pointer;
@@ -316,13 +310,6 @@ html.calm .formula-table .ft-tile.no { animation: none; }
    width (the row reflows once, as the number lands). */
 .formula-table .ft-inline .ft-pick.filled .ft-sizer { display: none; }
 
-/* Standing in a column of its own rather than out of the board's edge:
-   hung from its top, with no tucked-under edge to pad for. */
-.formula-table.free {
-  transform: none; margin-top: 0;          /* hung from its top: the room is all at the foot */
-  padding: 44px 48px calc(44px + var(--room));
-}
-
 /* The tile, declared on the root so the loader (js/preload.js) can point
    it at the copy it fetched, by setting it on <html>. */
-:root { --ft-tile: url('../assets/tile.webp?v=20260928222619'); }
+:root { --ft-tile: url('../assets/tile.webp?v=20260929103607'); }

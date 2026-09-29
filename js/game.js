@@ -9,7 +9,7 @@
   const el = {};
   ['viewport', 'stage', 'loadBar', 'loadFill', 'loadPct', 'loadVer',
    'startScreen', 'playBtn', 'playImg', 'scene', 'skyLayer',
-   'shadow', 'birdRig', 'birdFlip', 'birdWin', 'flySheet', 'talkSheet',
+   'shadow', 'birdRig', 'birdWin', 'flySheet', 'talkSheet',
    'bubble', 'bubbleBody',
    'bubbleLine', 'nav', 'nextBtn', 'backBtn',
    'gridPanel', 'gridImg', 'gridAxes', 'standSwifty',
@@ -125,11 +125,6 @@
     if (s === lastK) return;              // a drag that has not moved a pixel
     lastK = s;
     el.stage.style.transform = 'translate(-50%,-50%) scale(' + s + ')';
-    /* The scale in force, for anything that ever needs to undo it.
-       Guarded by the same comparison: during a drag this changes every
-       frame, and writing it is a style invalidation for every rule that
-       reads it. */
-    doc.style.setProperty('--stage-k', String(s));
   }
 
   /* Resizing a window fires `resize` for every pixel of the drag, and
@@ -1337,10 +1332,6 @@
         nm.setAttribute('fill', G.ink);
         nm.setAttribute('font-size', G.segment.nameSize);
 
-        const lp = document.createElementNS(NS, 'rect');
-        lp.setAttribute('class', 'legplate');
-        lp.setAttribute('rx', 11);
-
         /* In the leg's own colour: with the plate gone, that is what
            says which of the two sides a measurement belongs to. */
         const lt = document.createElementNS(NS, 'text');
@@ -1349,8 +1340,6 @@
         lt.setAttribute('font-size', LG.lenSize);
 
         ln.id = i === 0 ? 'lineAC' : 'lineCB';     // first leg, then second
-        ln.style.setProperty('--base-stroke-width', LG.width + 'px');
-        ln.style.setProperty('--pulse-stroke-width', (LG.width + 4) + 'px');
         /* The length hangs in a group of its own so it can be TURNED.
            Its own `pop` is a filled animation, and a filled animation
            beats a transform attribute on the same element — so the
@@ -1358,11 +1347,11 @@
            touch. */
         const lturn = document.createElementNS(NS, 'g');
         lturn.appendChild(lt);
-        [dg, ln, dt, co, nm, lp, lturn].forEach(function (n) { lg.appendChild(n); });
+        [dg, ln, dt, co, nm, lturn].forEach(function (n) { lg.appendChild(n); });
         svg.appendChild(lg);
         this.commitDraw(ln);
         this.legSlots.push({ g: lg, line: ln, dot: dt, coord: co, name: nm,
-                             plate: lp, len: lt, lenTurn: lturn,
+                             len: lt, lenTurn: lturn,
                              dash: dl, dashG: dg });
       }
       /* The first side's layer on top of the others. Its corner C is the
@@ -1581,11 +1570,6 @@
       segLine.setAttribute('stroke-width', SG.lineWidth);
       segLine.setAttribute('stroke-linecap', 'butt');   // see the sides' ends
       segLine.id = 'lineAB';          // the line between the two points
-      /* Its own widths, for the highlight to grow between. Read off the
-         line rather than restated in CSS, because a leg and the segment
-         are not drawn at the same weight. */
-      segLine.style.setProperty('--base-stroke-width', SG.lineWidth + 'px');
-      segLine.style.setProperty('--pulse-stroke-width', (SG.lineWidth + 4) + 'px');
       seg.appendChild(segLine);
       this.segLine = segLine;
       this.commitDraw(segLine);
@@ -2338,7 +2322,7 @@
            already drawn instead of drawing itself. */
         L.line.classList.remove('draw', 'set');
         if (L.dashG) L.dashG.classList.remove('draw', 'set');
-        ['dot', 'coord', 'name', 'plate', 'len'].forEach(function (k) {
+        ['dot', 'coord', 'name', 'len'].forEach(function (k) {
           L[k].classList.remove('pop', 'on', 'set');
         });
       });
@@ -3166,9 +3150,9 @@
            general case labels it x2 - x1 rather than 10 units. */
         this.placeLegLength(i, f, t,
           spec.lengthText || (n + '\u00A0unit' + (n === 1 ? '' : 's')));
-        L.len.style.display = L.plate.style.display = '';
+        L.len.style.display = '';
       } else {
-        L.len.style.display = L.plate.style.display = 'none';
+        L.len.style.display = 'none';
       }
     },
 
@@ -3439,7 +3423,7 @@
       if (!L || !spec || !spec.from) return false;
       this.placeLegLength(i, spec.from, spec.to,
         units + '\u00A0unit' + (units === 1 ? '' : 's'));
-      L.len.style.display = L.plate.style.display = '';
+      L.len.style.display = '';
       L.len.classList.add('pop');
       return true;
     },
@@ -3992,7 +3976,7 @@
       this.legPlaced[i] = Object.assign({}, this.legPlaced[i] || spec,
         { length: true, lengthText: spec.lengthText, lengthFrom: spec.lengthFrom });
       this.placeLegLength(i, spec.from, spec.to, spec.lengthText);
-      L.len.style.display = L.plate.style.display = '';
+      L.len.style.display = '';
       const self = this, fly = this.flyIntoLeg(i, spec, later, 0);
       later(function () { self.showLegLength(i); }, fly);
       return fly;
@@ -8026,9 +8010,7 @@
       const self = this;
       el.birdWin.classList.remove('hidden');
       el.standSwifty.classList.add('hidden');
-      el.birdFlip.classList.remove('turn');   // she arrives facing right
       Sprite.play('fly', true);
-      el.birdRig.classList.remove('hop');
       // Same frame: drop the hold and start the arc. The animation's 0%
       // keyframe is off-stage at opacity 0, so there is no flash of her
       // standing at the landing spot.
@@ -8124,10 +8106,9 @@
       el.birdWin.classList.remove('hidden');
       el.standSwifty.classList.add('hidden');
       Sprite.play('fly', true);
-      el.birdRig.classList.remove('fly-in', 'hop', 'pre-entrance');
+      el.birdRig.classList.remove('fly-in', 'pre-entrance');
       void el.birdRig.offsetWidth;
       el.birdRig.classList.add('fly-out');
-      el.birdFlip.classList.remove('turn');   // she leaves the way she came in
       el.shadow.classList.add('lifted');
       const g = this.geom || { anchor: C.ANCHOR, feetY: C.ANCHOR.y + C.FEET_DY };
       FX.puff(g.anchor.x - 10, g.feetY);
@@ -8148,7 +8129,6 @@
         clearInterval(flapper);
         el.birdRig.classList.remove('fly-out');
         el.birdRig.classList.add('pre-entrance');   // off-stage again
-        el.birdFlip.classList.remove('turn');
         Sprite.stopAt('talk', 0);
         self.entranceCancel = null;
         self.later(done, 120);
@@ -8159,7 +8139,6 @@
         clearInterval(flapper);
         el.birdRig.classList.remove('fly-out');
         el.birdRig.classList.add('pre-entrance');
-        el.birdFlip.classList.remove('turn');
         Sprite.stopAt('talk', 0);
       };
       /* Her own flight only, and a fallback for one that never reports. */
@@ -8178,7 +8157,7 @@
       if (!this.geom || !this.geom.stand) return;
       if (!el.standSwifty.classList.contains('hidden')) return;
       if (el.birdWin.classList.contains('hidden')) return;
-      el.birdRig.classList.remove('fly-in', 'hop', 'pre-entrance');
+      el.birdRig.classList.remove('fly-in', 'pre-entrance');
       el.shadow.classList.remove('lifted');
       el.birdWin.classList.add('hidden');
       el.standSwifty.classList.remove('hidden');
@@ -8188,7 +8167,7 @@
        fly sheet is not touched — just settle on the talking pose and
        let the next bubble come up. */
     stay: function (done) {
-      el.birdRig.classList.remove('fly-in', 'hop', 'pre-entrance');
+      el.birdRig.classList.remove('fly-in', 'pre-entrance');
       el.shadow.classList.remove('lifted');
       if (this.geom && this.geom.stand) {
         /* Assert the standing artwork rather than assuming the screen
@@ -9985,8 +9964,7 @@
 
     el.standSwifty.classList.add('hidden');
     el.birdWin.classList.remove('hidden');
-    el.birdFlip.classList.remove('turn');    // she faces the way she is going
-    el.birdRig.classList.remove('fly-in', 'hop', 'pre-entrance', 'rising');
+    el.birdRig.classList.remove('fly-in', 'pre-entrance', 'rising');
     el.shadow.classList.add('lifted');
     Sprite.play('fly', true);
     Sprite.setScale(s0);

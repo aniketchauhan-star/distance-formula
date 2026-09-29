@@ -225,17 +225,12 @@ window.FormulaTable = (function () {
         });
       },
 
-      /* Where it sits on the stage. Its height follows what is in it,
-         and it is centred on `cy`. */
+      /* Where it sits on the stage, out of the board's edge. Its height
+         follows what is in it, and it is centred on `cy`. */
       place: function (box) {
         root.style.left = box.x + 'px';
         root.style.width = box.w + 'px';
-        /* Out of the board's edge, it is centred on `cy`; standing in a
-           column of its own (the axis cases, above her), it hangs from
-           `top` and carries no tucked-under edge. */
-        const free = box.top != null;
-        root.classList.toggle('free', free);
-        root.style.top = (free ? box.top : box.cy) + 'px';
+        root.style.top = box.cy + 'px';
       },
 
       /* Its type made smaller, if it has to be, so the widest row fits

@@ -51,7 +51,6 @@
    a pill with a button without reading either. The names are still on
    both: colour is the second channel here, never the only one. */
 .town-place[data-tone="teal"]   .town-pill { background: #1E88A8; }
-.town-place[data-tone="red"]    .town-pill { background: #D8384A; }
 /* Yellow where there was red: red is the colour a wrong answer flashes
    in this game. Dark type, since white on yellow cannot be read. */
 .town-place[data-tone="yellow"] .town-pill { background: #F2B41C; color: #3A2A05; }

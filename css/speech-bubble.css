@@ -49,11 +49,8 @@
   --bubble-pad-y: 16px;
   --bubble-font-size: 34px;
 
-  /* The tail: how far its point hangs below the box, and how far in
-     from the box's left edge the point is. Its shape (below) is drawn
-     for these two. */
-  --bubble-tail-width: 70px;
-  --bubble-tail-height: 46px;
+  /* How far in from the box's left edge the tail's point is (its shape,
+     below, hangs 46px under the box on a 70px base). */
   --bubble-tail-x: 30px;
 
   position: relative;
@@ -153,11 +150,9 @@
   overflow-wrap: break-word;
 }
 
-/* ---------------- arriving (optional) ----------------
-   Fades up, rises 8px and grows from 94% — no bounce. */
-.game-speech-bubble--enter {
-  animation: speechBubbleEnter 0.34s cubic-bezier(0.22, 0.61, 0.36, 1) both;
-}
+/* ---------------- arriving ----------------
+   #bubble.pop-in (style.css): fades up, rises 8px and grows from 94% —
+   no bounce. */
 @keyframes speechBubbleEnter {
   from {
     opacity: 0;
@@ -167,7 +162,4 @@
     opacity: 1;
     transform: translateY(0) scale(1);
   }
-}
-@media (prefers-reduced-motion: reduce) {
-  .game-speech-bubble--enter { animation: none; }
 }

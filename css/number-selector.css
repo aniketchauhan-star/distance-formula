@@ -189,9 +189,6 @@
               left 280ms cubic-bezier(.22, .68, .3, 1);
   z-index: 5;
 }
-/* It dips as a number seats itself. */
-.number-control .seat.pop ~ .pointer,
-.number-control.is-seating .pointer { transform: translateY(2px); }
 
 /* ---- the trough the drums turn in --------------------------------
    No skin of its own — the well above is the skin. This is the window
@@ -247,7 +244,7 @@
      Mac's Chrome faked, written down, so every laptop draws the same
      digits. */
   font-weight: 400;
-  -webkit-text-stroke: var(--lilita-bold, .031em) currentColor;
+  -webkit-text-stroke: .031em currentColor;
   line-height: 1;
   background-image: var(--sheet);
   background-repeat: no-repeat;
@@ -363,7 +360,6 @@
               filter 160ms ease, opacity 160ms ease;
   z-index: 5;
 }
-.number-control .check-icon { display: none; }
 
 @media (hover: hover) and (pointer: fine) { .number-control .check:hover:not(:disabled) { transform: translateY(-2px); } }
 .number-control .check:active:not(:disabled),
@@ -426,10 +422,6 @@
   to   { opacity: 0; transform: scale(var(--k, 1)) translateY(38px); }
 }
 
-/* Only transform, opacity and filter are animated above; will-change
-   is put on for the roll and taken off again rather than left on. */
-.number-control .cell.rolling { will-change: transform; }
-
 html.calm .number-control .cell,
 html.calm .number-control .side,
 html.calm .number-control .check,
@@ -442,4 +434,4 @@ html.calm .number-control.is-correct .cell.on { animation: none; }
    loader (js/preload.js) points it at the copy it fetched by setting it on
    <html>, which only reaches it here. Relative to this stylesheet, as the
    note above explains. */
-:root { --sheet: url('../assets/buttons.webp?v=20260928222619'); }
+:root { --sheet: url('../assets/buttons.webp?v=20260929103607'); }
