@@ -233,50 +233,6 @@ html, body {
   filter: saturate(.96) brightness(.98);
 }
 
-/* ---- Swifty alone in the field (1, 3, 38, 40, 41c, 62) ----
-   Once she has landed, the painting goes soft behind her and the edges
-   of the frame dim a little round her, so she is the thing to look at —
-   and it all comes back sharp with the next screen. The soft painting is
-   a copy blurred once and faded in (only its opacity moves), so the
-   blur itself is never animated; its 1.04 scale puts the soft rim a blur
-   leaves at its own edges outside the frame. Clouds soften with it.
-
-   Faded out, the copy is hidden as well (once the fade has run), and it
-   asks for no layer of its own: a whole-frame blurred picture held on
-   the graphics card through every screen that does not show it is what
-   pushes a tablet past its texture budget — and what the card drops
-   then is whatever is on screen. */
-#sceneArtSoft {
-  filter: blur(9px) saturate(.9) brightness(.95);
-  transform: scale(1.04);
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity .8s ease, visibility 0s linear .8s;
-}
-#scene.focus-bird #sceneArtSoft { opacity: 1; visibility: visible; transition: opacity .8s ease, visibility 0s; }
-/* Each cloud blurred on its own rather than the sky as a whole: a blur
-   over the whole sky has to be worked again on every frame a cloud
-   moves, over the whole frame. */
-.cloud { transition: filter .8s ease; }
-.cloud img { transition: opacity .8s ease; }
-#scene.focus-bird .cloud { filter: blur(4px); }
-#scene.focus-bird .cloud img { opacity: .85; }
-/* And the leaf that crosses the sky, piece by piece. */
-.fx-drift { transition: filter .8s ease; }
-#scene.focus-bird .fx-drift { filter: blur(4px); }
-/* Dark only at the far edges, and a cool purple taken from the dusk in
-   the painting rather than black; centred on her (Game.focusBird). */
-#focusVeil {
-  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
-  z-index: 1;
-  pointer-events: none;
-  background: radial-gradient(ellipse 900px 680px at var(--focus-x, 50%) var(--focus-y, 72%),
-              rgba(28, 18, 52, 0) 0%, rgba(28, 18, 52, 0) 42%, rgba(28, 18, 52, .36) 100%);
-  opacity: 0;
-  visibility: hidden;          /* as the soft copy above, once faded out */
-  transition: opacity .8s ease, visibility 0s linear .8s;
-}
-#scene.focus-bird #focusVeil { opacity: 1; visibility: visible; transition: opacity .8s ease, visibility 0s; }
 /* Filled backwards, never forwards, here and on every entrance below
    whose last frame is the element's own style: an animation holding its
    last frame is still running as far as the compositor is concerned,

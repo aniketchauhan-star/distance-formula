@@ -1741,6 +1741,14 @@ window.CFG = (function () {
     return rows;
   }
 
+  /* Points A and B lit as she names them, wherever a line names them:
+     "…A and B" — A on "A", then B on "B". A point's name is matched as a
+     capital (game.js, armWordCues), so the "a" of "a fire" is not it. */
+  function namesAB(line) {
+    return /\bA and B\b/.test(line || '')
+      ? [ { word: 'A', in: line, beat: ['a'] }, { word: 'B', in: line, beat: ['b'] } ] : [];
+  }
+
   function walk(w) {
     const pt = function (p, name) { return { x: p.x, y: p.y, name: name }; };
     const seg = Object.assign({ a: pt(w.a, 'A'), b: pt(w.b, 'B'), dash: true },
@@ -1794,8 +1802,12 @@ window.CFG = (function () {
         guideOnLine: true,
         /* Or the screen's own (`say.cues`): the towers lit on the first
            sentence and their line drawn on the second, say. */
-        wordCues: say.cues || [ { word: say.cue || firstWord(say.first), in: say.first,
-                      guide: true, beat: ['a', 'b'] } ].concat(q ? [ { word: firstWord(q), in: q, spot: 'ab' } ] : []),
+        /* The points ring as she names them (namesAB), or with the
+           guide's word where she does not name them. */
+        wordCues: say.cues || [ Object.assign({ word: say.cue || firstWord(say.first), in: say.first, guide: true },
+                                              namesAB(say.first).length ? {} : { beat: ['a', 'b'] }) ]
+          .concat(namesAB(say.first))
+          .concat(q ? [ { word: firstWord(q), in: q, spot: 'ab' } ].concat(namesAB(q)) : []),
         /* AB glows after the question — the second line, or the only one. */
         lineLights: q ? [ {}, { pulse: 'ab' } ] : [ { pulse: 'ab' } ],
         entrance: 'none', layout: 'board', intro: 'measure',
@@ -1834,9 +1846,9 @@ window.CFG = (function () {
       id: w.ids[0],
       line: say.first, line2: ask,
       guideOnLine: true,
-      wordCues: [ { word: say.cue || firstWord(say.first), in: say.first,
-                    guide: true, beat: ['a', 'b'] },
-                  { word: firstWord(ask), in: ask, spot: 'ab' } ],
+      wordCues: [ Object.assign({ word: say.cue || firstWord(say.first), in: say.first, guide: true },
+                                namesAB(say.first).length ? {} : { beat: ['a', 'b'] }) ]
+        .concat(namesAB(say.first), [ { word: firstWord(ask), in: ask, spot: 'ab' } ], namesAB(ask)),
       lineLights: [ {}, { pulse: 'ab' } ],
       entrance: 'none', layout: 'board',
       intro: 'measure', distance: true,
@@ -1904,10 +1916,12 @@ window.CFG = (function () {
          its points forward, AB pulsing and A and B ringing, the rest
          stepped back until just after the sentence, and the square left
          up for Pythagoras. */
+      /* AB lit on the word "AB": its points ringing, the line pulsing,
+         the rest stepped back — and held a moment after she stops. */
       wordCues: [ { word: 'We', spot: ['h', 'v'], pulse: ['h', 'v'], run: 2200 },
-                  { word: 'Let’s', spot: 'ab', pulse: 'ab',
+                  { word: 'AB', in: 'Let’s use Pythagoras to find AB.', spot: 'ab', pulse: 'ab',
                     beat: ['a', 'b'], run: 1700 } ],
-      lineLights: [ { hold: 1000 }, { unspot: true, after: 550 } ],
+      lineLights: [ { hold: 1000 }, { unspot: true, after: 1300 } ],
       rightAngle: true, keepMark: true,
       entrance: 'none', layout: 'board', quietBoard: true, keepSegment: true,
       segment: seg,
@@ -2036,6 +2050,9 @@ window.CFG = (function () {
                  missed learns more from the spaces being counted than
                  from being sent round again. */
               countLine: 'Count carefully!',
+              /* And, once the count has written its number on the line,
+                 what it came to, said (8, 13, 14, 19). */
+              countedLine: 'So, the distance is 3\u00A0units.',
               /* Right: well done, said and in her balloon, over the
                  confetti. Alternated with "Exactly!" across the four. */
               praise: 'That’s right!'
@@ -2124,6 +2141,7 @@ window.CFG = (function () {
                  missed learns more from the spaces being counted than
                  from being sent round again. */
               countLine: 'Count carefully!',
+              countedLine: 'So, the distance is 7\u00A0units.',
               praise: 'Exactly!' } },
 
     { id: 14, line: 'What is the distance between the two points?', entrance: 'none', layout: 'board',
@@ -2135,6 +2153,7 @@ window.CFG = (function () {
                  missed learns more from the spaces being counted than
                  from being sent round again. */
               countLine: 'Count carefully!',
+              countedLine: 'So, the distance is 5\u00A0units.',
               praise: 'That’s right!' } },
 
     /* ---- and the same argument for a column. After the first vertical
@@ -2187,6 +2206,7 @@ window.CFG = (function () {
                  missed learns more from the spaces being counted than
                  from being sent round again. */
               countLine: 'Count carefully!',
+              countedLine: 'So, the distance is 2\u00A0units.',
               praise: 'Exactly!',
               /* And what it came to, said: the last of the four, so the
                  number is put into words before the screens move on to
@@ -2576,10 +2596,10 @@ window.CFG = (function () {
          the sentence, so "Since it’s a right triangle…" has the whole
          triangle and its square at full strength. */
       wordCues: [ { word: 'We', spot: ['h', 'v'], pulse: ['h', 'v'], run: 1500 },
-                  { word: 'But', spot: 'ab', pulse: 'ab', beat: ['a', 'b'], run: 1500,
-                    hushMark: true } ],
+                  { word: 'AB', in: 'But we still need AB.', spot: 'ab', pulse: 'ab',
+                    beat: ['a', 'b'], run: 1500, hushMark: true } ],
       lineLights: [ { unspot: true, after: 550, hold: 500 },
-                    { unspot: true, after: 550, hold: 500 }, {} ],
+                    { unspot: true, after: 1300, hold: 500 }, {} ],
       /* The right angle is what the theorem rests on, so the marker is
          asserted on arrival (a jump from the picker would otherwise
          land without it) and exempt from every highlight's hush —
@@ -2658,8 +2678,9 @@ window.CFG = (function () {
       guideOnLine: true,
       /* C and the dotted side out to it come with "What is the
          difference…", from its first word — see the walks (walk, s1). */
-      wordCues: [ { word: 'distance', guide: true, beat: ['a', 'b'] },
-                  { word: 'What', spot: 'h', legs: true, beat: ['c'] } ],
+      wordCues: [ { word: 'distance', guide: true },
+                  { word: 'What', spot: 'h', legs: true, beat: ['c'] } ]
+        .concat(namesAB('Now, let’s find the distance between A and B.')),
       lineLights: [ {}, { pulse: 'h' } ],
       entrance: 'none', layout: 'board', quietBoard: true, transition: 'leaves',
       intro: 'measure', distance: true,
@@ -2697,15 +2718,16 @@ window.CFG = (function () {
          that make the right angle (it used to go grey here). The marker
          comes up on "triangle". The light runs as long as the sentence is
          up. */
-      /* Then AB, the side to find, from the first word of "Let’s use
+      /* Then AB, the side to find, on the word "AB" in "Let’s use
          Pythagoras to find AB.": AB and its points forward, AB pulsing
          and A and B ringing, AC, CB and C stepped back — until just
          after the sentence, before the table opens. The square stays up:
          it is what lets Pythagoras be used, named in the same breath. */
       wordCues: [ { word: 'Look', pulse: 'triangle', run: 2600 },
                   { word: 'triangle', mark: true },
-                  { word: 'Let’s', spot: 'ab', pulse: 'ab', beat: ['a', 'b'], run: 1700 } ],
-      lineLights: [ { hold: 1000 }, { unspot: true, after: 550 } ],
+                  { word: 'AB', in: 'Let’s use Pythagoras to find AB.', spot: 'ab', pulse: 'ab',
+                    beat: ['a', 'b'], run: 1700 } ],
+      lineLights: [ { hold: 1000 }, { unspot: true, after: 1300 } ],
       keepMark: true,
       entrance: 'none', view: 'triangle', quietBoard: true, layout: 'board', keepSegment: true,
       segment: { a: { x: -2, y: 2, name: 'A' }, b: { x: 2, y: 5, name: 'B' }, dash: true },
@@ -2852,7 +2874,7 @@ window.CFG = (function () {
        ending on AB = √((y₂ − y₁)² + (x₂ − x₁)²). Nothing asked. */
     { id: 35, shape: SHAPE_G, line: 'Now, let’s find AB.', entrance: 'stay',
       layout: 'board', keepSegment: true,
-      wordCues: [ { word: 'AB', spot: 'ab' } ],
+      wordCues: [ { word: 'AB', spot: 'ab', pulse: 'ab', beat: ['a', 'b'], run: 1700 } ],
       lineLights: [ { unspot: true, after: 500 } ],
       /* The child's to fill, the way 29c's table is: she flies off, the
          board makes room and the table opens out of its right edge — AB,
@@ -3016,10 +3038,11 @@ window.CFG = (function () {
              ask: 'How far is it from the fire engine at B?',
              right: 'That\u2019s correct!',
              worked: 'So, the fire engine needs to travel 13\u00A0units.',
-             cues: [ { word: 'fire', in: 'There\u2019s a fire at A!',
-                       beat: ['a'], townGlow: ['fire'] },
+             cues: [ { word: 'fire', in: 'There\u2019s a fire at A!', townGlow: ['fire'] },
+                     { word: 'A', in: 'There\u2019s a fire at A!', beat: ['a'] },
                      { word: 'engine', in: 'How far is it from the fire engine at B?',
-                       guide: true, beat: ['b'], townGlow: ['engine'] } ] },
+                       guide: true, townGlow: ['engine'] },
+                     { word: 'B', in: 'How far is it from the fire engine at B?', beat: ['b'] } ] },
       base: { textScale: 0.85, town: ['fire', 'engine'], board: 'wide', range: { min: 0, max: 15 } },
       first: { transition: 'leaves', entrance: 'fly' }
     }),
@@ -3036,9 +3059,9 @@ window.CFG = (function () {
              right: 'That\u2019s correct!',
              worked: 'So, the cable needs to be 10\u00A0units long to connect the towers.',
              cues: [ { word: 'towers', in: 'There are two towers at A and B.',
-                       beat: ['a', 'b'], townGlow: ['towerA', 'towerB'] },
+                       townGlow: ['towerA', 'towerB'] } ].concat(namesAB('There are two towers at A and B.'), [
                      { word: 'cable', in: 'How long must a cable be to connect them directly?',
-                       guide: true } ] },
+                       guide: true } ]) },
       base: { textScale: 0.85, town: ['towerA', 'towerB'], range: { min: 0, max: 12 } },
       first: { transition: 'leaves', entrance: 'fly' }
     }),
@@ -3243,6 +3266,7 @@ window.CFG = (function () {
        the loud one, the sides already found keep their lengths and step
        back, and the board fills up in front of them. */
     { id: 57, line: 'What is the length of AB?', focus: 'ab',
+      wordCues: [ { word: 'AB', pulse: 'ab', beat: ['a', 'b'], run: 1700 } ],
       entrance: 'stay', layout: 'board', board: 'mid', keepSegment: true,
       quietBoard: true, park: true,
       intro: 'measure', entry: true, range: { min: 0, max: 18 },

@@ -13,7 +13,7 @@
    'bubble', 'bubbleBody',
    'bubbleLine', 'nav', 'nextBtn', 'backBtn',
    'gridPanel', 'gridImg', 'gridAxes', 'standSwifty',
-   'leafLayer', 'fxLayer', 'sceneArt', 'sceneArtSoft', 'focusVeil', 'startArt',
+   'leafLayer', 'fxLayer', 'sceneArt', 'startArt',
    'startBird', 'startBirdWin', 'startFly', 'startTalk', 'startShadow', 'startSky'
   ].forEach(function (id) { el[id] = document.getElementById(id); });
 
@@ -307,15 +307,6 @@
     };
     if (extra) Object.keys(extra).forEach(function (k) { g[k] = extra[k]; });
     return g;
-  }
-
-  /* Swifty alone in the open field — the screens with no board, no
-     table and nothing but her (1, 3, 38, 40, 41c, 62): the field's own
-     rig, and her staying in it. Screen 4, where she flies off, is not
-     one: the field comes back sharp as she goes. */
-  function soloField(entry) {
-    return !!entry && !entry.layout && !axisOf(entry) && !entry.keepTable &&
-           entry.intro !== 'measure' && entry.entrance !== 'flyOut';
   }
 
   function geomFor(i) {
@@ -6941,10 +6932,6 @@
       const self = this;
       this.clearPending();
       Hint.clear();
-      /* The soft painting belongs to her being alone in the field: any
-         other screen has it sharp again from its first moment, and one of
-         hers turns it on again when she has landed. */
-      if (!soloField(C.SCRIPT[i] || {})) this.focusBird(false);
       /* A beat that speaks without a balloon, or works its own sum, must
          not open wearing the last one's. Both are inherited, so both go
          here — at the change — rather than a third of a second later when
@@ -7225,9 +7212,6 @@
       };
 
       const after = function () {
-        /* Alone in the field and landed: the painting goes soft behind
-           her, so she is what is looked at. */
-        if (soloField(entry)) self.focusBird(true);
         /* The marker, asserted rather than inherited. It is switched on
            by answering "what kind of triangle is this?" and off by
            `clearLegs`, so a child who jumps straight here from the
@@ -8079,18 +8063,6 @@
       this.later(onEnd, 2100 + 500);
     },
 
-    /* Everything behind her soft, and the frame's edges dimmed round
-       her — or all of it sharp again. Centred on where she stands. */
-    focusBird: function (on) {
-      if (on) {
-        const g = this.geom || {};
-        const a = g.anchor || C.ANCHOR;
-        el.focusVeil.style.setProperty('--focus-x', (a.x / C.STAGE_W * 100).toFixed(1) + '%');
-        el.focusVeil.style.setProperty('--focus-y', ((a.y - 60) / C.STAGE_H * 100).toFixed(1) + '%');
-      }
-      el.scene.classList.toggle('focus-bird', !!on);
-    },
-
     /* She flies on out to the right, carrying straight on past where
        she landed, and the screen hands over once she is gone. */
     /* Is she off the stage: hidden, or flown off and waiting to come
@@ -8203,10 +8175,15 @@
       const spent = [];
       Bubble.onWord = function (w) {
         const bare = String(w || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const caps = String(w || '').replace(/[^A-Za-z0-9]/g, '');
         cues.forEach(function (c, n) {
           /* The cue's word is read the way the balloon's is — so a word
-             with an apostrophe in it ("Let’s") can be a cue as written. */
-          if (spent[n] || bare !== String(c.word || '').toLowerCase().replace(/[^a-z0-9]/g, '')) return;
+             with an apostrophe in it ("Let’s") can be a cue as written.
+             A point's name (A, B, AB) is read as a capital, or "There's a
+             fire at A" would light A on its "a". */
+          const name = /^[A-Z]{1,3}$/.test(c.word || '');
+          if (spent[n] || (name ? caps !== c.word
+                                : bare !== String(c.word || '').toLowerCase().replace(/[^a-z0-9]/g, ''))) return;
           /* A cue can belong to one line (`in`: words from it), so the
              same word in an earlier sentence does not set it off. */
           if (c.in && String(Bubble.full || '').indexOf(c.in) < 0) return;
@@ -8740,8 +8717,16 @@
                       Board.showSegResult(ent.segment, txt);
                     }
                     SFX.chime();
-                    self.later(function () { self.settle(C.AUTO.afterLine); },
-                               C.GRID.unitBox.holdMs);
+                    /* And what it came to, said, once it is written: "So,
+                       the distance is 3 units." (the horizontal and
+                       vertical questions, 8-19) — her line then hands the
+                       screen on. Otherwise it is left up to be read. */
+                    if (t.spec.countedLine) {
+                      self.later(function () { self.speak(t.spec.countedLine); }, 520);
+                    } else {
+                      self.later(function () { self.settle(C.AUTO.afterLine); },
+                                 C.GRID.unitBox.holdMs);
+                    }
                   }, 420);
                   /* The count has been held (count.holdMs) by the time this
                      runs: `counting` ends when its hold does. */
@@ -10286,7 +10271,6 @@
        still asked for the old one — and the background silently failed
        to load. */
     Preload.adopt(el.sceneArt, C.ART.background);
-    Preload.adopt(el.sceneArtSoft, C.ART.background);
     Preload.adopt(el.startArt, C.ART.startScreen);
     Preload.adopt(el.flySheet, C.ART.swiftyFly);
     Preload.adopt(el.talkSheet, C.ART.swiftyTalk);
