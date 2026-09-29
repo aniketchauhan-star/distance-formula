@@ -64,6 +64,19 @@
       at = m.index + m[0].length;
     }
     if (at < s.length) out.appendChild(document.createTextNode(s.slice(at)));
+    /* In a box that lays its children out as items — a grid or a flex
+       row, like a tile of the table's scroller — the letter and its
+       digit would each become an item of their own, and a grid stacks
+       its items: the digit fell out of the bottom of its tile, and a
+       whole "x₂ − x₁" came out as a column under it. There, the setting
+       goes in as one piece, which flows as a line. */
+    if (!inSvg && /(grid|flex)/.test(getComputedStyle(parent).display)) {
+      const one = document.createElement('span');
+      one.className = 'mtext';
+      one.appendChild(out);
+      parent.replaceChild(one, text);
+      return;
+    }
     parent.replaceChild(out, text);
   }
 
