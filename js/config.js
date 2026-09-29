@@ -1355,37 +1355,43 @@ window.CFG = (function () {
      The coordinates are load-bearing and two properties of them must
      survive any edit:
 
-       * Cafe B is on the house's own row, so its distance can be
-         counted straight off the grid without the formula. That is
-         what makes it the tempting wrong answer.
-       * Cafe A makes a 3-4-5 triangle with the house, so the right
-         answer is a whole 5 and a child who works it out properly can
-         see that they are right.
+       * Both walks out of the house are slanted, so neither can be
+         counted off the grid: each one wants the formula, and the
+         question is which café is closer, not which line is shorter
+         to count.
+       * Both come out whole, so neither answer is left under a root
+         and a child who works one out properly can see that they are
+         right. On a lattice that means a Pythagorean triple, and the
+         two must differ: Cafe A makes a 3-4-5 with the house (5 units)
+         and Cafe B a 6-8-10 (10 units), so Cafe A is the closer one.
 
-     The reference art put these at (2,3), (6,6) and (-4,3). This board
-     rules to y = 6 but only numbers to 5, and a place standing on an
-     unnumbered line cannot be checked by the child reading it — so the
-     town sits one square down and one square left of that. The two
-     distances, 5 and 6, are unchanged.
+     The places are named in the pills over them and every one has its
+     coordinates under its dot, so all three stand on numbered lines,
+     none on an axis, and no picture sits over another place's point,
+     label or walk.
      ------------------------------------------------------------- */
   const TOWN = {
-    /* One row lower than the reference's shape would put them. A place
-       is drawn standing ON its coordinate — building and name pill
-       above the dot — so the top row of the board has no room for one:
-       at y = 5 a cafe's roof is off the paper. At y = 4 it has two
-       cells of headroom, which is what it needs. */
-    house: { x:  1, y: 1 },
-    /* Both walks come out whole, so both are answered on the reel: Cafe
-       A up the slant, four across and three up (5 units, not under a
-       root), and Cafe B six along the house's own row (6 units) — and
-       Cafe A is still the closer one. With the house at (1, 1) no slanted
-       walk on this board is whole except 3-4-5, so the two could not both
-       be slanted without a tie: the slant is Cafe A's, the walk that
-       needs the formula, and Cafe B's is counted. (Cafe A was at (5, 1),
-       4 units along the row, and Cafe B at (-3, 4), 5; before that Cafe
-       B was at (-5, 3), √40.) */
-    cafeA: { x:  5, y: 4 },
-    cafeB: { x: -5, y: 1 },
+    /* A 6-8-10 walk is most of this board (x runs -6..6, y -5..5), so it
+       fixes the rest: the house stands left of the y-axis, Cafe A up the
+       slant to its right, four across and three up, and Cafe B down the
+       long slant to the board's last numbered corner, eight across and
+       six down. The two walks leave the house 74° apart, so on 46, drawn
+       together, they read as two walks and not one line — and each
+       coordinate label keeps clear of both.
+
+       A place is drawn standing ON its coordinate — building and name
+       pill above the dot — so the top row of the board has no room for
+       one: at y = 5 a cafe's roof is off the paper. At y = 4 it has two
+       cells of headroom, which is what it needs.
+
+       (The house was at (1, 1), where the only whole slant on the board
+       is 3-4-5: Cafe A was at (5, 4) and Cafe B had to be counted, six
+       along the house's own row at (-5, 1). Before that, Cafe A was at
+       (5, 1), 4 units along the row, and Cafe B at (-3, 4), 5; and before
+       that Cafe B was at (-5, 3), √40.) */
+    house: { x: -2, y:  1 },
+    cafeA: { x:  2, y:  4 },
+    cafeB: { x:  6, y: -5 },
     /* And two more for the walk after it. The prompt asked for (-4,-2)
        and (4, 4); neither survives its own rule that a marker needs the
        room it stands in. A place is drawn standing ON its coordinate,
@@ -1476,9 +1482,9 @@ window.CFG = (function () {
     engine:  { x:  927, y: 618, w: 363, h: 173, tall: 0.78, overlay: 'engine' }
   };
   TOWN.places = [
-    /* Its name over its roof, as the others have: down on the house's
-       row there is room over it. (At (-3, 4) it had to go beside it, as
-       a name over the roof reached the top of the paper.) */
+    /* Its name over its roof, as the others have: down in the bottom
+       corner there is room over it. (At (-3, 4) it had to go beside it,
+       as a name over the roof reached the top of the paper.) */
     { key: 'cafeB',  x: TOWN.cafeB.x,  y: TOWN.cafeB.y,
       name: 'Café B',        kind: 'cafe',   tone: 'yellow' },
     { key: 'house',  x: TOWN.house.x,  y: TOWN.house.y,
@@ -2000,6 +2006,15 @@ window.CFG = (function () {
     }, base);
     return s0 ? [s0, s1, s2, s3] : [s1, s2, s3];
   }
+
+  /* Maya's house and the two cafés (42-46), from the town's own three
+     coordinates: the dots, the walks between them, Maya's walk and the
+     lengths written on them all come from TOWN, so none of it can stand
+     apart from the pictures drawn over them. */
+  const HOUSE = TOWN.house, CAFE_A = TOWN.cafeA, CAFE_B = TOWN.cafeB;
+  const PT = function (p) { return { x: p.x, y: p.y }; };
+  // how far a place is from the house, as the board writes it: whole (TOWN)
+  const HOUSE_TO = function (p) { return Math.hypot(p.x - HOUSE.x, p.y - HOUSE.y) + '\u00A0units'; };
 
   /* -------------------------------------------------------------
      SCRIPT — one entry per screen
@@ -3147,9 +3162,9 @@ window.CFG = (function () {
       /* Plotted, not joined: a line between any two of them would say
          which pair the question is about, which is the question. */
       pointsOnly: true,
-      segment: { a: { x: 1, y: 1 }, b: { x: 5, y: 4 }, coordSide: 'under' },
+      segment: { a: PT(HOUSE), b: PT(CAFE_A), coordSide: 'under' },
       // the third place, plotted the same way and labelled the same way
-      mark: [ { x: -5, y: 1 } ],
+      mark: [ PT(CAFE_B) ],
       /* She asks, and then the two answers come up under her — the order
          every other question in the game has. (They used to go up first,
          with her arriving after.) No hint under them: the question is the
@@ -3168,7 +3183,7 @@ window.CFG = (function () {
         voiceOnly: true,
         /* Right, and Maya comes out of her house and walks up the slant
            to Café A, and goes in (Board.mayaWalk). */
-        walkOnRight: { from: { x: 1, y: 1 }, to: { x: 5, y: 4 } },
+        walkOnRight: { from: PT(HOUSE), to: PT(CAFE_A) },
         /* Right: past the walks, to the park. */
         rightAt: 55,
         /* Wrong: the two walks, worked the way 29 taught them. */
@@ -3191,23 +3206,24 @@ window.CFG = (function () {
        5 units, whole — the slant that wants the formula. */
     ...walk({
       ids: [44], formula: true,
-      a: { x: 1, y: 1 }, b: { x: 5, y: 4 }, c: { x: 5, y: 1 },
+      a: PT(HOUSE), b: PT(CAFE_A), c: { x: CAFE_A.x, y: HOUSE.y },
       seg: { coordSide: 'under' },
       say: { first: 'First, find the distance from Maya\u2019s house to Café A.' },
       base: { textScale: 0.85, town: ['house', 'cafeA', 'cafeB'], townFocus: ['house', 'cafeA'],
-              mark: [ { x: -5, y: 1 } ], range: { min: 0, max: 8 } },
+              mark: [ PT(CAFE_B) ], range: { min: 0, max: 8 } },
       first: { keepSegment: true }
     }),
 
-    /* 45 — and Maya's house to Café B, the same way: six along the
-       house's own row, 6 units, on the reel — more than Café A's 5. */
+    /* 45 — and Maya's house to Café B, the same way: the long slant,
+       eight across and six down, 10 units, on the reel — twice Café A's
+       5. */
     ...walk({
       ids: [45], formula: true,
-      a: { x: 1, y: 1 }, b: { x: -5, y: 1 }, c: { x: -5, y: 1 },
+      a: PT(HOUSE), b: PT(CAFE_B), c: { x: CAFE_B.x, y: HOUSE.y },
       seg: { coordSide: 'under' },
       say: { first: 'Now, find the distance from Maya\u2019s house to Café B.' },
       base: { textScale: 0.85, town: ['house', 'cafeA', 'cafeB'], townFocus: ['house', 'cafeB'],
-              mark: [ { x: 5, y: 4 } ], range: { min: 0, max: 9 } },
+              mark: [ PT(CAFE_A) ], range: { min: 0, max: 12 } },
       /* No leaf sweep: it follows the last walk's table on the same
          town, so she flies off from under it and back in (flyBack). */
       first: { flyBack: true }
@@ -3227,20 +3243,20 @@ window.CFG = (function () {
       town: ['house', 'cafeA', 'cafeB'], textScale: 0.85,
       keepSegment: true, dropLegs: true, dropNames: true,
       /* The two walks on the map with their lengths written on them —
-         6 units to Cafe B, 5 units to Cafe A — and the same two on the
+         10 units to Cafe B, 5 units to Cafe A — and the same two on the
          cards (below). A wrong card and the two lengths blink on the map,
          with nothing said (blinkOnMiss). (Held back once: then the 5 units
          carried over from 45's table stood alone, and Cafe A's line had
          nothing on it.) */
       compare: [
-        { a: { x: 1, y: 1 }, b: { x: -5, y: 1 }, coordSide: 'under',
-          result: { text: '6\u00A0units' } },
-        { a: { x: 1, y: 1 }, b: { x: 5, y: 4 }, coordSide: 'under',
-          result: { text: '5\u00A0units' } }
+        { a: PT(HOUSE), b: PT(CAFE_B), coordSide: 'under',
+          result: { text: HOUSE_TO(CAFE_B) } },
+        { a: PT(HOUSE), b: PT(CAFE_A), coordSide: 'under',
+          result: { text: HOUSE_TO(CAFE_A) } }
       ],
       options: [
-        { key: 'cafeA', label: 'Café A', dist: '5\u00A0units', pic: PIC('cafe') },
-        { key: 'cafeB', label: 'Café B', dist: '6\u00A0units', pic: PIC('cafe') }
+        { key: 'cafeA', label: 'Café A', dist: HOUSE_TO(CAFE_A), pic: PIC('cafe') },
+        { key: 'cafeB', label: 'Café B', dist: HOUSE_TO(CAFE_B), pic: PIC('cafe') }
       ],
       optionRow: true, optionWide: true,     // two cards side by side, the width of the trio
       /* She asks first, then the cards come up — even straight after 42,
@@ -3251,7 +3267,7 @@ window.CFG = (function () {
               oopsLine: OOPS,
               /* Right, and Maya comes out of her house and walks along the
                  line to Cafe A, and goes in (Board.mayaWalk). */
-              walkOnRight: { from: { x: 1, y: 1 }, to: { x: 5, y: 4 } } } },
+              walkOnRight: { from: PT(HOUSE), to: PT(CAFE_A) } } },
 
     /* ================= what kind of triangle is this park? =========
        The last beat, and the first one where the distance formula is
