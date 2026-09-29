@@ -16,8 +16,8 @@
 
    The seven written after that came in a third, read in the same order
    and cut, slowed and levelled the same way, numbered on from 92 (in the
-   history as well, under the first one's name: sfx/new voice.mp3, in the
-   commit that brought clips 92 to 98).
+   history as well, under the first one's name: sfx/new voice.mp3 at
+   commit 1849173).
 
    She speaks a little slower than she was recorded, for young
    listeners: the whole recording was slowed to nine-tenths of its speed

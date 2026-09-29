@@ -312,4 +312,4 @@ html.calm .formula-table .ft-tile.no { animation: none; }
 
 /* The tile, declared on the root so the loader (js/preload.js) can point
    it at the copy it fetched, by setting it on <html>. */
-:root { --ft-tile: url('../assets/tile.webp?v=20260929134225'); }
+:root { --ft-tile: url('../assets/tile.webp?v=20260929134232'); }
