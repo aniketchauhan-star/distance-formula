@@ -13,7 +13,7 @@ three by two: her head and her two hands over an edge, the beak
 was added and taken out again, as the voice recordings were: only what
 is made from it ships). Get it back with
 
-    git show 7c1b1b3:"assets/swifty hide and talk.png" > peek.png
+    git show d2d396c:"assets/swifty hide and talk.png" > peek.png
 
 The six were drawn freely rather than on a grid, a little bigger or
 smaller and a few pixels this way or that from one another, so cut on
