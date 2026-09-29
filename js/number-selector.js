@@ -4,8 +4,8 @@
 
    Self-contained: it owns its markup and its styles, exposes the same
    small surface the game already used (mount / show / hide / reset /
-   set / setRange / markCorrect / markWrong / lock / onChange /
-   onCheck), and knows nothing about what any answer should be — the
+   set / setRange / markCorrect / markWrong / lock / onCheck), and
+   knows nothing about what any answer should be — the
    game tells it whether a guess was right, it does not work that out.
 
    The reel is five cells, not three. Three would mean recycling a cell
@@ -32,6 +32,7 @@ window.NumberSelector = (function () {
                                chosen one is told apart by its gold,
                                which is the art's own job */
   const SLIDE_MS = 280;
+  const SINK_MS = 300;       // as long as ncSink runs
 
   function mount(parent, opts) {
     opts = opts || {};
@@ -40,7 +41,7 @@ window.NumberSelector = (function () {
     let max = opts.max != null ? opts.max : MAX;
     let startAt = opts.start != null ? opts.start : START;
     let current = startAt;
-    let onChange = null, onCheck = null;
+    let onCheck = null;
 
     const root = document.createElement('div');
     root.classList.add('number-control');
@@ -113,12 +114,34 @@ window.NumberSelector = (function () {
     seat.setAttribute('role', 'status');
     seat.setAttribute('aria-live', 'polite');
 
+    /* The value in the middle of the window. Mostly the chosen one — but
+       at either end of the range the window stops, rather than turning
+       one drum further onto an empty one past the end, and the choice
+       moves out to the end drum instead: its gold seat and its pointer
+       go with it. So every drum in sight has a number on it, and the
+       arrow on that side is the thing that says it is the end. */
+    let centre = current;
+    function middle() {
+      if (max - min < 2) return current;          // too short a run to stop at
+      return Math.min(max - 1, Math.max(min + 1, current));
+    }
+
+    /* The seat and the pointer over whichever drum is chosen. */
+    function seatAt(jump) {
+      const at = 'calc(50% + ' + (current - centre) + ' * var(--pitch))';
+      [seat, pointer].forEach(function (n) {
+        if (jump) n.style.transition = 'none';
+        n.style.left = at;
+        if (jump) { void n.offsetWidth; n.style.transition = ''; }
+      });
+    }
+
     /* Seats one cell at an offset from the middle. `jump` is for the
        two buffers, which are moved across the reel rather than along
        it and must not be seen doing it. */
     function seatCell(cell, off, jump) {
-      const v = current + off;
-      const mid = off === 0;
+      const v = centre + off;
+      const mid = v === current;
       const scale = mid ? 1 : SMALL;
       if (jump) cell.classList.add('jump');
       cell.textContent = (v < min || v > max) ? '' : String(v);
@@ -146,7 +169,9 @@ window.NumberSelector = (function () {
     }
 
     function paint(jumpAll) {
+      centre = middle();
       cells.forEach(function (c, i) { seatCell(c, OFFSETS[i], jumpAll); });
+      seatAt(jumpAll);
       seat.setAttribute('aria-label', String(current));
       left.disabled = current <= min;
       right.disabled = current >= max;
@@ -166,7 +191,7 @@ window.NumberSelector = (function () {
       root.classList.remove('is-correct', 'is-wrong');
     }
 
-    let popping = null;
+    let popping = null, sinkT = null;
     function popSeat() {
       clearTimeout(popping);
       seat.classList.remove('pop');
@@ -175,24 +200,31 @@ window.NumberSelector = (function () {
       popping = setTimeout(function () { seat.classList.remove('pop'); }, SLIDE_MS + 40);
     }
 
-    function set(v, tell) {
+    function set(v) {
       v = Math.min(max, Math.max(min, Math.round(v)));
       if (v === current) return;
       const dir = v > current ? 1 : -1;
       const step = Math.abs(v - current);
       current = v;
       clearVerdict();          // a new guess clears the verdict on the last
+      const was = centre;
+      centre = middle();
 
       /* More than one step at once — the host setting a value outright
          rather than the player pressing an arrow — is not a slide. */
       if (step > 1) { paint(true); }
       else {
-        /* Rotate so the array still reads -2..+2 from the new value.
+        /* Rotate so the array still reads -2..+2 from the new middle.
            The cell that falls off one end is the one rewritten, out of
-           sight under an arrow. */
-        const wrapped = dir > 0 ? cells.shift() : cells.pop();
-        if (dir > 0) cells.push(wrapped); else cells.unshift(wrapped);
+           sight under an arrow. At an end the window stays where it is
+           and only the choice moves along it. */
+        let wrapped = null;
+        if (centre !== was) {
+          wrapped = dir > 0 ? cells.shift() : cells.pop();
+          if (dir > 0) cells.push(wrapped); else cells.unshift(wrapped);
+        }
         cells.forEach(function (c, i) { seatCell(c, OFFSETS[i], c === wrapped); });
+        seatAt(false);
         seat.setAttribute('aria-label', String(current));
         left.disabled = current <= min;
         right.disabled = current >= max;
@@ -200,7 +232,6 @@ window.NumberSelector = (function () {
       }
 
       if (window.Audio8 && window.Audio8.blip) window.Audio8.blip();
-      if (tell !== false && onChange) onChange(current);
     }
 
     left.addEventListener('click', function (e) {
@@ -220,8 +251,6 @@ window.NumberSelector = (function () {
     paint(true);
 
     return {
-      el: root,
-      get value() { return current; },
       set: set,
 
       /* A screen can widen the range — the worked-out answers reach
@@ -280,15 +309,31 @@ window.NumberSelector = (function () {
          flown out of: it comes up from below rather than appearing, so
          it is visibly settled by the time she lands on it. */
       show: function (rising) {
-        root.classList.remove('hidden', 'rising');
+        clearTimeout(sinkT);
+        root.classList.remove('hidden', 'rising', 'sinking');
         if (rising) { void root.offsetWidth; root.classList.add('rising'); }
       },
-      hide: function () { root.classList.add('hidden'); },
+      /* `sinking` is `rising` backwards, for when there is nothing left
+         to choose and she steps down off it: it drops away rather than
+         vanishing. */
+      hide: function (sinking) {
+        clearTimeout(sinkT);
+        root.classList.remove('rising');
+        if (sinking && !root.classList.contains('hidden')) {
+          root.classList.add('sinking');
+          sinkT = setTimeout(function () {
+            root.classList.remove('sinking');
+            root.classList.add('hidden');
+          }, SINK_MS);
+        } else {
+          root.classList.remove('sinking');
+          root.classList.add('hidden');
+        }
+      },
 
-      onChange: function (fn) { onChange = fn; },
       onCheck: function (fn) { onCheck = fn; }
     };
   }
 
-  return { mount: mount, MIN: MIN, MAX: MAX, START: START };
+  return { mount: mount, MIN: MIN, MAX: MAX };
 })();

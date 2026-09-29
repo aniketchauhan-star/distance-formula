@@ -1,6 +1,6 @@
 /* =============================================================
    Audio engine
-   - background music from sfx/bg music.mp3, held at 20%
+   - background music from sfx/bg music.ogg (Ogg Opus), held at 20%
    - every other sound is synthesised with the Web Audio API,
      because only the music track was supplied
    - music ducks automatically while Swifty is speaking
@@ -15,7 +15,7 @@ window.Audio8 = (function () {
      everything queued lands in one burst the moment it resumes. */
   let armed = false;
   let musicEl = null, noiseBuf = null, musicRamp = null;
-  let started = false, duckDepth = 0, muted = false, musicWant = 0;
+  let started = false, duckDepth = 0, musicWant = 0;
 
   function now() { return ctx ? ctx.currentTime : 0; }
 
@@ -48,10 +48,14 @@ window.Audio8 = (function () {
        the page is opened straight from disk, because file:// counts as
        an opaque origin and taints the node — and nothing here needs to
        process the music anyway. */
-    musicEl = new Audio(A.musicSrc);
+    /* From the loader's copy (js/preload.js): nothing of its own to
+       fetch, so `preload` is none — the loader has it, or will. */
+    musicEl = new Audio();
     musicEl.loop = true;
-    musicEl.preload = 'auto';
+    musicEl.preload = 'none';
     musicEl.volume = 0;
+    if (window.Preload) window.Preload.adopt(musicEl, A.musicSrc);
+    else musicEl.src = A.musicSrc;
   }
 
   /* Smooth fade on the element, used for start-up and for ducking. */
@@ -59,7 +63,7 @@ window.Audio8 = (function () {
     if (!musicEl) return;
     clearInterval(musicRamp);
     const from = musicEl.volume;
-    const to = muted ? 0 : musicWant;
+    const to = musicWant;
     const steps = Math.max(1, Math.round((secs || 0.3) * 30));
     let i = 0;
     musicRamp = setInterval(function () {
@@ -127,12 +131,6 @@ window.Audio8 = (function () {
     musicTarget(A.musicVolume, A.duckUp);
   }
 
-  function setMuted(m) {
-    muted = m;
-    if (master) master.gain.setTargetAtTime(m ? 0 : 1, now(), 0.05);
-    rampMusic(0.2);
-  }
-  function isMuted() { return muted; }
 
   /* ---------- synthesis helpers ---------- */
 
@@ -390,6 +388,41 @@ window.Audio8 = (function () {
     tone({ type: 'sine', f0: 150, f1: 90, dur: 0.3, gain: 0.05 });
   }
 
+  /* A fire engine on its way: its two notes — soft, a lesson and not a
+     street — over the low rumble of its engine. */
+  function siren(dur) {
+    if (!ctx) return;
+    dur = dur || 2.4;
+    const n = Math.max(2, Math.round(dur / 0.42));
+    for (let i = 0; i < n; i++) {
+      const f = i % 2 ? 740 : 988;
+      tone({ type: 'triangle', f0: f, f1: f * 1.01, dur: 0.34, gain: 0.05, attack: 0.05, delay: i * 0.42 });
+      tone({ type: 'sine', f0: f * 2, f1: f * 2.02, dur: 0.28, gain: 0.012, attack: 0.05, delay: i * 0.42 });
+    }
+    noise({ filter: 'lowpass', f0: 230, f1: 140, dur: dur, gain: 0.05, q: 0.7, attack: 0.3 });
+  }
+
+  /* Water on a fire: a hiss that holds, and drops pattering down. */
+  function spray(dur) {
+    if (!ctx) return;
+    dur = dur || 2;
+    const n = Math.max(1, Math.round(dur / 0.3));
+    for (let i = 0; i < n; i++) {
+      noise({ f0: 2300 + Math.random() * 600, f1: 3000, dur: 0.5, gain: 0.05, q: 0.6,
+              attack: 0.12, delay: i * 0.3 });
+    }
+    for (let i = 0; i < n * 2; i++) {
+      noise({ f0: 4200 + Math.random() * 1800, f1: 2600, dur: 0.06, gain: 0.028, q: 3,
+              delay: 0.3 + Math.random() * Math.max(0.1, dur - 0.3) });
+    }
+  }
+
+  /* And the fire going out: steam, falling away. */
+  function hiss() {
+    if (!ctx) return;
+    noise({ filter: 'highpass', f0: 5200, f1: 2600, dur: 1.4, gain: 0.05, q: 0.7, attack: 0.08 });
+  }
+
   // Cheerful three-note flourish when a line finishes.
   function chime() {
     [784, 988, 1319].forEach(function (f, i) {
@@ -398,10 +431,9 @@ window.Audio8 = (function () {
   }
 
   return {
-    unlock, prime, duck, duckReset, setMuted, isMuted, wind, breeze, confettiPop,
+    unlock, prime, duck, duckReset, wind, breeze, confettiPop,
     chirp, birdCall, flap, land, pop, blip, sparkle, whoosh, chime, magic, draw, tick,
-    correct, wrong, cheer, rustle,
-    get ready() { return !!ctx; },
+    correct, wrong, cheer, rustle, siren, spray, hiss,
     // whether playback is actually authorised, not merely built
     get armed() { return armed; }
   };

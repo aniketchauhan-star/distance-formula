@@ -4,17 +4,16 @@
 (function () {
   'use strict';
   const C = window.CFG, SFX = window.Audio8, FX = window.FX;
-  const $ = function (s) { return document.querySelector(s); };
 
   /* ---------------- element handles ---------------- */
   const el = {};
-  ['viewport', 'stage', 'loader', 'loaderBar', 'loaderPct', 'loaderVer',
+  ['viewport', 'stage', 'loadBar', 'loadFill', 'loadPct', 'loadVer',
    'startScreen', 'playBtn', 'playImg', 'scene', 'skyLayer',
-   'charGroup', 'shadow', 'birdRig', 'birdFlip', 'birdWin', 'flySheet', 'talkSheet',
-   'bubble', 'bubbleShape', 'bubbleBody', 'bubbleSheen',
-   'bubbleText', 'bubbleLine', 'nav', 'nextBtn', 'backBtn',
+   'shadow', 'birdRig', 'birdWin', 'flySheet', 'talkSheet',
+   'bubble', 'bubbleBody',
+   'bubbleLine', 'nav', 'nextBtn', 'backBtn',
    'gridPanel', 'gridImg', 'gridAxes', 'standSwifty',
-   'formulaBoard', 'leafLayer', 'fxLayer', 'sceneArt', 'startArt',
+   'leafLayer', 'fxLayer', 'sceneArt', 'sceneArtSoft', 'focusVeil', 'startArt',
    'startBird', 'startBirdWin', 'startFly', 'startTalk', 'startShadow', 'startSky'
   ].forEach(function (id) { el[id] = document.getElementById(id); });
 
@@ -126,11 +125,6 @@
     if (s === lastK) return;              // a drag that has not moved a pixel
     lastK = s;
     el.stage.style.transform = 'translate(-50%,-50%) scale(' + s + ')';
-    /* The scale in force, for anything that ever needs to undo it.
-       Guarded by the same comparison: during a drag this changes every
-       frame, and writing it is a style invalidation for every rule that
-       reads it. */
-    doc.style.setProperty('--stage-k', String(s));
   }
 
   /* Resizing a window fires `resize` for every pixel of the drag, and
@@ -276,16 +270,7 @@
      the distance questions and the two worked-out ones alike. It
      replaced a slider and a typed keypad that did the same job in two
      different shapes. */
-  /* `Sel` is whichever numeric control the screen on show is using.
-     Both are mounted once and both answer to the same small surface —
-     show / hide / reset / set / setRange / markCorrect / markWrong /
-     lock / onCheck — so everything that drives an answer can go on
-     saying `Sel` without knowing which one is up. A screen picks with
-     `control: 'slider'`; everything else gets the reel. */
-  let Lock  = null;             // the combination reel
-  let Slide = null;             // the ruler
-  let Sel  = null;              // whichever of the two this screen wants
-  let Slots = null;             // the substitution panel
+  let Sel  = null;              // the combination reel: every number is given on it
   let Opts = null;              // the triangle-type answer panel
   let Table = null;             // the formula table, out of the board's edge
   let Jump = null;              // the screen picker beside Next
@@ -316,10 +301,21 @@
       feetCx: S.pos.x + S.feet.cx,
       inkW:   S.inkW,
       bubble: C.GRID.bubbleDown,
-      bubbleScale: 1
+      bubbleScale: 1,
+      // the room her balloon keeps inside (her column, beside the board)
+      room:   S.room || null
     };
     if (extra) Object.keys(extra).forEach(function (k) { g[k] = extra[k]; });
     return g;
+  }
+
+  /* Swifty alone in the open field — the screens with no board, no
+     table and nothing but her (1, 3, 38, 40, 41c, 62): the field's own
+     rig, and her staying in it. Screen 4, where she flies off, is not
+     one: the field comes back sharp as she goes. */
+  function soloField(entry) {
+    return !!entry && !entry.layout && !axisOf(entry) && !entry.keepTable &&
+           entry.intro !== 'measure' && entry.entrance !== 'flyOut';
   }
 
   function geomFor(i) {
@@ -337,14 +333,6 @@
       /* Back under the table the screen before wrote, the board where
          that table pushed it. */
       return standGeom(C.BOARD.tableStand, { panelBox: C.GRID.table.board });
-    }
-    if (entry.layout === 'recap') {
-      // the result stated on its own: board to one side, nobody in shot
-      const R = C.RECAP;
-      return { stand: false, bare: true, scale: C.CHAR_SCALE, anchor: C.ANCHOR,
-               aim: C.ANCHOR, feetY: 0, feetCx: 0, inkW: 0,
-               bubbleScale: C.BUBBLE.scale,
-               panelBox: { x: R.grid.x, y: R.grid.y, w: R.grid.w, h: R.grid.h } };
     }
     /* A distance question has her on screen after all: she flies in to
        put it, then leaves before the controls arrive. She lands at the
@@ -383,7 +371,8 @@
            bubbleScale was tuning the tall one down to fit beside the
            board, and there is no board beside her any more. */
         bubble: C.GRID.bubbleDown,
-        bubbleScale: 1
+        bubbleScale: 1,
+        room: S.room || null
       };
     }
     return {
@@ -401,7 +390,8 @@
       feetY:  C.ANCHOR.y + C.FEET_DY,
       feetCx: C.SWIFTY.cx,
       inkW:   REF_W * C.CHAR_SCALE,
-      bubbleScale: entry.bubbleScale || C.BUBBLE.scale
+      bubble: C.BUBBLE,
+      bubbleScale: 1
     };
   }
 
@@ -445,130 +435,37 @@
       Bubble.up ? Bubble.boxH : null);
   }
 
-  /* Seats the speech bubble for one screen. Split out of applyGeom so a
-     line can re-seat it at a width measured from the text. */
-  function seatBubble(g, inkWOverride, bodyHOverride) {
-    /* A layout may bring its own bubble shape — the grid screens use a
-       wide, shallow one whose tail leaves the side rather than the
-       bottom, because she stands above the board with nothing over her. */
-    const B = g.bubble || C.BUBBLE, s = g.bubbleScale;
-    /* A shape can hang its tail off the balloon's bottom-left corner
-       instead of the middle of its underside. Then the balloon sits up
-       and to the right of whatever it points at, so she speaks from
-       beside her own face rather than from over her head — which only
-       works where nothing else wants that space. */
-    const side = B.tailSide === 'left';
-    const aim = (side && g.aimSide) || g.aim;
-    const inkW = (inkWOverride != null ? inkWOverride : B.ink.w) * s;
-    /* A shape can be given a shorter balloon for a line that only needs
-       one row — the tail keeps its length, so the box shrinks from the
-       top and the point stays on her head. */
-    const bodyH = bodyHOverride != null ? bodyHOverride : B.bodyH;
-    const tailLen = B.tailLen != null ? B.tailLen : (B.tip.y - B.bodyH);
-    const inkH = (bodyH + tailLen + 1) * s;
-    const tipX = B.tip.x * s, tipY = (bodyH + tailLen) * s;
-    const tip = { x: aim.x, y: aim.y + B.biteIntoHead };
+  /* Seats the speech balloon for one screen. Split out of applyGeom so a
+     line can re-seat it at the height measured from its text.
 
-    el.bubble.style.left = (tip.x - tipX) + 'px';
-    el.bubble.style.top = (tip.y - tipY) + 'px';
-    el.bubble.style.width = inkW + 'px';
-    el.bubble.style.height = inkH + 'px';
-    // Pop the bubble out of the tail tip, where it is anchored.
-    el.bubble.style.transformOrigin = tipX + 'px ' + tipY + 'px';
+     The balloon is css/speech-bubble.css; this only says where it goes
+     and how big it is. The tail's point is driven onto her — her crown,
+     or her cheek on the open field — sinking `biteIntoHead` into it. The
+     point sits near the balloon's left end, where the CSS draws it, and
+     where the room she is standing in would push the balloon past its
+     edge (her column beside the board) the balloon moves back inside and
+     the point slides along its underside to stay on her. */
+  function seatBubble(g, wOverride, bodyHOverride) {
+    const B = g.bubble || C.BUBBLE;
+    const aim = (B.tailSide === 'left' && g.aimSide) || g.aim;
+    const W = wOverride != null ? wOverride : B.minW;
+    const H = bodyHOverride != null ? bodyHOverride : B.lineH + 2 * (B.pad.y + B.edge);
+    const T = B.tailLen;
+    const tip = { x: aim.x, y: aim.y + B.biteIntoHead };
+    const room = g.room || { left: 24, right: C.STAGE_W - 24 };
+    let left = Math.max(room.left, Math.min(room.right - W, tip.x - B.tip.x));
+    const tx = Math.max(B.tailMin, Math.min(W - B.tailRight, tip.x - left));
+    left = tip.x - tx;
 
     const bs = el.bubble.style;
-    bs.setProperty('--e1',   B.edgeW * s + 'px');
-    bs.setProperty('--fill', B.fill);
-    bs.setProperty('--edge', B.edge);
-    bs.setProperty('--ink',  B.ink_);
-    bs.setProperty('--sheen', B.sheen);
-    bs.setProperty('--bubSize', B.size * s + 'px');
-    bs.setProperty('--glow',     B.glow     || 'rgba(224, 154, 85, .34)');
-    bs.setProperty('--glowWide', B.glowWide || 'rgba(224, 154, 85, .18)');
-    bs.setProperty('--cast',     B.cast     || 'rgba(120, 62, 14, .24)');
-
-    /* ---- the silhouette, as one path ----
-       Balloon and tail used to be two shapes laid over each other, and
-       where they met the balloon's corner was stroked on both sides:
-       its border dead-ended in mid-air and the tail's flat top jutted
-       out past the curve as a step. Overlapping them harder only moved
-       the step. Drawn as one outline the join cannot exist — the box's
-       underside simply carries on down to the point and back up.
-
-       The stroke is centred on the line, so every coordinate is inset
-       by half its width and the outer edge lands exactly on the box,
-       which is where the balloon's border sat before. */
-    const e = B.edgeW * s, hw = e / 2;
-    const bw = inkW, bh = bodyH * s, drop = tailLen * s;
-    const x0 = hw, y0 = hw, x1 = bw - hw, y1 = bh - hw;
-    const r = Math.max(0, Math.min(B.radius * s - hw,
-                                   Math.min(bw, bh) / 2 - hw));
-    /* The tail hangs off the underside, clear of the corner, and leans
-       in to its point — a horn, with both edges curved, rather than a
-       spike. Run off the corner itself it read as a spur growing out of
-       the box: the round corner is what says balloon, and the tail has
-       to leave a finished edge rather than replace one.
-
-       `tip` is the point, not the join: the join sits up and to the
-       right of it, held clear of both corner arcs so the underside it
-       leaves is straight. */
-    /* The shared bubble draws its tail in a 44 x 42 box: the join runs
-       x 4..42 on y 0, the point sits at (2, 34). So the join is 38 wide
-       against a drop of 34 — 1.118 — and the point falls 2/38 of that
-       width to the LEFT of where the join starts, which is what gives
-       the tail its hook instead of a lean. The curve below is that
-       path's own control points, restated against jx/jw/drop so it
-       holds at any size. */
-    const TAIL_W = 38 / 34, TAIL_BACK = 2 / 38;
-    const jw = Math.max(16, Math.min(drop * TAIL_W, (x1 - r) - (x0 + r)));
-    const jx = Math.max(x0 + r, Math.min(x1 - r - jw, tipX + jw * TAIL_BACK));
-    const ptX = jx - jw * TAIL_BACK, ptY = y1 + drop;
-    const d = [
-      'M' + (x0 + r) + ' ' + y0,
-      'H' + (x1 - r),
-      'A' + r + ' ' + r + ' 0 0 1 ' + x1 + ' ' + (y0 + r),
-      'V' + (y1 - r),
-      'A' + r + ' ' + r + ' 0 0 1 ' + (x1 - r) + ' ' + y1,
-      'H' + (jx + jw),
-      // down the outer edge, which falls away steeply, to the point
-      'C' + (jx + jw * (32 / 38)) + ' ' + (y1 + drop * (12 / 34)) + ' ' +
-            (jx + jw * (20 / 38)) + ' ' + (y1 + drop * (22 / 34)) + ' ' + ptX + ' ' + ptY,
-      // and back up the inner one, which stays tucked under the join
-      'C' + (jx + jw * (4 / 38)) + ' ' + (y1 + drop * (24 / 34)) + ' ' +
-            (jx + jw * (4 / 38)) + ' ' + (y1 + drop * (12 / 34)) + ' ' + jx + ' ' + y1,
-      'H' + (x0 + r),
-      'A' + r + ' ' + r + ' 0 0 1 ' + x0 + ' ' + (y1 - r),
-      'V' + (y0 + r),
-      'A' + r + ' ' + r + ' 0 0 1 ' + (x0 + r) + ' ' + y0,
-      'Z'
-    ];
-
-    el.bubbleShape.setAttribute('width', bw);
-    el.bubbleShape.setAttribute('height', inkH);
-    el.bubbleShape.setAttribute('viewBox', '0 0 ' + bw + ' ' + inkH);
-    el.bubbleBody.setAttribute('d', d.join(' '));
-
-    /* The catch-light, where the light is coming from. Sized off the
-       line's own size so it holds its proportion at any scale. */
-    const em = B.size * s;
-    const cx = e + em * 0.67, cy = e + em * 0.44;
-    el.bubbleSheen.setAttribute('cx', cx);
-    el.bubbleSheen.setAttribute('cy', cy);
-    el.bubbleSheen.setAttribute('rx', em * 0.25);
-    el.bubbleSheen.setAttribute('ry', em * 0.10);
-    el.bubbleSheen.setAttribute('transform', 'rotate(-22 ' + cx + ' ' + cy + ')');
-
-    if (B.pad) {
-      el.bubbleText.style.left = B.pad.x * s + 'px';
-      el.bubbleText.style.top = B.pad.y * s + 'px';
-      el.bubbleText.style.width = (inkW - B.pad.x * 2 * s) + 'px';
-      el.bubbleText.style.height = (bodyH - B.pad.y * 2) * s + 'px';
-    } else {
-      el.bubbleText.style.left = inkW * B.text.left + 'px';
-      el.bubbleText.style.top = inkH * B.text.top + 'px';
-      el.bubbleText.style.width = inkW * B.text.width + 'px';
-      el.bubbleText.style.height = inkH * B.text.height + 'px';
-    }
+    bs.left = left + 'px';
+    bs.top = (tip.y - H - T) + 'px';
+    bs.width = W + 'px';
+    bs.height = (H + T) + 'px';
+    // it arrives out of its own point, where the rig has put it
+    bs.transformOrigin = tx + 'px ' + (H + T) + 'px';
+    el.bubbleBody.style.height = H + 'px';
+    el.bubbleBody.style.setProperty('--bubble-tail-x', tx + 'px');
   }
 
   function layout() {
@@ -579,26 +476,10 @@
 
     /* It mounts itself and owns its own markup and styles; the game
        only decides where, when, and what range it counts over. */
-    if (window.NumberSelector && !Lock) {
+    if (window.NumberSelector && !Sel) {
       const SP = C.BOARD.selector;
-      Lock = window.NumberSelector.mount(el.scene,
+      Sel = window.NumberSelector.mount(el.scene,
         { x: SP.pos.x, y: SP.pos.y, scale: SP.scale, hidden: true });
-      Sel = Lock;
-    }
-    /* The other way of giving a number: a ruler rather than a keypad,
-       for the one question that is about how far rather than about how
-       many. Same column, same housing, same surface. */
-    if (window.DistanceSlider && !Slide) {
-      const DP = C.BOARD.slider || C.BOARD.selector;
-      Slide = window.DistanceSlider.mount(el.scene,
-        { x: DP.pos.x, y: DP.pos.y, scale: DP.scale, hidden: true });
-    }
-    /* And the panel that asks where the numbers go before anything is
-       worked out. It stands where the answers stand. */
-    if (window.FormulaSlots && !Slots) {
-      const FP = C.BOARD.slots || C.BOARD.options;
-      Slots = window.FormulaSlots.mount(el.scene,
-        { x: FP.pos.x, y: FP.pos.y, scale: FP.scale, hidden: true });
     }
     /* The formula table. Inserted just before the board so it sits
        UNDER it, its left edge tucked behind the board's right one, and
@@ -672,6 +553,9 @@
     const dw = P.ink.w * ps, dh = P.ink.h * ps;
     el.playBtn.style.left = (P.box.cx - dw / 2) + 'px';
     el.playBtn.style.top = (P.box.cy - dh / 2) + 'px';
+    // the loading bar stands exactly where Play will pop up
+    el.loadBar.style.left = P.box.cx + 'px';
+    el.loadBar.style.top = P.box.cy + 'px';
     el.playBtn.style.width = dw + 'px';
     el.playBtn.style.height = dh + 'px';
     el.playImg.style.width = P.srcW * ps + 'px';
@@ -756,61 +640,45 @@
        letter crawl has to be reassembled before it means anything. */
     words: [],
 
-    /* Pick the largest type size at which the whole line still fits
-       the plate, so a long line can never spill out of the bubble
-       (and so a fallback font can't break the layout either). */
-    fitType: function (text) {
-      const line = el.bubbleLine, plate = el.bubbleText;
-      const max = plate.clientHeight;      // 0 while the bubble is hidden
-      const g = Game.geom;
-      let size = (g && g.bubble && g.bubble.size) || C.BUBBLE.size;
-      line.style.fontSize = size + 'px';
-      line.textContent = text;
-      if (max > 0) {
-        while (size > 20 && line.offsetHeight > max) {
-          size -= 2;
-          line.style.fontSize = size + 'px';
-        }
-      }
-      line.textContent = '';
-    },
-
-    /* Shrink-wraps the balloon to the line it is about to say, for the
-       shapes that ask for it. Measured with the real face at the size
-       fitType settled on, so the cream either side is the padding the
-       shape asks for and nothing more — a fixed bar leaves "Correct!"
-       marooned in the middle of it. */
+    /* The balloon cut to the line it is about to say — no empty band
+       round it. The whole line on one row if it fits the widest the
+       balloon may be here; if not, wrapped there and then drawn in to its
+       longest row, so a two-row line is as wide as its rows and no wider.
+       The words are 34px everywhere and are never made smaller: a long
+       line takes another row. Measured with the line laid in once, the
+       way it will wrap, and taken out again. */
     fitBox: function (text) {
-      /* The same fallback seatBubble() uses: only the grid layout brings
-         its own shape, and reading g.bubble alone left every other
-         screen on a fixed bar however short its line was. */
       const g = Game.geom, B = (g && g.bubble) || C.BUBBLE;
       if (!g || !B.autoWidth) return 0;
-      const A = B.autoWidth, line = el.bubbleLine, plate = el.bubbleText;
-      const prevWrap = line.style.whiteSpace, prevW = plate.style.width;
-      line.style.whiteSpace = 'nowrap';
-      plate.style.width = 'auto';
+      const line = el.bubbleLine, box = el.bubble.style, ls = line.style;
+      const room = g.room || { left: 24, right: C.STAGE_W - 24 };
+      const maxW = Math.min(B.maxW, room.right - room.left);
+      const P = 2 * (B.pad.x + B.edge) + 2, Q = 2 * (B.pad.y + B.edge);
+      const wasW = box.width;
       line.textContent = text;
-      const measured = line.offsetWidth;
-      line.textContent = '';
-      line.style.whiteSpace = prevWrap;
-      plate.style.width = prevW;
-      if (!measured) return 0;             // hidden, or no metrics yet
-      /* Two pixels of slack: sized to exactly the measured width, the
-         plate and the line are the same length, and any sub-pixel
-         difference between the nowrap measurement and the real wrap
-         spills a second row into a box cut for one. */
-      const want = Math.min(A.max, Math.max(A.min, measured + A.pad * 2 + 2));
-      /* And the height: a line that fits across in one row gets a
-         balloon one row tall, instead of sitting in a box built for the
-         longest question in the game. */
-      let bodyH = null;
-      if (B.pad && B.lineH) {
-        const usable = want - B.pad.x * 2 * (g.bubbleScale || 1);
-        const rows = Math.max(1, Math.ceil(measured / Math.max(1, usable)));
-        bodyH = Math.round(rows * B.lineH + B.pad.y * 2);
+      ls.display = 'inline-block'; ls.width = 'auto'; ls.whiteSpace = 'nowrap';
+      const one = line.offsetWidth;
+      ls.display = ls.width = ls.whiteSpace = '';
+      if (!one) { line.textContent = ''; return 0; }   // hidden, or no metrics yet
+      let W;
+      if (one + P <= maxW) W = one + P;
+      else {
+        box.width = maxW + 'px';
+        /* Its rows as the browser broke them: the text's own boxes, one a
+           row, in stage pixels. */
+        const k = (el.stage.getBoundingClientRect().width / C.STAGE_W) || 1;
+        const r = document.createRange();
+        r.selectNodeContents(line);
+        let widest = 0;
+        [].forEach.call(r.getClientRects(), function (q) { widest = Math.max(widest, q.width / k); });
+        W = Math.min(maxW, Math.ceil(widest) + P);
       }
-      return this.setBox(g, want, bodyH);
+      W = Math.max(B.minW, Math.ceil(W));
+      box.width = W + 'px';
+      const H = Math.ceil(line.offsetHeight + Q);
+      line.textContent = '';
+      box.width = wasW;
+      return this.setBox(g, W, H);
     },
 
     /* Takes the balloon to a shape. Already up, it is re-cut a frame at
@@ -832,10 +700,9 @@
         return 0;
       }
       /* Seat the shape it is going to first, so anything measuring the
-         plate this tick — fitType, which decides the type size — sees
-         the box the line will actually get rather than the one it is
-         still leaving. The first glide frame runs before the next
-         paint, so this never reaches the screen. */
+         balloon this tick sees the box the line will actually get rather
+         than the one it is still leaving. The first glide frame runs
+         before the next paint, so this never reaches the screen. */
       seatBubble(g, want, bodyH);
       const self = this, mine = this.glide, t0 = performance.now(), MS = 300;
       const step = function () {
@@ -878,13 +745,6 @@
       return this.spans;
     },
 
-    /* The whole line, already arrived. Used where a line has to survive
-       something that re-seats the box under it. */
-    showAll: function (text) {
-      this.lay(text == null ? this.full : text);
-      this.spans.forEach(function (sp) { sp.classList.add('in'); });
-    },
-
     /* The same line put back, already out.
 
        lay() empties the box and builds a fresh span per word, and every
@@ -897,26 +757,10 @@
       this.spans.forEach(function (sp) { sp.classList.add('in', 'shown'); });
     },
 
-    /* fitType measured against whatever plate the LAST line left behind,
-       and fitBox then moved the plate — so the type was sized for a box
-       it never got, and a long line overran the balloon it ended up in.
-       Size the box first, fit the type to that, and if the type had to
-       come down, cut the box again to the smaller line. */
+    /* The balloon fitted to a line. The type is 34px everywhere, set in
+       the balloon's own CSS, so this is only the box. */
     fit: function (text) {
-      const g = Game.geom, B = (g && g.bubble) || C.BUBBLE;
-      el.bubbleLine.style.fontSize = ((B && B.size) || C.BUBBLE.size) + 'px';
-      let ms = this.fitBox(text);
-      /* Settle: a line that will not fit even the biggest box comes
-         down a step, which buys a smaller box, which may let it come
-         back up. Two passes is enough to land — the size only ever
-         falls, so it cannot cycle. */
-      for (let pass = 0; pass < 2; pass++) {
-        const was = el.bubbleLine.style.fontSize;
-        this.fitType(text);
-        if (el.bubbleLine.style.fontSize === was) break;
-        ms = this.fitBox(text) || ms;
-      }
-      return ms;
+      return this.fitBox(text);
     },
 
     open: function (text, done) {
@@ -1141,7 +985,6 @@
        else on the board is placed against it and will be placed again. */
     rebuildAxes: function () {
       {
-        const svg = el.gridAxes;
         const drop = function (list) {
           list.forEach(function (n) { if (n.parentNode) n.parentNode.removeChild(n); });
           list.length = 0;
@@ -1489,10 +1332,6 @@
         nm.setAttribute('fill', G.ink);
         nm.setAttribute('font-size', G.segment.nameSize);
 
-        const lp = document.createElementNS(NS, 'rect');
-        lp.setAttribute('class', 'legplate');
-        lp.setAttribute('rx', 11);
-
         /* In the leg's own colour: with the plate gone, that is what
            says which of the two sides a measurement belongs to. */
         const lt = document.createElementNS(NS, 'text');
@@ -1501,8 +1340,6 @@
         lt.setAttribute('font-size', LG.lenSize);
 
         ln.id = i === 0 ? 'lineAC' : 'lineCB';     // first leg, then second
-        ln.style.setProperty('--base-stroke-width', LG.width + 'px');
-        ln.style.setProperty('--pulse-stroke-width', (LG.width + 4) + 'px');
         /* The length hangs in a group of its own so it can be TURNED.
            Its own `pop` is a filled animation, and a filled animation
            beats a transform attribute on the same element — so the
@@ -1510,11 +1347,11 @@
            touch. */
         const lturn = document.createElementNS(NS, 'g');
         lturn.appendChild(lt);
-        [dg, ln, dt, co, nm, lp, lturn].forEach(function (n) { lg.appendChild(n); });
+        [dg, ln, dt, co, nm, lturn].forEach(function (n) { lg.appendChild(n); });
         svg.appendChild(lg);
         this.commitDraw(ln);
         this.legSlots.push({ g: lg, line: ln, dot: dt, coord: co, name: nm,
-                             plate: lp, len: lt, lenTurn: lturn,
+                             len: lt, lenTurn: lturn,
                              dash: dl, dashG: dg });
       }
       /* The first side's layer on top of the others. Its corner C is the
@@ -1559,18 +1396,6 @@
       // (the overlay is appended at the very end of build, below)
       ug.setAttribute('class', 'units');
 
-      /* The squares that got taken away were one per unit, bordered,
-         drawn on every count — a block of colour over the ruling the
-         child was meant to be reading. This is one pale band, a single
-         cell deep along the line, and it is only ever shown to someone
-         who has missed twice. */
-      const ub = document.createElementNS(NS, 'rect');
-      ub.setAttribute('class', 'uband');
-      ub.setAttribute('fill', U.band.fill);
-      ub.setAttribute('stroke', U.band.edge);
-      ub.setAttribute('stroke-width', U.band.edgeW);
-      ug.appendChild(ub);
-
       const ul = document.createElementNS(NS, 'text');
       ul.setAttribute('class', 'ulabel');
       ul.setAttribute('fill', G.ink);
@@ -1607,34 +1432,6 @@
       svg.appendChild(sweep); svg.appendChild(eg); svg.appendChild(fly); svg.appendChild(word);
       this.xGroup = eg; this.xFly = fly; this.xSweep = sweep; this.xWord = word;
 
-      /* The working, written on the paper. One text per line, each one
-         a run of tspans — one per part of the line — so a part is a
-         node the board can point at, fly a number into, and light. The
-         radical's overbar is a line of its own, drawn over the span the
-         radicand actually measures rather than over a guess at it. */
-      const wg = document.createElementNS(NS, 'g');
-      wg.setAttribute('class', 'work');
-      /* Something to write it on. Five lines of algebra straight onto
-         the ruling is five lines with grid lines through them; the
-         plate is the paper's own cream with a soft edge, quiet enough
-         to be a surface rather than a second panel competing with the
-         drawing beside it. First into the group, so it is behind every
-         line of the working. */
-      const wp = document.createElementNS(NS, 'rect');
-      wp.setAttribute('class', 'workplate');
-      wg.appendChild(wp);
-      this.workPlate = wp;
-      this.workLines = [0, 1, 2, 3, 4, 5].map(function () {
-        const t = document.createElementNS(NS, 'text');
-        t.setAttribute('class', 'workline');
-        const bar = document.createElementNS(NS, 'line');
-        bar.setAttribute('class', 'workbar');
-        wg.appendChild(t); wg.appendChild(bar);
-        return { t: t, bar: bar, spans: [] };
-      });
-      svg.appendChild(wg);
-      this.workGroup = wg;
-
       /* The square in the corner of a right angle, shown only once the
          triangle has been named. */
       const ra = document.createElementNS(NS, 'polyline');
@@ -1644,7 +1441,6 @@
       svg.appendChild(ra);
       this.rightMark = ra;
 
-      this.unitBand = ub;
       this.unitLabel = ul;
 
       /* The guided count: one square per unit, each with its own number
@@ -1774,11 +1570,6 @@
       segLine.setAttribute('stroke-width', SG.lineWidth);
       segLine.setAttribute('stroke-linecap', 'butt');   // see the sides' ends
       segLine.id = 'lineAB';          // the line between the two points
-      /* Its own widths, for the highlight to grow between. Read off the
-         line rather than restated in CSS, because a leg and the segment
-         are not drawn at the same weight. */
-      segLine.style.setProperty('--base-stroke-width', SG.lineWidth + 'px');
-      segLine.style.setProperty('--pulse-stroke-width', (SG.lineWidth + 4) + 'px');
       seg.appendChild(segLine);
       this.segLine = segLine;
       this.commitDraw(segLine);
@@ -1946,32 +1737,6 @@
       /* Kept, so the working can be laid out beside the very thing the
          camera framed rather than beside a second guess at it. */
       this.drawnBox = { x1: r.x, y1: r.y, x2: r.x + r.w, y2: r.y + r.h };
-      /* A view that has to hold a working as well as a drawing asks for
-         the drawing and then for as much again, out to the side the
-         drawing is not on — so the paper in shot is the triangle in one
-         half and clear board in the other. Which side is worked out
-         from where the drawing sits against the board's own middle,
-         never typed: a pair right of centre writes to its left. */
-      if (name === 'working') {
-        /* How much board the writing needs, worked out rather than
-           guessed at. The working is set to a fixed size ON THE STAGE —
-           like every label here, it shrinks in board units as the
-           camera comes in — so its width in pixels does not change with
-           the view, and the column that holds it has to be that many
-           pixels wide however far the board pushes in.
-             column_px = c · panel / (D + c)   must be at least L
-           gives   c = L·D / (panel − L),
-           which is the widest push this drawing and this working can
-           both fit in. Ask for more and the lines run into the
-           triangle; ask for less and the board barely moves. */
-        const W = G.work, pw = G.centre.w, D = r.w;
-        const L = (this.workWidest || 0) + 2 * W.pad * G.stepX * (pw / G.w);
-        const room = (L > 0 && L < pw * 0.92) ? (L * D) / (pw - L)
-                                              : D * (W.room || 1);
-        this.workSide = ((r.x + r.w / 2) >= G.w / 2) ? -1 : 1;
-        if (this.workSide < 0) r.x -= room;
-        r.w += room;
-      } else this.workSide = 0;
       /* Grown to the board's own shape about its middle, so a square on
          the grid is still square and the drawing sits in the middle of
          the window rather than off one side. */
@@ -2195,7 +1960,6 @@
          code that PLACES these labels never saw — it reads resSize and
          got coordSize's 26 instead. */
       gs2.setProperty('--resFs',   ((SGt.resSize || SGt.coordSize) * tk) + 'px');
-      gs2.setProperty('--workFs',  (G.work.size * tk) + 'px');
 
       el.gridAxes.style.clipPath = this.view
         ? 'inset(' + inset + 'px round ' + Math.max(0, P.radius * fs - inset) + 'px)'
@@ -2558,7 +2322,7 @@
            already drawn instead of drawing itself. */
         L.line.classList.remove('draw', 'set');
         if (L.dashG) L.dashG.classList.remove('draw', 'set');
-        ['dot', 'coord', 'name', 'plate', 'len'].forEach(function (k) {
+        ['dot', 'coord', 'name', 'len'].forEach(function (k) {
           L[k].classList.remove('pop', 'on', 'set');
         });
       });
@@ -2649,7 +2413,6 @@
     },
 
     textW: function (t, size) { return this.textMetrics(t, size).w; },
-    textH: function (t, size) { return this.textMetrics(t, size).h; },
 
     /* Measured before the webfont arrives, every label is sized to the
        fallback's metrics and stays that way. Called once the real face
@@ -2675,39 +2438,6 @@
 
     /* Slides a label sideways until the drawn line is no longer running
        through it, whichever way is the shorter move.
-
-       A label sits over its own point, and a segment leaving that point
-       at a slope goes up through the very space the label is written
-       in — which is why "(2, 1)" had the hypotenuse through its last
-       bracket on every screen that draws that triangle. Only a label
-       the line actually cuts is moved; one already clear is returned
-       untouched, so nothing that reads properly today shifts. */
-    clearOfLine: function (cx, cy, w, h, x1, y1, x2, y2, prefer) {
-      const air = 9;
-      const top = cy - h / 2, bot = cy + h / 2;
-      /* Where the line is over the rows of the page this label covers.
-         Outside them it cannot be in the way, whatever its x. */
-      const yA = Math.max(top, Math.min(y1, y2));
-      const yB = Math.min(bot, Math.max(y1, y2));
-      if (yA > yB) return cx;
-      let lo, hi;
-      if (y1 === y2) {                       // level: its whole span is in those rows
-        lo = Math.min(x1, x2); hi = Math.max(x1, x2);
-      } else {
-        const at = function (y) { return x1 + (x2 - x1) * ((y - y1) / (y2 - y1)); };
-        const p = at(yA), q = at(yB);
-        lo = Math.max(Math.min(p, q), Math.min(x1, x2));
-        hi = Math.min(Math.max(p, q), Math.max(x1, x2));
-      }
-      if (cx + w / 2 <= lo || cx - w / 2 >= hi) return cx;      // already clear of it
-      const left = lo - air - w / 2, right = hi + air + w / 2;
-      /* Which side, where the caller cares: a label pushed off a line
-         and then pulled back by the frame has not been moved at all,
-         so it needs to be able to ask for the other one. */
-      if (prefer < 0) return left;
-      if (prefer > 0) return right;
-      return (cx - left) <= (right - cx) ? left : right;
-    },
 
     /* Slides a label sideways until it is off the y-axis and clear of
        the numbers beside it, whichever way is the shorter move. */
@@ -2767,7 +2497,7 @@
        placed before it — and so the same screen always comes out the
        same, because the order they are placed in is fixed. */
     startLabelPass: function () {
-      const G = C.GRID, SG = G.segment, self = this;
+      const G = C.GRID, self = this;
       const list = [];
       const push = function (l, t, r, b, what) {
         if (r > l && b > t) list.push({ l: l, t: t, r: r, b: b, what: what });
@@ -2856,7 +2586,7 @@
     },
 
     inkLengths: function () {
-      const G = C.GRID, LG = G.leg, SG = G.segment, self = this;
+      const G = C.GRID, SG = G.segment, self = this;
       const tk = this.typeScale();
       (this.legSlots || []).forEach(function (L, i) {
         if (!L || !L.len || !L.len.textContent) return;
@@ -3161,28 +2891,11 @@
       if (mine && this.inked) {
         this.inked = this.inked.filter(function (o) { return o.owner !== mine; });
       }
-      /* Or a spot the screen names outright (`labelAt` on a point, in
-         squares from it): where a picture stands on the point and a line
-         leaves it, every side the rule can look at is blocked, and the
-         least bad of them was behind the park's trees. Named, it is used
-         as given, and it never moves. */
-      let at;
-      if (opt.fixed) {
-        /* The spot is where the COORDINATES go; the letter sits over
-           them. Named that way, a point's coordinates are in the same
-           place whether it has a letter or not (a place of the town that
-           is not one of the pair has none — solve). */
-        const fx0 = X + opt.fixed.x, cy0 = Y + opt.fixed.y;
-        const bot = cy0 + ch / 2;
-        at = { x: fx0, y: bot - h / 2, dir: null,
-               box: { l: fx0 - w / 2, t: bot - h, r: fx0 + w / 2, b: bot } };
-      } else {
-        at = this.placeBlock(w, h, X, Y, gap,
-               pin ? opt.away : (part.heldDir ? opt.away : (wasFound ?
-                 { x: 0, y: -wasFound[1] } : opt.away)),
-               pin || part.heldDir || wasFound);
-        part.heldDir = at.dir;
-      }
+      const at = this.placeBlock(w, h, X, Y, gap,
+             pin ? opt.away : (part.heldDir ? opt.away : (wasFound ?
+               { x: 0, y: -wasFound[1] } : opt.away)),
+             pin || part.heldDir || wasFound);
+      part.heldDir = at.dir;
 
       /* And now measured to the INK.
 
@@ -3284,7 +2997,6 @@
       const f = spec.from, t = spec.to;
       const x1 = px(f.x), y1 = py(f.y), x2 = px(t.x), y2 = py(t.y);
       // the size the camera is actually setting this leg's labels at
-      const tk = this.typeScale();
 
       /* Its own colour, by which way it runs — the length written
          beside it takes the same one, so the two read as one thing. */
@@ -3438,9 +3150,9 @@
            general case labels it x2 - x1 rather than 10 units. */
         this.placeLegLength(i, f, t,
           spec.lengthText || (n + '\u00A0unit' + (n === 1 ? '' : 's')));
-        L.len.style.display = L.plate.style.display = '';
+        L.len.style.display = '';
       } else {
-        L.len.style.display = L.plate.style.display = 'none';
+        L.len.style.display = 'none';
       }
     },
 
@@ -3711,7 +3423,7 @@
       if (!L || !spec || !spec.from) return false;
       this.placeLegLength(i, spec.from, spec.to,
         units + '\u00A0unit' + (units === 1 ? '' : 's'));
-      L.len.style.display = L.plate.style.display = '';
+      L.len.style.display = '';
       L.len.classList.add('pop');
       return true;
     },
@@ -3726,13 +3438,12 @@
        is down, each corner's label is put clear of all of them, and of
        the segment they hang off. */
     clearMarksOfLines: function () {
-      const G = C.GRID, SG = G.segment, LG = G.leg, self = this;
+      const G = C.GRID, self = this;
       const px = function (v) { return G.originX + v * G.stepX; };
       const py = function (v) { return G.originY - v * G.stepY; };
       const placed = this.legPlaced || [];
       if (!placed.filter(Boolean).length) return;
       // measured at the size the camera is setting, like everything else
-      const tk = this.typeScale();
 
       /* A blocked corner used to be moved by hand: the coordinates
          dropped to a fixed offset under the point and the letter
@@ -3815,7 +3526,7 @@
              `set` is the line's version of `.segdot.set` — the same
              hand-over, made invisible. It keeps `draw` so everything
              that asks what is on the board still counts it. */
-          if (!spec.noLine) (spec.dash ? L.dashG : L.line).classList.add('draw');
+          (spec.dash ? L.dashG : L.line).classList.add('draw');
           /* And this is the hand-over: the side the child measured is
              now drawn in its own colour with its own length, so the
              lit measuring line lying along it has been taken over and
@@ -3839,24 +3550,22 @@
            is the line that puts it there, which is the whole story of
            where the third point comes from. The line takes 600ms, so
            the dot lands as it gets there. */
-        if (!spec.noLine) {
-          /* Handed over rather than arriving: it goes on at once, with
-             no stroke sound, because nothing is being drawn — the line
-             the child is already looking at is simply solid now. */
-          if (L.handedOver) {
-            (spec.dash ? L.dashG : L.line).classList.add('draw', 'set');
-          } else {
-            later(function () {
-              (spec.dash ? L.dashG : L.line).classList.add('draw');
-              SFX.draw();
-            }, base + 120);
-          }
+        /* Handed over rather than arriving: it goes on at once, with
+           no stroke sound, because nothing is being drawn — the line
+           the child is already looking at is simply solid now. */
+        if (L.handedOver) {
+          (spec.dash ? L.dashG : L.line).classList.add('draw', 'set');
+        } else {
+          later(function () {
+            (spec.dash ? L.dashG : L.line).classList.add('draw');
+            SFX.draw();
+          }, base + 120);
         }
         /* The corner lands as the line reaches it: a solid side draws in
            600ms; a dotted one grows for 900ms (dashGrow), and its dots
            reach the far end only at the very end of that. */
         const lands = base + (spec.dash ? 1030 : 760);
-        if (!spec.noLine) closes = Math.max(closes, lands);
+        closes = Math.max(closes, lands);
         if (spec.mark) {
           later(function () { L.dot.classList.add('pop'); SFX.tick(1); }, lands);
           later(function () { L.coord.classList.add('pop'); SFX.tick(3); }, lands + 250);
@@ -4228,7 +3937,7 @@
       const L = this.legSlots && this.legSlots[i];
       const src = spec.lengthFrom;
       if (!L || !src || !src.length || !Game.flyInto) return 0;
-      const F = C.GRID.fly, self = this, step = F.pickMs + F.ms;
+      const F = C.GRID.fly, step = F.pickMs + F.ms;
       /* A length in letters is put together in the order it is read:
          the first term is lifted off its label and lands in its own
          place, the sign is written after it, and only then does the
@@ -4267,24 +3976,10 @@
       this.legPlaced[i] = Object.assign({}, this.legPlaced[i] || spec,
         { length: true, lengthText: spec.lengthText, lengthFrom: spec.lengthFrom });
       this.placeLegLength(i, spec.from, spec.to, spec.lengthText);
-      L.len.style.display = L.plate.style.display = '';
+      L.len.style.display = '';
       const self = this, fly = this.flyIntoLeg(i, spec, later, 0);
       later(function () { self.showLegLength(i); }, fly);
       return fly;
-    },
-
-    /* A leg put on the board by something other than `runLegs` — the
-       working, on a screen that held its triangle back until the
-       substitution needed it. `placeLeg` seats one; this is what makes
-       it seen. Without it the sides are measured, their lengths are
-       written, and none of it is on: the group they live in is still
-       switched off. */
-    revealLeg: function (i, dash) {
-      const L = this.legSlots && this.legSlots[i];
-      if (!L) return;
-      L.g.classList.add('on');
-      (dash ? L.dashG : L.line).classList.add('draw');
-      if (L.dot) L.dot.classList.add('pop');
     },
 
     clearUnits: function () {
@@ -4294,7 +3989,6 @@
         c.g.classList.remove('on');
         c.g.style.display = 'none';
       });
-      if (this.unitBand) this.unitBand.classList.remove('on');
       if (this.unitLabel) this.unitLabel.classList.remove('on');
       this.clearEquation();
     },
@@ -4700,34 +4394,6 @@
       return { x: X0, y: Y0, text: txt, w: uw };
     },
 
-    /* The unit squares between the two points, as one band a single
-       cell deep lying along the line. It hangs on the side facing the
-       axis the segment runs parallel to, which is the side the child
-       counts against and the side that cannot run off the board. */
-    showUnitBand: function (from, to) {
-      const G = C.GRID, U = G.unitBox, b = this.unitBand;
-      if (!b) return;
-      const px = function (v) { return G.originX + v * G.stepX; };
-      const py = function (v) { return G.originY - v * G.stepY; };
-      const x0 = Math.min(from.x, to.x), x1 = Math.max(from.x, to.x);
-      const y0 = Math.min(from.y, to.y), y1 = Math.max(from.y, to.y);
-      let L, T, W, Hh;
-      if (from.y === to.y) {                       // a row
-        const down = from.y > 0 ? 1 : -1;          // toward the x-axis
-        L = px(x0); W = px(x1) - px(x0);
-        T = Math.min(py(from.y), py(from.y - down));
-        Hh = G.stepY;
-      } else {                                     // a column
-        const side = from.x > 0 ? -1 : 1;          // toward the y-axis
-        T = py(y1); Hh = py(y0) - py(y1);
-        L = Math.min(px(from.x), px(from.x + side));
-        W = G.stepX;
-      }
-      b.setAttribute('x', L); b.setAttribute('y', T);
-      b.setAttribute('width', Math.abs(W)); b.setAttribute('height', Math.abs(Hh));
-      b.classList.add('on');
-    },
-
     /* The guided count, for a child who has missed twice: the unit
        squares between the two points light one at a time, each with how
        many there are so far written under it, and then the whole thing
@@ -4979,7 +4645,6 @@
       const self = this;
       /* Everything typographic is worked out at the size the camera is
          actually setting it, not at the size the config names. */
-      const tk = this.typeScale(), gap = SG.coordGap * tk;
 
       /* Up to each point's white ring and no further, like every side
          of the drawing (placeLeg). It ran to the middle of each point,
@@ -5033,7 +4698,6 @@
          below would collide with each other. Those go to the sides. */
       const vertical = (a.x === b.x);
       // face the labels away from the y-axis, or they sit on its numbers
-      const side = (a.x >= 0) ? 1 : -1;
 
       /* Where a row's labels go is decided once, for the pair — never
          once per point. A label with no room beside its own point used
@@ -5089,7 +4753,6 @@
           return;
         }
 
-        const mate = (p === spec.a) ? spec.b : spec.a;
         /* What this label will say, worked out before it is placed
            rather than read off the node — which still holds the last
            screen's words at this point. */
@@ -5150,11 +4813,9 @@
            axis letters and would have written (0, 0) into the y. It can
            see them now, so the rule does it — and a screen that still
            reads better by hand is a fault in the rule to go and find. */
-        const la = p.labelAt;
         self.placePointLabel(part, p, X, Y,
                              { ctext: ctext, ntext: ntxt, away: away,
-                               at: p.x + ',' + p.y,
-                               fixed: la ? { x: la.x * G.stepX, y: -la.y * G.stepY } : null });
+                               at: p.x + ',' + p.y });
       });
     },
 
@@ -5567,176 +5228,6 @@
          from the leg lengths beside it. */
     },
 
-    /* The widest line of a working, in stage pixels on the centred
-       board — which is the one number the framing needs, and the one
-       thing about the working that does not change when the camera
-       moves. */
-    workingWidth: function (lines) {
-      const G = C.GRID, W = G.work, self = this;
-      let w = 0;
-      (lines || []).forEach(function (l) {
-        const t = (l.parts || [{ t: l.text || '' }])
-          .map(function (f) { return f.t; }).join('');
-        w = Math.max(w, self.textW(t, W.size));
-      });
-      return w * (G.centre.w / G.w);
-    },
-
-    /* ---------------- the working, on the paper ----------------
-
-       Laid out in the half of the view the drawing is not in, at the
-       size the camera is setting, one line per row. Nothing is revealed
-       here — `showWorkLine` does that, one at a time, so the child
-       reads at the pace the lines arrive. */
-    layoutWorking: function (lines) {
-      const G = C.GRID, W = G.work, NS2 = 'http://www.w3.org/2000/svg';
-      const V = this.viewRect(), D = this.drawnBox, side = this.workSide;
-      if (!this.workLines || !D || !side) return false;
-      const tk = this.typeScale(), size = W.size * tk;
-      const pad = W.pad * G.stepX * tk;
-      /* The column: from the view's edge to the drawing's, with air at
-         both ends. Left-aligned inside it. */
-      const left = side < 0 ? V.x + pad : D.x2 + pad;
-      const right = side < 0 ? D.x1 - pad : V.x + V.w - pad;
-      const step = W.lineGap * G.stepY * tk;
-      let top = (D.y1 + D.y2) / 2 - (lines.length - 1) * step / 2;
-      /* Centred on the drawing — unless that drops a line onto the
-         x-axis, which is the one line on this paper strong enough to
-         cut through text. The whole block moves, not the line: evenly
-         spaced lines with one nudged out of the way read as a mistake,
-         and the block has room above and below. */
-      const size0 = W.size * tk;
-      for (let n = 0; n < lines.length; n++) {
-        const y = top + n * size0 * 0 + n * step;
-        if (!this.onXAxisRow(y, size0 * 1.4)) continue;
-        const up = y - (G.originY - G.axisWidth / 2 - size0 * 0.9);
-        const down = (this.numRow().bot + size0 * 0.9) - y;
-        top += (up <= down) ? -up : down;
-        break;
-      }
-      const self = this;
-
-      /* Every line hangs from its own EQUALS SIGN, not from the left
-         edge of the column.
-
-         A worked calculation is read down the equals: the first line
-         states the thing, and each line after it is another way of
-         writing the same right-hand side. Flush left, those signs sat
-         in the corner of the plate with nothing over them — four lines
-         each starting with a stray `=` — and the eye had nothing to run
-         down. Hung under the sign above, the block reads as one
-         continued sentence, which is what it is.
-
-         The column is whichever line needs the most room before its
-         sign; each line is then pushed right by what it is short of.
-         A line with no sign in it keeps the left edge. */
-      const full = (lines || []).map(function (l) {
-        return (l.parts || [{ t: l.text || '' }])
-          .map(function (f) { return f.t; }).join('');
-      });
-      let col = 0;
-      const before = full.map(function (t) {
-        const at = t.indexOf('=');
-        if (at < 0) return null;
-        const w = self.textW(t.slice(0, at), size);
-        col = Math.max(col, w);
-        return w;
-      });
-      const indent = before.map(function (w) { return w == null ? 0 : col - w; });
-
-      /* The plate, round the block the lines actually make: the widest
-         of them, the first baseline to the last, and enough air that no
-         glyph sits on a rule. */
-      if (this.workPlate) {
-        let wide = 0;
-        full.forEach(function (t, n) {
-          wide = Math.max(wide, indent[n] + self.textW(t, size));
-        });
-        const air = size * 0.62;
-        const p1 = this.workPlate;
-        p1.setAttribute('x', left - air);
-        p1.setAttribute('y', top - size * 0.86 - air);
-        p1.setAttribute('width', Math.min(wide, right - left) + air * 2);
-        p1.setAttribute('height', (lines.length - 1) * step + size * 1.3 + air * 2);
-        p1.setAttribute('rx', size * 0.5);
-        p1.classList.remove('on');
-      }
-
-      this.workLines.forEach(function (L, i) {
-        const spec = lines[i];
-        L.t.classList.remove('on');
-        L.bar.classList.remove('on');
-        L.spans = [];
-        while (L.t.firstChild) L.t.removeChild(L.t.firstChild);
-        if (!spec) { L.t.textContent = ''; return; }
-        L.t.setAttribute('x', left + indent[i]);
-        L.t.setAttribute('y', top + i * step);
-        /* Its pop scales it about its own start, named outright — with no
-           origin it scaled about the board's top-left corner and every
-           line of working swooped in from there (see the axis labels). */
-        L.t.style.transformOrigin = (left + indent[i]) + 'px ' + (top + i * step) + 'px';
-        L.t.setAttribute('font-size', size);
-        (spec.parts || [{ t: spec.text || '' }]).forEach(function (f) {
-          const ts = document.createElementNS(NS2, 'tspan');
-          ts.textContent = f.t;
-          if (f.lit) { ts.classList.add('lit-' + f.lit); if (f.from) ts.classList.add('wait'); }
-          L.t.appendChild(ts);
-          L.spans.push(ts);
-        });
-      });
-      /* And the longest line must fit the column it was given. If it
-         does not, the framing asked for too little room — say so rather
-         than letting a line run into the drawing. */
-      let widest = 0;
-      full.forEach(function (txt, n) {
-        widest = Math.max(widest, indent[n] + self.textW(txt, size));
-      });
-      return widest <= (right - left);
-    },
-
-    /* One line, shown — and its radical's bar drawn over exactly the
-       span the radicand measures, which can only be known once the
-       line has been laid out. */
-    showWorkLine: function (i, spec) {
-      const L = this.workLines && this.workLines[i];
-      if (!L) return;
-      /* The plate arrives with the first line, not before it: a card
-         sitting empty on the paper while she is still talking is a
-         panel waiting to be filled in. */
-      if (this.workPlate) this.workPlate.classList.add('on');
-      L.t.classList.add('on');
-      const W = C.GRID.work;
-      const size = parseFloat(L.t.getAttribute('font-size')) || W.size;
-      /* The radicand is everything after the sign. Measured off the
-         parts, not off the rendered boxes: this board is laid out
-         before it is painted, and a box read now is a box from the
-         screen before. */
-      const parts = (spec && spec.parts) || [{ t: (spec && spec.text) || '' }];
-      const txt = parts.map(function (f) { return f.t; }).join('');
-      const at = txt.indexOf('\u221A');
-      if (at < 0) { L.bar.classList.remove('on'); return; }
-      const x0 = parseFloat(L.t.getAttribute('x'));
-      const y0 = parseFloat(L.t.getAttribute('y'));
-      const from = x0 + this.textW(txt.slice(0, at + 1), size);
-      const to = x0 + this.textW(txt, size);
-      const up = y0 - size * (0.5 + W.barGap);
-      L.bar.setAttribute('x1', from); L.bar.setAttribute('y1', up);
-      L.bar.setAttribute('x2', to);   L.bar.setAttribute('y2', up);
-      L.bar.setAttribute('stroke-width', W.barW * this.typeScale());
-      L.bar.classList.add('on');
-    },
-
-    clearWorkLines: function () {
-      if (this.workPlate) this.workPlate.classList.remove('on');
-      (this.workLines || []).forEach(function (L) {
-        L.t.classList.remove('on');
-        L.bar.classList.remove('on');
-        while (L.t.firstChild) L.t.removeChild(L.t.firstChild);
-        L.t.textContent = '';
-        L.spans = [];
-      });
-    },
-
     /* Empties every label the board can write, text and all. The
        ordinary clears only drop the classes that show a label, so its
        words survive — invisible, but still there. That is fine between
@@ -5974,8 +5465,7 @@
       const town = (C.SCRIPT[Game.index] || {}).town;
       (want.marks || []).forEach(function (m) {
         if (town) self.solve(m.x, m.y, { size: SGm.coordSize * tkm,
-                                         under: SGm.dotR + 6 + SGm.coordSize * tkm * 0.62,
-                                         labelAt: m.labelAt });
+                                         under: SGm.dotR + 6 + SGm.coordSize * tkm * 0.62 });
         else self.solve(m.x, m.y);
         const g = self.foundMarks[self.foundMarks.length - 1];
         if (g) g.classList.add('set');
@@ -6367,7 +5857,6 @@
          is already there — that is how the first point stays put while
          the second is being found. */
       this.clearFound();
-      const a = spec.a, b = spec.b;
       this.placeSegment(spec);
       this.clearSegment();
       this.segGroup.classList.add('on');
@@ -6425,11 +5914,6 @@
       const ctext = '(' + numText(gx) + ',\u00A0' + numText(gy) + ')';
       const cw = this.textW(ctext, size);
       t.setAttribute('x', this.clampLabel(px, cw));
-      /* A spot named for it, in squares from the point: exactly where the
-         pair writes the same point's coordinates (placePointLabel), so a
-         place's label is in one place whatever it is part of. */
-      const la = opts && opts.labelAt;
-      if (la) t.setAttribute('x', px + la.x * G.stepX);
       /* And remembered, so the pair this point is about to become is
          labelled where the child already saw it. A located mark and the
          segment that joins it are the same point twice; its coordinates
@@ -6442,7 +5926,7 @@
          the same number. Both have to agree: a pair tapped out with its
          coordinates under it and then joined with them over it looks
          like two different pairs. */
-      t.setAttribute('y', la ? (py - la.y * G.stepY) : (py + (F.side === 'under' ? under : -under)));
+      t.setAttribute('y', py + (F.side === 'under' ? under : -under));
       t.setAttribute('fill', G.ink);
       t.setAttribute('font-size', size);
       g.dataset.at = gx + ',' + gy;
@@ -6459,9 +5943,7 @@
 
     /* The other places on a town screen, each a point with its
        coordinates under it — so every place on the map can be read,
-       not only the two a question is about. A place can name where its
-       coordinates go (`labelAt`, as a point of the pair can): the park's
-       are right of its trees whether it is a point of the walk or not. */
+       not only the two a question is about. */
     markPlaces: function (list, later) {
       const self = this, SG = C.GRID.segment, tk = this.typeScale();
       const size = SG.coordSize * tk;
@@ -6470,7 +5952,7 @@
         const at = self.dataAt(m.x, m.y);
         if (at) return;                            // already there
         later(function () {
-          self.solve(m.x, m.y, { size: size, under: under, labelAt: m.labelAt });
+          self.solve(m.x, m.y, { size: size, under: under });
           SFX.tick(n + 1);
         }, 260 + n * 220);
       });
@@ -6495,7 +5977,7 @@
     fadeDrawing: function (later, then) {
       const self = this;
       this.fadeOut([this.segGroup, this.triFill, this.rightMark, this.parkTrees,
-                    this.measLine, this.measCap, this.unitLabel, this.unitBand]
+                    this.measLine, this.measCap, this.unitLabel]
         .concat((this.legSlots || []).map(function (L) { return L && L.g; }))
         .concat((this.exSlots || []).map(function (X) { return X && X.g; }))
         .concat((this.countCells || []).map(function (c) { return c && c.g; }))
@@ -6519,76 +6001,249 @@
     },
 
     /* Maya walking out of her house along a line to a place, and in (46,
-       when the closer cafe has been named). She is drawn on the board, in
-       its own units, so the camera carries her with everything else; and
-       she is under the town's pictures, so she steps out from behind her
-       house and disappears behind the cafe as she reaches it — which is
-       the going in. A frame at a time out of her strip, in a window the
-       size of one frame; turned to face the way she walks. */
+       when the closer cafe has been named) — out of its DOOR and in at
+       the other one's. The house door swings open, and she is in the
+       doorway, coming forward out of the dark: as tall as the door, since the
+       buildings stand further back than the line she walks on. She steps
+       down onto the line, growing to her own height as she comes
+       forward, and the door shuts behind her. At the cafe its door opens
+       as she gets there; she steps up into the doorway, shrinking back
+       to its height, and is gone inside, and it shuts.
+
+       She is drawn in the town's layer, over its pictures — under them
+       she could only come out from behind a wall. Measured off the town
+       again whenever it is re-placed, so she stays on her line and at
+       her doors. A frame at a time out of her strip; turned to face the
+       way she walks. */
     mayaWalk: function (from, to) {
-      const G = C.GRID, M = G.maya, NS = 'http://www.w3.org/2000/svg', self = this;
-      if (!M || !C.ART.mayaWalk || document.documentElement.classList.contains('calm')) return 0;
-      const px = function (v) { return G.originX + v * G.stepX; };
-      const py = function (v) { return G.originY - v * G.stepY; };
-      if (!this.maya) {
-        const g = document.createElementNS(NS, 'g');
-        g.setAttribute('class', 'maya');
-        g.setAttribute('pointer-events', 'none');
-        const turn = document.createElementNS(NS, 'g');
-        const win = document.createElementNS(NS, 'svg');
-        win.setAttribute('preserveAspectRatio', 'xMidYMax meet');
-        win.setAttribute('overflow', 'hidden');
-        const im = document.createElementNS(NS, 'image');
-        im.setAttribute('href', C.ART.mayaWalk);
-        im.setAttributeNS('http://www.w3.org/1999/xlink', 'href', C.ART.mayaWalk);
-        im.setAttribute('width', M.w * M.frames);
-        im.setAttribute('height', M.h);
-        win.appendChild(im); turn.appendChild(win); g.appendChild(turn);
-        this.maya = { g: g, turn: turn, win: win };
-      }
-      const E = this.maya;
-      el.gridAxes.appendChild(E.g);                 // on top of the drawing, under the town
-      const H = M.tall * G.stepY, W = H * M.w / M.h;
-      E.win.setAttribute('width', W);
-      E.win.setAttribute('height', H);
-      E.win.setAttribute('x', -W / 2);
-      E.win.setAttribute('y', -H * M.feet / M.h);   // her soles on the point
-      const x0 = px(from.x), y0 = py(from.y), x1 = px(to.x), y1 = py(to.y);
-      const right = x1 > x0;
-      E.turn.setAttribute('transform', (right === !!M.facesLeft) ? 'scale(-1,1)' : '');
-      const len = Math.hypot(x1 - x0, y1 - y0);
-      const walkMs = len / (M.speed * G.stepX) * 1000;
-      const inside = 0.14 * G.stepY;                // on through the door, up past her point
-      const total = walkMs + M.outMs;
+      const M = C.GRID.maya, self = this;
+      if (!M || !C.ART.mayaWalk || !Town || !Town.door ||
+          document.documentElement.classList.contains('calm')) return 0;
+      const out = Town.door(from.x, from.y), into = Town.door(to.x, to.y);
+      if (!out || !into || !Town.spot(from.x, from.y)) return 0;
+      const fig = Town.walker(C.ART.mayaWalk, M.w, M.h, M.frames);
+
+      /* Where everything is: her two doors, the line between the two
+         points, and the two places that line and the steps meet. */
+      let placed = -1, g = null;
+      const measure = function () {
+        placed = Town.placed;
+        const a = Town.door(from.x, from.y), b = Town.door(to.x, to.y);
+        const A = Town.spot(from.x, from.y), B = Town.spot(to.x, to.y), cell = Town.cell();
+        const len = Math.hypot(B.x - A.x, B.y - A.y) || 1;
+        const ux = (B.x - A.x) / len, uy = (B.y - A.y) / len, on = M.onLine * cell.w;
+        const H = M.tall * cell.h;
+        g = { p0: { x: a.x, y: a.y }, p1: { x: A.x + ux * on, y: A.y + uy * on },
+              p2: { x: B.x - ux * on, y: B.y - uy * on }, p3: { x: b.x, y: b.y },
+              s0: M.doorFit * a.h / H, s3: M.doorFit * b.h / H, H: H, cell: cell.w,
+              walk: len - 2 * on };
+        fig.size(H * M.w / M.h, H, M.feet / M.h);
+      };
+      measure();
+
+      /* The timetable, in her own pace: each step starts (or ends) at
+         her walking speed and averages half of it, so there is no jolt
+         where a step meets the line. */
+      const cells = function (a, b) { return Math.hypot(b.x - a.x, b.y - a.y) / g.cell; };
+      const perCell = 1000 / M.speed;
+      const D = C.TOWN.doorMs || 320;
+      const tShow = D * 0.6;                                   // her door most of the way open
+      const tStep = tShow + M.inMs;                             // out of the dark, in the doorway
+      const tOut = tStep + 2 * cells(g.p0, g.p1) * perCell;    // down on the line
+      const tArrive = tOut + (g.walk / g.cell) * perCell;       // at the foot of the cafe's step
+      const tIn = tArrive + 2 * cells(g.p2, g.p3) * perCell;   // in its doorway
+      const tGone = tIn + M.outMs;                              // inside
+      const total = tGone + 120 + D;                            // and its door shut
+      const right = g.p3.x > g.p0.x;
+      const turned = right === !!M.facesLeft;
+
       const token = (this.mayaTok = (this.mayaTok || 0) + 1);
       const stop = function () {
         if (self.mayaTok === token) self.mayaTok++;
-        E.g.style.opacity = 0;
-        if (E.g.parentNode) E.g.parentNode.removeChild(E.g);
+        fig.remove();
+        out.shut(); into.shut();            // at once: the screen is going
       };
-      const off = Game.hold(stop);                   // gone with the screen, whenever it goes
+      const off = Game.hold(stop);          // gone with the screen, whenever it goes
+      const lerp = function (a, b, u) { return { x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u }; };
+      let doors = 0;
       const t0 = performance.now();
       const step = function () {
         if (self.mayaTok !== token) return;
+        if (Town.placed !== placed) measure();
         const t = performance.now() - t0;
+        // each door, once, when its moment comes
+        if (!(doors & 1)) { doors |= 1; out.open(true); }
+        if (!(doors & 2) && t >= tOut + 120) { doors |= 2; out.open(false); }
+        if (!(doors & 4) && t >= Math.max(tOut, tArrive - D - 100)) { doors |= 4; into.open(true); }
+        if (!(doors & 8) && t >= tGone + 120) { doors |= 8; into.open(false); }
         const f = Math.floor(t / M.frameMs) % M.frames;
-        E.win.setAttribute('viewBox', (f * M.w) + ' 0 ' + M.w + ' ' + M.h);
-        let x, y, k = 1, o = 1;
-        if (t < walkMs) {
-          const u = t / walkMs;
-          x = x0 + (x1 - x0) * u; y = y0 + (y1 - y0) * u;
-          o = Math.min(1, t / M.inMs);
-        } else {
-          const u = Math.min(1, (t - walkMs) / M.outMs);
-          x = x1; y = y1 - inside * u;
-          k = 1 - 0.12 * u; o = 1 - u;
+        let p, s, o;
+        if (t < tShow) {                     // still inside, the door opening
+          p = g.p0; s = g.s0; o = 0;
+        } else if (t < tStep) {              // coming out of the dark into the doorway
+          const u = (t - tShow) / M.inMs;
+          p = { x: g.p0.x, y: g.p0.y - 0.04 * g.H * (1 - u) }; s = g.s0 * (0.92 + 0.08 * u); o = u;
+        } else if (t < tOut) {               // stepping out and down, coming forward
+          const v = (t - tStep) / (tOut - tStep), u = v * v;
+          p = lerp(g.p0, g.p1, u); s = g.s0 + (1 - g.s0) * u; o = 1;
+        } else if (t < tArrive) {            // along the line
+          p = lerp(g.p1, g.p2, (t - tOut) / (tArrive - tOut)); s = 1; o = 1;
+        } else if (t < tIn) {                // up into the cafe's doorway, going back
+          const v = (t - tArrive) / (tIn - tArrive), u = 1 - (1 - v) * (1 - v);
+          p = lerp(g.p2, g.p3, u); s = 1 + (g.s3 - 1) * u; o = 1;
+        } else {                             // and in
+          const u = Math.min(1, (t - tIn) / M.outMs);
+          p = { x: g.p3.x, y: g.p3.y - 0.04 * g.H * u }; s = g.s3 * (1 - 0.08 * u); o = 1 - u;
         }
-        E.g.setAttribute('transform', 'translate(' + x.toFixed(2) + ',' + y.toFixed(2) + ') scale(' + k.toFixed(3) + ')');
-        E.g.style.opacity = o.toFixed(3);
+        fig.at(p.x, p.y, s, f, turned, o);
         if (t < total) requestAnimationFrame(step);
         else off();
       };
-      E.g.style.opacity = 0;
+      requestAnimationFrame(step);
+      return total;
+    },
+
+    /* The fire engine answering the call (54, once the distance is
+       found). It pulls off its spot and turns onto the line from B, and
+       drives up it — ON it, like a road: turned to the line, its wheels
+       on the stroke, lamp flashing, wheels turning, siren going. It
+       brakes short of the fire, dipping its nose; its cannon swings
+       round onto the burning school and the water arcs out along it
+       until the flames die and the smoke is steam. Drawn in the town's
+       layer over its pictures, a frame at a time out of its strip
+       (CFG.GRID.engine); measured off the town again whenever it is
+       re-placed, so it stays on its line. Returns how long it takes. */
+    fireRescue: function (spec) {
+      const E = C.GRID.engine, self = this, rad = Math.PI / 180;
+      if (!E || !C.ART.fireEngine || !Town || !Town.mover || !spec) return 0;
+      const F = E.frame, PV = E.pivot;
+      const eng = Town.pin(spec.engine), fire = Town.pin(spec.fire);
+      if (!eng || !fire || !Town.box(spec.engine) || !Town.box(spec.fire)) return 0;
+      /* A calm screen: nothing drives. The fire simply goes out. */
+      if (document.documentElement.classList.contains('calm')) {
+        Town.douse(spec.fire, true);
+        SFX.hiss();
+        return E.outMs + 600;
+      }
+      const fig = Town.mover(C.ART.fireEngine, E.frames, 'cannon');
+      const barrel = fig.el.querySelector('.barrel');
+      const water = Town.water();
+
+      /* A point of the strip (in its own pixels) where the engine is:
+         standing on `p`, turned `rot` degrees about its foot. */
+      let g = null, placed = -1;
+      const where = function (p, rot, fx, fy) {
+        const k = g.W / F.w, dx = (fx - E.mid * F.w) * k, dy = (fy - E.feet * F.h) * k;
+        const c = Math.cos(rot * rad), s = Math.sin(rot * rad);
+        return { x: p.x + dx * c - dy * s, y: p.y + dx * s + dy * c };
+      };
+      const turn = function (a) { a %= 360; return a > 180 ? a - 360 : (a <= -180 ? a + 360 : a); };
+      const measure = function () {
+        placed = Town.placed;
+        const B = Town.spot(eng.x, eng.y), A = Town.spot(fire.x, fire.y), cell = Town.cell();
+        const vb = Town.box(spec.engine), fb = Town.box(spec.fire);
+        if (!A || !B || !cell || !vb || !fb) return;
+        // the strip drawn at the town's own size for the van
+        const H = vb.h / E.van.h, W = H * F.w / F.h;
+        const len = Math.hypot(A.x - B.x, A.y - B.y) || 1;
+        const ux = (A.x - B.x) / len, uy = (A.y - B.y) / len;
+        g = { W: W, H: H, cell: cell.w,
+              // the line's own heading: the way the engine faces on it
+              line: Math.atan2(uy, ux) / rad,
+              // where it stands now, in its picture's own place
+              p0: { x: vb.x - E.van.x * W + E.mid * W, y: vb.y - E.van.y * H + E.feet * H },
+              // onto the line, a little up it from B…
+              p1: { x: B.x + ux * 0.9 * cell.w, y: B.y + uy * 0.9 * cell.w },
+              // …and up it, to stop short of the fire
+              p2: { x: A.x - ux * E.stopCells * cell.w, y: A.y - uy * E.stopCells * cell.w },
+              // the water lands on the school, between its windows
+              target: { x: fb.x + fb.w * 0.5, y: fb.y + fb.h * 0.44 } };
+        g.run = Math.hypot(g.p2.x - g.p1.x, g.p2.y - g.p1.y);
+        fig.size(W, H, E.mid, E.feet);
+        /* The cannon, from its turret where the engine stops, aimed a
+           little above the straight line to the fire — the water rises
+           and falls onto it. `aim` is its turn on the turret. */
+        const pv = where(g.p2, g.line, PV.x, PV.y);
+        const up = Math.atan2(g.target.y - pv.y, g.target.x - pv.x) / rad - E.aimUp;
+        g.aim = turn(up - g.line);
+        const L = E.barrel * W / F.w;
+        g.nozzle = { x: pv.x + L * Math.cos(up * rad), y: pv.y + L * Math.sin(up * rad) };
+        water.aim(g.nozzle, g.target, 0.3 * cell.w, { x: Math.cos(up * rad), y: Math.sin(up * rad) });
+      };
+      measure();
+      if (!g) { fig.remove(); water.remove(); return 0; }
+
+      // the timetable
+      const tPull = E.pullMs;
+      const tDrive = tPull + Math.max(900, (g.run / g.cell) / E.speed * 1000);
+      const tStop = tDrive + 300;             // settled back on its springs
+      const tJet = tStop + E.turnMs + 120;    // the cannon round onto the fire first
+      const tHit = tJet + E.waterMs;
+      const tOff = tHit + E.sprayForMs;
+      const tOut = tOff + E.waterMs;
+      const total = tOut + 900;
+
+      const token = (this.rescueTok = (this.rescueTok || 0) + 1);
+      Game.hold(function () {                 // put back with the screen, whenever it goes
+        if (self.rescueTok === token) self.rescueTok++;
+        fig.remove(); water.remove();
+        Town.leave(spec.engine, false);
+        Town.douse(spec.fire, false);
+      });
+      const ease = function (v) { return (1 - Math.cos(Math.PI * Math.max(0, Math.min(1, v)))) / 2; };
+      const lerp = function (a, b, u) { return { x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u }; };
+      let steps = 0;
+      Town.leave(spec.engine, true);
+      fig.moving(true);
+      SFX.siren(tDrive / 1000);
+      const t0 = performance.now();
+      const step = function () {
+        if (self.rescueTok !== token) return;
+        if (Town.placed !== placed) measure();
+        const t = performance.now() - t0;
+        let p, rot;
+        if (t < tPull) {                        // off its spot, turning onto the line
+          const u = ease(t / tPull);
+          p = lerp(g.p0, g.p1, u); rot = turn(g.line) * u;
+        } else if (t < tDrive) {                // up the line, on it
+          p = lerp(g.p1, g.p2, ease((t - tPull) / (tDrive - tPull))); rot = g.line;
+        } else {                                 // braked: the nose dips, and it sits back
+          const w = Math.min(1, (t - tDrive) / (tStop - tDrive));
+          p = g.p2; rot = g.line + 2.4 * Math.sin(Math.PI * w) * (1 - w);
+        }
+        const f = t < tDrive ? Math.floor(t / E.driveMs) % 8 : 8 + Math.floor(t / E.parkMs) % 2;
+        fig.at(p.x, p.y, f, rot);
+        // the cannon: as the town draws it, then round onto the fire
+        const a = E.restAim + (g.aim - E.restAim) * ease((t - tStop) / E.turnMs);
+        barrel.setAttribute('transform', 'rotate(' + a.toFixed(2) + ' ' + PV.x + ' ' + PV.y + ')');
+        // each moment, once
+        if (!(steps & 1) && t >= tStop) { steps |= 1; fig.moving(false); }
+        if (!(steps & 2) && t >= tJet) {
+          steps |= 2;
+          water.grow(E.waterMs);
+          fig.el.classList.add('spraying');
+          SFX.spray((tOff - tJet) / 1000);
+        }
+        if (!(steps & 4) && t >= tHit) {
+          steps |= 4;
+          water.splash(true); water.flowing(true);
+          Town.douse(spec.fire, true);
+          Game.later(function () { SFX.hiss(); }, 500);
+        }
+        if (!(steps & 8) && t >= tOff) {
+          steps |= 8;
+          water.stop(E.waterMs); water.splash(false);
+          fig.el.classList.remove('spraying');
+        }
+        if (!(steps & 16) && t >= tOut) {
+          steps |= 16;
+          const at = Board.stagePos(fire.x + 1.1, fire.y + 1.2);
+          FX.sparkles(at.x, at.y, 14, 150);
+          SFX.chime();
+        }
+        if (t < total) requestAnimationFrame(step);
+        else water.remove();                    // the engine stays, parked
+      };
       requestAnimationFrame(step);
       return total;
     },
@@ -6802,63 +6457,9 @@
     }
   };
 
-  /* A square root drawn whole, rather than a sign with brackets standing
-     in for the bar over it.
-
-     Config writes a root as \u221A(...), and that bracket pair is what
-     says how far the root reaches — so it is read as the delimiter and
-     then not drawn, because the bar is the grouping it was standing in
-     for. Everything is walked as one string rather than part by part:
-     the x-axis screens split a radicand across three parts so that one
-     term inside it can glow, and the root still has to be found across
-     those joins. */
+  /* The radical sign, for the table's roots (below). */
   const Radical = (function () {
-    const SIGN = '\u221A';
     const SVGNS = 'http://www.w3.org/2000/svg';
-
-    /* Every character with the part it came from, so a run can be
-       regrouped later and keep that part's glow or fade. */
-    function chars(parts) {
-      const out = [];
-      parts.forEach(function (p, i) {
-        String(p.t == null ? '' : p.t).split('').forEach(function (ch) {
-          out.push({ ch: ch, p: i });
-        });
-      });
-      return out;
-    }
-
-    /* From the sign to the bracket closing the one straight after it.
-       Anything else — no sign, or a sign with no bracket — is left to be
-       drawn as plain text rather than guessed at. */
-    function span(cs) {
-      let i = 0;
-      while (i < cs.length && cs[i].ch !== SIGN) i++;
-      if (i >= cs.length) return null;
-      if (!cs[i + 1] || cs[i + 1].ch !== '(') return null;
-      let depth = 0;
-      for (let j = i + 1; j < cs.length; j++) {
-        if (cs[j].ch === '(') depth++;
-        else if (cs[j].ch === ')' && !--depth) return { sign: i, open: i + 1, close: j };
-      }
-      return null;
-    }
-
-    /* Characters back into spans, one per run of the same source part,
-       so a glowing term stays one element the animation can hold. */
-    function emit(host, cs, from, to, parts) {
-      let k = from;
-      while (k < to) {
-        const p = cs[k].p;
-        let s = '';
-        while (k < to && cs[k].p === p) { s += cs[k].ch; k++; }
-        const sp = document.createElement('span');
-        sp.textContent = s;
-        if (parts[p].glow) sp.classList.add('glow');
-        if (parts[p].fade) sp.classList.add('fade');
-        host.appendChild(sp);
-      }
-    }
 
     /* The sign itself. Lilita One carries no radical, so typing one left
        the browser falling back to another face and the sign came out
@@ -6886,29 +6487,10 @@
       return wrap;
     }
 
-    return {
-      /* Fills `host` with `parts`, drawing any root in them properly. */
-      render: function (host, parts) {
-        const cs = chars(parts), r = span(cs);
-        if (!r) { emit(host, cs, 0, cs.length, parts); return false; }
-        emit(host, cs, 0, r.sign, parts);
-        const rad = document.createElement('span');
-        rad.classList.add('rad');
-        const body = document.createElement('span');
-        body.classList.add('rad-body');
-        emit(body, cs, r.open + 1, r.close, parts);   // inside the brackets
-        rad.appendChild(sign());
-        rad.appendChild(body);
-        host.appendChild(rad);
-        emit(host, cs, r.close + 1, cs.length, parts);
-        return true;
-      },
-      sign: sign
-    };
+    return { sign: sign };
   })();
 
-  /* A table's roots drawn whole, the way the formula board draws its own:
-     in an inline row, from a "√(" to the bracket that closes it — across
+  /* A table's roots drawn whole: in an inline row, from a "√(" to the bracket that closes it — across
      any blanks in between — the sign is drawn, a bar runs over all of it
      and the two brackets go. "AB = √((y₂ − y₁)² + (x₂ − x₁)²)" was the
      sign typed and both brackets written round the whole of it. Each
@@ -6954,51 +6536,6 @@
     });
   }
 
-  /* The formula panel. Shows either a fixed set of lines (the recap)
-     or one line that is replaced step by step (the x-axis case). */
-  const Formula = {
-    place: function (box) {
-      el.formulaBoard.style.left = box.x + 'px';
-      el.formulaBoard.style.top = box.y + 'px';
-      el.formulaBoard.style.width = box.w + 'px';
-    },
-    inner: function () {
-      let fb = el.formulaBoard.children[0];
-      if (!fb) {
-        fb = document.createElement('div');
-        fb.classList.add('fb-inner');
-        el.formulaBoard.appendChild(fb);
-      }
-      return fb;
-    },
-    clear: function () {
-      const fb = this.inner();
-      while (fb.children.length) fb.removeChild(fb.children[0]);
-    },
-    /* A fixed set of lines, arriving one after another — `step` apart,
-       so a caller whose lines have to be read can space them out. */
-    setLines: function (lines, step) {
-      const fb = this.inner();
-      this.clear();
-      lines.forEach(function (l, i) {
-        const d = document.createElement('div');
-        d.classList.add('fb-' + (l.kind || 'lead'));
-        Radical.render(d, [{ t: l.text }]);
-        d.style.animationDelay = (i * (step || 300)) + 'ms';
-        fb.appendChild(d);
-      });
-    },
-    /* One line built from fragments, so a part can glow or fade. */
-    setStep: function (parts) {
-      const fb = this.inner();
-      this.clear();
-      const d = document.createElement('div');
-      d.classList.add('fb-step');
-      Radical.render(d, parts);
-      fb.appendChild(d);
-    }
-  };
-
   /* ---------------- screen flow ---------------- */
   const Game = {
     index: -1, state: 'start', busy: false, geom: null, task: null,
@@ -7020,6 +6557,11 @@
 
       if (i + 1 >= C.SCRIPT.length) return;
       const entry = C.SCRIPT[i] || {};
+      /* A screen there to be looked at for as long as the child likes
+         (`waitNext`: 37, the formula on its own) is handed on by the
+         child, with Next — which is armed and nudging — and by nothing
+         else. */
+      if (entry.waitNext) return;
       if (entry.task && !(this.task && this.task.done)) {
         /* Nothing more will happen until they tap, so point the way —
            unless the screen has asked not to be helped. */
@@ -7165,10 +6707,6 @@
       /* Her line, whatever state it is in: not typing any more, and not
          going to hand anything on to the screen being arrived at. */
       Bubble.cancel();
-      /* The working written into the answer panel, and the chips the
-         slots walk in by themselves: both run on timers of their own. */
-      if (Opts && Opts.stop) Opts.stop();
-      if (Slots && Slots.cancelFill) Slots.cancelFill();
       /* And the music back up. Every dip is paired with its lift, so
          this only ever catches one that was stranded. */
       if (SFX.duckReset) SFX.duckReset();
@@ -7176,7 +6714,6 @@
          Next, Back and the picker all come through here, and a screen
          left mid-working must not hand the flag to the next one. */
       this.writing = false;
-      this.ruler = false;
       this.stopSweep();
       if (FX && FX.landAll) FX.landAll();   // nothing left in the air
       if (this.entranceCancel) { this.entranceCancel(); this.entranceCancel = null; }
@@ -7186,6 +6723,9 @@
 
     begin: function () {
       const self = this;
+      /* Not before every file is here and Play is offered: a key pressed
+         while the bar is still filling is simply not a start yet. */
+      if (!startReady) return;
       if (this.busy) return;
       this.busy = true;
 
@@ -7272,7 +6812,6 @@
              (58, 59 carry 57's "13 units"). */
           if (e.segment.result && (!measure || e.keepSegment)) want.result = e.segment.result;
         }
-        if (e.joinSegment) want.joined = true;
         // …or a line of the screen draws it (22)
         if ((e.lineLights || []).some(function (L) { return L && L.join; })) want.joined = true;
         /* …or its dotted guide, drawn on a word, turns into the line (29,
@@ -7281,7 +6820,7 @@
           want.joined = true; want.dash = false;
         }
         if (e.solidLine) { want.joined = true; want.dash = false; }
-        if (e.legs && !e.legsLater) {
+        if (e.legs) {
           /* Every setting a side carries (where its length is written,
              what it says), with only its state brought up to date. */
           want.legs = e.legs.map(function (l) {
@@ -7296,8 +6835,7 @@
           L.length = true; L.dash = false;
         }
         /* So does a side whose length she writes as she names it (33,
-           34 — the `leg` word cue), and a side a question is about once
-           that question is answered (`writesLeg`). Left out, the board
+           34 — the `leg` word cue). Left out, the board
            the next screen expected had no such length, the one it was
            holding did not match, and it was put up again without it:
            the label blinked out and came back. */
@@ -7312,13 +6850,9 @@
             want.legs[c.leg].length = true; want.legs[c.leg].dash = false;
           }
         });
-        if (t.writesLeg != null && want.legs[t.writesLeg]) {
-          want.legs[t.writesLeg].length = true; want.legs[t.writesLeg].dash = false;
-        }
         if (e.dropLegs) want.legs = [];
         if (e.mark) want.marks = e.mark.slice();
-        if (e.dropMarks) want.marks = [];
-        if (e.rightAngle || t.marksRightAngle ||
+        if (e.rightAngle ||
             (e.wordCues || []).some(function (c) { return c && c.mark; })) want.marker = true;
       }
       return want;
@@ -7407,6 +6941,10 @@
       const self = this;
       this.clearPending();
       Hint.clear();
+      /* The soft painting belongs to her being alone in the field: any
+         other screen has it sharp again from its first moment, and one of
+         hers turns it on again when she has landed. */
+      if (!soloField(C.SCRIPT[i] || {})) this.focusBird(false);
       /* A beat that speaks without a balloon, or works its own sum, must
          not open wearing the last one's. Both are inherited, so both go
          here — at the change — rather than a third of a second later when
@@ -7417,7 +6955,6 @@
       Board.shapeLegs = next.shape || null;
       Board.setPark(!!next.park);
       if (next.transition !== 'leaves') Board.setTextScale(next.textScale || 1);
-      if (next.voiceOnly) Bubble.close();
       if (next.xEquation && Board.segRes) Board.segRes.classList.remove('pop');
       /* A screen carrying more than one pair lets the ruling, the axes
          and their numbers fall back, so the pairs themselves come
@@ -7496,15 +7033,13 @@
          it waiting to be pressed. */
       /* Which thing she would be standing on. Keeping a control means
          the one already under her is the one this screen wants — the
-         reel, the ruler, the answers or the slots. Four screens in a
-         row now change control between them, and a screen that assumed
-         it had inherited the reel when the beat before put the
-         substitution panel up came up with no control at all. */
+         reel or the answers. A screen that assumed it had inherited the
+         reel when the beat before put the answers up came up with no
+         control at all. */
       const kindOf = function (e) {
         if (!e) return null;
-        if (e.task && e.task.kind === 'slots') return 'slots';
         if (e.options) return 'options';
-        if (e.distance || e.entry) return e.control === 'slider' ? 'slider' : 'lock';
+        if (e.distance || e.entry) return 'lock';
         return null;
       };
       const wantKind = kindOf(entry);
@@ -7545,17 +7080,12 @@
       const speaks = !!(entry.line || (entry.lines || []).length) &&
                      !geom.bare && entry.intro !== 'measure';
       if (entry.transition !== 'leaves') {
-        /* A screen that opens on a silent light is not the next
-           sentence of the same breath either: the board shows
-           something before she speaks, so the last screen's words go
-           now, with the screen, not a second later when she arrives. */
-        if (!speaks || entry.openLight) Bubble.close();
+        if (!speaks) Bubble.close();
         if (!flyBack) applyGeom(geom);
       }
 
       const AX = axisOf(entry);
-      const onBoard = entry.layout === 'grid' || entry.layout === 'board' ||
-                      entry.layout === 'recap' || !!AX;
+      const onBoard = entry.layout === 'grid' || entry.layout === 'board' || !!AX;
       /* A screen behind a leaf sweep strips the last one inside
          dress(), while the frame is covered. Doing it here as well
          would pop the board and the panels out a beat early, in plain
@@ -7570,7 +7100,6 @@
           Board.shown = false;
           Board.setDots(false);
         }
-        if (entry.layout !== 'recap' && !AX) el.formulaBoard.classList.add('hidden');
         if (!entry.segment && !entry.keepSegment && !(entry.fadeOld && Board.shown) &&
             !(flyBack && !onBoard)) Board.clearSegment();
         /* Not from under her: on a fly-back screen she may be standing
@@ -7601,28 +7130,6 @@
          for the wide one by name. */
       Board.setRange(entry.board || 'close');
 
-      /* Which numeric control this screen wants. The reel is for
-         digits and the ruler is for magnitude; a screen says which and
-         the other one leaves, so only ever one of them is on the
-         frame. */
-      const wantsRuler = entry.control === 'slider' && Slide;
-      const nextSel = wantsRuler ? Slide : Lock;
-      if (Sel && Sel !== nextSel) { Sel.lock(); Sel.hide(); }
-      Sel = nextSel;
-
-      /* The substitution panel belongs to one kind of question and
-         nothing else, so it is put away the moment a screen is not
-         asking one. */
-      if (Slots) {
-        const asks = entry.task && entry.task.kind === 'slots';
-        if (!asks) { Slots.lock(); Slots.hide(); }
-        else {
-          Slots.setPair(entry.segment.a, entry.segment.b);
-          Slots.reset();
-          Slots.onOffer(function (f) { self.checkSlots(f); });
-        }
-      }
-
       /* Both kinds of numeric question are answered on the same
          control; only a distance one lays a line down as it changes. */
       if (Sel) {
@@ -7635,21 +7142,13 @@
           if (fits != null) hi = Math.min(hi, fits);
         }
         Sel.setRange(r.min, hi, r.start);
+        /* Nothing is drawn while the number is being chosen. Pressing
+           Check is the moment you find out, and a line creeping out to
+           the answer beforehand gave it away before the press. */
         Sel.onCheck(!numeric ? null : function (v) {
           if (entry.task.kind === 'distance') self.checkDistance(v);
           else self.checkEntry(v);
         });
-        /* Nothing is drawn while the number is being chosen. Pressing
-           Check is the moment you find out, and a line creeping out to
-           the answer beforehand gave it away before the press.
-
-           The ruler is the one exception, and it is armed by a miss
-           rather than by arriving — see `armRuler`. A slider you can
-           drag until the line lands on the point is a dexterity game
-           and the formula never gets used; a slider that becomes a
-           ruler once you have already had your go is the scaffold this
-           game always gives, arriving when it is needed. */
-        Sel.onChange(null);
       }
       // a choice task is answered on the options panel
       if (Opts) {
@@ -7666,10 +7165,7 @@
 
       /* A screen that puts its answers up before she arrives brings
          them in itself, so nothing may bring them in again after. */
-      /* The substitution panel arrives the same way the answers do:
-         after she has spoken, into the space she leaves. */
-      const withControl = (entry.options || (entry.task && entry.task.kind === 'slots')) &&
-                          entry.intro !== 'measure' && !entry.askLast;
+      const withControl = entry.options && entry.intro !== 'measure';
 
       /* A screen can point at part of what is already drawn while she
          talks about it: the y halves of both labels, then the x halves,
@@ -7682,35 +7178,6 @@
         ? function (n) { return self.lightAfterLine(entry, n); } : null;
 
       const spotlight = function () {
-        /* She has just named the shape; the board agrees with her. Timed
-           off her own recording so the light comes as she finishes,
-           rather than under the words. */
-        if (entry.pulse && !entry.lineLights) {
-          /* A beat into her line, so the light comes as she gets to the
-             words rather than on the first one — and the run of it plays
-             out under the rest of what she says. */
-          const voiced = (window.Voice && window.Voice.lengthOf(entry.line)) || 1800;
-          const keys = entry.pulse === 'triangle' ? null : [entry.pulse];
-          /* A beat into her line, and running until a moment after she
-             stops — the light is what she is talking about, so it lasts
-             as long as the talking does. */
-          const start = entry.line ? voiced * 0.18 : 200;
-          const run = Math.max(1200, voiced - start + 700);
-          /* How much of the highlight is still to come once she has
-             stopped talking. A control that arrives inside it is a panel
-             of answers landing on top of the thing being pointed at, so
-             whatever brings one in waits this out first. */
-          /* When the light will actually go out, as a time rather than
-             as a length. Subtracting the recording's length from the
-             run assumes her balloon closes the instant the recording
-             ends, and it does not — it opens late and types — so the
-             two drift by a couple of frames and she is lifted out from
-             under a light that is still burning. A moment read off the
-             same clock the light is on cannot drift. */
-          self.pulseTail = Math.max(0, (start + run) - voiced) + 260;
-          self.pulseOff = performance.now() + start + run + 260;
-          Board.pulseSides(self.later.bind(self), start, keys, run);
-        }
         /* One side held forward for as long as the beat lasts, rather
            than lit and let go. The beat that asks for CB has to leave
            AC on the board — the child needs to see they now have two
@@ -7719,13 +7186,6 @@
         if (entry.focus) self.later(function () {
           Board.spotlightPart(entry.focus);
         }, 300);
-
-        /* And a beat can name its sides one after the other: the two
-           known ones, then the one it is about to ask after. */
-        if (entry.spotSeq && !entry.lineLights) entry.spotSeq.forEach(function (k, n) {
-          self.later(function () { Board.spotlightPart(k); SFX.tick(n); },
-                     700 + n * 900);
-        });
 
         const h = entry.highlight;
         /* The beats that do the pointing inherit the board rather than
@@ -7764,46 +7224,23 @@
         }, 420);
       };
 
-      let opened = false;
       const after = function () {
+        /* Alone in the field and landed: the painting goes soft behind
+           her, so she is what is looked at. */
+        if (soloField(entry)) self.focusBird(true);
         /* The marker, asserted rather than inherited. It is switched on
            by answering "what kind of triangle is this?" and off by
            `clearLegs`, so a child who jumps straight here from the
            picker would arrive without the one mark the theorem rests
            on. The same idea as settlePair and settleFurniture. */
         if (entry.rightAngle) Board.rightAngle(true);
-        /* A light before anyone speaks. Every other light runs when its
-           line has finished, which is why no light lands ahead of its
-           sentence; this one is the exception on purpose — the two
-           known sides are up when the screen opens, so she names what
-           the child is already reading. Run through the same
-           `lightAfterLine`, and the lines wait for it to land. */
-        if (entry.openLight && !opened) {
-          opened = true;
-          /* A silent beat, so the balloon is empty for it: the last
-             screen's words hanging over this one's opening would make
-             it a continuation of her line rather than the board
-             showing something before she speaks. */
-          Bubble.close();
-          const ms = self.lightAfterLine(
-            Object.assign({}, entry, { lineLights: [entry.openLight] }), 0);
-          self.later(after, Math.max(0, ms));
-          return;
-        }
-        self.pulseTail = 0;
-        self.pulseOff = 0;
         spotlight();
         /* A table question has no control to bring: the table comes
            instead, once she has said her lines. */
         const tableAsk = entry.task && entry.task.kind === 'table';
         const bring = tableAsk ? function () { self.runTable(entry); }
           : (withControl && !keepsControl ? function () { revealControl(entry); } : null);
-        /* She asks, the shape lights, the light goes — and only then do
-           the answers rise and she comes down on them. */
-        const gated = (bring && self.pulseOff)
-          ? function () {
-              self.later(bring, Math.max(0, self.pulseOff - performance.now()));
-            } : bring;
+        const gated = bring;
         buildEquation();
         /* A beat that states a derivation says its lines and then hands
            over to the working — which settles the screen itself once it
@@ -7814,9 +7251,6 @@
             if (gated) gated();
             derive();
           }, lit);
-        }
-        else if (entry.line && entry.voiceOnly) {
-          self.sayOnly(entry.line, function () { if (lit) lit(0); if (gated) gated(); });
         }
         /* More than two sentences on one board. `sayLines` has always
            been able to — it waits for each line's light to finish
@@ -7851,22 +7285,8 @@
       };
 
       const arrive = function () {
-        /* The reverse of every other question in the game: the answers
-           and the hint go up first and she comes to them. The child
-           looks at what is on the board and has begun to wonder before
-           anybody says anything, so her line lands on a question they
-           have already started asking themselves — which is the
-           difference between being told a problem and noticing one. */
-        if (entry.askLast && entry.options && Opts) {
-          Opts.reset();
-          Opts.show(true);
-          self.later(function () { self.perchOn(entry.perch, after); },
-                     C.AUTO.perchMs || 900);
-          return;
-        }
         if (entry.entrance === 'fly') self.flyIn(after);
         else if (entry.entrance === 'flyOut') self.flyOut(after);
-        else if (entry.entrance === 'hop') self.hop(after);
         /* Nobody to bring on — because she is already standing where
            the screen before left her. That is true on the way through
            and false after a jump, which arrives with her still in the
@@ -7876,6 +7296,11 @@
            put the standing artwork up instead, with no flight. She was
            meant to have been here all along. */
         else if (entry.entrance === 'none') { self.assertStanding(); after(); }
+        /* Off the stage, and staying off (37: the formula is left on its
+           own) — flown away first if she is still standing there. */
+        else if (entry.entrance === 'away') {
+          if (self.birdAway()) after(); else self.flyOut(after);
+        }
         else self.stay(after);
       };
 
@@ -7892,14 +7317,6 @@
                        260 + n * 220);
           });
           if (entry.town) self.later(function () { Board.townFocus(entry.townFocus || null); }, 900);
-          /* A pair already on the board, joined here. The beat that
-             says "first, find this distance" is the one that draws the
-             line the distance is along — before it there is nothing on
-             the board saying which two places the question is about,
-             which is the question. */
-          if (entry.joinSegment && Board.segLine) self.later(function () {
-            Board.segLine.classList.add('draw'); SFX.draw();
-          }, 240);
           /* A pair that has already been measured says so on its own
              line, the way an axis case writes its answer there. */
           const R = entry.segment && entry.segment.result;
@@ -7999,7 +7416,6 @@
         else Board.clearSegment();
         /* A working written on the paper belongs to the screen that
            wrote it. The one after gets clean paper — and no table. */
-        Board.clearWorkLines();
         if (Table) Table.hide();
         /* The player's own measuring line is left lit when they get it
            right — on the screen they drew it, where it is the answer.
@@ -8040,21 +7456,6 @@
         }
         if (Opts && !entry.options) Opts.hide();   // shown by revealControl
         dressTown(entry);
-
-        if (entry.layout === 'recap') {
-          Formula.place(C.RECAP.formula);
-          Formula.setLines(C.RECAP.lines, C.RECAP.step);
-          el.formulaBoard.classList.remove('hidden');
-        } else if (AX && AX.rows) {
-          /* The table does the working here; her column stays clear. */
-          el.formulaBoard.classList.add('hidden');
-        } else if (AX) {
-          Formula.place(AX.formula);
-          Formula.setStep(AX.steps[0]);
-          el.formulaBoard.classList.remove('hidden');
-        } else {
-          el.formulaBoard.classList.add('hidden');
-        }
       };
 
       /* The map over the board, and the two things that sit with it in
@@ -8093,9 +7494,6 @@
         if (Hints) {
           if (e.hint) { Hints.set(e.hint); Hints.show(); } else Hints.hide();
         }
-        /* A place marked on an earlier beat is a second dot and a
-           second label on a point this one is drawing itself. */
-        if (e.dropMarks) Board.clearFound();
         /* And a triangle that was the working's own scaffolding does
            not belong to the screen after it — faded away in plain sight,
            or simply gone behind the leaves. */
@@ -8114,8 +7512,7 @@
          are 0, the zero term goes, and the child picks what is left. The
          working is theirs: nothing is carried across for them. */
       const runAxisPick = function (X) {
-        const spec = { a: X.a, b: X.b, color: C.GRID.leg.color,
-                       coordDy: X.coordDy, nameDy: X.nameDy };
+        const spec = { a: X.a, b: X.b, color: C.GRID.leg.color, coordDy: X.coordDy };
         self.state = 'entering';
         el.nextBtn.classList.remove('ready');
         /* `noIntro` (39): she does not come in to name the case. The grid
@@ -8154,113 +7551,6 @@
         });
       };
 
-      const runAxisCase = function (X) {
-        if (entry.task && entry.task.kind === 'table') { runAxisPick(X); return; }
-        const spec = { a: X.a, b: X.b, color: C.GRID.leg.color,
-                       coordDy: X.coordDy, nameDy: X.nameDy };
-        /* The working as a TABLE, the way 28's arrives: she stays in
-           her column; the board moves to the middle and the camera comes
-           in on the segment; a table opens out of the board's right
-           edge with nothing in it; and every piece written on the
-           drawing — x1, x2, the two 0s — is carried across from the
-           labels one at a time, slowly. The drawing is left alone and
-           the answer stays in the table. */
-        /* The board stays as it is — big, where the case put it — and
-           only the camera comes in on the segment. The table stands in
-           her column, above her, between her and the board: the pieces
-           are carried from the drawing across to it. It was put to the
-           board's right once, which meant shrinking the board to 700 by
-           600 to fit the three of them across the frame. */
-        const tableStep = function () {
-          const T = C.GRID.table, A = X.tableAt;
-          Board.viewName = 'triangle';
-          Board.viewTo(Board.viewFor('triangle'), C.GRID.zoom.ms);
-          self.later(function () {
-            Table.build(X.rows);
-            drawRoots(Table.el);
-            Table.el.style.setProperty('--ft-size', (X.tableSize || T.size) + 'px');
-            Table.place({ x: A.x, w: A.w, top: A.y });
-            Table.fit();
-            Table.open();
-            SFX.sparkle();
-            self.later(function () {
-              self.fillTable(X.rows, function () { self.settle(); });
-            }, T.openMs);
-          }, C.GRID.zoom.ms + 200);
-        };
-        const step = function () {
-          if (X.rows && Table) { tableStep(); return; }
-          let t = 0;
-          // the two zeros light up, and the formula takes them in
-          self.later(function () { Board.glowCoords(true); SFX.tick(0); }, t += 500);
-          /* The two zeros are read off the board, so they arrive from
-             it. That term collapsing a beat later is only believable if
-             the child watched the numbers that made it zero arrive in
-             it — which is the entire argument this screen is making. */
-          self.later(function () {
-            Formula.setStep(X.steps[1]);
-            SFX.draw();
-            const half = X.a.coordParts.filter(function (p) { return p.glow; })[0];
-            const node = el.formulaBoard.querySelector('.fb-step .glow');
-            if (half && node) {
-              self.flyInto({ from: { p: 'a', half: half.glow } }, node);
-              self.later(function () {
-                self.flyInto({ from: { p: 'b', half: half.glow } }, node);
-              }, C.GRID.fly.pickMs + C.GRID.fly.ms);
-            }
-          }, t += 700);
-          t += 2 * (C.GRID.fly.pickMs + C.GRID.fly.ms);
-          // then that term collapses away
-          self.later(function () { Formula.setStep(X.steps[2]); SFX.tick(3); }, t += 1400);
-          self.later(function () { Formula.setStep(X.steps[3]); SFX.draw(); }, t += 900);
-          // and the answer lands on the segment itself
-          self.later(function () {
-            Board.showSegResult(spec, X.result, X.resultDy, X.resultDx);
-            Board.glowCoords(false);
-            SFX.chime();
-            SFX.sparkle();
-          }, t += 900);
-          self.later(function () { self.settle(); }, t += 900);
-        };
-
-        /* The line runs alongside the drawing rather than after it —
-           the segment is what she is naming — but the formula only
-           starts narrowing once it has been read. dress() cleared the
-           frame behind the leaves, so she is put back up here. */
-        const SEG_MS = 1980, LEAD = 700;
-        let read = 0;
-        if (entry.line) {
-          self.later(function () {
-            self.stay(function () {
-              /* Her line is said, not `speak`ed: `speak` settles the
-                 screen when the balloon finishes, and on this beat the
-                 balloon finishes in the middle of the working. The
-                 hand-over belongs to `step`, which is the thing that
-                 knows when the working is done — the un-arming of Next
-                 just below has always said so.
-
-                 It never showed while the y-axis case was the last
-                 screen in the game, because a settle with nothing
-                 after it does nothing. Give it something to advance
-                 to and the answer never reaches the segment. */
-              const g = self.geom || {};
-              const aim = g.aim || { x: C.ANCHOR.x, y: C.ANCHOR.y - 200 * C.CHAR_SCALE };
-              self.state = 'speaking';
-              FX.sparkles(aim.x, aim.y, 7, 170 * (g.scale || C.CHAR_SCALE));
-              Bubble.open(entry.line);
-            });
-          }, LEAD);
-          read = entry.line.length * 42 + 500;
-        }
-        Board.runSegment(spec, self.later.bind(self), function () {
-          self.later(function () {
-            // Next is armed by the line ending; hold it for the working
-            el.nextBtn.classList.remove('ready');
-            step();
-          }, Math.max(LEAD, LEAD + read - SEG_MS));
-        });
-      };
-
       /* A distance question, from an empty frame: the board arrives on
          its own and draws its axes, the two points and their labels
          pop in one at a time with no line between them, Swifty flies
@@ -8296,7 +7586,6 @@
         /* And the last screen's answers — this one brings its own, once it
            has asked (a screen after one answered on the buttons). */
         if (Opts && !keepsControl) Opts.hide();
-        if (Slots && !(entry.task && entry.task.kind === 'slots')) Slots.hide();
 
         /* A screen that follows straight on from the one before keeps
            the board it inherited, and her with it: no sweep, no
@@ -8441,7 +7730,7 @@
             const legsOnLine = (entry.lineLights || []).some(function (L) {
               return L && L.legs;
             }) || (entry.wordCues || []).some(function (c) { return c && c.legs; });
-            if (entry.legs && !entry.legsLater && !legsOnLine) {
+            if (entry.legs && !legsOnLine) {
               /* The side being asked about goes down dotted: the count
                  lays a solid stroke along it, and a solid guide under a
                  solid stroke reads as one thick line rather than as
@@ -8543,7 +7832,6 @@
          wrote it, however the next one is arrived at — unless the screen
          is the one that sums it up (`keepTable`: 37 says what 35's table
          has just shown, with the table still there). */
-      Board.clearWorkLines();
       /* Behind the leaves, under the cover (dress), rather than popping
          out in plain sight before a single leaf has arrived. */
       if (Table && !entry.keepTable && entry.transition !== 'leaves' && !flyBack) Table.hide();
@@ -8565,7 +7853,7 @@
         /* Points and lines are drawn before anyone speaks, so the
            child sees what is being talked about. */
         FX.leaves(el.leafLayer, dress, function () {
-          if (AX) runAxisCase(AX);
+          if (AX) runAxisPick(AX);
           else if (entry.intro === 'measure') runMeasure();
           else if (entry.rebuild) buildThenPlot();
           else plotThen(arrive);
@@ -8582,7 +7870,6 @@
         Board.setTextScale(entry.textScale || 1);
         this.numberBoard(i);
         Board.clearSegment();
-        Board.clearWorkLines();
         Board.clearMeasure();
         if (Table) Table.hide();
         el.gridPanel.classList.add('hidden');
@@ -8590,7 +7877,7 @@
         Board.setDots(false);
         if (Sel) Sel.hide();
         if (Opts) Opts.hide();
-        runAxisCase(AX);
+        runAxisPick(AX);
         return;
       }
 
@@ -8608,6 +7895,13 @@
          the table comes out into the space and grows. Scaled rather than
          re-laid, so nothing on either moves inside it; undone when the
          screen goes. */
+      /* Or the table is folded down to the one line it ended on first
+         (`tableOnly: 'last'`: 37 — the formula and nothing else), and
+         grown once it has closed up round it. */
+      let growAt = 300;
+      if (entry.keepTable && entry.tableOnly === 'last' && Table && Table.only) {
+        growAt = Table.only(Table.rowCount() - 1) + 80;
+      }
       if (entry.keepTable && entry.tableGrow && Table && Table.el) {
         const TG = entry.tableGrow, T = C.GRID.table, B = geom.panelBox || T.board;
         const gp = el.gridPanel, te = Table.el;
@@ -8621,7 +7915,7 @@
           te.style.transformOrigin = 'left center';
           te.style.left = left + 'px';
           te.style.scale = String(TG.table);
-        }, 300);
+        }, growAt);
         self.hold(function () {
           gp.classList.remove('stepping');
           te.classList.remove('growing');
@@ -8643,37 +7937,18 @@
         Board.shown = true;
         if (fading) Board.fadeDrawing(self.later.bind(self));
         else if (!entry.keepSegment) Board.clearSegment();
-        else if (!entry.keepMeasure) Board.clearUnits();   // keep the drawing, drop any count-out
-        if (!entry.distance && !entry.entry && !entry.keepMeasure) Board.handOffMeasure();
-        /* A screen that keeps what the question before it measured —
-           the line the child laid down and the length written beside it
-           — keeps them exactly as they are (20 keeps 19's). They used
-           to be wiped with the screen change and drawn again a moment
-           later as a recalled pair: the line vanished and came back.
-           Reached from the picker there is nothing to keep, so they are
-           put up already drawn. */
-        if (entry.keepMeasure && !Board.measureIsLit() && entry.segment) {
-          const sa = entry.segment.a, sb = entry.segment.b;
-          const back = (sb.x < sa.x) || (sb.x === sa.x && sb.y > sa.y);
-          const f = back ? sb : sa, t2 = back ? sa : sb;
-          const span = Math.hypot(t2.x - f.x, t2.y - f.y) || 1;
-          Board.drawMeasure(f, t2.x, t2.y);
-          Board.litMeasure();
-          Board.showUnitTotal(f, (t2.x - f.x) / span, (t2.y - f.y) / span,
-                              Math.round(span), Math.round(span), true);
-        }
+        else Board.clearUnits();   // keep the drawing, drop any count-out
+        if (!entry.distance && !entry.entry) Board.handOffMeasure();
         /* A control that revealControl is going to bring in must not be
            up already: it rises into the space under her once she has
            asked the question, not before she has opened her mouth. */
         const brought = withControl && !!entry.line && !keepsControl;
         if (Sel && (entry.distance || entry.entry) && !brought) { Sel.reset(); Sel.show(); }
         if (Opts && entry.options && !brought) { Opts.reset(); Opts.show(); }
-        const asksSlots = entry.task && entry.task.kind === 'slots';
-        if (Slots && asksSlots && !brought) { Slots.reset(); Slots.show(); }
         /* And one the screen before left standing has to go. Not showing
            it is only half of "must not be up already" — it was already
            there, so the screen has to take it away. */
-        if (brought) { if (Sel) Sel.hide(); if (Opts) Opts.hide(); if (Slots) Slots.hide(); }
+        if (brought) { if (Sel) Sel.hide(); if (Opts) Opts.hide(); }
       }
 
       /* A grid screen builds the board in first — but only if it is
@@ -8730,50 +8005,12 @@
       settleIn();
     },
 
-    /* Down onto one of the answers, rather than onto the panel as a
-       whole. She lands on the button named by the screen — its top
-       edge, the way she already perches on the selector's frame — and
-       asks from there. */
-    perchOn: function (key, done) {
-      const self = this;
-      const g = standGeom(C.BOARD.perch, {
-        noShadow: true,          // she is standing on a button, not on grass
-        panelBox: { x: C.BOARD.panel.pos.x, y: C.BOARD.panel.pos.y,
-                    w: C.BOARD.panel.w, h: C.BOARD.panel.h }
-      });
-      /* Which button, worked out from the screen's own answers rather
-         than typed twice: the perch is seated on the right-hand one, so
-         a left-hand key steps back by the width of a button and its
-         gap. */
-      const entry = C.SCRIPT[this.index] || {};
-      const list = entry.options || [];
-      let n = list.length - 1;
-      for (let i = 0; i < list.length; i++) if (list[i].key === key) n = i;
-      const O = C.BOARD.options;
-      const step = (O.w - 2 * (9 + 28) + 24) / 2 * O.scale;
-      const shift = (n - (list.length - 1)) * step;
-      if (shift) {
-        g.standBox.x += shift;
-        g.anchor.x += shift;
-        g.aim.x += shift;
-      }
-      /* Seat the rig on the button and then use the ordinary entrance:
-         flyIn lands her wherever `geom` says, so the perch needs no
-         flight of its own. */
-      this.geom = g;
-      this.raised = true;
-      applyGeom(g);
-      this.flyIn(done);
-    },
-
     /* Swifty flies in from off-stage on the fly sheet, then lands. */
     flyIn: function (done) {
       const self = this;
       el.birdWin.classList.remove('hidden');
       el.standSwifty.classList.add('hidden');
-      el.birdFlip.classList.remove('turn');   // she arrives facing right
       Sprite.play('fly', true);
-      el.birdRig.classList.remove('hop');
       // Same frame: drop the hold and start the arc. The animation's 0%
       // keyframe is off-stage at opacity 0, so there is no flash of her
       // standing at the landing spot.
@@ -8813,6 +8050,20 @@
           el.standSwifty.classList.remove('hidden', 'land-in');
           void el.standSwifty.offsetWidth;
           el.standSwifty.classList.add('land-in');
+          /* Once, for the landing. Left on, it played again every time
+             she stopped talking — the standing drawing is shown again
+             out of display: none, which restarts its animation — and
+             she blinked out and faded back in after every line. */
+          const s = el.standSwifty;
+          const settle = function (e) {
+            if (e && e.animationName !== 'standIn') return;
+            s.removeEventListener('animationend', settle);
+            clearTimeout(s._landT);
+            s.classList.remove('land-in');
+          };
+          clearTimeout(s._landT);
+          s.addEventListener('animationend', settle);
+          s._landT = setTimeout(settle, 300 + 200);
         }
         SFX.land();
         const g = self.geom || { anchor: C.ANCHOR, feetY: C.ANCHOR.y + C.FEET_DY };
@@ -8826,6 +8077,18 @@
       /* A flight that never reports its end (a hidden tab, a dropped
          frame) lands anyway, a beat after it should have. */
       this.later(onEnd, 2100 + 500);
+    },
+
+    /* Everything behind her soft, and the frame's edges dimmed round
+       her — or all of it sharp again. Centred on where she stands. */
+    focusBird: function (on) {
+      if (on) {
+        const g = this.geom || {};
+        const a = g.anchor || C.ANCHOR;
+        el.focusVeil.style.setProperty('--focus-x', (a.x / C.STAGE_W * 100).toFixed(1) + '%');
+        el.focusVeil.style.setProperty('--focus-y', ((a.y - 60) / C.STAGE_H * 100).toFixed(1) + '%');
+      }
+      el.scene.classList.toggle('focus-bird', !!on);
     },
 
     /* She flies on out to the right, carrying straight on past where
@@ -8843,10 +8106,9 @@
       el.birdWin.classList.remove('hidden');
       el.standSwifty.classList.add('hidden');
       Sprite.play('fly', true);
-      el.birdRig.classList.remove('fly-in', 'hop', 'pre-entrance');
+      el.birdRig.classList.remove('fly-in', 'pre-entrance');
       void el.birdRig.offsetWidth;
       el.birdRig.classList.add('fly-out');
-      el.birdFlip.classList.remove('turn');   // she leaves the way she came in
       el.shadow.classList.add('lifted');
       const g = this.geom || { anchor: C.ANCHOR, feetY: C.ANCHOR.y + C.FEET_DY };
       FX.puff(g.anchor.x - 10, g.feetY);
@@ -8867,7 +8129,6 @@
         clearInterval(flapper);
         el.birdRig.classList.remove('fly-out');
         el.birdRig.classList.add('pre-entrance');   // off-stage again
-        el.birdFlip.classList.remove('turn');
         Sprite.stopAt('talk', 0);
         self.entranceCancel = null;
         self.later(done, 120);
@@ -8878,7 +8139,6 @@
         clearInterval(flapper);
         el.birdRig.classList.remove('fly-out');
         el.birdRig.classList.add('pre-entrance');
-        el.birdFlip.classList.remove('turn');
         Sprite.stopAt('talk', 0);
       };
       /* Her own flight only, and a fallback for one that never reports. */
@@ -8897,7 +8157,7 @@
       if (!this.geom || !this.geom.stand) return;
       if (!el.standSwifty.classList.contains('hidden')) return;
       if (el.birdWin.classList.contains('hidden')) return;
-      el.birdRig.classList.remove('fly-in', 'hop', 'pre-entrance');
+      el.birdRig.classList.remove('fly-in', 'pre-entrance');
       el.shadow.classList.remove('lifted');
       el.birdWin.classList.add('hidden');
       el.standSwifty.classList.remove('hidden');
@@ -8907,7 +8167,7 @@
        fly sheet is not touched — just settle on the talking pose and
        let the next bubble come up. */
     stay: function (done) {
-      el.birdRig.classList.remove('fly-in', 'hop', 'pre-entrance');
+      el.birdRig.classList.remove('fly-in', 'pre-entrance');
       el.shadow.classList.remove('lifted');
       if (this.geom && this.geom.stand) {
         /* Assert the standing artwork rather than assuming the screen
@@ -8920,27 +8180,6 @@
         Sprite.stopAt('talk', 0);
       }
       this.later(done, 140);
-    },
-
-    /* A short flap-and-hop in place. Unused by the current script —
-       set a screen's `entrance` to 'hop' in config to bring it back. */
-    hop: function (done) {
-      Sprite.play('fly', true);
-      el.birdRig.classList.remove('hop', 'pre-entrance');
-      void el.birdRig.offsetWidth;
-      el.birdRig.classList.add('hop');
-      el.shadow.classList.add('lifted');
-      SFX.flap();
-      this.later(function () { SFX.flap(); }, 190);
-
-      this.later(function () {
-        el.birdRig.classList.remove('hop');
-        el.shadow.classList.remove('lifted');
-        Sprite.stopAt('talk', 0);
-        SFX.land();
-        FX.puff(C.ANCHOR.x - 10, C.ANCHOR.y + C.FEET_DY);
-        done();
-      }, 720);
     },
 
     /* `then` runs once the line has finished — a screen with a control
@@ -9034,6 +8273,9 @@
           /* Or put up the right-angle marker, on the word that names the
              shape it belongs to. */
           if (c.mark) { Board.rightAngle(true); SFX.chime(); }
+          /* Or light the town's pictures she names — the two towers, the
+             fire, the fire engine — as she names them. */
+          if (c.townGlow && Town && Town.glow) Town.glow([].concat(c.townGlow));
           /* Or write a side's length on it as she names the side — put
              together from the labels it is read off (33: "AC" — x₂,
              then the sign, then x₁ — as she says "x₂ minus x₁"). */
@@ -9135,7 +8377,9 @@
        Bubble.close() stops the voice, so it has to go first, and the
        hand-over is armed off the clip's own length because there is no
        balloon finishing to ride on. */
-    sayOnly: function (line, then) {
+    /* `next`, if there is one, takes the place of the hand-over: a line
+       to follow this one, which settles the screen itself. */
+    sayOnly: function (line, then, next) {
       const self = this;
       this.state = 'speaking';
       Bubble.close();
@@ -9149,6 +8393,7 @@
       this.later(function () {
         lift();
         if (then) then();
+        if (next) { next(); return; }
         /* A beat that names its own hold is honoured here too: without it
            a line said without a balloon takes the ordinary pause and the
            board is carried off mid-sequence. */
@@ -9270,7 +8515,6 @@
       const to = { x: (r.x + r.width / 2 - st.x) / k,
                    y: (r.y + r.height / 2 - st.y) / k,
                    size: parseFloat(getComputedStyle(node).fontSize) / 1 || 34 };
-      const self = this;
       /* Lit WHERE IT IS, before it moves. For a coordinate half that is
          the half glowing; for a side it is the side coming forward and
          the rest of the drawing stepping back — which is the answer to
@@ -9293,54 +8537,6 @@
 
     /* And the other direction: the answer leaving the working and
        landing on the thing it measures.
-
-       Not the answer said twice. It is the same statement relocating —
-       the working has finished making it, and where it belongs is on
-       the line, which is where the child will look for it. The board's
-       own sum has ended this way since it was built; this is that
-       ending, for the workings that happen in a panel. */
-    flyAnswerHome: function (t, then) {
-      const spec = t && t.spec, seg = (C.SCRIPT[this.index] || {}).segment;
-      const F = C.GRID.fly, self = this;
-      const done = function () { if (then) then(); };
-      if (!spec || !spec.formula || !seg || !Opts) { done(); return 0; }
-
-      /* The part the working marked as the one that goes home, and the
-         node it was written into. */
-      let node = null, text = null, idx = -1;
-      const view = Opts.el.querySelector('.formula-view');
-      if (view) spec.formula.forEach(function (l, li) {
-        (l.parts || []).forEach(function (p, pi) {
-          if (!p.home || node) return;
-          const line = view.children[li];
-          if (line) { node = line.children[pi]; text = p.t; idx = li; }
-        });
-      });
-      if (!node) { done(); return 0; }
-
-      const st = el.stage.getBoundingClientRect();
-      const k = st.width / C.STAGE_W || 1;
-      const r = node.getBoundingClientRect();
-      const from = { x: (r.x + r.width / 2 - st.x) / k,
-                     y: (r.y + r.height / 2 - st.y) / k,
-                     size: parseFloat(getComputedStyle(node).fontSize) || 34 };
-      /* Where it is going: the middle of the pair, in stage terms — the
-         same place showSegResult is about to write it. */
-      const G = C.GRID;
-      const mid = Board.boardToStage(
-        (G.originX + (seg.a.x + seg.b.x) / 2 * G.stepX),
-        (G.originY - (seg.a.y + seg.b.y) / 2 * G.stepY));
-      const to = { x: mid.x, y: mid.y,
-                   size: (G.segment.resSize || G.segment.coordSize) *
-                         Board.typeScale() * mid.k };
-      node.classList.add('gone');
-      FX.flyGlyph(text.replace(/\u00A0/g, ' '), from, to, F.ms, function () {
-        Board.showSegResult(seg, text);
-        SFX.sparkle();
-        done();
-      });
-      return F.ms + 200;
-    },
 
     /* The Check button on the distance panel. */
     /* The two points a distance question is about: a named leg, or the
@@ -9402,12 +8598,6 @@
       this.state = 'showing';
       if (Sel) Sel.lock();          // nothing to fiddle while it counts
 
-      /* The screens where counting is still new say so while it runs.
-         Said on every answer, never only on a wrong one — a line that
-         turned up only when you were wrong would give the game away
-         before the count had finished. */
-      const narrate = t.spec.showLine;
-
       /* The verdict lands when the count does — and the count only
          sets off once she has finished asking for it. */
       const verdict = function () {
@@ -9443,7 +8633,15 @@
             SFX.cheer();
             SFX.confettiPop();
             FX.pop(at.x, at.y, 18);
-            self.finishWith(correctLine);
+            /* Praise, said and written (the four warm-up distances,
+               8-19: "That's right!", "Exactly!"). Then whatever the
+               screen has to say about the answer, if it has anything —
+               the second line in the same balloon, and only it hands
+               the screen on. */
+            /* And a found distance that is a journey: the fire engine goes. */
+            self.rescue(t, 700);
+            if (t.spec.praise && correctLine) self.speakBoth(t.spec.praise, correctLine);
+            else self.finishWith(t.spec.praise || correctLine);
           }, 260);
           return;
         }
@@ -9456,9 +8654,6 @@
         FX.missGlow();
         if (Sel) Sel.markWrong();
         self.state = 'waiting';
-        /* They have had their ungiven go. Now the slider becomes the
-           ruler it looks like. */
-        if (t.spec.rulerAfterMiss) self.later(function () { self.armRuler(); }, 640);
         // the ladder is read after the count, not before: feedbackFor
         // indexes on how many have been got wrong, this one included
         /* Two misses in is where a child needs showing rather than
@@ -9497,36 +8692,6 @@
           return;
         }
 
-        if (fb.exhausted && t.spec.showWorking) {
-          t.done = true;
-          self.writing = true;      // from here the screen belongs to it
-          if (Sel) Sel.lock();
-          const screen = C.SCRIPT[self.index] || {};
-          self.later(function () {
-            /* The two sides measured on the board first — they are what
-               the working is about to square and add, so they have to be
-               there before it does. */
-            /* Not for a working done as a table (57, 59): its numbers
-               come out of the points' own coordinates, and the sides
-               measured here were the triangle's OTHER sides — "14 units"
-               and "15 units" put up to work out AB. */
-            const ms = t.spec.table ? 0 : self.showWorking(screen);
-            self.later(function () {
-              if (t.spec.formula) {
-                self.workThrough(t, function () {
-                  /* And what it came to stays on the side, as a right
-                     answer's does: the screens after compare all three. */
-                  if (t.spec.table && t.spec.keepLength && !t.flewHome) self.writeLength(t);
-                  self.settle(C.AUTO.afterLine);
-                });
-              } else {
-                self.settle(C.AUTO.afterReveal);
-              }
-            }, ms);
-          }, 420);
-          return;
-        }
-
         const helping = fb.exhausted && !!t.spec.countLine;
         const msg = helping ? t.spec.countLine : fb.msg;
 
@@ -9546,9 +8711,11 @@
         if (helping) {
           t.done = true;
           if (Sel) Sel.lock();
-          const UC = C.GRID.unitBox.count;
           self.later(function () {
-            Bubble.open(msg, function () {
+            /* There is nothing left to press, so the reel and GO go as she
+               says so — and she comes down off them onto the grass first,
+               rather than being left standing on air. */
+            self.later(function () { Bubble.open(msg, function () {
               self.closeAfterLine();
               self.later(function () {
                 const counting =
@@ -9580,7 +8747,7 @@
                      runs: `counting` ends when its hold does. */
                 }, counting);
               }, Bubble.voiceTail + 260);
-            });
+            }); }, stowControl());
           }, 320);
           return;
         }
@@ -9618,70 +8785,7 @@
         Board.countOut(pair.from, pair.to, v, self.later.bind(self), verdict,
                        t.spec.measureLeg, right);
       };
-      if (narrate) this.speak(narrate, function () {
-        // wait out whatever is left of her voice, then a breath
-        self.later(run, Bubble.voiceTail + 60);
-      });
-      else run();
-    },
-
-    /* The worked solution, shown rather than told: each side measured
-       in turn, then AB written along the line between the two points.
-       Every number is read off the legs themselves, so a screen that
-       moves its points cannot leave a stale one behind. Returns how
-       long it all takes, so the caller can wait it out. */
-    showWorking: function (entry) {
-      const self = this, legs = entry.legs || [], seg = entry.segment;
-      const G = C.GRID, SG = G.segment;
-      let delay = 0;
-      legs.forEach(function (spec, i) {
-        self.later(function () {
-          // placeLeg works the length out from the leg's own two ends
-          Board.placeLeg(i, Object.assign({}, spec, { length: true }));
-          /* A screen that held its triangle back until now has never
-             drawn these, so the working is the thing that puts them
-             up. On a screen that drew them with the question this
-             changes nothing — they are already on. */
-          if (entry.legsLater) Board.revealLeg(i, spec.dash);
-          Board.showLegLength(i);
-          SFX.tick(2 + i);
-        }, delay);
-        delay += 640;
-      });
-      if (!seg) return delay;
-
-      /* AB goes on the far side of the hypotenuse from the right angle,
-         so it can never land on a leg or on C — then steps out along
-         that same line until it is clear of the x-axis numbers, which
-         is where the second screen's midpoint otherwise falls. */
-      const corner = legs[0] && legs[0].to;
-      const mx = (seg.a.x + seg.b.x) / 2, my = (seg.a.y + seg.b.y) / 2;
-      let dx = 0, dy = -26;
-      if (corner) {
-        const vx = mx - corner.x, vy = my - corner.y;
-        const L = Math.hypot(vx, vy) || 1;
-        const ux = vx / L, uy = vy / L;
-        dx = ux * 76;
-        dy = -uy * 76;                 // grid y counts up, screen y counts down
-        const midY = G.originY - my * G.stepY;
-        let guard = 0;
-        while (Board.onXAxisRow(midY + dy, SG.coordSize) && guard++ < 10) {
-          dx += ux * 20;
-          dy += -uy * 20;
-        }
-      }
-      /* Where a panel is going to write the working out, the board
-         stops at the two sides: stating the answer twice, once on the
-         line and once in the working, makes the working look like a
-         caption for something already settled. */
-      if (this.task && this.task.spec && this.task.spec.formula) return delay + 240;
-
-      const txt = 'AB\u00A0=\u00A0' + this.task.spec.answer + '\u00A0units';
-      this.later(function () {
-        Board.showSegResult(seg, txt, dy, dx);
-        SFX.sparkle();
-      }, delay + 160);
-      return delay + 900;
+      run();
     },
 
     /* The count goes and the control comes back, ready for another go. */
@@ -9735,92 +8839,6 @@
       this.revealAnswer(v, v === answer, t.spec.correctLine);
     },
 
-    /* The slider turning into a ruler. From here it lays a line out of
-       the first point along the pair's own bearing, as long as the
-       number it is showing — short of the second point, past it, or
-       exactly on it. It is armed once, by the first miss. */
-    armRuler: function () {
-      const self = this;
-      if (!Sel || this.ruler) return;
-      const pair = this.measurePair();
-      if (!pair) return;
-      this.ruler = true;
-      const dx = pair.to.x - pair.from.x, dy = pair.to.y - pair.from.y;
-      const span = Math.hypot(dx, dy) || 1;
-      const ux = dx / span, uy = dy / span;
-      const lay = function (v) {
-        if (!v) { Board.clearMeasure(); return; }
-        Board.drawMeasure(pair.from, pair.from.x + ux * v, pair.from.y + uy * v);
-      };
-      Sel.onChange(lay);
-      lay(Sel.value);
-    },
-
-    /* Where the numbers go, checked before anything is worked out.
-
-       What counts as right is narrower than "the answer comes out the
-       same" and wider than one canonical line. Both brackets must hold
-       one value from each point; the first bracket must hold the two
-       x's and the second the two y's; and the two brackets must be
-       subtracted the same way round — both B−A, or both A−B. Squares
-       kill the sign, so `(4 − (−2))² + (−3 − 5)²` and
-       `(−2 − 4)² + (5 − (−3))²` are the same number and the same
-       understanding; a build that took only one of them would be
-       teaching that the formula has a direction, which it has not.
-
-       Mixing an x with a y is the error this screen exists to catch,
-       and it is caught here rather than three lines later in an
-       arithmetic slip nobody can trace. */
-    checkSlots: function (f) {
-      const t = this.task, self = this;
-      if (!t || t.done || !Slots) return;
-      const axes = f.map(function (p) { return p.axis; }).join('');
-      const froms = f.map(function (p) { return p.from; }).join('');
-      const right = axes === 'xxyy' && (froms === 'baba' || froms === 'abab');
-
-      if (right) {
-        t.done = true;
-        this.state = 'waiting';
-        Slots.lock();
-        SFX.correct();
-        SFX.chime();
-        this.later(function () { self.finishWith(t.spec.correctLine); }, 320);
-        return;
-      }
-
-      t.wrong++;
-      SFX.wrong();
-      FX.missGlow();
-      Slots.markWrong();
-      this.state = 'waiting';
-      const fb = this.feedbackFor(t);
-
-      /* Spent. The chips walk in by themselves, in reading order,
-         because the order is half of what is being shown — and then
-         the beat moves on. Nothing is asked a third time, here least
-         of all: a child who has put the numbers in the wrong places
-         twice is not going to find them on a third go. */
-      if (fb.exhausted) {
-        t.done = true;
-        Slots.lock();
-        const W = C.GRID.slots || {};
-        this.later(function () {
-          Slots.fillIn([2, 0, 3, 1], W.fillMs || 620, function () {
-            self.later(function () {
-              self.speak(t.spec.spentLine || t.spec.correctLine,
-                         function () { self.settle(C.AUTO.afterLine); });
-            }, 420);
-          });
-        }, 520);
-        return;
-      }
-
-      this.later(function () {
-        Slots.reset();
-        if (t.spec.voiceOnly) self.sayOnly(fb.msg); else self.speak(fb.msg);
-      }, 700);
-    },
-
     /* The measured length, written on the side it measures and left
        there. A leg keeps it in its own colour beside itself; the pair's
        own line writes it the way every other answered pair does. */
@@ -9870,42 +8888,13 @@
                          : this.later.bind(this);
       const run = L.run || 1700;
       let ms = 0;
-      /* The balloon goes first when a light brings something NEW onto the
-         board: the sentence it follows is finished, and left up, it read
-         as though that sentence were about what was only now arriving. */
-      if (L.quiet) Bubble.close();
-      /* A line can bring the screen's recalled pair on with it, so a
-         beat that names two things one after the other draws each as
-         it is named rather than putting both up at the start. */
-      if (L.examples && (entry.examples || []).length) {
-        const EX = C.GRID.example;
-        Board.runExamples(entry.examples, later);
-        ms = Math.max(ms, (entry.examples.length - 1) * EX.stagger +
-                          EX.resultMs + 300);
-      }
-      /* And a line can draw the screen's own SIDES, which is how a
+      /* A line can draw the screen's own SIDES, which is how a
          third point arrives because somebody said they would look for
          one rather than because the screen opened. The board's plotting
          step stands aside when a line has claimed them. */
       if (L.legs && (entry.legs || []).length) {
         Board.runLegs(entry.legs, later, function () {});
         ms = Math.max(ms, entry.legs.length * 1640);
-      }
-      /* A point pulsing as it is put there — the corner lands as the
-         first side reaches it (runLegs: 980ms along a dotted side). */
-      if (L.beat) [].concat(L.beat).forEach(function (k) {
-        const first = (entry.legs || [])[0];
-        const at = (k === 'c' && L.legs && first) ? (first.dash ? 1030 : 760) : (L.beatAt || 0);
-        Board.beatPoint(k, later, at);
-      });
-      /* The right-angle marker, once the two sides it stands between
-         are down: straight after the last of them lands, when this
-         line draws them (30), or at once. */
-      if (L.mark) {
-        const at = (L.legs && (entry.legs || []).length)
-          ? (entry.legs.length - 1) * 1640 + 900 : 0;
-        later(function () { Board.rightAngle(true); SFX.chime(); }, at);
-        ms = Math.max(ms, at + 400);
       }
       /* There is no way to light a POINT here, on purpose: a beat
          names a side, and the side is what lights. `after` holds a
@@ -9920,19 +8909,6 @@
       /* `pulseAt` holds the glow back — until the line it glows round
          has been drawn, when the same light draws it. */
       if (L.pulse) ms = Math.max(ms, Board.pulseSides(later, L.pulseAt || 0, [].concat(L.pulse), run));
-      /* A pulse brings its own sound with it. When a line both pulses a
-         side and holds it forward, the two land in the same tick, and
-         two bells on one beat read as a stumble rather than emphasis. */
-      const rings = !L.pulse;
-      if (L.spots) {
-        [].concat(L.spots).forEach(function (k, m) {
-          const at = (L.after || 0) + m * (L.step || 900);
-          later(function () { Board.spotlightPart(k); if (rings) SFX.tick(m); }, at);
-          ms = Math.max(ms, at + (L.step || 900));
-        });
-        // and put back when the screen goes — see the word cues' spot
-        this.hold(function () { Board.spotlightPart(null); });
-      }
       /* Or a line that puts the board BACK — nothing singled out, so
          nothing stepped back either, and the whole drawing reads at
          once. `spotlightPart` hushes only when it is given a side to
@@ -10000,103 +8976,6 @@
        and the number that flew out of a label lands where the label can
        still be seen.
 
-       Move, then push, then write, and never two at once: a board that
-       moves while it is being read is a board nobody reads. */
-    workOnBoard: function (t, then) {
-      const self = this, G = C.GRID, W = G.work, Z = G.zoom;
-      const lines = t.spec.formula || [];
-      const fly = G.fly.pickMs + G.fly.ms;
-      this.writing = true;                   // the screen is the working's now
-      Bubble.close();
-      if (Sel) Sel.lock();
-      if (Opts) Opts.lock();
-
-      this.later(function () {
-        self.flyOut(function () {
-          if (Opts) Opts.hide();
-          if (Sel) Sel.hide();
-          /* Everything the working is not about comes off the paper.
-             The town is scenery for the question — five buildings and
-             their names, drawn over the very half the working is about
-             to be written in — and the places marked beside the pair
-             are the same. What is left is the pair, its triangle, and
-             the room to write in. */
-          if (Town) Town.hide();
-          Board.clearFound();
-          /* 1 — to the middle of the frame. */
-          self.later(function () {
-            self.slideBoard(G.centre);
-            /* 2 — and in, on the drawing and the room beside it. */
-            self.later(function () {
-              Board.workWidest = Board.workingWidth(lines);
-              Board.viewName = 'working';
-              Board.viewTo(Board.viewFor('working'), Z.ms);
-              /* 3 — then the lines, one at a time. Laid out after the
-                 push has landed, so they are placed against the view
-                 they will be read in. */
-              self.later(function () {
-                /* The working lights each side it names and puts the board
-                   back when it has finished — or as the screen is left,
-                   so a quick Next cannot leave the next drawing dimmed. */
-                const unspot = self.hold(function () { Board.spotlightPart(null); });
-                const fits = Board.layoutWorking(lines);
-                if (!fits) Board.layoutWorking(lines);   // placed anyway; see below
-                let at = 0;
-                lines.forEach(function (l, i) {
-                  const parts = l.parts || [];
-                  self.later(function () { Board.showWorkLine(i, l); SFX.draw(); }, at);
-                  let beat = at + W.beatMs;
-                  /* Every part that names a side of the drawing lights
-                     it as it lands. The ones that were READ off the
-                     board arrive from it first; the ones that were
-                     worked out are simply there — which is the whole
-                     distinction, and it is visible only if both of them
-                     light. */
-                  parts.forEach(function (p, k) {
-                    if (!p.lit) return;
-                    const land = function () {
-                      const L = Board.workLines[i], s = L && L.spans[k];
-                      if (s) { s.classList.remove('wait'); s.classList.add('now'); }
-                      Board.spotlightPart(p.lit);
-                      SFX.tick(2);
-                    };
-                    if (p.from) {
-                      const t0 = beat;
-                      self.later(function () {
-                        /* The side lights BEFORE the glyph leaves it,
-                           and is still lit when it lands. It used to
-                           light only on arrival, so the child saw a
-                           symbol appear in the panel and a line come
-                           forward on the board as two separate events
-                           — and the whole beat is the claim that they
-                           are one thing. */
-                        if (p.lit) Board.spotlightPart(p.lit);
-                        self.flyInto(p, (Board.workLines[i] || {}).spans[k]);
-                      }, t0);
-                      self.later(land, t0 + fly);
-                      beat = t0 + fly + W.beatMs;
-                    } else {
-                      self.later(land, beat);
-                      beat += W.beatMs;
-                    }
-                  });
-                  at = Math.max(at + W.lineMs, beat);
-                });
-                self.later(function () {
-                  unspot();
-                  const home = self.flyAnswerHomeFromBoard(t, lines);
-                  self.later(function () {
-                    self.writing = false;    // written; it can be handed on
-                    if (then) then();
-                  }, home + C.AUTO.afterWorking);
-                }, at + 400);
-              }, Z.ms + 200);
-            }, 760);
-          }, 300);
-        });
-      }, 700);
-    },
-
     /* The table the CHILD fills (screen 29c). The same table as 28's —
        she flies out, the board slides left, the table opens out of its
        right edge — but this time nothing is carried in: the theorem is
@@ -10147,12 +9026,45 @@
                    the triangle, a copy at a time, where they do (30) —
                    the way 28 wrote it. */
                 const lead = lines[0] || {};
-                let at = T.rowMs;
-                if (carries(lead)) at = self.carryRow(lead, 0, 0);
-                else { Table.writeRow(0); SFX.draw(); }
-                self.tableRow = 0;
-                const blanks = Table.blanks();
-                self.later(function () { self.nextBlank(lines, blanks, 0); }, at + 300);
+                const writeLead = function () {
+                  let at = T.rowMs;
+                  if (carries(lead)) at = self.carryRow(lead, 0, 0);
+                  else { Table.writeRow(0); SFX.draw(); }
+                  self.tableRow = 0;
+                  return at;
+                };
+                const begin = function (at) {
+                  const blanks = Table.blanks();
+                  self.later(function () { self.nextBlank(lines, blanks, 0); }, at + 300);
+                };
+                const said = entry.task.tableLine;
+                if (!said) { begin(writeLead()); return; }
+                /* Or she comes back to the table to say what its first
+                   line is (39, 41: "The distance between any two points
+                   is:") — the line written as she gets to her last
+                   word — and goes again, leaving the rest to the child. */
+                const g = standGeom(C.BOARD.tableStand, {});
+                self.geom = g;
+                self.raised = false;
+                standPose = !!g.stand;
+                applyGeom(g);
+                self.flyIn(function () {
+                  let wrote = 0, done = false;
+                  const once = function () { if (!done) { done = true; wrote = writeLead(); } };
+                  self.state = 'speaking';
+                  FX.sparkles(g.aim.x, g.aim.y, 7, 170 * (g.scale || C.CHAR_SCALE));
+                  Bubble.onWord = function (w, n) {
+                    if (n >= Bubble.words.length - 1) once();
+                  };
+                  Bubble.open(said, function () {
+                    Bubble.onWord = null;
+                    once();
+                    self.later(function () {
+                      Bubble.close();
+                      leave(function () { begin(0); });
+                    }, Math.max(wrote, Bubble.voiceTail + 900));
+                  });
+                });
               }, T.openMs);
             }, 760);
           }, 300);
@@ -10181,7 +9093,7 @@
         this.later(function () { self.tableDone(); }, at);
         return;
       }
-      const r = blanks[n][0], k = blanks[n][1];
+      const r = blanks[n][0];
       /* A row's first blank brings the row — and any row before it that
          asks nothing (the axis cases write two lines of working between
          their blanks). Each is written whole, or — where a part in it
@@ -10264,12 +9176,44 @@
       this.raised = false;
       standPose = !!g.stand;
       applyGeom(g);
-      /* What it came to goes onto AB first; then she comes in to say so. */
+      /* What it came to goes onto AB first; then she comes in to say so.
+         Or, where the table says nothing (`correctLine: false` — 35, and
+         the axis cases), it is left to be read for a moment, green, and
+         handed on without her. */
       this.flyResultOut(t.spec.formula, function () {
         self.later(function () {
-          self.flyIn(function () { self.speak(t.spec.correctLine || 'That’s right!'); });
+          if (t.spec.correctLine === false) {
+            const e = C.SCRIPT[self.index] || {};
+            self.settle(e.hold != null ? e.hold : C.AUTO.afterCorrect);
+            return;
+          }
+          /* A walk worked on the table after a miss ends on the answer
+             put back into its story (`workedLine`: "So, the fire engine
+             needs to travel 13 units."), not on the right answer's line. */
+          self.flyIn(function () {
+            self.speak(t.spec.workedLine || t.spec.correctLine || 'That’s right!',
+                       function () { self.rescue(t, 250); });
+          });
         }, 200);
       });
+    },
+
+    /* The rescue (54): the fire engine drives the line the child has
+       just measured and puts the fire out (Board.fireRescue). The screen
+       is the engine's until it has finished — `writing` holds the hand-
+       over, as a working does — and then it moves on. */
+    rescue: function (t, delay) {
+      const self = this;
+      if (!t || !t.spec.rescue) return false;
+      this.writing = true;
+      this.later(function () {
+        const ms = Board.fireRescue(t.spec.rescue);
+        self.later(function () {
+          self.writing = false;
+          self.settle(C.AUTO.afterLine);
+        }, ms + 200);
+      }, delay || 0);
+      return true;
     },
 
     /* The camera, on a drawing this screen is ABOUT to make — after the
@@ -10545,97 +9489,12 @@
       }, 750);
     },
 
-    /* The answer leaving the working for the line it measures — the
-       board's own version, a short move on the same paper. */
-    flyAnswerHomeFromBoard: function (t, lines) {
-      const G = C.GRID, seg = (C.SCRIPT[this.index] || {}).segment;
-      if (!seg) return 0;
-      let text = null;
-      lines.forEach(function (l) {
-        (l.parts || []).forEach(function (p) { if (p.home && !text) text = p.t; });
-      });
-      if (!text) return 0;
-      Board.showSegResult(seg, text);
-      SFX.sparkle();
-      return 600;
-    },
-
+    /* A formula, worked as a table grown out of the board's edge, with
+       every number in it lifted off the triangle — which is left
+       exactly alone. */
     workThrough: function (t, then) {
-      const self = this, W = C.BOARD.working;
-      if (!Opts || !t.spec.formula) { if (then) then(); return; }
-      /* Or as a table grown out of the board's edge, with every number
-         in it lifted off the triangle — which is left exactly alone. */
-      if (t.spec.table && Table) {
-        this.workAsTable(t, then);
-        return;
-      }
-      /* A screen can ask for its working on the paper instead. */
-      if ((C.SCRIPT[this.index] || {}).stage === 'working') {
-        this.workOnBoard(t, then);
-        return;
-      }
-      Opts.lock();
-      if (Sel) Sel.lock();
-      this.writing = true;                  // the screen is the working's now
-      Bubble.close();                       // she is about to fly
-
-      /* One thing at a time, in this order: she goes, then the answers
-         go, then the working comes up and writes itself. Overlapping
-         any two of them reads as the screen rearranging rather than as
-         it being cleared and then used. */
-      this.later(function () {
-        self.flyOut(function () {
-          // she is gone; now the control follows her off, whichever
-          // one this screen was using
-          Opts.hide();
-          if (Sel) Sel.hide();
-          self.later(function () {
-            // and only then does the working take the empty column
-            Opts.moveTo(W.pos.x, W.pos.y);
-            Opts.show(true);
-            const F = C.GRID.fly;
-            /* The working lights the side each part names and puts the
-               board back at the end — or as the screen is left, so a
-               quick Next cannot leave the next triangle dimmed. */
-            const unspot = self.hold(function () { Board.spotlightPart(null); });
-            const ms = Opts.showFormula(t.spec.formula, function (which) {
-              Board.spotlightPart(which);
-              SFX.tick(2);
-            }, {
-              flyMs: F.pickMs + F.ms,
-              onFly: function (part, node) { self.flyInto(part, node); }
-            });
-            SFX.sparkle();
-            self.later(function () {
-              unspot();
-              /* The answer goes home before she comes back to the
-                 working: she lands on a panel that has finished
-                 saying its piece, and the line carries the result. */
-              const home = self.flyAnswerHome(t);
-              self.later(function () {
-                self.landOnWorking();      // written; she comes back to it
-                self.later(function () {
-                  self.writing = false;
-                  if (then) then();
-                }, C.AUTO.afterWorking);
-              }, home);
-            }, ms + 320);
-          }, 520);
-        });
-      }, 700);
-    },
-
-    /* Down onto the working panel, wherever it has moved to. */
-    landOnWorking: function () {
-      const g = workGeom(), from = this.geom || {};
-      const p0 = { x: parseFloat(el.birdRig.style.left) || 0,
-                   y: parseFloat(el.birdRig.style.top) || 0 };
-      const s0 = from.scale || C.CHAR_SCALE;
-      this.geom = g;
-      this.raised = true;
-      standPose = !!g.stand;
-      flyTo(p0, { x: g.anchor.x, y: g.anchor.y }, s0, g.scale);
-      applyGeom(g);
+      if (!t.spec.formula || !t.spec.table || !Table) { if (then) then(); return; }
+      this.workAsTable(t, then);
     },
 
     /* One of the answer options was pressed. The panel has already
@@ -10652,27 +9511,11 @@
         /* Past the beats that teach it: they are for a child who did
            not get here. */
         if (t.spec.rightAt != null) this.branch = t.spec.rightAt;
-        /* The evidence for what they just named, drawn as they name
-           it: the square in the corner they built themselves two beats
-           ago by walking across and then up. */
-        if (t.spec.marksRightAngle) this.later(function () {
-          Board.rightAngle(true); SFX.chime();
-        }, 420);
-        /* A question about a side (33, 34): its length is written on it
-           as she says it — put together from the labels it is read off. */
-        if (t.spec.writesLeg != null) this.writeAskedLeg(t, 420);
         /* The closer place named: Maya walks there (46). */
         if (t.spec.walkOnRight) this.later(function () {
           Board.mayaWalk(t.spec.walkOnRight.from, t.spec.walkOnRight.to);
         }, 500);
         SFX.correct();
-        /* How long the working takes to play. The screen has to stay
-           open for all of it, and the ordinary pause after a right
-           answer is nowhere near that. */
-        /* A formula kept for a miss (`tableOnMiss`: 45) is not
-           a working to play after a right answer. */
-        const work = (t.spec.formula && !t.spec.tableOnMiss && Opts)
-          ? Opts.formulaMs(t.spec.formula, C.GRID.fly.pickMs + C.GRID.fly.ms) : 0;
         const at = this.optionSpot(t.spec.answer);
         this.later(function () {
           SFX.cheer();
@@ -10681,26 +9524,8 @@
           /* The panel has already played its own verdict, so there may
              be nothing left to say — finishWith arms the hand-over
              either way, where speak() would need a line to ride on. */
-          /* With a working to come, the hand-over belongs to it: she
-             has to leave, it has to be written, and she has to come
-             back. finishWith would settle in the middle of that. */
-          if (!work) self.finishWith(t.spec.correctLine);
+          self.finishWith(t.spec.correctLine);
         }, 260);
-        /* The chosen method, worked through where the buttons were.
-           Late enough that the green border is read first: it is the
-           only thing telling them which one they picked, and the
-           working covers it over.
-
-           Each part of the working lights the side of the triangle it
-           names, as it names it — 4\u00B2 and 16 the horizontal, 3\u00B2
-           and 9 the vertical, AB\u00B2 and 25 and the answer the line
-           between the points. */
-        if (work) {
-          this.writing = true;
-          this.later(function () {
-            self.workThrough(t, function () { self.settle(C.AUTO.afterLine); });
-          }, 1100);
-        }
       } else {
         t.wrong++;
         SFX.wrong();
@@ -10720,10 +9545,6 @@
            that teaches it takes over — she says so on that screen, not
            on this one, because a child needs a moment to stop being
            wrong before they can start learning. */
-        if (fb.exhausted && t.spec.marksRightAngle) this.later(function () {
-          Board.rightAngle(true);
-        }, 620);
-
         if (fb.exhausted && t.spec.teachAt != null) {
           t.done = true;
           this.state = 'waiting';
@@ -10733,28 +9554,6 @@
           return;
         }
 
-        /* Or, like screen 30, to the table the child fills: she goes,
-           it opens out of the board's edge, and the question is answered
-           when its last blank is (35). */
-        if (fb.exhausted && t.spec.tableOnMiss && Table) {
-          t.done = false;
-          if (Opts) Opts.lock();
-          this.later(function () { self.runTable(C.SCRIPT[self.index] || {}); }, 700);
-          return;
-        }
-
-        /* Out of hints: show the working instead of asking again. */
-        if (fb.exhausted && t.spec.formula && !t.spec.tableOnMiss && Opts) {
-          t.done = true;
-          this.writing = true;
-          this.state = 'waiting';
-          Opts.lock();
-          SFX.chime();
-          this.later(function () {
-            self.workThrough(t, function () { self.settle(C.AUTO.afterLine); });
-          }, 420);
-          return;
-        }
         /* Spent, with nothing to show and nowhere to send them: the
            last rung would otherwise be said a second time and the
            buttons left live, which is the third ask this game does not
@@ -10768,8 +9567,6 @@
              under a bird who has just said which one it is reads as a
              third go, so the panel says it too. */
           if (Opts) Opts.reveal();
-          // and the side it was about gets its length as she names it
-          if (t.spec.writesLeg != null) this.writeAskedLeg(t, 900);
           const told = t.spec.spentLine || t.spec.correctLine;
           this.later(function () {
             if (told) self.speak(told, function () { self.settle(C.AUTO.afterLine); });
@@ -10793,7 +9590,7 @@
        beside it, its ends not named a second time where something on the
        board already names them. Nothing that is already up moves. */
     compareWalks: function (entry, main) {
-      const self = this, later = this.later.bind(this);
+      const later = this.later.bind(this);
       const other = (entry.compare || []).filter(function (w) { return w !== main; })[0];
       /* Kept for a miss to write their lengths on (blinkLengths). */
       Board.compared = { main: main, other: other };
@@ -10807,28 +9604,15 @@
         later(function () { if (Board.segDashG) Board.segDashG.classList.remove('draw', 'set'); }, 240 + 720);
         at = 240 + 720;
       }
-      /* A screen asking which is shorter (46) holds the lengths back:
-         they are on its answer cards, and the map shows them only on a
-         miss (blinkLengths). */
-      const R = entry.hideLengths ? null : main.result;
+      const R = main.result;
       if (R) later(function () { Board.showSegResult(main, R.text, R.dy, R.dx); SFX.chime(); }, at + 120);
       if (other) {
         const named = function (p) { return !!Board.dataAt(p.x, p.y) || !!Board.keyAt(p); };
         const ex = Object.assign({}, other, {
           a: Object.assign({}, other.a, named(other.a) ? { quiet: true } : {}),
-          b: Object.assign({}, other.b, named(other.b) ? { quiet: true } : {}) },
-          entry.hideLengths ? { result: null } : {});
+          b: Object.assign({}, other.b, named(other.b) ? { quiet: true } : {}) });
         later(function () { Board.runExamples([ex], later); }, at + 520);
       }
-    },
-
-    /* The side a question was about, given its length — the leg the
-       task names, as the screen declares it. */
-    writeAskedLeg: function (t, at) {
-      const self = this, i = t.spec.writesLeg;
-      const spec = ((C.SCRIPT[this.index] || {}).legs || [])[i];
-      if (!spec) return;
-      this.later(function () { Board.writeLegLength(i, spec, self.later.bind(self)); }, at || 0);
     },
 
     /* A point was tapped. Without a task running this is just a
@@ -11048,7 +9832,12 @@
     window.addEventListener('keydown', function (e) {
       if (e.code === 'Space' || e.code === 'Enter' || e.code === 'ArrowRight') {
         e.preventDefault();
-        if (Game.state === 'start') Game.begin(); else Game.advance();
+        if (Game.state === 'start') {
+          /* The key is the gesture that lets her speak, as the tap on
+             Play is (voice.js). */
+          if (startReady) { SFX.unlock(); if (window.Voice && window.Voice.prime) window.Voice.prime(); }
+          Game.begin();
+        } else Game.advance();
       }
       if (e.code === 'ArrowLeft') {
         e.preventDefault();
@@ -11057,13 +9846,14 @@
     });
   }
 
-  /* ---------------- preload ---------------- */
-  const decodedArt = [];
+  /* ---------------- preload ----------------
+     Everything the game shows or says is fetched before Play is offered
+     (js/preload.js), and the bar in the Play button's place says how
+     far it has got. The fonts are waited for by name as well: bubble
+     text is sized by measurement, so the real face has to be in before
+     anything gets measured. */
+  let startReady = false;          // Play offered: every file fetched, she has landed
   function preload(done) {
-    const list = Object.keys(C.ART).map(function (k) { return C.ART[k]; });
-    if (window.Voice) window.Voice.preload();
-    // Bubble text is sized by measurement, so the real face has to be
-    // in before anything gets measured.
     let fontsReady = false;
     /* And every label measured before the real face arrived was
        measured against the fallback's metrics, so those go. */
@@ -11072,18 +9862,16 @@
       fontsReady = true;
       Board.forgetTextMetrics();
     };
-    /* Both faces, asked for BY NAME. `document.fonts.ready` waits only
-       for faces something on the page is already using, and at boot
-       that was the loading screen's Lilita One alone: Nunito — every
-       label and every balloon — was not even requested until her first
-       line, so on a slow connection the board was measured in a
-       stand-in face and her first words were drawn in one. The faces
-       are the game's own files now (css/fonts.css); the timeout is only
-       there so a damaged file can never hold the game up. */
+    /* The three faces, asked for BY NAME. `document.fonts.ready` waits
+       only for faces something on the page is already using, and at
+       boot that is the title screen's alone: Nunito and Poppins were not
+       even requested until her first line. The timeout is only there so
+       a damaged file can never hold the game up. */
     if (document.fonts && document.fonts.load) {
       Promise.all([
         document.fonts.load('600 32px Nunito', 'Aa1√₁₂'),
-        document.fonts.load('32px "Lilita One"', 'Aa1')
+        document.fonts.load('32px "Lilita One"', 'Aa1'),
+        document.fonts.load('700 34px Poppins', 'Aa1')
       ]).then(fontDone, fontDone);
       setTimeout(fontDone, 4000);
       /* A face that turns up after the game has started — it should
@@ -11099,39 +9887,60 @@
     } else { fontsReady = true; }
     /* Which copy of the game this is, where it can be read off before
        Play. */
-    if (el.loaderVer) el.loaderVer.textContent = versionText();
-    let loaded = 0;
-    const bump = function () {
-      loaded++;
-      const pct = Math.round((loaded / list.length) * 100);
-      el.loaderBar.style.width = pct + '%';
-      el.loaderPct.textContent = pct + '%';
-      if (loaded === list.length) {
-        const wait = function () {
-          if (fontsReady) setTimeout(done, 320);
-          else setTimeout(wait, 80);
-        };
-        wait();
-      }
+    if (el.loadVer) el.loadVer.textContent = versionText();
+
+    /* What the title screen needs first — the faces, its own picture,
+       the Play button, Swifty's two flying sheets — and then everything
+       else, which the loader takes smallest-first. Every address exactly
+       as it will be asked for. */
+    const A = C.ART, M = window.ASSET_MANIFEST || {};
+    /* The faces, loaded by the page itself (css/fonts.css) and counted in
+       as each arrives: which text to ask for, per file. */
+    const FACE = {
+      'lilita-one-latin': ['32px "Lilita One"', 'Aa1'],
+      'nunito-600-latin': ['600 32px Nunito', 'Aa1'],
+      'nunito-600-math': ['600 32px Nunito', '\u221A\u2081\u2082'],
+      'poppins-700-latin': ['700 34px Poppins', 'Aa1']
     };
-    list.forEach(function (src) {
-      const im = new Image();
-      /* Decoded as well as fetched. A picture that is only fetched is
-         decoded the first time it is drawn — inside whatever animation
-         first shows it, which on a slow laptop is a visible stall in the
-         middle of the scene fading in. Held on to, so it stays decoded. */
-      im.onload = function () {
-        if (im.decode) im.decode().then(bump, bump); else bump();
+    const fonts = Object.keys(M).filter(function (f) { return /\.woff2$/.test(f); })
+      .map(function (f) {
+        const face = FACE[f.split('/').pop().replace(/\.woff2$/, '')];
+        return { url: C.stamp(f), load: face && document.fonts && document.fonts.load
+          ? function () { return document.fonts.load(face[0], face[1]); } : function () {} };
+      });
+    const first = fonts.concat([A.startScreen, A.playButton, A.swiftyFly, A.swiftyTalk]
+      .map(function (u) { return { url: u, pic: true }; }));
+    const rest = Object.keys(A).map(function (k) { return { url: A[k], pic: true }; })
+      .concat((window.Voice ? window.Voice.urls() : []).map(function (u) { return { url: u }; }))
+      .concat([{ url: C.AUDIO.musicSrc }]);
+    const bar = function (f) {
+      const pct = Math.floor(f * 100);
+      el.loadFill.style.width = (f * 100).toFixed(1) + '%';
+      el.loadPct.textContent = pct + '%';
+      el.loadBar.setAttribute('aria-valuenow', String(pct));
+    };
+    Preload.start(first, rest, bar, function () {
+      /* Arrived: what the game reads later reads the local copies, and
+         the two pictures a stylesheet draws are pointed at them too —
+         but only at a local copy. A blob: address is absolute; the
+         ordinary one is not, and a relative url() in a custom property
+         is resolved against the stylesheet that uses it (css/), not the
+         page (see css/number-selector.css), so without a copy the
+         stylesheets keep their own. */
+      const local = function (prop, u) {
+        const best = Preload.url(u);
+        if (best !== u) document.documentElement.style.setProperty(prop, 'url("' + best + '")');
+        return best;
       };
-      decodedArt.push(im);
-      im.onerror = function () {
-        /* Never let one bad path stall the game — but say so. A silent
-           404 is how the hand went missing: the loader reached 100%,
-           nothing threw, and the picture simply never drew. */
-        if (window.console) console.warn('missing asset: ' + src);
-        bump();
+      A.buttons = local('--sheet', A.buttons);
+      A.tile = local('--ft-tile', A.tile);
+      Object.keys(A).forEach(function (k) { A[k] = Preload.url(A[k]); });
+      C.TOWN.sheet.src = Preload.url(C.TOWN.sheet.src);
+      const wait = function () {
+        if (fontsReady) setTimeout(done, 240);
+        else setTimeout(wait, 80);
       };
-      im.src = src;
+      wait();
     });
   }
 
@@ -11155,8 +9964,7 @@
 
     el.standSwifty.classList.add('hidden');
     el.birdWin.classList.remove('hidden');
-    el.birdFlip.classList.remove('turn');    // she faces the way she is going
-    el.birdRig.classList.remove('fly-in', 'hop', 'pre-entrance', 'rising');
+    el.birdRig.classList.remove('fly-in', 'pre-entrance', 'rising');
     el.shadow.classList.add('lifted');
     Sprite.play('fly', true);
     Sprite.setScale(s0);
@@ -11219,15 +10027,6 @@
     });
   }
 
-  /* Her seat on the working panel — the same pose as the one on the
-     answers, moved up with it. */
-  function workGeom() {
-    return standGeom(C.BOARD.working.stand, {
-      noShadow: true,
-      panelBox: { x: C.BOARD.panel.pos.x, y: C.BOARD.panel.pos.y,
-                  w: C.BOARD.panel.w, h: C.BOARD.panel.h }
-    });
-  }
 
   function revealControl(entry) {
     const g = controlGeom(entry && entry.options ? 'options' : null);
@@ -11276,11 +10075,28 @@
       if (Opts) {
         if (entry.options) { Opts.reset(); Opts.show(true); } else Opts.hide();
       }
-      if (Slots) {
-        if (entry.task && entry.task.kind === 'slots') { Slots.reset(); Slots.show(true); }
-        else Slots.hide();
-      }
     }, 150);
+  }
+
+  /* revealControl the other way round: the control sinks away, and if
+     she was standing on it she flies back down to the grass it stood
+     on. Returns how long that takes, so whatever she says next waits
+     for her to land. */
+  function stowControl() {
+    if (Sel) Sel.hide(true);                 // sinking
+    if (!Game.raised) return 0;
+    const g = geomFor(Game.index);
+    const from = Game.geom || {};
+    const p0 = { x: parseFloat(el.birdRig.style.left) || 0,
+                 y: parseFloat(el.birdRig.style.top) || 0 };
+    Game.geom = g;
+    Game.raised = false;
+    standPose = !!g.stand;
+    flyTo(p0, { x: g.anchor.x, y: g.anchor.y }, from.scale || C.CHAR_SCALE, g.scale);
+    el.bubble.classList.add('rising');
+    applyGeom(g);
+    Game.later(Game.hold(function () { el.bubble.classList.remove('rising'); }), 720);
+    return FLIGHT_MS;
   }
 
   /* ---------------- the hint ----------------
@@ -11300,7 +10116,7 @@
       const D = C.GRID.dot;
       const img = document.createElement('img');
       img.id = 'nudge';
-      img.src = C.ART.handNudge;
+      Preload.adopt(img, C.ART.handNudge);
       img.alt = '';
       img.width = D.nudgeSize;
       img.height = D.nudgeSize;
@@ -11396,8 +10212,8 @@
 
     setup: function () {
       const S = C.START;
-      el.startFly.src = C.ART.swiftyFly;
-      el.startTalk.src = C.ART.swiftyTalk;
+      Preload.adopt(el.startFly, C.ART.swiftyFly);
+      Preload.adopt(el.startTalk, C.ART.swiftyTalk);
       StartSprite.setup(el.startBirdWin,
         { fly: el.startFly, talk: el.startTalk }, S.scale);
       // the rig origin is her belly anchor; the flight moves it
@@ -11481,17 +10297,23 @@
 
   function boot() {
     decideMotion();
-      /* The two full-frame pictures take their source from config rather
-       than from the markup. They used to be hardcoded in the HTML,
-       which meant a renamed file left ART pointing at the new name
-       while the page still asked for the old one — and the background
-       silently failed to load. */
-    el.sceneArt.src = C.ART.background;
-    el.startArt.src = C.ART.startScreen;
-    el.flySheet.src = C.ART.swiftyFly;
-    el.talkSheet.src = C.ART.swiftyTalk;
-    el.standSwifty.src = C.ART.swiftyStand;
-    el.playImg.src = C.ART.playButton;
+    /* The loader first, before anything asks for a file of its own:
+       everything is then handed its picture by the loader, from the copy
+       it fetched, and nothing is downloaded twice. The title screen is up
+       from the start, with the bar where Play will be. */
+    preload(offerPlay);
+    /* The full-frame pictures take their source from config rather than
+       from the markup. They used to be hardcoded in the HTML, which meant
+       a renamed file left ART pointing at the new name while the page
+       still asked for the old one — and the background silently failed
+       to load. */
+    Preload.adopt(el.sceneArt, C.ART.background);
+    Preload.adopt(el.sceneArtSoft, C.ART.background);
+    Preload.adopt(el.startArt, C.ART.startScreen);
+    Preload.adopt(el.flySheet, C.ART.swiftyFly);
+    Preload.adopt(el.talkSheet, C.ART.swiftyTalk);
+    Preload.adopt(el.standSwifty, C.ART.swiftyStand);
+    Preload.adopt(el.playImg, C.ART.playButton);
 
     /* Browsers refuse audio before a gesture, so the title screen's
        wind, leaves and landing are silent on a cold load and every
@@ -11525,16 +10347,22 @@
     bind();
     requestAnimationFrame(loop);
 
-    preload(function () {
-      el.loader.classList.add('fade-out');
-      setTimeout(function () { el.loader.classList.add('hidden'); }, 500);
-      el.startScreen.classList.remove('hidden');
-      // Play is offered only once she has flown in and settled
-      StartBird.arrive(function () {
-        el.playBtn.disabled = false;   // also unreachable by keyboard until now
-        el.playBtn.classList.remove('veiled');
+  }
+
+  /* Every file here: the bar goes, she flies in, and Play pops up where
+     the bar was — offered only once she has flown in and settled. */
+  function offerPlay() {
+    el.loadBar.classList.add('done');
+    setTimeout(function () { el.loadBar.classList.add('hidden'); }, 420);
+    StartBird.arrive(function () {
+      el.playBtn.disabled = false;   // also unreachable by keyboard until now
+      el.playBtn.classList.remove('veiled');
+      el.playBtn.classList.add('popping');
+      setTimeout(function () {
+        el.playBtn.classList.remove('popping');
         el.playBtn.classList.add('idle');
-      });
+      }, 520);
+      startReady = true;
     });
   }
 

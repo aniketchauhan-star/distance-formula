@@ -181,90 +181,6 @@
    this panel's own size — the panel used to jump to 90vw inside a
    1920px stage. Everything here is fixed, and --k does the fitting. */
 
-/* =============================================================
-   Formula view — takes the buttons' place once the method has been
-   chosen, inside the same panel.
-   ============================================================= */
-.triangle-options-panel .formula-view {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 6px 4px 10px;
-  font-family: 'Lilita One', 'Nunito', 'Arial Rounded MT Bold', Arial, sans-serif;
-  color: #102D70;
-  /* It arrives as a box, not as a panel quietly changing its mind
-     about what it holds: the whole view eases up before the lines
-     inside it start stepping in. */
-  animation: formulaBox .34s cubic-bezier(.22, .68, .3, 1) both;
-}
-@keyframes formulaBox {
-  0%   { opacity: 0; transform: scale(.94) translateY(10px); }
-  100% { opacity: 1; transform: scale(1) translateY(0); }
-}
-
-/* the statement being applied, set apart on its own ground */
-.triangle-options-panel .formula-lead {
-  align-self: stretch;
-  padding: 18px 20px;
-  border-radius: 20px;
-  background: #F1F4FA;
-  border: 3px solid #DCE4F2;
-  /* Fixed, for the same reason the button labels are: a vw size inside
-     a stage that is itself transform-scaled gets scaled twice, so the
-     working came out a different size at every window width while the
-     panel around it stayed put. These are what the clamps resolved to
-     at the 1920 the game is drawn for. */
-  font-size: 40px;
-  letter-spacing: .5px;
-  text-align: center;
-}
-
-/* The working's own parts. A part that names a length waits at low
-   contrast until its moment, then arrives in the colour of the side it
-   belongs to — the same colour that side is drawn in on the board, so
-   the two are plainly one thing. Nothing reflows: only the colour and
-   the contrast change. */
-.triangle-options-panel .formula-view span {
-  transition: color 280ms ease, opacity 280ms ease;
-}
-.triangle-options-panel .formula-view .wait { opacity: .22; }
-.triangle-options-panel .formula-view .now { animation: partIn .42s ease both; }
-.triangle-options-panel .formula-view .now.lit-ab { color: #1F6FD0; }
-.triangle-options-panel .formula-view .now.lit-h  { color: #E07B12; }
-.triangle-options-panel .formula-view .now.lit-v  { color: #2F8F6F; }
-@keyframes partIn {
-  0%   { opacity: .22; transform: scale(1); }
-  55%  { opacity: 1;   transform: scale(1.12); }
-  100% { opacity: 1;   transform: scale(1); }
-}
-.triangle-options-panel .formula-view .now { display: inline-block; }
-
-/* the arithmetic, stepped in under it */
-.triangle-options-panel .formula-step {
-  align-self: flex-end;
-  padding-right: 34px;
-  font-size: 34px;
-  color: #24407F;
-}
-
-/* the answer */
-.triangle-options-panel .formula-result {
-  margin-top: 10px;
-  align-self: center;
-  font-size: 38px;
-  color: #102D70;
-}
-
-.triangle-options-panel .formula-view > * {
-  opacity: 0;
-  animation: formulaIn .5s cubic-bezier(.22, .68, .3, 1) both;
-}
-@keyframes formulaIn {
-  0%   { opacity: 0; transform: translateY(18px) scale(.94); }
-  60%  { opacity: 1; transform: translateY(-4px) scale(1.02); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
-}
-
 /* Coming up into the space she has just left. Short enough to be
    settled before she lands on it. */
 .triangle-options-panel.rising {
@@ -343,25 +259,9 @@ html.calm .triangle-options-panel.rising { animation: none; }
   letter-spacing: -0.3px;
 }
 .triangle-option .opt-label { display: block; }
-/* A choice written in symbols — the general triangle's x₂ − x₁. Set in
-   Nunito, which carries the subscripts (Lilita One has none, and a
-   label half in one face and half in another reads as a mistake), in
-   the game's one weight of it. The three candidates for AB are formulas
-   of twenty-odd symbols, so theirs is smaller: each sits on one line in
-   the 446px a button has inside it. */
-.triangle-option.expr {
-  font-family: 'Nunito', system-ui, sans-serif;
-  font-weight: 600;
-  font-size: 46px;
-  letter-spacing: 0;
-}
-.triangle-option.expr.long { font-size: 40px; }
-/* The panel those three sit in is as wide as the trio's (below), still
-   stacked: at the stacked 520 the formulas had to be set at 28, which
-   the panel's scale brings down to 20 on the stage — too small to read
-   the subscripts in. */
+/* As wide as the trio's panel (below): the two café cards (46), side
+   by side. */
 .triangle-options-panel.wide { width: 740px; }
-.triangle-option.expr .opt-label { white-space: nowrap; }
 .triangle-option .opt-icon {
   display: block;
   width: 100%;
@@ -400,19 +300,6 @@ html.calm .triangle-options-panel.rising { animation: none; }
               inset 0 3px 0 rgba(255, 255, 255, .45);
   color: #3A2A05;
   text-shadow: 0 1px 0 rgba(255, 255, 255, .45);
-}
-/* The school and the park, in their own pills' colours. */
-.triangle-option.school {
-  background: linear-gradient(180deg, #5C8FD6 0%, #3C6FBA 48%, #2A5FA8 100%);
-  border: 4px solid #1F4C8C;
-  box-shadow: 0 7px 0 #173C70, 0 10px 15px rgba(30, 60, 120, .18),
-              inset 0 3px 0 rgba(255, 255, 255, .35);
-}
-.triangle-option.park {
-  background: linear-gradient(180deg, #74B05F 0%, #55944A 48%, #3E7D38 100%);
-  border: 4px solid #30642B;
-  box-shadow: 0 7px 0 #244C20, 0 10px 15px rgba(40, 90, 30, .18),
-              inset 0 3px 0 rgba(255, 255, 255, .35);
 }
 /* A card for a place (46): its picture, its name, and how far it
    is, in a green box — paper rather than a coloured button, so the
@@ -467,22 +354,3 @@ html.calm .triangle-options-panel.rising { animation: none; }
               inset 0 3px 0 rgba(255, 255, 255, .35);
 }
 
-/* The distance formula stated in full is half as long again as
-   anything else this panel writes, and at the lead's own size it runs
-   off both ends of the box. */
-.triangle-options-panel .formula-lead.sm {
-  font-size: 26px;
-  letter-spacing: 0;
-}
-/* And a substituted line can be as long: the walk across both axes puts
-   two bracketed negatives into it, which is half again the width of
-   anything the first-quadrant screens write. */
-.triangle-options-panel .formula-step.sm { font-size: 26px; }
-
-/* A result that has left the working for the line it measures. It is
-   not said twice: the working made the statement, and the statement has
-   gone to where the child will look for it. */
-.triangle-options-panel .formula-view .gone {
-  opacity: .25;
-  transition: opacity 320ms ease;
-}

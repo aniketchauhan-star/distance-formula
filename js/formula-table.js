@@ -87,6 +87,9 @@ window.FormulaTable = (function () {
          line gives them. */
       build: function (formula) {
         clearTimeout(root._close);
+        clearTimeout(root._only);
+        root.classList.remove('folding');
+        root.style.height = '';
         grid.innerHTML = '';
         rows = [];
         setRoom(0);
@@ -222,17 +225,12 @@ window.FormulaTable = (function () {
         });
       },
 
-      /* Where it sits on the stage. Its height follows what is in it,
-         and it is centred on `cy`. */
+      /* Where it sits on the stage, out of the board's edge. Its height
+         follows what is in it, and it is centred on `cy`. */
       place: function (box) {
         root.style.left = box.x + 'px';
         root.style.width = box.w + 'px';
-        /* Out of the board's edge, it is centred on `cy`; standing in a
-           column of its own (the axis cases, above her), it hangs from
-           `top` and carries no tucked-under edge. */
-        const free = box.top != null;
-        root.classList.toggle('free', free);
-        root.style.top = (free ? box.top : box.cy) + 'px';
+        root.style.top = box.cy + 'px';
       },
 
       /* Its type made smaller, if it has to be, so the widest row fits
@@ -410,10 +408,37 @@ window.FormulaTable = (function () {
         } else if (last) setRoom(0);
       },
 
-      /* The working's answer, shown as the answer: its blank goes green. */
-      mark: function (r, k) {
-        const c = rows[r] && rows[r].cells[k];
-        if (c && c.box) c.box.classList.add('good');
+      rowCount: function () { return rows.length; },
+
+      /* One line and nothing else (37: the formula on its own). The
+         others fade out, then fold away, and the panel closes up round
+         the line that is left — its green laid again where the line now
+         sits. Returns how long all that takes. */
+      only: function (r) {
+        const els = function (row) {
+          return row.boxes || row.cells.filter(Boolean).map(function (c) { return c.el; });
+        };
+        if (!rows[r]) return 0;
+        const keep = els(rows[r]), others = [];
+        rows.forEach(function (row, i) { if (i !== r) others.push.apply(others, els(row)); });
+        if (!others.length) return 0;
+        const FADE = 320, FOLD = 420, self = this;
+        others.forEach(function (e) { e.classList.add('ft-going'); });
+        clearTimeout(root._only);
+        root._only = setTimeout(function () {
+          const was = root.offsetHeight;
+          others.forEach(function (e) { e.classList.add('ft-gone'); });
+          keep.forEach(function (e) { e.style.gridRow = '1'; });
+          root.style.height = '';
+          const now = root.offsetHeight;
+          root.style.height = was + 'px';
+          void root.offsetWidth;
+          root.classList.add('folding');
+          root.style.height = now + 'px';
+          if (grid.querySelector('.ft-answer')) self.markRow(r);
+          root._only = setTimeout(function () { root.classList.remove('folding'); }, FOLD + 40);
+        }, FADE);
+        return FADE + FOLD;
       },
 
       /* …or the whole line it ends on, name and = and all: "d = |x₂ − x₁|"
@@ -477,7 +502,9 @@ window.FormulaTable = (function () {
       hide: function () {
         clearTimeout(root._settle);
         clearTimeout(root._close);
-        root.classList.remove('open', 'settled');
+        clearTimeout(root._only);
+        root.style.height = '';
+        root.classList.remove('open', 'settled', 'folding');
         root.classList.add('hidden');
         grid.innerHTML = '';
         rows = [];

@@ -183,8 +183,6 @@ window.ScreenJump = (function () {
     });
 
     return {
-      el: btn,
-      panel: panel,
       /* Told where the game is, after every change. */
       sync: function () {
         const ss = list(), i = at(), s = ss[i] || {};
@@ -192,10 +190,9 @@ window.ScreenJump = (function () {
                             (ss.length ? ss[ss.length - 1].id : 0);
         if (open) { build(); mark(); }
       },
-      close: close,
-      get open() { return open; }
+      close: close
     };
   }
 
-  return { mount: mount, describe: describe };
+  return { mount: mount };
 })();

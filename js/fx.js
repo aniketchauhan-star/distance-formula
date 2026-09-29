@@ -189,7 +189,8 @@ window.FX = (function () {
       d.style.animationDelay = -(inst.phase * dur) + 's';
 
       const im = document.createElement('img');
-      im.src = C.src;
+      // from the loader's copy (js/preload.js), never fetched twice
+      if (window.Preload) window.Preload.adopt(im, C.src); else im.src = C.src;
       im.alt = '';
       im.style.width = C.srcW * sc + 'px';
       im.style.height = C.srcH * sc + 'px';
@@ -282,7 +283,7 @@ window.FX = (function () {
     }
     // and the one leaf, solid, in front of its own wake
     const leaf = document.createElement('img');
-    leaf.src = window.CFG.ART.leaf;
+    if (window.Preload) window.Preload.adopt(leaf, window.CFG.ART.leaf); else leaf.src = window.CFG.ART.leaf;
     leaf.alt = '';
     leaf.style.width = size + 'px';
     ride(leaf, 0, 1);
@@ -404,7 +405,7 @@ window.FX = (function () {
     el.innerHTML = '';
     el.classList.remove('hidden');
 
-    const src = window.CFG.ART.leaf;
+    const src = window.Preload ? window.Preload.url(window.CFG.ART.leaf) : window.CFG.ART.leaf;
     let maxDelay = 0, minDelay = Infinity;
 
     const cw = LEAF_AREA.w / LEAF_COLS, chh = LEAF_AREA.h / LEAF_ROWS;
@@ -693,15 +694,36 @@ window.FX = (function () {
     g.classList.remove('on');
     void g.offsetWidth;              // so removing and re-adding replays it
     g.classList.add('on');
+    shake();
   }
-  function stopGlow() {
-    const g = document.getElementById('missGlow');
-    if (g) g.classList.remove('on');
+  /* And the frame shakes with it — a quick shake of the head, side to
+     side and dying away, the way "no, not that" looks. The whole scene
+     moves, grown by 1.5% while it does so the frame's own edges never
+     show past it. Run through the Web Animations API, not a CSS class,
+     because the scene already carries its fade-in animation, and a
+     second animation on the same element would replace that one. Not
+     at all for a child who has asked for a calm screen, or whose laptop
+     asks for less motion. */
+  let shaking = null;
+  function shake() {
+    const s = document.getElementById('scene');
+    if (!s || !s.animate || document.documentElement.classList.contains('calm')) return;
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (shaking) shaking.cancel();
+    // each swing eased on its own, so every one reaches its full width
+    const k = function (x, sc, at) {
+      const f = { translate: x + 'px 0', easing: 'ease-in-out' };
+      if (sc) f.scale = sc;
+      if (at != null) f.offset = at;
+      return f;
+    };
+    shaking = s.animate([
+      k(0, '1'), k(-12, '1.015', 0.1), k(11, null, 0.24), k(-8, null, 0.38),
+      k(6, null, 0.52), k(-3.5, null, 0.66), k(1.5, '1.015', 0.8), k(0, '1')
+    ], { duration: 480 });
+    shaking.onfinish = function () { shaking = null; };
   }
-
-  function clear() { landAll(); stopGlow(); if (layer) layer.innerHTML = ''; }
-
   return { init, starBurst, ring, pop, sparkles, puff, motes, clouds,
            flyGlyph, liftAndFly, landAll, missGlow,
-           leafDrift, wind, leaves, clear };
+           leafDrift, wind, leaves };
 })();
