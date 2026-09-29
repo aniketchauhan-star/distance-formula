@@ -185,11 +185,11 @@ window.Voice = (function () {
     /* And the seven written after that, from a third recording (see the
        header): 92 onward. The distance said once a miss has been counted
        out, then what the formula gives on 37, 39 and 41. */
-    'So, the distance is 3 units.':
+    'So, the distance is 3\u00A0units.':
       ['92-so-the-distance-is-3-units', 2.47],
-    'So, the distance is 7 units.':
+    'So, the distance is 7\u00A0units.':
       ['93-so-the-distance-is-7-units', 2.72],
-    'So, the distance is 5 units.':
+    'So, the distance is 5\u00A0units.':
       ['94-so-the-distance-is-5-units', 2.63],
     'And that gives the distance between any two points.':
       ['95-and-that-gives-the-distance-between-any-two', 3.42],
@@ -197,7 +197,7 @@ window.Voice = (function () {
       ['96-and-that-gives-the-distance-when-the-points', 4.78],
     'And that gives the distance when the points are on the y-axis.':
       ['97-and-that-gives-the-distance-when-the-points', 4.30],
-    'So, the distance is 14 units.':
+    'So, the distance is 14\u00A0units.':
       ['98-so-the-distance-is-14-units', 2.70]
   };
 
