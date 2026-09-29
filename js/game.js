@@ -8954,28 +8954,6 @@
                exhausted: t.wrong > list.length };
     },
 
-    /* The worked solution, given the screen to itself.
-
-       She goes first and the answers go with her: a panel of choices
-       under a solution is still asking a question, and she is standing
-       on the very spot the working is about to be written. Then it is
-       written where she was — the middle of her column — slowly enough
-       to be followed, each part lighting the side of the triangle it
-       names. Then she comes back and sits on it, and it is left up long
-       enough to read the whole thing back.
-
-       Both ways in use this: getting it right, and running out of
-       tries. What is shown is the same thing either way. */
-    /* The worked solution, written on the paper.
-
-       She goes, the control goes with her, and then — with nothing else
-       on the frame — the board comes to the middle, pushes in on what is
-       drawn AND on the room the working needs, and writes the working
-       beside the drawing. A panel beside a picture makes the child
-       choose which to look at; on one sheet there is nothing to choose,
-       and the number that flew out of a label lands where the label can
-       still be seen.
-
     /* The table the CHILD fills (screen 29c). The same table as 28's —
        she flies out, the board slides left, the table opens out of its
        right edge — but this time nothing is carried in: the theorem is

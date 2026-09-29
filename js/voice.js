@@ -9,6 +9,11 @@
    for the line it says. (The recording itself is in the repository's
    history: sfx/new voice.mp3, up to commit bcf997d.)
 
+   The lines written since came in a second recording, read in the order
+   the game says them and cut the same way, numbered on from 69 (in the
+   history too: sfx/aniket new.mp3). It was set on its own level to match
+   the first, so the two sound like one voice.
+
    She speaks a little slower than she was recorded, for young
    listeners: the whole recording was slowed to nine-tenths of its speed
    (115/128 exactly, the nearest step Apple's time-pitch unit takes — the
@@ -137,7 +142,56 @@ window.Voice = (function () {
     'Count the squares from B up to C.':
       ['60-count-the-squares-from-b-up-to-c', 2.66],
     'That’s right — a scalene triangle.':
-      ['68-thats-right-a-scalene-triangle', 2.64]
+      ['68-thats-right-a-scalene-triangle', 2.64],
+
+    /* The lines written after that recording, from a second one read in
+       the order the game says them (see the header): 69 onward. */
+    'So, the distance is 2\u00A0units.':
+      ['69-so-the-distance-is-2-units', 2.67],
+    'The distance between any two points is:':
+      ['70-the-distance-between-any-two-points-is', 3.76],
+    'That’s correct!':
+      ['71-thats-correct', 1.14],
+    'Now we know how to find the distance between any two points.':
+      ['72-now-we-know-how-to-find-the-distance-between', 4.34],
+    'Let’s apply this to solve some real-life problems!':
+      ['73-lets-apply-this-to-solve-some-real-life-prob', 3.56],
+    'There’s a fire at A!':
+      ['74-theres-a-fire-at-a', 1.68],
+    'How far is it from the fire engine at B?':
+      ['75-how-far-is-it-from-the-fire-engine-at-b', 2.98],
+    'So, the fire engine needs to travel 13\u00A0units.':
+      ['76-so-the-fire-engine-needs-to-travel-13-units', 3.84],
+    'There are two towers at A and B.':
+      ['77-there-are-two-towers-at-a-and-b', 2.99],
+    'How long must a cable be to connect them directly?':
+      ['78-how-long-must-a-cable-be-to-connect-them-dir', 3.25],
+    'So, the cable needs to be 10\u00A0units long to connect the towers.':
+      ['79-so-the-cable-needs-to-be-10-units-long-to-co', 4.07],
+    'First, find the distance from Maya’s house to Café A.':
+      ['80-first-find-the-distance-from-mayas-house-to', 4.20],
+    'Now, find the distance from Maya’s house to Café B.':
+      ['81-now-find-the-distance-from-mayas-house-to-ca', 3.90],
+    'The park forms triangle ABC.':
+      ['82-the-park-forms-triangle-abc', 3.43],
+    'What type of triangle is it?':
+      ['83-what-type-of-triangle-is-it', 1.73],
+    'What is the length of AB?':
+      ['84-what-is-the-length-of-ab', 1.90],
+    'Now, what is the length of BC?':
+      ['85-now-what-is-the-length-of-bc', 2.74],
+    'One side left! What is the length of CA?':
+      ['86-one-side-left-what-is-the-length-of-ca', 3.86],
+    'So, what type of triangle is it?':
+      ['87-so-what-type-of-triangle-is-it', 2.65],
+    'All three sides have different lengths. So, it’s a scalene triangle!':
+      ['88-all-three-sides-have-different-lengths-so-it', 5.46],
+    'You’re all set!':
+      ['89-youre-all-set', 1.33],
+    'Now you know how to find the distance between any two points.':
+      ['90-now-you-know-how-to-find-the-distance-betwee', 3.98],
+    'Let’s head back and bridge that gap!':
+      ['91-lets-head-back-and-bridge-that-gap', 2.10]
   };
 
   /* Lines are looked up on a tidied form of themselves. A coordinate
