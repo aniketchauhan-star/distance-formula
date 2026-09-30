@@ -3774,8 +3774,11 @@
        or 'c' (the corner the sides meet at). The dot itself is not
        touched, so nothing about how it arrived plays again. Measured
        when it fires, so a camera still settling puts it on the point. */
-    beatPoint: function (name, later, at) {
+    /* `run` (ms) keeps it beating that long — through the sentence that
+       names it — where a bare name rings twice. */
+    beatPoint: function (name, later, at, run) {
       const self = this, G = C.GRID;
+      const BEAT = 440, beats = Math.max(2, Math.round((run || 0) / BEAT));
       const ring = function () {
         const d = self.lastPlotted, L0 = (self.legPlaced || [])[0];
         const p = name === 'a' ? d && d.a : name === 'b' ? d && d.b : L0 && L0.to;
@@ -3785,31 +3788,58 @@
         FX.ring(s.x, s.y, size, name === 'c' ? 'rgba(224, 123, 18, .7)' : 'rgba(46, 150, 108, .7)');
       };
       /* …and the point itself with them, a beat to each ring: its dot
-         swells and its letter and coordinates light up in the dot's own
-         colour, so the whole point — "A (2, 1)" — is what is named, not
-         only the air round it. Played over whatever the parts are
-         already doing (Web Animations sit above CSS ones) and gone when
-         it ends, so an arrival is never replayed. Calm: the colour only. */
+         swells, and its letter and coordinates are highlighted — one soft
+         yellow box behind the two, drawn under the dot so the dot stays
+         whole, the words in the point's colour (`.beat-hl`, `.beat-lit`,
+         style.css) swelling with it — so the whole point, "A (2, 1)", is
+         what is named, not only the air round it. Lit for as long as it
+         beats, and put back at once if the screen goes first. The swells
+         are played over whatever the parts are already doing (Web
+         Animations sit above CSS ones) and are gone when they end, so an
+         arrival is never replayed. Calm: highlighted, nothing moving. */
       const swell = function () {
         const P = name === 'c' ? (self.legSlots || [])[0] : self.segParts && self.segParts[name];
         if (!P || !P.dot || !P.dot.animate) return;
         const still = document.documentElement.classList.contains('calm');
-        const beat = { duration: 440, iterations: 2, easing: 'ease-in-out' };
-        const tint = P.dot.getAttribute('fill') || G.segment.dotFill;
+        const beat = { duration: BEAT, iterations: beats, easing: 'ease-in-out' };
         if (!still) P.dot.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.45)' },
                                    { transform: 'scale(1)' }], beat);
-        [P.name, P.coord].forEach(function (t) {
-          if (!t || !t.textContent) return;
-          const ink = t.getAttribute('fill') || G.ink;
-          t.animate(still
-            ? [{ fill: ink }, { fill: tint }, { fill: ink }]
-            : [{ fill: ink, transform: 'scale(1)' }, { fill: tint, transform: 'scale(1.18)' },
-               { fill: ink, transform: 'scale(1)' }], beat);
+        const words = [P.name, P.coord].filter(function (t) { return t && t.textContent; });
+        if (!words.length) return;
+        // the box: round both words, with room for them to swell inside it
+        let l = Infinity, t = Infinity, r = -Infinity, b = -Infinity;
+        words.forEach(function (w) {
+          const bb = w.getBBox();
+          l = Math.min(l, bb.x); t = Math.min(t, bb.y);
+          r = Math.max(r, bb.x + bb.width); b = Math.max(b, bb.y + bb.height);
         });
+        const fs = parseFloat(getComputedStyle(words[words.length - 1]).fontSize) || 30;
+        const hl = document.createElementNS(SVGNS, 'rect');
+        hl.setAttribute('class', 'beat-hl');
+        hl.setAttribute('x', l - 0.3 * fs);
+        hl.setAttribute('y', t - 0.14 * fs);
+        hl.setAttribute('width', r - l + 0.6 * fs);
+        hl.setAttribute('height', b - t + 0.28 * fs);
+        hl.setAttribute('rx', 0.32 * fs);
+        P.dot.parentNode.insertBefore(hl, P.dot);
+        void getComputedStyle(hl).opacity;         // seen clear first, so it fades in
+        hl.classList.add('on');
+        words.forEach(function (w) {
+          w.classList.add('beat-lit');
+          if (!still) w.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.1)' },
+                                 { transform: 'scale(1)' }], beat);
+        });
+        later(Game.hold(function () {
+          words.forEach(function (w) { w.classList.remove('beat-lit'); });
+          hl.classList.remove('on');
+          setTimeout(function () { if (hl.parentNode) hl.parentNode.removeChild(hl); }, 260);
+        }), beats * BEAT);
       };
-      later(ring, at || 0);
-      later(swell, at || 0);
-      later(ring, (at || 0) + 440);
+      /* A corner still landing (`at`) writes its coordinates and then its
+         letter after it (runLegs: .25s, .39s), so its highlight waits for
+         both. */
+      later(swell, (at || 0) + (name === 'c' && at ? 420 : 0));
+      for (let n = 0; n < beats; n++) later(ring, (at || 0) + n * BEAT);
     },
 
     /* The pair's dotted guide, drawn now — for a screen that holds it back
@@ -8490,7 +8520,7 @@
           if (c.beat) [].concat(c.beat).forEach(function (k) {
             const first = (entry.legs || [])[0];
             const at = (k === 'c' && c.legs && first) ? (first.dash ? 1030 : 760) : 0;
-            Board.beatPoint(k, self.later.bind(self), at);
+            Board.beatPoint(k, self.later.bind(self), at, c.run);
           });
           /* Or put up the right-angle marker, on the word that names the
              shape it belongs to. */
