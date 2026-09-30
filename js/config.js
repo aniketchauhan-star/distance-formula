@@ -2395,9 +2395,10 @@ window.CFG = (function () {
       lines: [ 'But these two aren’t.',
                'How can we find the distance between these two?',
                'Let’s explore.' ],
-      /* The two points ring out as she says "these", the pair the line is
-         about — and nothing else lights on it. */
-      wordCues: [ { word: 'these', in: 'But these two aren’t.', beat: ['a', 'b'] } ],
+      /* The two points lit from "these", the pair the line is about, to
+         the end of the sentence (`run`): A and B pulsing, their letters
+         and coordinates highlighted — and nothing else lights on it. */
+      wordCues: [ { word: 'these', in: 'But these two aren’t.', beat: ['a', 'b'], run: 2000 } ],
       /* Only the two points on the first — no line, no glow: "these two
          aren't" is about where the points are. The line between them
          comes after the second, the question about their distance: it

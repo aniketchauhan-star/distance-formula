@@ -1012,6 +1012,23 @@ html.calm #gridAxes .xsweep.draw { animation: none; opacity: .85; stroke-dashoff
    at the same size, so the segment taking them over shows nothing. */
 #gridAxes .segcoord.set, #gridAxes .segname.set { opacity: 1; animation: none; }
 
+/* A point being named (Board.beatPoint): its letter and coordinates
+   highlighted for as long as it beats — a soft yellow box behind the
+   two, as a highlighter pen would lay it, and the words on it in the
+   point's own green (the corner C in the orange of its ring), their
+   paper halo turned the box's yellow so it does not outline them.
+   Eased in and out, so it lights and lets go rather than blinking. */
+#gridAxes .segname, #gridAxes .segcoord, #gridAxes .legname, #gridAxes .legcoord {
+  transition: opacity 420ms ease, filter 420ms ease, fill .2s ease, stroke .2s ease;
+}
+#gridAxes .beat-hl {
+  fill: #FFE08A; opacity: 0; pointer-events: none;
+  transition: opacity .2s ease;
+}
+#gridAxes .beat-hl.on { opacity: .95; }
+#gridAxes .segname.beat-lit, #gridAxes .segcoord.beat-lit { fill: #1E7F55; stroke: #FFE08A; }
+#gridAxes .legname.beat-lit, #gridAxes .legcoord.beat-lit { fill: #B85C08; stroke: #FFE08A; }
+
 /* While the spaces are being counted, the coordinates hanging under the
    points are inside the very squares being counted — so they step back.
    An animation rather than a declaration: .segcoord.pop already holds
