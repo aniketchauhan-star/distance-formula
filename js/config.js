@@ -275,6 +275,14 @@ window.CFG = (function () {
      repeated it. (It was "That's right!" in some places, "Exactly!" in
      others, and a few lines of their own.) */
   const PRAISE = 'That\u2019s correct!';
+  /* …and said only where it frames the lesson: on the first answers —
+     the two points located (6, 7) and the four warm-up distances, two
+     across and two up (8, 13, 14, 19) — and on the last question, the
+     park's "What type of triangle is it?" (55, and 61 for a child who
+     measured it first). Every right answer between is marked by its
+     chime and its confetti alone: said at every one of them, it was
+     heard so often it stopped meaning anything. */
+  const PRAISE_AT = [6, 7, 8, 13, 14, 19, 55, 61];
   /* A wrong one, from 41b on: said, and then the working it promises. */
   const OOPS = 'Oops! Let\u2019s find it together.';
 
@@ -1121,22 +1129,24 @@ window.CFG = (function () {
        the answer is something measured rather than guessed: a short
        guess visibly falls short of the other point, a long one runs
        past it. */
-    /* Maya herself (46): small, walking out of her house's door along
-       the line to the cafe that is closer, and in at its door. `feet`
-       is where her soles are in her frame; she faces left in the
-       drawing and is turned to walk right.
+    /* Maya herself (42, 46): walking out of her house's door along the
+       line to the cafe that is closer, and in at its door. `feet` is
+       where her soles are in her frame; she faces left in the drawing
+       and is turned to walk right.
 
-       `tall` is her height on the line, in cells. In a doorway she is
-       `doorFit` of the door's own height instead — the buildings stand
-       behind the line, so she is smaller back there, and she grows as
-       she steps forward out of one and shrinks stepping up into the
-       other. `onLine` is how far along the line (cells) that step
-       meets it. The steps take whatever time keeps her pace: they
-       start and finish at her walking speed. `inMs` is her coming out
-       of the dark of the doorway she leaves by, `outMs` her going into
-       the one she arrives at. */
+       `tall` is her height on the line, in cells: a whole one, so she is
+       a girl walking across the map and not a speck on it (she was 0.35,
+       a third of the house). In a doorway she is `doorFit` times the
+       door's own height instead — about half her height on the line:
+       the buildings stand behind the line, so she is smaller back there,
+       and she grows as she steps forward out of one and shrinks stepping
+       up into the other. `onLine` is how far along the line (cells) that
+       step meets it. The steps take whatever time keeps her pace: they
+       start and finish at her walking speed. `inMs` is her coming out of
+       the dark of the doorway she leaves by, `outMs` her going into the
+       one she arrives at. */
     maya: { frames: 8, w: 160, h: 295, feet: 287, facesLeft: true,
-            tall: 0.35, doorFit: 0.92, onLine: 0.3,
+            tall: 1, doorFit: 2.1, onLine: 0.3,
             frameMs: 85, speed: 1.25, inMs: 380, outMs: 380 },
 
     /* The fire engine answering the call (54, Board.fireRescue). Its
@@ -1799,6 +1809,11 @@ window.CFG = (function () {
   /* Points A and B lit as she names them, wherever a line names them:
      "…A and B" — A on "A", then B on "B". A point's name is matched as a
      capital (game.js, armWordCues), so the "a" of "a fire" is not it. */
+  /* "What is the distance between the two points?" (8, 13, 14, 19): both
+     points ring out as she says "points", as the pair does wherever a
+     line points at it. */
+  const POINTS_CUE = [ { word: 'points', beat: ['a', 'b'] } ];
+
   function namesAB(line) {
     return /\bA and B\b/.test(line || '')
       ? [ { word: 'A', in: line, beat: ['a'] }, { word: 'B', in: line, beat: ['b'] } ] : [];
@@ -1870,8 +1885,9 @@ window.CFG = (function () {
            the last screen's may be a different one, or answered. */
         askFirst: true,
         segment: segF,
-        /* A right answer is PRAISE, as everywhere. A miss is OOPS, said,
-           and then the table it promises. */
+        /* A right answer is the praise, as everywhere — heard only where
+           PRAISE_AT says. A miss is OOPS, said, and then the table it
+           promises. */
         /* `say.worked`: what she says when the child has worked the
            table after a miss, where it is not the right answer's line —
            the answer put back into the story ("So, the fire engine needs
@@ -2078,6 +2094,7 @@ window.CFG = (function () {
        the point was just located on, so the board and Swifty both stay
        and only the two points arrive. */
     { id: 8, line: 'What is the distance between the two points?', entrance: 'none',
+      wordCues: POINTS_CUE,
       layout: 'board', distance: true, intro: 'measure',
 
       /* Plotted first, then joined by a dashed guide, and only then is
@@ -2194,7 +2211,8 @@ window.CFG = (function () {
          of its own lighting, in its own order. */
       xEquation: true, hold: XEQ_HOLD },
 
-    { id: 13, line: 'What is the distance between the two points?', entrance: 'none', layout: 'board',
+    { id: 13, line: 'What is the distance between the two points?', entrance: 'none',
+      wordCues: POINTS_CUE, layout: 'board',
       distance: true, intro: 'measure',
       segment: { a: { x: 4, y: 3 }, b: { x: -3, y: 3 } , dash: true},
       task: { kind: 'distance',
@@ -2205,7 +2223,8 @@ window.CFG = (function () {
               countLine: 'Count carefully!',
               countedLine: 'So, the distance is 7\u00A0units.' } },
 
-    { id: 14, line: 'What is the distance between the two points?', entrance: 'none', layout: 'board',
+    { id: 14, line: 'What is the distance between the two points?', entrance: 'none',
+      wordCues: POINTS_CUE, layout: 'board',
       distance: true, intro: 'measure',
       segment: { a: { x: 1, y: 2 }, b: { x: 1, y: -3 } , dash: true},
       task: { kind: 'distance',
@@ -2257,7 +2276,8 @@ window.CFG = (function () {
       entrance: 'stay', layout: 'board', keepSegment: true, quietBoard: true,
       xEquation: true, hold: XEQ_HOLD },
 
-    { id: 19, line: 'What is the distance between the two points?', entrance: 'none', layout: 'board',
+    { id: 19, line: 'What is the distance between the two points?', entrance: 'none',
+      wordCues: POINTS_CUE, layout: 'board',
       distance: true, intro: 'measure',
       segment: { a: { x: -2, y: 3 }, b: { x: -2, y: 1 } , dash: true},
       task: { kind: 'distance',
@@ -2375,6 +2395,9 @@ window.CFG = (function () {
       lines: [ 'But these two aren’t.',
                'How can we find the distance between these two?',
                'Let’s explore.' ],
+      /* The two points ring out as she says "these", the pair the line is
+         about — and nothing else lights on it. */
+      wordCues: [ { word: 'these', in: 'But these two aren’t.', beat: ['a', 'b'] } ],
       /* Only the two points on the first — no line, no glow: "these two
          aren't" is about where the points are. The line between them
          comes after the second, the question about their distance: it
@@ -2384,13 +2407,14 @@ window.CFG = (function () {
       lineLights: [ {},
                     { join: true, pulse: 'ab', pulseAt: 700 },
                     /* Once "Let's explore." is finished, and not
-                       before: the side that puts C on the board draws
-                       in then, so the words and the new line never
-                       compete. Nothing lit — the side drawing in to C
-                       is the thing to look at — and the beat stays
-                       open until it has arrived, so nobody is handed
-                       on with C still on its way. */
-                    { legs: true, hold: 1700 } ],
+                       before: her balloon goes (`closeFirst`), and only
+                       then does the side that puts C on the board draw
+                       in, dotted from A — so the words and the new line
+                       are never on the screen together. Nothing lit —
+                       the side drawing in to C is the thing to look at
+                       — and the beat stays open until it has arrived,
+                       so nobody is handed on with C still on its way. */
+                    { legs: true, hold: 1700, closeFirst: true } ],
       entrance: 'fly',
       layout: 'grid', transition: 'leaves',
       /* The same push its neighbours use, so the whole stretch is read
@@ -3182,16 +3206,14 @@ window.CFG = (function () {
         feedback: [],
         voiceOnly: true,
         /* Right, and Maya comes out of her house and walks up the slant
-           to Café A, and goes in (Board.mayaWalk). */
+           to Café A, and goes in (Board.mayaWalk) — the screen held until
+           the door has shut behind her. */
         walkOnRight: { from: PT(HOUSE), to: PT(CAFE_A) },
         /* Right: past the walks, to the park. */
         rightAt: 55,
         /* Wrong: the two walks, worked the way 29 taught them. */
         teachAt: 43
-      },
-      /* Long enough after her two words for Maya to get there, go in, and
-         have the door shut behind her. */
-      hold: 4800 },
+      } },
 
     /* One sentence and a breath — a child needs a moment to stop being
        wrong before they can start learning. */
@@ -3454,6 +3476,6 @@ window.CFG = (function () {
     VERSION, stamp: stamped, STAGE_W, STAGE_H, ART, AUDIO_EXT, SHEETS, SHEET_W, SHEET_H,
     SWIFTY, CHAR_SCALE, ANCHOR, HEAD_TOP, FEET_DY, SHADOW, CLOUD,
     GRID, STAND, BOARD, XAXIS, YAXIS, TOWN,
-    BUBBLE, PEEK, PRAISE, OOPS, PLAY, START, AUDIO, AUTO, NAV, MOTION, SCRIPT
+    BUBBLE, PEEK, PRAISE, PRAISE_AT, OOPS, PLAY, START, AUDIO, AUTO, NAV, MOTION, SCRIPT
   };
 })();
