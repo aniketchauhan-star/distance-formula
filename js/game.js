@@ -288,6 +288,15 @@
     return null;
   }
 
+  /* The places a screen's town puts on the map: `town: true` is every
+     one, a list names the ones the screen is about. */
+  function townPlaces(entry) {
+    const keys = Array.isArray(entry.town) ? entry.town : null;
+    return (C.TOWN.places || []).filter(function (p) {
+      return !keys || keys.indexOf(p.key) >= 0;
+    });
+  }
+
   /* Her rig for a given standing spot. Two screens' worth of geometry
      used to be written out twice; they differ only in where she is. */
   function standGeom(S, extra) {
@@ -3775,7 +3784,31 @@
         const size = (G.segment.dotR || 12) * 5 * s.k;
         FX.ring(s.x, s.y, size, name === 'c' ? 'rgba(224, 123, 18, .7)' : 'rgba(46, 150, 108, .7)');
       };
+      /* …and the point itself with them, a beat to each ring: its dot
+         swells and its letter and coordinates light up in the dot's own
+         colour, so the whole point — "A (2, 1)" — is what is named, not
+         only the air round it. Played over whatever the parts are
+         already doing (Web Animations sit above CSS ones) and gone when
+         it ends, so an arrival is never replayed. Calm: the colour only. */
+      const swell = function () {
+        const P = name === 'c' ? (self.legSlots || [])[0] : self.segParts && self.segParts[name];
+        if (!P || !P.dot || !P.dot.animate) return;
+        const still = document.documentElement.classList.contains('calm');
+        const beat = { duration: 440, iterations: 2, easing: 'ease-in-out' };
+        const tint = P.dot.getAttribute('fill') || G.segment.dotFill;
+        if (!still) P.dot.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.45)' },
+                                   { transform: 'scale(1)' }], beat);
+        [P.name, P.coord].forEach(function (t) {
+          if (!t || !t.textContent) return;
+          const ink = t.getAttribute('fill') || G.ink;
+          t.animate(still
+            ? [{ fill: ink }, { fill: tint }, { fill: ink }]
+            : [{ fill: ink, transform: 'scale(1)' }, { fill: tint, transform: 'scale(1.18)' },
+               { fill: ink, transform: 'scale(1)' }], beat);
+        });
+      };
       later(ring, at || 0);
+      later(swell, at || 0);
       later(ring, (at || 0) + 440);
     },
 
@@ -7117,6 +7150,16 @@
          numbering — a board seeded on blank paper had none of them. */
       Board.build();
       Board.settleFurniture();
+      /* The panel up and placed, with the town this drawing stands in put
+         down on it, before anything is seeded. A label keeps clear of the
+         town's pictures only if it can measure them, and seeded into a
+         hidden panel they measured as nothing: a jump to 46 wrote the
+         house's own coordinates under the house. */
+      Board.shown = true;
+      el.gridPanel.classList.remove('hidden');
+      if (entry.town && Town) Town.set(townPlaces(entry));
+      const g = geomFor(i);
+      Board.place(g.panelBox || C.GRID.box);
       /* The camera already where it would be. A view is framed once, by
          the screen that first pushes in on the drawing — and it frames
          the pair alone, before any side is down — and a screen that
@@ -7129,10 +7172,6 @@
                    legs: [], marks: [], marker: false, result: null });
       const frame = v ? Board.viewFor(v) : null;
       Board.seed(want);
-      Board.shown = true;
-      el.gridPanel.classList.remove('hidden');
-      const g = geomFor(i);
-      Board.place(g.panelBox || C.GRID.box);
       Board.viewName = v;
       Board.viewTo(frame, 0);
       (this.seeds = this.seeds || []).push(entry.id);
@@ -7674,11 +7713,8 @@
              screen is about — the cafés and the house, or the school,
              the park and the house. A place that has nothing to do with
              the question is not on the map. */
-          const keys = Array.isArray(e.town) ? e.town : null;
           if (e.town) {
-            Town.set((C.TOWN.places || []).filter(function (p) {
-              return !keys || keys.indexOf(p.key) >= 0;
-            }));
+            Town.set(townPlaces(e));
             Board.onPlaced();
             /* A question that builds its board from nothing puts the town
                up with its points (runMeasure), not over a grid still
@@ -8617,11 +8653,26 @@
         : (this.task && this.task.done ? C.AUTO.afterCorrect : C.AUTO.afterLine));
     },
 
-    /* A right answer, on every screen: "That's correct!" — heard, not
-       written (CFG.PRAISE). The board has already shown it, lit and in
-       confetti, and a balloon over that only said it twice. */
+    /* A right answer: "That's correct!" — heard, not written
+       (CFG.PRAISE). The board has already shown it, lit and in confetti,
+       and a balloon over that only said it twice. Said on the first
+       answers and the last question (CFG.PRAISE_AT); between them the
+       chime and the confetti are the verdict, and the screen goes on
+       after the beat a clip-less line takes (sayOnly), so the handing
+       on is the same either way. */
     praise: function (then) {
-      this.sayOnly(C.PRAISE, then);
+      const id = String((C.SCRIPT[this.index] || {}).id);
+      if ((C.PRAISE_AT || []).some(function (s) { return String(s) === id; })) {
+        this.sayOnly(C.PRAISE, then);
+        return;
+      }
+      const self = this;
+      this.state = 'speaking';
+      this.later(function () {
+        if (then) then();
+        const scr = C.SCRIPT[self.index] || {};
+        self.settle(scr.hold != null ? scr.hold : C.AUTO.afterCorrect);
+      }, 880);
     },
 
     /* A miss from 41b on: "Oops! Let's find it together." (`oopsLine`),
@@ -8909,7 +8960,7 @@
             SFX.cheer();
             SFX.confettiPop();
             FX.pop(at.x, at.y, 18);
-            /* "That's correct!" — heard, not written (praise). */
+            /* The praise — "That's correct!", heard where it is said. */
             /* And a found distance that is a journey: the fire engine goes. */
             self.rescue(t, 700);
             self.praise();
@@ -9166,7 +9217,16 @@
          its side, one line at a time. Everything it sets going moves back
          by the wait, and so does whatever waits on it. */
       const self = this;
-      const wait = Math.max(0, (Board.guideUntil || 0) - performance.now());
+      /* Or her words put away first, and the light after them (22: "Let's
+         explore." said, the balloon gone, and only then the dotted side
+         out to C), so the drawing is watched rather than read over. Shut
+         once the recording has finished rather than when its last word
+         lands — closing stops her voice — and the light waits out the
+         balloon's pop-out (.26s) and a breath after it. */
+      const shut = L.closeFirst ? Bubble.voiceTail + 200 : 0;
+      if (L.closeFirst) this.later(function () { Bubble.close(); }, shut);
+      const wait = Math.max(0, (Board.guideUntil || 0) - performance.now(),
+                            L.closeFirst ? shut + 260 + 180 : 0);
       const later = wait ? function (fn, t) { self.later(fn, (t || 0) + wait); }
                          : this.later.bind(this);
       const run = L.run || 1700;
@@ -9479,8 +9539,8 @@
           }
           /* A walk worked on the table after a miss ends on the answer
              put back into its story (`workedLine`: "So, the fire engine
-             needs to travel 13 units."), and otherwise on "That's
-             correct!", heard. */
+             needs to travel 13 units."), and otherwise on the praise
+             (heard only where CFG.PRAISE_AT says). */
           self.flyIn(function () {
             if (t.spec.workedLine) self.speak(t.spec.workedLine, function () { self.rescue(t, 250); });
             else self.praise(function () { self.rescue(t, 250); });
@@ -9802,18 +9862,28 @@
         /* Past the beats that teach it: they are for a child who did
            not get here. */
         if (t.spec.rightAt != null) this.branch = t.spec.rightAt;
-        /* The closer place named: Maya walks there (46). */
-        if (t.spec.walkOnRight) this.later(function () {
-          Board.mayaWalk(t.spec.walkOnRight.from, t.spec.walkOnRight.to);
-        }, 500);
+        /* The closer place named: Maya walks there (42, 46) — and the
+           screen is hers until she is inside and the door has shut, as
+           the fire engine's is (rescue). Handed on at the praise's own
+           pause, the screen went while she was still on her way. */
+        if (t.spec.walkOnRight) {
+          this.writing = true;
+          this.later(function () {
+            const ms = Board.mayaWalk(t.spec.walkOnRight.from, t.spec.walkOnRight.to);
+            self.later(function () {
+              self.writing = false;
+              self.settle(C.AUTO.afterLine);
+            }, ms + 200);
+          }, 500);
+        }
         SFX.correct();
         const at = this.optionSpot(t.spec.answer);
         this.later(function () {
           SFX.cheer();
           SFX.confettiPop();
           FX.pop(at.x, at.y, 16);
-          /* "That's correct!", heard: the panel has already played its
-             own verdict. */
+          /* The praise, heard where it is said: the panel has already
+             played its own verdict. */
           self.praise();
         }, 260);
       } else {
